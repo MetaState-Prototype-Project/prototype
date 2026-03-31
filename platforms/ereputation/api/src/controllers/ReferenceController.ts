@@ -14,7 +14,7 @@ export class ReferenceController {
 
     createReference = async (req: Request, res: Response) => {
         try {
-            const { targetType, targetId, targetName, content, referenceType, numericScore } = req.body;
+            const { targetType, targetId, targetName, content, referenceType, numericScore, anonymous } = req.body;
             const authorId = req.user!.id;
 
             if (!targetType || !targetId || !targetName || !content) {
@@ -33,7 +33,8 @@ export class ReferenceController {
                 content,
                 referenceType: referenceType || "general",
                 numericScore,
-                authorId
+                authorId,
+                anonymous: anonymous ?? false
             });
 
             // Create signing session for the reference
@@ -96,11 +97,12 @@ export class ReferenceController {
                     targetType: ref.targetType,
                     targetId: ref.targetId,
                     targetName: ref.targetName,
-                    author: ref.author ?{
+                    author: ref.anonymous ? null : (ref.author ? {
                         id: ref.author.id,
                         ename: ref.author.ename,
                         name: ref.author.name
-                    } : null,
+                    } : null),
+                    anonymous: ref.anonymous ?? false,
                     createdAt: ref.createdAt
                 }))
             });
@@ -123,11 +125,12 @@ export class ReferenceController {
                     numericScore: ref.numericScore,
                     referenceType: ref.referenceType,
                     status: ref.status,
-                    author: {
+                    author: ref.anonymous ? null : (ref.author ? {
                         id: ref.author.id,
                         ename: ref.author.ename,
                         name: ref.author.name
-                    },
+                    } : null),
+                    anonymous: ref.anonymous ?? false,
                     createdAt: ref.createdAt
                 }))
             });
@@ -194,11 +197,12 @@ export class ReferenceController {
                     content: ref.content,
                     status: this.mapStatus(ref.status),
                     date: ref.createdAt,
+                    anonymous: ref.anonymous ?? false,
                 })),
                 ...receivedResult.references.map((ref) => ({
                     id: ref.id,
                     type: "Received" as const,
-                    forFrom: ref.author?.name || ref.author?.ename || "Unknown",
+                    forFrom: ref.anonymous ? "Anonymous" : (ref.author?.name || ref.author?.ename || "Unknown"),
                     targetType: ref.targetType,
                     targetName: ref.targetName,
                     referenceType: ref.referenceType,
@@ -206,11 +210,12 @@ export class ReferenceController {
                     content: ref.content,
                     status: this.mapStatus(ref.status),
                     date: ref.createdAt,
-                    author: {
-                        id: ref.author?.id,
-                        ename: ref.author?.ename,
-                        name: ref.author?.name,
-                    },
+                    anonymous: ref.anonymous ?? false,
+                    author: ref.anonymous ? null : (ref.author ? {
+                        id: ref.author.id,
+                        ename: ref.author.ename,
+                        name: ref.author.name,
+                    } : null),
                 })),
             ];
 

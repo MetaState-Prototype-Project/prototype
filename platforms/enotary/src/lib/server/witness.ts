@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { PUBLIC_REGISTRY_URL } from "$env/static/public";
 import { verifySignature } from "signature-validator/src/index";
-import type { WitnessSession } from "./types";
+import type { WitnessSession } from "@metastate-foundation/types";
 
 const SESSION_TTL_MS = 15 * 60 * 1000;
 

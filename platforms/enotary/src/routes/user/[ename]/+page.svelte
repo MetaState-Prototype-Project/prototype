@@ -1,26 +1,7 @@
 <script lang="ts">
     import { onDestroy, onMount } from "svelte";
     import QrCode from "svelte-qrcode";
-
-    interface BindingDocumentSignature {
-        signer: string;
-        signature: string;
-        timestamp: string;
-    }
-
-    interface BindingDocument {
-        id: string;
-        subject: string;
-        type: "id_document" | "photograph" | "social_connection" | "self";
-        data: Record<string, unknown>;
-        signatures: BindingDocumentSignature[];
-    }
-
-    interface SocialConnection {
-        id: string;
-        name: string;
-        witnessEName: string | null;
-    }
+    import type { BindingDocument, SocialConnection } from "@metastate-foundation/types";
 
     interface WitnessSession {
         id: string;

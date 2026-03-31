@@ -123,17 +123,21 @@ export default function Dashboard() {
         // For reference activities, show reference details modal
         if (activity.type === 'reference' || activity.activity === 'Reference Provided' || activity.activity === 'Reference Received') {
             const referenceData = activity.data; // This contains the full reference object
+            const forFromReceived = referenceData?.anonymous
+                ? 'Anonymous'
+                : (activity.data?.author?.name || activity.data?.author?.ename || activity.data?.author?.handle || 'Unknown');
             setReferenceViewModal({
                 id: activity.id,
                 type: activity.activity === 'Reference Received' ? 'Received' : 'Sent',
                 forFrom: activity.activity === 'Reference Received'
-                    ? (activity.data?.author?.name || activity.data?.author?.ename || activity.data?.author?.handle || 'Unknown')
+                    ? forFromReceived
                     : activity.target,
                 date: new Date(activity.date).toLocaleDateString(),
                 status: activity.status || 'Unknown',
                 referenceType: referenceData?.referenceType || 'general',
                 content: referenceData?.content || 'Reference content not available',
-                targetType: referenceData?.targetType || 'user'
+                targetType: referenceData?.targetType || 'user',
+                anonymous: referenceData?.anonymous ?? false
             });
             return;
         }
@@ -143,17 +147,21 @@ export default function Dashboard() {
         if (activity.type === 'reference' || activity.activity === 'Reference Provided' || activity.activity === 'Reference Received') {
             // This shouldn't happen, but if it does, show reference modal instead
             const referenceData = activity.data;
+            const forFromReceived = referenceData?.anonymous
+                ? 'Anonymous'
+                : (activity.data?.author?.name || activity.data?.author?.ename || activity.data?.author?.handle || 'Unknown');
             setReferenceViewModal({
                 id: activity.id,
                 type: activity.activity === 'Reference Received' ? 'Received' : 'Sent',
                 forFrom: activity.activity === 'Reference Received'
-                    ? (activity.data?.author?.name || activity.data?.author?.ename || activity.data?.author?.handle || 'Unknown')
+                    ? forFromReceived
                     : activity.target,
                 date: new Date(activity.date).toLocaleDateString(),
                 status: activity.status || 'Unknown',
                 referenceType: referenceData?.referenceType || 'general',
                 content: referenceData?.content || 'Reference content not available',
-                targetType: referenceData?.targetType || 'user'
+                targetType: referenceData?.targetType || 'user',
+                anonymous: referenceData?.anonymous ?? false
             });
             return;
         }
@@ -579,11 +587,18 @@ export default function Dashboard() {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                                                    {activity.activity === 'Reference Received'
-                                                        ? `From ${activity.target || 'Unknown'}`
-                                                        : activity.activity === 'Reference Provided'
-                                                            ? `To ${activity.target || 'Unknown'}`
-                                                            : activity.target || 'Unknown'}
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        {activity.activity === 'Reference Received'
+                                                            ? `From ${activity.target || 'Unknown'}`
+                                                            : activity.activity === 'Reference Provided'
+                                                                ? `To ${activity.target || 'Unknown'}`
+                                                                : activity.target || 'Unknown'}
+                                                        {activity.activity === 'Reference Received' && activity.data?.anonymous && (
+                                                            <Badge variant="secondary" className="text-xs font-medium bg-fig/10 text-fig border border-fig/20">
+                                                                Anonymous
+                                                            </Badge>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                     {new Date(activity.date).toLocaleDateString()}
@@ -658,12 +673,19 @@ export default function Dashboard() {
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="text-sm font-bold text-fig mb-1">{activity.activity}</div>
-                                                    <div className="text-xs text-gray-600 font-medium">
-                                                        {activity.activity === 'Reference Received'
-                                                            ? `From ${activity.target || 'Unknown'}`
-                                                            : activity.activity === 'Reference Provided'
-                                                                ? `To ${activity.target || 'Unknown'}`
-                                                                : activity.target || 'Unknown'}
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <span className="text-xs text-gray-600 font-medium">
+                                                            {activity.activity === 'Reference Received'
+                                                                ? `From ${activity.target || 'Unknown'}`
+                                                                : activity.activity === 'Reference Provided'
+                                                                    ? `To ${activity.target || 'Unknown'}`
+                                                                    : activity.target || 'Unknown'}
+                                                        </span>
+                                                        {activity.activity === 'Reference Received' && activity.data?.anonymous && (
+                                                            <Badge variant="secondary" className="text-xs font-medium bg-fig/10 text-fig border border-fig/20">
+                                                                Anonymous
+                                                            </Badge>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>

@@ -5,7 +5,7 @@
 	import { registryService } from '$lib/services/registry';
 	import type { Platform } from '$lib/services/registry';
 	import { Table } from '$lib/ui';
-	import { RefreshCw, UserRound, Users } from 'lucide-svelte';
+	import { CircleQuestionMark, RefreshCw, UserRound, Users } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import type { EVault } from './api/evaults/+server';
 
@@ -81,7 +81,7 @@
 				type: 'snippet' as const,
 				value: {
 					ename: evault.ename || 'N/A',
-					type: evault.type || 'group'
+					type: evault.type
 				},
 				snippet: ENameWithType,
 				width: 7
@@ -363,9 +363,12 @@
 		const paginated = paginatedEVaults();
 		const evault = paginated[index];
 		if (evault) {
-			// Use evault ID (evault field or ename) for navigation
 			const evaultId = evault.evault || evault.ename || evault.id;
-			goto(`/evaults/${encodeURIComponent(evaultId)}`);
+			if (evault.type === 'group') {
+				goto(`/groups/${encodeURIComponent(evaultId)}`);
+			} else {
+				goto(`/evaults/${encodeURIComponent(evaultId)}`);
+			}
 		}
 	}
 
@@ -463,14 +466,17 @@
 </script>
 
 {#snippet ENameWithType(value: unknown)}
-	{@const item = (value as { ename?: string; type?: 'user' | 'group' } | null) ?? null}
+	{@const item = (value as { ename?: string; type?: 'user' | 'group' | 'unknown' } | null) ??
+		null}
 	{@const ename = item?.ename || 'N/A'}
-	{@const type = item?.type || 'group'}
+	{@const type = item?.type ?? 'unknown'}
 	<div class="flex items-center gap-2 whitespace-nowrap">
 		{#if type === 'user'}
 			<UserRound class="h-5 w-5 shrink-0 text-gray-800" strokeWidth={2.25} />
-		{:else}
+		{:else if type === 'group'}
 			<Users class="h-5 w-5 shrink-0 text-gray-800" strokeWidth={2.25} />
+		{:else}
+			<CircleQuestionMark class="h-5 w-5 shrink-0 text-gray-500" strokeWidth={2.25} />
 		{/if}
 		<span>{ename}</span>
 	</div>

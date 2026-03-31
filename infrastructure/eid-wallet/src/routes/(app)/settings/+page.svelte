@@ -161,7 +161,7 @@ $effect(() => {
                 onclick={handleVersionTap}
                 disabled={isRetrying}
             >
-                Version v0.7.0
+                Version v0.7.1
             </button>
 
             {#if retryMessage}

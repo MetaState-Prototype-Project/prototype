@@ -426,7 +426,7 @@ const handleAnonymousSubmit = async () => {
         });
         const signature = await globalState.walletSdkAdapter.signPayload(
             KEY_ID,
-            "default",
+            "signing",
             payload,
         );
 
