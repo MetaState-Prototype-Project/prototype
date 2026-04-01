@@ -169,11 +169,11 @@ export class VotingReputationService {
 
             // Call OpenAI once for all members
             const response = await this.openai.chat.completions.create({
-                model: "gpt-4",
+                model: "gpt-4o",
                 messages: [
                     {
                         role: "system",
-                        content: "You are an expert reputation analyst for voting systems. Analyze the group charter and references to calculate reputation scores for voting purposes. Always respond with valid JSON containing an array of results, each with ename (user's ename identifier), score (1-5), and a one-sentence justification."
+                        content: "You are an expert reputation analyst for voting systems. Analyze the evaluation criteria and references to calculate reputation scores for voting purposes. Always respond with valid JSON containing an array of results, each with ename (user's ename identifier), score (1-5), and a one-sentence justification."
                     },
                     {
                         role: "user",
@@ -302,7 +302,7 @@ export class VotingReputationService {
 
             // Call OpenAI
             const response = await this.openai.chat.completions.create({
-                model: "gpt-4",
+                model: "gpt-4o",
                 messages: [
                     {
                         role: "system",
