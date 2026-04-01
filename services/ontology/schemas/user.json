@@ -17,6 +17,50 @@
             "type": "string",
             "description": "The user's display name or full name"
         },
+        "givenName": {
+            "type": "string",
+            "description": "The user's given name"
+        },
+        "familyName": {
+            "type": "string",
+            "description": "The user's family name"
+        },
+        "email": {
+            "type": "string",
+            "format": "email",
+            "description": "The user's email address"
+        },
+        "telephone": {
+            "type": "string",
+            "description": "The user's telephone number"
+        },
+        "address": {
+            "type": "object",
+            "description": "The user's postal address",
+            "properties": {
+                "streetAddress": {
+                    "type": "string",
+                    "description": "The street address"
+                },
+                "postalCode": {
+                    "type": "string",
+                    "description": "The postal code"
+                },
+                "addressLocality": {
+                    "type": "string",
+                    "description": "The locality or city"
+                },
+                "addressCountry": {
+                    "type": "string",
+                    "description": "The country"
+                }
+            },
+            "additionalProperties": false
+        },
+        "inLanguage": {
+            "type": "string",
+            "description": "The language associated with the user profile"
+        },
         "bio": {
             "type": "string",
             "description": "The user's biography or description"
