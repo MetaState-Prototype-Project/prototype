@@ -11,6 +11,7 @@
         "deadline": "deadline",
         "creatorId": "creatorId",
         "group": "groups(group.id),group",
+        "customPrompt": "customPrompt",
         "createdAt": "createdAt",
         "updatedAt": "updatedAt"
     },

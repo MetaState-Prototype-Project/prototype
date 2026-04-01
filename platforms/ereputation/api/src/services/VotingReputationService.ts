@@ -401,19 +401,19 @@ ${refsText}`;
         return `
 You are analyzing the reputation of multiple users for voting purposes within a group.
 
-GROUP CHARTER:
+EVALUATION CRITERIA:
 ${charter}
 
 USERS AND THEIR REFERENCES:
 ${membersCSV}
 
 TASK:
-Based on the group charter and the references provided, calculate a reputation score from 1-5 for EACH user that will be used for weighted voting.
+Based on the evaluation criteria and the references provided, calculate a reputation score from 1-5 for EACH user that will be used for weighted voting.
 
-IMPORTANT: 
+IMPORTANT:
 - Each score must be between 1 and 5 (inclusive)
-- Consider how well the references align with the group's charter and values
-- Focus on voting-relevant reputation factors mentioned in the charter
+- Consider how well the references align with the evaluation criteria and values
+- Focus on voting-relevant reputation factors mentioned in the evaluation criteria
 - Provide a ONE SENTENCE justification explaining each score
 
 Respond with a JSON array in this exact format:
