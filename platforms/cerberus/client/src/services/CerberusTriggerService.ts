@@ -113,6 +113,26 @@ export class CerberusTriggerService {
     }
 
     /**
+     * Check if a message is a Cerberus system message (including "check skipped" messages)
+     */
+    private isCerberusSystemMessage(message: Message): boolean {
+        return message.isSystemMessage && message.text.startsWith('$$system-message$$ Cerberus:');
+    }
+
+    /**
+     * Find the last message in the group that isn't the current trigger message
+     */
+    private findLastNonTriggerMessage(messages: Message[], triggerMessageId: string): Message | null {
+        for (let i = messages.length - 1; i >= 0; i--) {
+            const msg = messages[i];
+            if (msg.id !== triggerMessageId && !this.isCerberusTrigger(msg.text)) {
+                return msg;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Get the last message sent by Cerberus in a group
      */
     async getLastCerberusMessage(groupId: string): Promise<Message | null> {
@@ -536,9 +556,18 @@ Be thorough and justify your reasoning. Provide clear, actionable recommendation
                 return;
             }
 
+            // If the last message was a Cerberus system message or a "check skipped" message,
+            // silently return without sending any message to avoid stacking Cerberus messages
+            const allGroupMessages = await this.messageService.getGroupMessages(triggerMessage.group.id);
+            const lastNonTriggerMessage = this.findLastNonTriggerMessage(allGroupMessages, triggerMessage.id);
+            if (lastNonTriggerMessage && this.isCerberusSystemMessage(lastNonTriggerMessage)) {
+                console.log(`⏭️ Skipping Cerberus check for group ${triggerMessage.group.id} - previous message was a Cerberus system message`);
+                return;
+            }
+
             // Get messages since last Cerberus message
             const messages = await this.getMessagesSinceLastCerberus(
-                triggerMessage.group.id, 
+                triggerMessage.group.id,
                 triggerMessage.id
             );
 
