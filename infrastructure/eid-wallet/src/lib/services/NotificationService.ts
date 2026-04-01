@@ -1,7 +1,12 @@
 import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
-import { addNotification, hasNotification } from "$lib/stores/notifications";
+import {
+    addNotification,
+    clearNotificationsForChat,
+    hasNotification,
+} from "$lib/stores/notifications";
 import {
     isPermissionGranted,
+    onNotificationClicked,
     onNotificationReceived,
     registerForPushNotifications,
     requestPermission,
@@ -28,6 +33,7 @@ class NotificationService {
     private static instance: NotificationService;
     private deviceRegistration: DeviceRegistration | null = null;
     private provisionerEndpoint: string;
+    private nextNotifId = 1;
 
     constructor() {
         // Get the provisioner endpoint from environment or use default
@@ -157,10 +163,12 @@ class NotificationService {
             });
 
             await sendNotification({
+                id: this.nextNotifId++,
                 title: payload.title,
                 body: payload.body,
                 icon: "icons/32x32.png",
                 sound: "default",
+                extra: payload.data ?? {},
             });
 
             console.log("Notification sent successfully!");
@@ -208,12 +216,7 @@ class NotificationService {
     /**
      * Check for notifications from provisioner and show them locally
      */
-    async checkAndShowNotifications(): Promise<{
-        globalMessageId?: string;
-        globalChatId?: string;
-        title?: string;
-        body?: string;
-    } | null> {
+    async checkAndShowNotifications(): Promise<void> {
         try {
             console.log("🔍 Checking for notifications from provisioner...");
 
@@ -241,17 +244,17 @@ class NotificationService {
                             console.log("Device registered successfully");
                         } else {
                             console.log("Failed to register device");
-                            return null;
+                            return;
                         }
                     } else {
                         console.log(
                             "No eName found in vault, skipping notification check",
                         );
-                        return null;
+                        return;
                     }
                 } catch (error) {
                     console.error("Error getting vault eName:", error);
-                    return null;
+                    return;
                 }
             }
 
@@ -259,7 +262,7 @@ class NotificationService {
                 console.log(
                     "Still no device registration, skipping notification check",
                 );
-                return null;
+                return;
             }
 
             // Check for notifications from provisioner
@@ -284,39 +287,44 @@ class NotificationService {
                         `Found ${data.notifications.length} notification(s)`,
                     );
 
-                    // Show each notification locally — intentionally keep only the
-                    // most recent new_message so the caller navigates to it.
-                    let lastMessageNotif: {
-                        globalMessageId?: string;
-                        globalChatId?: string;
-                        title?: string;
-                        body?: string;
-                    } | null = null;
                     for (const notification of data.notifications) {
-                        await this.sendLocalNotification(notification);
-                        if (notification.data?.type === "new_message") {
-                            lastMessageNotif = {
-                                globalMessageId:
-                                    notification.data.globalMessageId,
-                                globalChatId: notification.data.globalChatId,
-                                title: notification.title,
-                                body: notification.body,
-                            };
+                        // Coerce data to string-only values (same filter sendLocalNotification applies)
+                        const coercedData = notification.data
+                            ? Object.fromEntries(
+                                  Object.entries(notification.data).filter(
+                                      (entry): entry is [string, string] =>
+                                          typeof entry[1] === "string",
+                                  ),
+                              )
+                            : undefined;
+                        const payload =
+                            Object.keys(coercedData ?? {}).length > 0
+                                ? coercedData
+                                : undefined;
+
+                        if (
+                            !hasNotification(
+                                notification.title,
+                                notification.body ?? "",
+                                payload,
+                            )
+                        ) {
+                            await this.sendLocalNotification(notification);
                         }
                     }
-                    return lastMessageNotif;
+                    return;
                 }
                 console.log("No new notifications");
-                return null;
+                return;
             }
             console.log(
                 "No notifications endpoint available or error:",
                 response.status,
             );
-            return null;
+            return;
         } catch (error) {
             console.error("Error checking notifications:", error);
-            return null;
+            return;
         }
     }
 
@@ -426,6 +434,39 @@ class NotificationService {
             const payload = Object.keys(data).length > 0 ? data : undefined;
             if (!hasNotification(title, body, payload)) {
                 addNotification({ title, body, data: payload });
+            }
+        });
+    }
+
+    /**
+     * Listen for notification click/tap events from the system tray.
+     * Accepts a callback that receives the notification data so the caller
+     * can navigate to the correct screen.  Handles cold-start scenarios
+     * automatically (the plugin delivers any pending click when registered).
+     */
+    async listenForNotificationClicks(
+        onClicked: (data: {
+            globalMessageId?: string;
+            globalChatId?: string;
+            title?: string;
+            body?: string;
+        }) => void,
+    ): Promise<PluginListener> {
+        return onNotificationClicked((clickData) => {
+            const d = clickData.data;
+            if (
+                d?.type === "new_message" &&
+                (d.globalMessageId || d.globalChatId)
+            ) {
+                clearNotificationsForChat(
+                    d.globalChatId ?? d.globalMessageId ?? "",
+                );
+                onClicked({
+                    globalMessageId: d.globalMessageId,
+                    globalChatId: d.globalChatId,
+                    title: d.title,
+                    body: d.body,
+                });
             }
         });
     }

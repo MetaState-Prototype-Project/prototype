@@ -12,6 +12,7 @@ let { data, children }: { data: LayoutData; children: Snippet } = $props();
 let currentRoute = $derived(page.url.pathname.split("/").pop() || "home");
 let globalState: GlobalState | undefined = $state(undefined);
 let notificationListener: PluginListener | undefined;
+let clickListener: PluginListener | undefined;
 
 onMount(async () => {
     // Get global state
@@ -57,21 +58,33 @@ onMount(async () => {
             console.error("Failed to set up notification listener:", error);
         }
 
-        // Check for pending notifications and navigate to the message's open page
+        // Listen for system tray notification clicks and navigate to the correct message
         try {
-            const notificationService = globalState.notificationService;
-            const notifData =
-                await notificationService.checkAndShowNotifications();
-            if (notifData?.globalChatId) {
-                const params = new URLSearchParams({
-                    chatId: notifData.globalChatId,
-                    ...(notifData.title && { title: notifData.title }),
-                    ...(notifData.body && { body: notifData.body }),
-                });
-                await goto(
-                    `/open-message/${encodeURIComponent(notifData.globalMessageId || notifData.globalChatId)}?${params.toString()}`,
+            clickListener =
+                await globalState.notificationService.listenForNotificationClicks(
+                    (data) => {
+                        if (data.globalChatId) {
+                            const params = new URLSearchParams({
+                                chatId: data.globalChatId,
+                                ...(data.title && { title: data.title }),
+                                ...(data.body && { body: data.body }),
+                            });
+                            goto(
+                                `/open-message/${encodeURIComponent(data.globalMessageId || data.globalChatId)}?${params.toString()}`,
+                            );
+                        }
+                    },
                 );
-            }
+        } catch (error) {
+            console.error(
+                "Failed to set up notification click listener:",
+                error,
+            );
+        }
+
+        // Fetch pending notifications and store them for the notification panel
+        try {
+            await globalState.notificationService.checkAndShowNotifications();
         } catch (error) {
             console.error("Failed to check notifications:", error);
         }
@@ -84,6 +97,7 @@ onMount(async () => {
 
 onDestroy(() => {
     notificationListener?.unregister();
+    clickListener?.unregister();
 });
 
 $effect(() => {
