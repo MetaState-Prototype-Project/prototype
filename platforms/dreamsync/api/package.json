@@ -9,7 +9,7 @@
         "build": "tsc",
         "test-matchmaking": "ts-node test-matchmaking-mock.ts",
         "typeorm": "typeorm-ts-node-commonjs",
-        "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/data-source.ts",
+        "migration:generate": "bash -c 'read -p \"Migration name: \" name && npx typeorm-ts-node-commonjs migration:generate src/database/migrations/$name -d src/database/data-source.ts'",
         "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
         "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts",
         "migrate-summaries": "ts-node --project tsconfig.json scripts/migrate-summaries.ts"

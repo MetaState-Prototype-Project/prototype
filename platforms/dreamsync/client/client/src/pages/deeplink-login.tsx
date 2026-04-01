@@ -61,7 +61,7 @@ export default function DeeplinkLogin() {
         window.history.replaceState({}, '', window.location.pathname);
 
         // Make POST request to login endpoint
-        const apiBaseUrl = import.meta.env.VITE_DREAMSYNC_BASE_URL;
+        const apiBaseUrl = import.meta.env.VITE_DREAMSYNC_BASE_URL || "http://localhost:4001";
         const loginUrl = `${apiBaseUrl}/api/auth`;
         const requestBody = { ename, session, signature, appVersion: appVersion || '0.4.0' };
 

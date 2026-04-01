@@ -4,6 +4,7 @@ import { GroupService } from "../services/GroupService";
 import { MessageService } from "../services/MessageService";
 import { ConsentService } from "../services/ConsentService";
 import { WebhookProcessingService } from "../services/WebhookProcessingService";
+import { ProfessionalProfileService } from "../services/ProfessionalProfileService";
 import { adapter } from "../web3adapter/watchers/subscriber";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
@@ -16,6 +17,7 @@ export class WebhookController {
     messageService: MessageService;
     consentService: ConsentService;
     webhookProcessingService: WebhookProcessingService;
+    professionalProfileService: ProfessionalProfileService;
     adapter: typeof adapter;
 
     constructor() {
@@ -24,6 +26,7 @@ export class WebhookController {
         this.messageService = new MessageService();
         this.consentService = new ConsentService();
         this.webhookProcessingService = new WebhookProcessingService();
+        this.professionalProfileService = new ProfessionalProfileService();
         this.adapter = adapter;
     }
 
@@ -350,6 +353,17 @@ export class WebhookController {
                             console.error("Error processing consent response in webhook:", error);
                         }
                     }
+                }
+            } else if (mapping.tableName === "professional_profiles") {
+                // Maintain local copy for matching (avoids per-user evault calls during matching)
+                const ename = req.body.w3id;
+                const data = req.body.data ?? {};
+                const prof = await this.professionalProfileService.upsertFromWebhook(ename, data);
+                if (prof) {
+                    console.log("Professional profile webhook - upserted for ename:", prof.ename);
+                    finalLocalId = prof.id;
+                } else {
+                    finalLocalId = null;
                 }
             }
             

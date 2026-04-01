@@ -1,0 +1,18 @@
+{
+	"tableName": "professional_profiles",
+	"schemaId": "550e8400-e29b-41d4-a716-446655440009",
+	"ownerEnamePath": "ename",
+	"ownedJunctionTables": [],
+	"localToUniversalMap": {
+		"name": "displayName",
+		"headline": "headline",
+		"bio": "bio",
+		"avatarFileId": "avatarFileId",
+		"bannerFileId": "bannerFileId",
+		"cvFileId": "cvFileId",
+		"videoIntroFileId": "videoIntroFileId",
+		"location": "location",
+		"skills": "skills",
+		"isPublic": "isPublic"
+	}
+}
