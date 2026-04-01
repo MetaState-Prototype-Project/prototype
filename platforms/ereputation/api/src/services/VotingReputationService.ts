@@ -196,7 +196,12 @@ export class VotingReputationService {
 
             let result;
             try {
-                result = JSON.parse(aiResponseContent);
+                // Strip markdown code fences if present (e.g. ```json ... ```)
+                let jsonContent = aiResponseContent.trim();
+                if (jsonContent.startsWith("```")) {
+                    jsonContent = jsonContent.replace(/^```(?:json)?\s*/, "").replace(/```\s*$/, "").trim();
+                }
+                result = JSON.parse(jsonContent);
                 console.log(`   → Successfully parsed JSON response`);
                 console.log(`      Results array length: ${Array.isArray(result) ? result.length : 'not an array'}`);
             } catch (parseError) {
