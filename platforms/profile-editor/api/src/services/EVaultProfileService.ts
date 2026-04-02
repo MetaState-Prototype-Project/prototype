@@ -185,7 +185,8 @@ export class EVaultProfileService {
 
 	/**
 	 * Write a partial update to eVault. Merges with existing data, writes, and
-	 * returns the freshly-read profile. Fully blocking — no fire-and-forget.
+	 * returns the merged profile directly (no re-read — eVault is eventually
+	 * consistent so a read-after-write can return stale data).
 	 */
 	async upsertProfile(
 		eName: string,
@@ -207,10 +208,13 @@ export class EVaultProfileService {
 
 		const client = await this.getClient(eName);
 
-		const existing = await this.findMetaEnvelopeByOntology(
-			client,
-			PROFESSIONAL_PROFILE_ONTOLOGY,
-		);
+		// Fetch both ontologies so we can build the full profile to return
+		const [existing, userNode] = await Promise.all([
+			this.findMetaEnvelopeByOntology(client, PROFESSIONAL_PROFILE_ONTOLOGY),
+			this.findMetaEnvelopeByOntology(client, USER_ONTOLOGY),
+		]);
+
+		const userData = (userNode?.parsed ?? {}) as UserOntologyData;
 
 		console.log(
 			`[eVault write] ${eName}: existing envelope ${existing ? `found (id=${existing.id})` : "NOT found — will create"}`,
@@ -223,7 +227,7 @@ export class EVaultProfileService {
 
 		const acl = merged.isPublic === true ? ["*"] : [normalizeEName(eName)];
 		console.log(
-			`[eVault write] ${eName}: merged payload isPublic=${merged.isPublic}, acl=${JSON.stringify(acl)}`,
+			`[eVault write] ${eName}: merged payload isPublic=${merged.isPublic}, acl=${JSON.stringify(acl)}, education=${(merged.education ?? []).length} entries`,
 		);
 
 		if (existing) {
@@ -318,19 +322,36 @@ export class EVaultProfileService {
 			}
 		}
 
-		// Re-read from eVault to return the canonical state
-		console.log(`[eVault write] ${eName}: re-reading profile after write...`);
-		const profile = await this.getProfile(eName);
-		if ("education" in data) {
-			console.log(
-				`[eVault write] ${eName}: after write, eVault has ${profile.professional.education?.length ?? 0} education entries`,
-			);
-		}
-		if ("isPublic" in data) {
-			console.log(
-				`[eVault write] ${eName}: after write, eVault has isPublic=${profile.professional.isPublic}`,
-			);
-		}
+		// Return the merged state directly. Do NOT re-read from eVault — it is
+		// eventually consistent and a read-after-write returns stale data.
+		const name = merged.displayName ?? userData.displayName ?? eName;
+		const profile: FullProfile = {
+			ename: eName,
+			name,
+			handle: userData.username,
+			isVerified: userData.isVerified,
+			professional: {
+				displayName: merged.displayName,
+				headline: merged.headline,
+				bio: merged.bio,
+				avatarFileId: merged.avatarFileId,
+				bannerFileId: merged.bannerFileId,
+				cvFileId: merged.cvFileId,
+				videoIntroFileId: merged.videoIntroFileId,
+				email: merged.email,
+				phone: merged.phone,
+				website: merged.website,
+				location: merged.location,
+				isPublic: merged.isPublic === true,
+				workExperience: merged.workExperience ?? [],
+				education: merged.education ?? [],
+				skills: merged.skills ?? [],
+				socialLinks: merged.socialLinks ?? [],
+			},
+		};
+		console.log(
+			`[eVault write] ${eName}: returning profile with education=${profile.professional.education?.length ?? 0}, isPublic=${profile.professional.isPublic}`,
+		);
 		return profile;
 	}
 
