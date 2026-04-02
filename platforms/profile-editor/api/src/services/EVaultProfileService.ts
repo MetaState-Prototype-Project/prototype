@@ -9,7 +9,6 @@ import type {
 const PROFESSIONAL_PROFILE_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440009";
 const USER_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440000";
 
-/** Match BindingDocumentService's normalizeSubject format for ACL entries */
 function normalizeEName(eName: string): string {
 	return eName.startsWith("@") ? eName : `@${eName}`;
 }
@@ -102,8 +101,72 @@ type UpdateResult = {
 	};
 };
 
+export interface PreparedWrite {
+	profile: FullProfile;
+	persisted: Promise<void>;
+}
+
+/**
+ * Strip empty arrays from eVault payload — serializeValue([]) is broken
+ * in the eVault (doesn't JSON-stringify), so we omit them and let the
+ * eVault delete those Envelope nodes. Reads default to [].
+ */
+function buildPayload(merged: ProfessionalProfile): Record<string, unknown> {
+	const payload: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(merged)) {
+		if (value === null || value === undefined) continue;
+		if (Array.isArray(value) && value.length === 0) continue;
+		payload[key] = value;
+	}
+	return payload;
+}
+
+function buildFullProfile(
+	eName: string,
+	merged: ProfessionalProfile,
+	userData: UserOntologyData,
+): FullProfile {
+	const name = merged.displayName ?? userData.displayName ?? eName;
+	return {
+		ename: eName,
+		name,
+		handle: userData.username,
+		isVerified: userData.isVerified,
+		professional: {
+			displayName: merged.displayName,
+			headline: merged.headline,
+			bio: merged.bio,
+			avatarFileId: merged.avatarFileId,
+			bannerFileId: merged.bannerFileId,
+			cvFileId: merged.cvFileId,
+			videoIntroFileId: merged.videoIntroFileId,
+			email: merged.email,
+			phone: merged.phone,
+			website: merged.website,
+			location: merged.location,
+			isPublic: merged.isPublic === true,
+			workExperience: merged.workExperience ?? [],
+			education: merged.education ?? [],
+			skills: merged.skills ?? [],
+			socialLinks: merged.socialLinks ?? [],
+		},
+	};
+}
+
+interface CacheEntry {
+	profile: FullProfile;
+	expiresAt: number;
+}
+
 export class EVaultProfileService {
 	private registryService: RegistryService;
+	/**
+	 * Short-lived profile cache. Prevents repeated eVault round-trips for
+	 * the same user within a short window (e.g. page load fetches profile
+	 * data + avatar + banner = 3 calls). Invalidated immediately on writes.
+	 */
+	private cache = new Map<string, CacheEntry>();
+	private static CACHE_TTL = 30 * 1000; // 30 seconds
 
 	constructor(registryService: RegistryService) {
 		this.registryService = registryService;
@@ -133,15 +196,15 @@ export class EVaultProfileService {
 		);
 		if (result.metaEnvelopes.totalCount > 1) {
 			console.warn(
-				`[eVault] DUPLICATE ENVELOPES: found ${result.metaEnvelopes.totalCount} envelopes for ontology ${ontologyId}. IDs: ${result.metaEnvelopes.edges.map((e) => e.node.id).join(", ")}`,
+				`[eVault] DUPLICATE ENVELOPES: ${result.metaEnvelopes.totalCount} for ontology ${ontologyId}`,
 			);
 		}
 		const edge = result.metaEnvelopes.edges[0];
 		return edge?.node ?? null;
 	}
 
-	/** Fetch profile directly from eVault. No caching. */
-	async getProfile(eName: string): Promise<FullProfile> {
+	/** Fetch profile from eVault (bypasses cache). */
+	private async fetchFromEvault(eName: string): Promise<FullProfile> {
 		const client = await this.getClient(eName);
 
 		const [professionalNode, userNode] = await Promise.all([
@@ -152,32 +215,23 @@ export class EVaultProfileService {
 		const userData = (userNode?.parsed ?? {}) as UserOntologyData;
 		const profData = (professionalNode?.parsed ?? {}) as ProfessionalProfile;
 
-		const name = profData.displayName ?? userData.displayName ?? eName;
+		return buildFullProfile(eName, profData, userData);
+	}
 
-		return {
-			ename: eName,
-			name,
-			handle: userData.username,
-			isVerified: userData.isVerified,
-			professional: {
-				displayName: profData.displayName,
-				headline: profData.headline,
-				bio: profData.bio,
-				avatarFileId: profData.avatarFileId,
-				bannerFileId: profData.bannerFileId,
-				cvFileId: profData.cvFileId,
-				videoIntroFileId: profData.videoIntroFileId,
-				email: profData.email,
-				phone: profData.phone,
-				website: profData.website,
-				location: profData.location,
-				isPublic: profData.isPublic === true,
-				workExperience: profData.workExperience ?? [],
-				education: profData.education ?? [],
-				skills: profData.skills ?? [],
-				socialLinks: profData.socialLinks ?? [],
-			},
-		};
+	/** Get profile — serves from 30s cache, falls back to eVault. */
+	async getProfile(eName: string): Promise<FullProfile> {
+		const now = Date.now();
+		const cached = this.cache.get(eName);
+		if (cached && cached.expiresAt > now) {
+			return cached.profile;
+		}
+
+		const profile = await this.fetchFromEvault(eName);
+		this.cache.set(eName, {
+			profile,
+			expiresAt: now + EVaultProfileService.CACHE_TTL,
+		});
+		return profile;
 	}
 
 	async getPublicProfile(eName: string): Promise<FullProfile | null> {
@@ -189,31 +243,19 @@ export class EVaultProfileService {
 	}
 
 	/**
-	 * Write a partial update to eVault. Merges with existing data, writes, and
-	 * returns the merged profile directly (no re-read — eVault is eventually
-	 * consistent so a read-after-write can return stale data).
+	 * Prepare a profile update. Reads existing data, merges, returns the
+	 * optimistic profile immediately. The eVault write runs as `persisted`.
 	 */
-	async upsertProfile(
+	async prepareUpdate(
 		eName: string,
 		data: Partial<ProfessionalProfile>,
-	): Promise<FullProfile> {
+	): Promise<PreparedWrite> {
 		console.log(
-			`[eVault write] ${eName}: upsertProfile called with keys: [${Object.keys(data).join(", ")}]`,
+			`[eVault] ${eName}: prepareUpdate keys=[${Object.keys(data).join(", ")}]`,
 		);
-		if ("education" in data) {
-			console.log(
-				`[eVault write] ${eName}: education payload has ${(data.education ?? []).length} entries`,
-			);
-		}
-		if ("isPublic" in data) {
-			console.log(
-				`[eVault write] ${eName}: visibility change → isPublic=${data.isPublic}`,
-			);
-		}
 
 		const client = await this.getClient(eName);
 
-		// Fetch both ontologies so we can build the full profile to return
 		const [existing, userNode] = await Promise.all([
 			this.findMetaEnvelopeByOntology(client, PROFESSIONAL_PROFILE_ONTOLOGY),
 			this.findMetaEnvelopeByOntology(client, USER_ONTOLOGY),
@@ -221,166 +263,119 @@ export class EVaultProfileService {
 
 		const userData = (userNode?.parsed ?? {}) as UserOntologyData;
 
-		console.log(
-			`[eVault write] ${eName}: existing envelope ${existing ? `found (id=${existing.id})` : "NOT found — will create"}`,
-		);
-		if (existing) {
-			const existingParsed = existing.parsed as Record<string, unknown>;
-			console.log(
-				`[eVault write] ${eName}: existing parsed keys=[${Object.keys(existingParsed).join(", ")}]`,
-			);
-			if ("education" in data) {
-				console.log(
-					`[eVault write] ${eName}: existing education=${JSON.stringify(existingParsed.education)}`,
-				);
-			}
-		}
-
 		const merged: ProfessionalProfile = {
 			...(existing?.parsed as ProfessionalProfile | undefined),
 			...data,
 		};
 
-		// The eVault stores each payload field as a separate Envelope node.
-		// serializeValue([]) doesn't JSON-stringify empty arrays, so Neo4j
-		// can't properly overwrite the existing value.  Instead, strip empty
-		// arrays (and null/undefined) from the payload — the eVault will
-		// DELETE the corresponding Envelope nodes, and reads default to [].
-		const payload: Record<string, unknown> = {};
-		for (const [key, value] of Object.entries(merged)) {
-			if (value === null || value === undefined) continue;
-			if (Array.isArray(value) && value.length === 0) continue;
-			payload[key] = value;
-		}
-
+		const payload = buildPayload(merged);
 		const acl = merged.isPublic === true ? ["*"] : [normalizeEName(eName)];
+
 		console.log(
-			`[eVault write] ${eName}: merged isPublic=${merged.isPublic}, acl=${JSON.stringify(acl)}, education=${(merged.education ?? []).length} entries, payload keys=[${Object.keys(payload).join(", ")}]`,
+			`[eVault] ${eName}: payload keys=[${Object.keys(payload).join(", ")}], acl=${JSON.stringify(acl)}`,
 		);
 
-		if (existing) {
-			console.log(`[eVault write] ${eName}: sending UPDATE mutation...`);
-			const result = await client.request<UpdateResult>(UPDATE_MUTATION, {
-				id: existing.id,
-				input: {
-					ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
-					payload,
-					acl,
-				},
-			});
+		const profile = buildFullProfile(eName, merged, userData);
 
-			if (result.updateMetaEnvelope.errors?.length) {
-				const errMsg = result.updateMetaEnvelope.errors
-					.map((e) => e.message)
-					.join("; ");
-				console.error(
-					`[eVault write] ${eName}: UPDATE failed:`,
-					result.updateMetaEnvelope.errors,
-				);
-				throw new Error(errMsg);
-			}
-			console.log(`[eVault write] ${eName}: UPDATE succeeded`);
-		} else {
-			console.log(`[eVault write] ${eName}: sending CREATE mutation...`);
-			const result = await client.request<CreateResult>(CREATE_MUTATION, {
-				input: {
-					ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
-					payload,
-					acl,
-				},
-			});
+		// Immediately update the cache with the optimistic result
+		this.cache.set(eName, {
+			profile,
+			expiresAt: Date.now() + EVaultProfileService.CACHE_TTL,
+		});
 
-			if (result.createMetaEnvelope.errors?.length) {
-				const errors = result.createMetaEnvelope.errors;
-				console.error(
-					`[eVault write] ${eName}: CREATE returned errors:`,
-					errors,
-				);
-				const couldBeConflict = errors.some(
-					(e) =>
-						e.code === "CREATE_FAILED" ||
-						e.code === "ONTOLOGY_ALREADY_EXISTS",
-				);
+		const persisted = this.writeToEvault(
+			client,
+			eName,
+			existing,
+			payload,
+			acl,
+		);
 
-				if (!couldBeConflict) {
-					throw new Error(errors.map((e) => e.message).join("; "));
+		return { profile, persisted };
+	}
+
+	private async writeToEvault(
+		client: GraphQLClient,
+		eName: string,
+		existing: MetaEnvelopeNode | null,
+		payload: Record<string, unknown>,
+		acl: string[],
+	): Promise<void> {
+		try {
+			if (existing) {
+				const result = await client.request<UpdateResult>(UPDATE_MUTATION, {
+					id: existing.id,
+					input: {
+						ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
+						payload,
+						acl,
+					},
+				});
+
+				if (result.updateMetaEnvelope.errors?.length) {
+					const errMsg = result.updateMetaEnvelope.errors
+						.map((e) => e.message)
+						.join("; ");
+					console.error(`[eVault] ${eName}: UPDATE failed:`, errMsg);
+					throw new Error(errMsg);
 				}
-
-				console.log(
-					`[eVault write] ${eName}: possible race conflict — re-querying...`,
-				);
-				const raced = await this.findMetaEnvelopeByOntology(
-					client,
-					PROFESSIONAL_PROFILE_ONTOLOGY,
-				);
-				if (raced) {
-					console.log(
-						`[eVault write] ${eName}: found raced envelope (id=${raced.id}), sending UPDATE...`,
-					);
-					const updateResult = await client.request<UpdateResult>(
-						UPDATE_MUTATION,
-						{
-							id: raced.id,
-							input: {
-								ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
-								payload,
-								acl,
-							},
-						},
-					);
-					if (updateResult.updateMetaEnvelope.errors?.length) {
-						console.error(
-							`[eVault write] ${eName}: race-recovery UPDATE failed:`,
-							updateResult.updateMetaEnvelope.errors,
-						);
-						throw new Error(
-							updateResult.updateMetaEnvelope.errors
-								.map((e) => e.message)
-								.join("; "),
-						);
-					}
-					console.log(
-						`[eVault write] ${eName}: race-recovery UPDATE succeeded`,
-					);
-				} else {
-					throw new Error(errors.map((e) => e.message).join("; "));
-				}
+				console.log(`[eVault] ${eName}: UPDATE ok`);
 			} else {
-				console.log(`[eVault write] ${eName}: CREATE succeeded`);
-			}
-		}
+				const result = await client.request<CreateResult>(CREATE_MUTATION, {
+					input: {
+						ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
+						payload,
+						acl,
+					},
+				});
 
-		// Return the merged state directly. Do NOT re-read from eVault — it is
-		// eventually consistent and a read-after-write returns stale data.
-		const name = merged.displayName ?? userData.displayName ?? eName;
-		const profile: FullProfile = {
-			ename: eName,
-			name,
-			handle: userData.username,
-			isVerified: userData.isVerified,
-			professional: {
-				displayName: merged.displayName,
-				headline: merged.headline,
-				bio: merged.bio,
-				avatarFileId: merged.avatarFileId,
-				bannerFileId: merged.bannerFileId,
-				cvFileId: merged.cvFileId,
-				videoIntroFileId: merged.videoIntroFileId,
-				email: merged.email,
-				phone: merged.phone,
-				website: merged.website,
-				location: merged.location,
-				isPublic: merged.isPublic === true,
-				workExperience: merged.workExperience ?? [],
-				education: merged.education ?? [],
-				skills: merged.skills ?? [],
-				socialLinks: merged.socialLinks ?? [],
-			},
-		};
-		console.log(
-			`[eVault write] ${eName}: returning profile with education=${profile.professional.education?.length ?? 0}, isPublic=${profile.professional.isPublic}`,
-		);
-		return profile;
+				if (result.createMetaEnvelope.errors?.length) {
+					const errors = result.createMetaEnvelope.errors;
+					const couldBeConflict = errors.some(
+						(e) =>
+							e.code === "CREATE_FAILED" ||
+							e.code === "ONTOLOGY_ALREADY_EXISTS",
+					);
+
+					if (!couldBeConflict) {
+						throw new Error(errors.map((e) => e.message).join("; "));
+					}
+
+					const raced = await this.findMetaEnvelopeByOntology(
+						client,
+						PROFESSIONAL_PROFILE_ONTOLOGY,
+					);
+					if (raced) {
+						const updateResult = await client.request<UpdateResult>(
+							UPDATE_MUTATION,
+							{
+								id: raced.id,
+								input: {
+									ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
+									payload,
+									acl,
+								},
+							},
+						);
+						if (updateResult.updateMetaEnvelope.errors?.length) {
+							throw new Error(
+								updateResult.updateMetaEnvelope.errors
+									.map((e) => e.message)
+									.join("; "),
+							);
+						}
+					} else {
+						throw new Error(errors.map((e) => e.message).join("; "));
+					}
+				} else {
+					console.log(`[eVault] ${eName}: CREATE ok`);
+				}
+			}
+		} catch (err) {
+			// On write failure, invalidate cache so next read gets fresh data
+			this.cache.delete(eName);
+			throw err;
+		}
 	}
 
 	async getProfileByEnvelope(

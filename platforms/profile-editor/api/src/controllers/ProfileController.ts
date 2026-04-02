@@ -3,6 +3,7 @@ import { EVaultProfileService } from "../services/EVaultProfileService";
 import type { EVaultSyncService } from "../services/EVaultSyncService";
 import type {
 	ProfileUpdatePayload,
+	ProfessionalProfile,
 	WorkExperience,
 	Education,
 	SocialLink,
@@ -30,6 +31,24 @@ export class ProfileController {
 		return req.user?.ename;
 	}
 
+	/**
+	 * Non-blocking update: reads from eVault, merges, returns the merged
+	 * profile immediately, fires the eVault write in the background.
+	 */
+	private async optimisticUpdate(
+		ename: string,
+		data: Partial<ProfessionalProfile>,
+		res: Response,
+	) {
+		const { profile, persisted } = await this.evaultService.prepareUpdate(ename, data);
+		// Fire eVault write in background — don't block the response
+		persisted.catch((err) => {
+			console.error(`[eVault bg] ${ename}:`, err.message);
+		});
+		this.syncService?.syncUserToSearchDb(profile);
+		res.json(profile);
+	}
+
 	getProfile = async (req: Request, res: Response) => {
 		try {
 			const ename = this.resolveEname(req);
@@ -53,12 +72,19 @@ export class ProfileController {
 			}
 
 			const payload: ProfileUpdatePayload = req.body;
-			console.log(`[profile] PATCH /api/profile ${ename}:`, Object.keys(payload));
-			const profile = await this.evaultService.upsertProfile(ename, payload);
-			this.syncService?.syncUserToSearchDb(profile);
-			res.json(profile);
+			console.log(`[profile] PATCH ${ename}:`, Object.keys(payload));
+
+			// Visibility changes MUST block — ACL needs to persist
+			if ("isPublic" in payload) {
+				const { profile, persisted } = await this.evaultService.prepareUpdate(ename, payload);
+				await persisted;
+				this.syncService?.syncUserToSearchDb(profile);
+				res.json(profile);
+			} else {
+				await this.optimisticUpdate(ename, payload, res);
+			}
 		} catch (error: any) {
-			console.error(`[profile] PATCH /api/profile failed for ${req.user?.ename}:`, error.message);
+			console.error(`[profile] PATCH failed:`, error.message);
 			res.status(500).json({ error: "Failed to update profile" });
 		}
 	};
@@ -77,12 +103,9 @@ export class ProfileController {
 					.json({ error: "Body must be an array of work experience entries" });
 			}
 
-			console.log(`[profile] PUT /api/profile/work-experience ${ename}: ${workExperience.length} entries`);
-			const profile = await this.evaultService.upsertProfile(ename, { workExperience });
-			this.syncService?.syncUserToSearchDb(profile);
-			res.json(profile);
+			await this.optimisticUpdate(ename, { workExperience }, res);
 		} catch (error: any) {
-			console.error(`[profile] PUT /api/profile/work-experience failed for ${req.user?.ename}:`, error.message);
+			console.error(`[profile] work-experience failed:`, error.message);
 			res.status(500).json({ error: "Failed to update work experience" });
 		}
 	};
@@ -101,14 +124,10 @@ export class ProfileController {
 					.json({ error: "Body must be an array of education entries" });
 			}
 
-			console.log(`[profile] PUT /api/profile/education ${ename}: ${education.length} entries`);
-			console.log(`[profile] education payload:`, JSON.stringify(education));
-			const profile = await this.evaultService.upsertProfile(ename, { education });
-			console.log(`[profile] education after upsert: ${profile.professional.education?.length ?? 0} entries`);
-			this.syncService?.syncUserToSearchDb(profile);
-			res.json(profile);
+			console.log(`[profile] education ${ename}: ${education.length} entries`);
+			await this.optimisticUpdate(ename, { education }, res);
 		} catch (error: any) {
-			console.error(`[profile] PUT /api/profile/education failed for ${req.user?.ename}:`, error.message, error.stack);
+			console.error(`[profile] education failed:`, error.message, error.stack);
 			res.status(500).json({ error: "Failed to update education" });
 		}
 	};
@@ -127,12 +146,9 @@ export class ProfileController {
 					.json({ error: "Body must be an array of skill strings" });
 			}
 
-			console.log(`[profile] PUT /api/profile/skills ${ename}: ${skills.length} skills`);
-			const profile = await this.evaultService.upsertProfile(ename, { skills });
-			this.syncService?.syncUserToSearchDb(profile);
-			res.json(profile);
+			await this.optimisticUpdate(ename, { skills }, res);
 		} catch (error: any) {
-			console.error(`[profile] PUT /api/profile/skills failed for ${req.user?.ename}:`, error.message);
+			console.error(`[profile] skills failed:`, error.message);
 			res.status(500).json({ error: "Failed to update skills" });
 		}
 	};
@@ -151,12 +167,9 @@ export class ProfileController {
 					.json({ error: "Body must be an array of social link entries" });
 			}
 
-			console.log(`[profile] PUT /api/profile/social-links ${ename}: ${socialLinks.length} links`);
-			const profile = await this.evaultService.upsertProfile(ename, { socialLinks });
-			this.syncService?.syncUserToSearchDb(profile);
-			res.json(profile);
+			await this.optimisticUpdate(ename, { socialLinks }, res);
 		} catch (error: any) {
-			console.error(`[profile] PUT /api/profile/social-links failed for ${req.user?.ename}:`, error.message);
+			console.error(`[profile] social-links failed:`, error.message);
 			res.status(500).json({ error: "Failed to update social links" });
 		}
 	};
@@ -200,6 +213,7 @@ export class ProfileController {
 
 			const fileId = profile.professional.avatarFileId;
 			if (!fileId) {
+				console.log(`[profile] avatar ${ename}: no fileId set`);
 				return res.status(404).json({ error: "No avatar set" });
 			}
 
@@ -224,6 +238,7 @@ export class ProfileController {
 
 			const fileId = profile.professional.bannerFileId;
 			if (!fileId) {
+				console.log(`[profile] banner ${ename}: no fileId set`);
 				return res.status(404).json({ error: "No banner set" });
 			}
 
