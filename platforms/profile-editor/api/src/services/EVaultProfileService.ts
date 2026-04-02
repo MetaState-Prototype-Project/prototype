@@ -104,73 +104,9 @@ type UpdateResult = {
 
 export class EVaultProfileService {
 	private registryService: RegistryService;
-	/** In-memory profile cache: serves reads instantly and absorbs writes. */
-	private profileCache = new Map<string, FullProfile>();
-	/**
-	 * Generation counter per ename.  Incremented on every local write so that
-	 * a slow eVault refresh that started before the write cannot overwrite the
-	 * newer local state.
-	 */
-	private cacheGen = new Map<string, number>();
-	/** Per-user write queue to serialise eVault writes and prevent clobbering. */
-	private writeQueue = new Map<string, Promise<void>>();
 
 	constructor(registryService: RegistryService) {
 		this.registryService = registryService;
-	}
-
-	private gen(eName: string): number {
-		return this.cacheGen.get(eName) ?? 0;
-	}
-
-	/**
-	 * Serialise an async operation per eName so concurrent writes don't race.
-	 * Each queued fn runs only after the previous one settles.
-	 */
-	private enqueueWrite(eName: string, fn: () => Promise<void>): Promise<void> {
-		const prev = this.writeQueue.get(eName) ?? Promise.resolve();
-		const next = prev.catch(() => {}).then(fn);
-		this.writeQueue.set(eName, next);
-		// Clean up ref when this is still the tail
-		next.catch(() => {}).then(() => {
-			if (this.writeQueue.get(eName) === next) {
-				this.writeQueue.delete(eName);
-			}
-		});
-		return next;
-	}
-
-	/** Update the cache with a partial professional-profile merge. */
-	patchCache(eName: string, data: Partial<ProfessionalProfile>): FullProfile {
-		// Bump generation so any in-flight eVault refresh won't overwrite this.
-		this.cacheGen.set(eName, this.gen(eName) + 1);
-
-		const existing = this.profileCache.get(eName);
-		if (existing) {
-			const merged: FullProfile = {
-				...existing,
-				professional: { ...existing.professional, ...data },
-			};
-			if (data.displayName) merged.name = data.displayName;
-			this.profileCache.set(eName, merged);
-			return merged;
-		}
-		// No cached profile yet — build a minimal one so the next getProfile
-		// returns something sensible instead of hitting the slow eVault path.
-		const fresh: FullProfile = {
-			ename: eName,
-			name: data.displayName,
-			professional: {
-				isPublic: true,
-				workExperience: [],
-				education: [],
-				skills: [],
-				socialLinks: [],
-				...data,
-			},
-		};
-		this.profileCache.set(eName, fresh);
-		return fresh;
 	}
 
 	private async getClient(eName: string): Promise<GraphQLClient> {
@@ -199,14 +135,8 @@ export class EVaultProfileService {
 		return edge?.node ?? null;
 	}
 
-	/**
-	 * Fetch the canonical profile from eVault (slow — multiple network hops).
-	 * Only writes to cache if no newer local write happened while the fetch
-	 * was in flight (generation check).
-	 */
-	async fetchProfileFromEvault(eName: string): Promise<FullProfile> {
-		const genBefore = this.gen(eName);
-
+	/** Fetch profile directly from eVault. No caching. */
+	async getProfile(eName: string): Promise<FullProfile> {
 		const client = await this.getClient(eName);
 
 		const [professionalNode, userNode] = await Promise.all([
@@ -217,10 +147,9 @@ export class EVaultProfileService {
 		const userData = (userNode?.parsed ?? {}) as UserOntologyData;
 		const profData = (professionalNode?.parsed ?? {}) as ProfessionalProfile;
 
-		const name =
-			profData.displayName ?? userData.displayName ?? eName;
+		const name = profData.displayName ?? userData.displayName ?? eName;
 
-		const profile: FullProfile = {
+		return {
 			ename: eName,
 			name,
 			handle: userData.username,
@@ -244,22 +173,6 @@ export class EVaultProfileService {
 				socialLinks: profData.socialLinks ?? [],
 			},
 		};
-
-		// Only update cache if no local write happened while we were fetching.
-		if (this.gen(eName) === genBefore) {
-			this.profileCache.set(eName, profile);
-		}
-		return profile;
-	}
-
-	/**
-	 * Return the profile for eName.  Serves from cache when available (instant).
-	 */
-	async getProfile(eName: string): Promise<FullProfile> {
-		const cached = this.profileCache.get(eName);
-		if (cached) return cached;
-		// Cache miss — must fetch from eVault (first load)
-		return this.fetchProfileFromEvault(eName);
 	}
 
 	async getPublicProfile(eName: string): Promise<FullProfile | null> {
@@ -271,105 +184,154 @@ export class EVaultProfileService {
 	}
 
 	/**
-	 * Persist the current cached profile to eVault.
-	 *
-	 * Uses the CACHE as the source of truth (not re-reading from eVault) so
-	 * concurrent writes never clobber each other.  Writes are serialised per
-	 * eName via the write queue.
+	 * Write a partial update to eVault. Merges with existing data, writes, and
+	 * returns the freshly-read profile. Fully blocking — no fire-and-forget.
 	 */
-	async syncToEvault(eName: string): Promise<void> {
-		return this.enqueueWrite(eName, async () => {
-			const cached = this.profileCache.get(eName);
-			if (!cached) return;
-
-			const payload: ProfessionalProfile = { ...cached.professional };
-			const acl =
-				payload.isPublic === true ? ["*"] : [normalizeEName(eName)];
-
-			const client = await this.getClient(eName);
-			const existing = await this.findMetaEnvelopeByOntology(
-				client,
-				PROFESSIONAL_PROFILE_ONTOLOGY,
+	async upsertProfile(
+		eName: string,
+		data: Partial<ProfessionalProfile>,
+	): Promise<FullProfile> {
+		console.log(
+			`[eVault write] ${eName}: upsertProfile called with keys: [${Object.keys(data).join(", ")}]`,
+		);
+		if ("education" in data) {
+			console.log(
+				`[eVault write] ${eName}: education payload has ${(data.education ?? []).length} entries`,
 			);
+		}
+		if ("isPublic" in data) {
+			console.log(
+				`[eVault write] ${eName}: visibility change → isPublic=${data.isPublic}`,
+			);
+		}
 
-			if (existing) {
-				const result = await client.request<UpdateResult>(
-					UPDATE_MUTATION,
-					{
-						id: existing.id,
-						input: {
-							ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
-							payload,
-							acl,
-						},
-					},
+		const client = await this.getClient(eName);
+
+		const existing = await this.findMetaEnvelopeByOntology(
+			client,
+			PROFESSIONAL_PROFILE_ONTOLOGY,
+		);
+
+		console.log(
+			`[eVault write] ${eName}: existing envelope ${existing ? `found (id=${existing.id})` : "NOT found — will create"}`,
+		);
+
+		const merged: ProfessionalProfile = {
+			...(existing?.parsed as ProfessionalProfile | undefined),
+			...data,
+		};
+
+		const acl = merged.isPublic === true ? ["*"] : [normalizeEName(eName)];
+		console.log(
+			`[eVault write] ${eName}: merged payload isPublic=${merged.isPublic}, acl=${JSON.stringify(acl)}`,
+		);
+
+		if (existing) {
+			console.log(`[eVault write] ${eName}: sending UPDATE mutation...`);
+			const result = await client.request<UpdateResult>(UPDATE_MUTATION, {
+				id: existing.id,
+				input: {
+					ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
+					payload: merged,
+					acl,
+				},
+			});
+
+			if (result.updateMetaEnvelope.errors?.length) {
+				const errMsg = result.updateMetaEnvelope.errors
+					.map((e) => e.message)
+					.join("; ");
+				console.error(
+					`[eVault write] ${eName}: UPDATE failed:`,
+					result.updateMetaEnvelope.errors,
+				);
+				throw new Error(errMsg);
+			}
+			console.log(`[eVault write] ${eName}: UPDATE succeeded`);
+		} else {
+			console.log(`[eVault write] ${eName}: sending CREATE mutation...`);
+			const result = await client.request<CreateResult>(CREATE_MUTATION, {
+				input: {
+					ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
+					payload: merged,
+					acl,
+				},
+			});
+
+			if (result.createMetaEnvelope.errors?.length) {
+				const errors = result.createMetaEnvelope.errors;
+				console.error(
+					`[eVault write] ${eName}: CREATE returned errors:`,
+					errors,
+				);
+				const couldBeConflict = errors.some(
+					(e) =>
+						e.code === "CREATE_FAILED" ||
+						e.code === "ONTOLOGY_ALREADY_EXISTS",
 				);
 
-				if (result.updateMetaEnvelope.errors?.length) {
-					throw new Error(
-						result.updateMetaEnvelope.errors
-							.map((e) => e.message)
-							.join("; "),
+				if (!couldBeConflict) {
+					throw new Error(errors.map((e) => e.message).join("; "));
+				}
+
+				console.log(
+					`[eVault write] ${eName}: possible race conflict — re-querying...`,
+				);
+				const raced = await this.findMetaEnvelopeByOntology(
+					client,
+					PROFESSIONAL_PROFILE_ONTOLOGY,
+				);
+				if (raced) {
+					console.log(
+						`[eVault write] ${eName}: found raced envelope (id=${raced.id}), sending UPDATE...`,
 					);
+					const updateResult = await client.request<UpdateResult>(
+						UPDATE_MUTATION,
+						{
+							id: raced.id,
+							input: {
+								ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
+								payload: merged,
+								acl,
+							},
+						},
+					);
+					if (updateResult.updateMetaEnvelope.errors?.length) {
+						console.error(
+							`[eVault write] ${eName}: race-recovery UPDATE failed:`,
+							updateResult.updateMetaEnvelope.errors,
+						);
+						throw new Error(
+							updateResult.updateMetaEnvelope.errors
+								.map((e) => e.message)
+								.join("; "),
+						);
+					}
+					console.log(
+						`[eVault write] ${eName}: race-recovery UPDATE succeeded`,
+					);
+				} else {
+					throw new Error(errors.map((e) => e.message).join("; "));
 				}
 			} else {
-				const result = await client.request<CreateResult>(
-					CREATE_MUTATION,
-					{
-						input: {
-							ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
-							payload,
-							acl,
-						},
-					},
-				);
-
-				if (result.createMetaEnvelope.errors?.length) {
-					const errors = result.createMetaEnvelope.errors;
-					const couldBeConflict = errors.some(
-						(e) =>
-							e.code === "CREATE_FAILED" ||
-							e.code === "ONTOLOGY_ALREADY_EXISTS",
-					);
-
-					if (!couldBeConflict) {
-						throw new Error(
-							errors.map((e) => e.message).join("; "),
-						);
-					}
-
-					// Re-query in case a concurrent create won the race (TOCTOU)
-					const raced = await this.findMetaEnvelopeByOntology(
-						client,
-						PROFESSIONAL_PROFILE_ONTOLOGY,
-					);
-					if (raced) {
-						const updateResult = await client.request<UpdateResult>(
-							UPDATE_MUTATION,
-							{
-								id: raced.id,
-								input: {
-									ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
-									payload,
-									acl,
-								},
-							},
-						);
-						if (updateResult.updateMetaEnvelope.errors?.length) {
-							throw new Error(
-								updateResult.updateMetaEnvelope.errors
-									.map((e) => e.message)
-									.join("; "),
-							);
-						}
-					} else {
-						throw new Error(
-							errors.map((e) => e.message).join("; "),
-						);
-					}
-				}
+				console.log(`[eVault write] ${eName}: CREATE succeeded`);
 			}
-		});
+		}
+
+		// Re-read from eVault to return the canonical state
+		console.log(`[eVault write] ${eName}: re-reading profile after write...`);
+		const profile = await this.getProfile(eName);
+		if ("education" in data) {
+			console.log(
+				`[eVault write] ${eName}: after write, eVault has ${profile.professional.education?.length ?? 0} education entries`,
+			);
+		}
+		if ("isPublic" in data) {
+			console.log(
+				`[eVault write] ${eName}: after write, eVault has isPublic=${profile.professional.isPublic}`,
+			);
+		}
+		return profile;
 	}
 
 	async getProfileByEnvelope(

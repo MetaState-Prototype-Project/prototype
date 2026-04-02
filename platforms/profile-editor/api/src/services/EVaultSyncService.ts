@@ -86,8 +86,7 @@ export class EVaultSyncService {
 	}
 
 	private async syncUser(ename: string): Promise<void> {
-		// Force-refresh from eVault so the cache + local DB get the canonical state
-		const profile = await this.evaultService.fetchProfileFromEvault(ename);
+		const profile = await this.evaultService.getProfile(ename);
 
 		await this.userSearchService.upsertFromWebhook({
 			ename,

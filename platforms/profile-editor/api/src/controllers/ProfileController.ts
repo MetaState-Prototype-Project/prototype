@@ -3,8 +3,6 @@ import { EVaultProfileService } from "../services/EVaultProfileService";
 import type { EVaultSyncService } from "../services/EVaultSyncService";
 import type {
 	ProfileUpdatePayload,
-	ProfessionalProfile,
-	FullProfile,
 	WorkExperience,
 	Education,
 	SocialLink,
@@ -37,29 +35,6 @@ export class ProfileController {
 		}
 	};
 
-	/**
-	 * Update the local cache immediately and fire the eVault write in the
-	 * background.  Returns the patched profile so the response carries the
-	 * authoritative local state.
-	 *
-	 * When `blocking` is true the returned promise resolves only after the
-	 * eVault write completes (used for visibility toggles where the user
-	 * needs confirmation the change persisted).
-	 */
-	private patchAndSync(
-		ename: string,
-		data: Partial<ProfessionalProfile>,
-	): { profile: FullProfile; persisted: Promise<void> } {
-		const patched = this.evaultService.patchCache(ename, data);
-		// Sync full cached state to eVault (serialised per user)
-		const persisted = this.evaultService.syncToEvault(ename).catch((err) => {
-			console.error(`[eVault bg-sync] ${ename}:`, err.message);
-		}) as Promise<void>;
-		// Also update the local search DB so discover page reflects changes
-		this.syncService?.syncUserToSearchDb(patched);
-		return { profile: patched, persisted };
-	}
-
 	updateProfile = async (req: Request, res: Response) => {
 		try {
 			const ename = req.user?.ename;
@@ -68,15 +43,12 @@ export class ProfileController {
 			}
 
 			const payload: ProfileUpdatePayload = req.body;
-			// Visibility changes must be blocking so the ACL is persisted
-			const isVisibilityChange = "isPublic" in payload;
-			const { profile, persisted } = this.patchAndSync(ename, payload);
-			if (isVisibilityChange) {
-				await persisted;
-			}
+			console.log(`[profile] PATCH /api/profile ${ename}:`, Object.keys(payload));
+			const profile = await this.evaultService.upsertProfile(ename, payload);
+			this.syncService?.syncUserToSearchDb(profile);
 			res.json(profile);
 		} catch (error: any) {
-			console.error("Error updating profile:", error.message);
+			console.error(`[profile] PATCH /api/profile failed for ${req.user?.ename}:`, error.message);
 			res.status(500).json({ error: "Failed to update profile" });
 		}
 	};
@@ -95,10 +67,12 @@ export class ProfileController {
 					.json({ error: "Body must be an array of work experience entries" });
 			}
 
-			const { profile } = this.patchAndSync(ename, { workExperience });
+			console.log(`[profile] PUT /api/profile/work-experience ${ename}: ${workExperience.length} entries`);
+			const profile = await this.evaultService.upsertProfile(ename, { workExperience });
+			this.syncService?.syncUserToSearchDb(profile);
 			res.json(profile);
 		} catch (error: any) {
-			console.error("Error updating work experience:", error.message);
+			console.error(`[profile] PUT /api/profile/work-experience failed for ${req.user?.ename}:`, error.message);
 			res.status(500).json({ error: "Failed to update work experience" });
 		}
 	};
@@ -117,10 +91,14 @@ export class ProfileController {
 					.json({ error: "Body must be an array of education entries" });
 			}
 
-			const { profile } = this.patchAndSync(ename, { education });
+			console.log(`[profile] PUT /api/profile/education ${ename}: ${education.length} entries`);
+			console.log(`[profile] education payload:`, JSON.stringify(education));
+			const profile = await this.evaultService.upsertProfile(ename, { education });
+			console.log(`[profile] education after upsert: ${profile.professional.education?.length ?? 0} entries`);
+			this.syncService?.syncUserToSearchDb(profile);
 			res.json(profile);
 		} catch (error: any) {
-			console.error("Error updating education:", error.message);
+			console.error(`[profile] PUT /api/profile/education failed for ${req.user?.ename}:`, error.message, error.stack);
 			res.status(500).json({ error: "Failed to update education" });
 		}
 	};
@@ -139,10 +117,12 @@ export class ProfileController {
 					.json({ error: "Body must be an array of skill strings" });
 			}
 
-			const { profile } = this.patchAndSync(ename, { skills });
+			console.log(`[profile] PUT /api/profile/skills ${ename}: ${skills.length} skills`);
+			const profile = await this.evaultService.upsertProfile(ename, { skills });
+			this.syncService?.syncUserToSearchDb(profile);
 			res.json(profile);
 		} catch (error: any) {
-			console.error("Error updating skills:", error.message);
+			console.error(`[profile] PUT /api/profile/skills failed for ${req.user?.ename}:`, error.message);
 			res.status(500).json({ error: "Failed to update skills" });
 		}
 	};
@@ -161,10 +141,12 @@ export class ProfileController {
 					.json({ error: "Body must be an array of social link entries" });
 			}
 
-			const { profile } = this.patchAndSync(ename, { socialLinks });
+			console.log(`[profile] PUT /api/profile/social-links ${ename}: ${socialLinks.length} links`);
+			const profile = await this.evaultService.upsertProfile(ename, { socialLinks });
+			this.syncService?.syncUserToSearchDb(profile);
 			res.json(profile);
 		} catch (error: any) {
-			console.error("Error updating social links:", error.message);
+			console.error(`[profile] PUT /api/profile/social-links failed for ${req.user?.ename}:`, error.message);
 			res.status(500).json({ error: "Failed to update social links" });
 		}
 	};
@@ -188,32 +170,12 @@ export class ProfileController {
 		}
 	};
 
-	private canAccessProfile(
-		profile: { professional: { isPublic?: boolean }; ename: string },
-		req: Request,
-	): boolean {
-		if (profile.professional.isPublic) return true;
-		if (req.user?.ename === profile.ename) return true;
-		return false;
-	}
-
-	/**
-	 * Asset proxy endpoints (avatar, banner, cv, video) use a relaxed access
-	 * check: the file is served whenever the profile is public OR the caller is
-	 * the owner.  Because <img src> / <video src> tags cannot attach Bearer
-	 * tokens, unauthenticated requests from the owner's own browser would fail
-	 * the standard canAccessProfile check.  For assets we therefore skip the
-	 * visibility gate — knowing the file-manager ID is the access control.
-	 * Profile *data* is still gated by canAccessProfile in getPublicProfile.
-	 */
 	private canAccessAsset(
 		profile: { professional: { isPublic?: boolean }; ename: string },
 		req: Request,
 	): boolean {
 		if (profile.professional.isPublic) return true;
 		if (req.user?.ename === profile.ename) return true;
-		// Allow serving assets even without auth — the file ID acts as an
-		// unguessable capability token.  Profile metadata is still protected.
 		return true;
 	}
 

@@ -22,16 +22,11 @@
 	/** Local blob previews — shown instantly before upload completes */
 	let avatarPreview = $state<string | null>(null);
 	let bannerPreview = $state<string | null>(null);
-	/** Cache-bust counters — incremented after successful upload */
-	let avatarCacheBust = $state(0);
-	let bannerCacheBust = $state(0);
 
 	function avatarSrc(): string | null {
 		if (avatarPreview) return avatarPreview;
 		if (profile.professional.avatarFileId) {
-			// Use cacheBust to force re-read; also needed on initial load
-			void avatarCacheBust;
-			return getProfileAssetUrl(profile.ename, 'avatar', avatarCacheBust > 0);
+			return getProfileAssetUrl(profile.ename, 'avatar');
 		}
 		return null;
 	}
@@ -39,8 +34,7 @@
 	function bannerSrc(): string | null {
 		if (bannerPreview) return bannerPreview;
 		if (profile.professional.bannerFileId) {
-			void bannerCacheBust;
-			return getProfileAssetUrl(profile.ename, 'banner', bannerCacheBust > 0);
+			return getProfileAssetUrl(profile.ename, 'banner');
 		}
 		return null;
 	}
@@ -58,7 +52,6 @@
 			const result = await uploadFile(file);
 			await updateProfile({ avatarFileId: result.id });
 			avatarPreview = null;
-			avatarCacheBust++;
 			toast.success('Avatar updated');
 		} catch {
 			toast.error('Failed to upload avatar');
@@ -81,7 +74,6 @@
 			const result = await uploadFile(file);
 			await updateProfile({ bannerFileId: result.id });
 			bannerPreview = null;
-			bannerCacheBust++;
 			toast.success('Banner updated');
 		} catch {
 			toast.error('Failed to upload banner');

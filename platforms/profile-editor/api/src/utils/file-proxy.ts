@@ -66,8 +66,6 @@ export async function proxyFileFromFileManager(
 		if (contentLength) {
 			res.set("Content-Length", contentLength);
 		}
-		res.set("Cache-Control", "no-cache, must-revalidate");
-
 		response.data.pipe(res);
 	} catch (error: any) {
 		if (error?.response?.status === 404) {
