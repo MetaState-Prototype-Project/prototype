@@ -213,9 +213,10 @@ export class ProfileController {
 
 			const fileId = profile.professional.avatarFileId;
 			if (!fileId) {
-				console.log(`[profile] avatar ${ename}: no fileId set`);
+				console.log(`[profile] avatar ${ename}: no fileId set, keys=[${Object.keys(profile.professional).join(",")}]`);
 				return res.status(404).json({ error: "No avatar set" });
 			}
+			console.log(`[profile] avatar ${ename}: proxying fileId=${fileId}`);
 
 			const { proxyFileFromFileManager } = await import(
 				"../utils/file-proxy"
@@ -238,9 +239,10 @@ export class ProfileController {
 
 			const fileId = profile.professional.bannerFileId;
 			if (!fileId) {
-				console.log(`[profile] banner ${ename}: no fileId set`);
+				console.log(`[profile] banner ${ename}: no fileId set, keys=[${Object.keys(profile.professional).join(",")}]`);
 				return res.status(404).json({ error: "No banner set" });
 			}
+			console.log(`[profile] banner ${ename}: proxying fileId=${fileId}`);
 
 			const { proxyFileFromFileManager } = await import(
 				"../utils/file-proxy"

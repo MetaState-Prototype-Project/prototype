@@ -52,6 +52,7 @@ export async function proxyFileFromFileManager(
 		const contentLength = response.headers["content-length"];
 
 		res.set("Content-Type", contentType);
+		res.set("Cache-Control", "no-cache");
 		// Always set our own disposition so videos/PDFs render inline
 		const filename =
 			response.headers["content-disposition"]?.match(
@@ -69,6 +70,7 @@ export async function proxyFileFromFileManager(
 		response.data.pipe(res);
 	} catch (error: any) {
 		if (error?.response?.status === 404) {
+			console.warn(`[file-proxy] 404 from file-manager for fileId=${fileId} (user=${ename})`);
 			res.status(404).json({ error: "File not found" });
 		} else if (error?.response) {
 			const chunks: Buffer[] = [];
