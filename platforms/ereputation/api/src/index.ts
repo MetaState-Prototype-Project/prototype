@@ -106,6 +106,7 @@ app.get("/api/dashboard/stats", authGuard, dashboardController.getStats);
 app.get("/api/dashboard/activities", authGuard, dashboardController.getActivities);
 
 // Reference routes
+app.post("/api/references/system", referenceController.createSystemReference);
 app.post("/api/references", authGuard, referenceController.createReference);
 app.get("/api/references/target/:targetType/:targetId", referenceController.getReferencesForTarget);
 app.get("/api/references/my", authGuard, referenceController.getUserReferences);
