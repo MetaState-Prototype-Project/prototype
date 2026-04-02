@@ -5,6 +5,7 @@ import { GroupService } from "./GroupService";
 import { UserService } from "./UserService";
 import { PlatformEVaultService } from "./PlatformEVaultService";
 import { VotingContextService } from "./VotingContextService";
+import { ReferenceWriterService } from "./ReferenceWriterService";
 
 interface CharterViolation {
     violation: string;
@@ -28,6 +29,7 @@ export class CerberusTriggerService {
     private userService: UserService;
     private platformService: PlatformEVaultService;
     private votingContextService: VotingContextService;
+    private referenceWriterService: ReferenceWriterService;
     private openaiApiKey: string;
 
     constructor() {
@@ -36,6 +38,7 @@ export class CerberusTriggerService {
         this.userService = new UserService();
         this.platformService = PlatformEVaultService.getInstance();
         this.votingContextService = new VotingContextService();
+        this.referenceWriterService = new ReferenceWriterService();
         this.openaiApiKey = process.env.OPENAI_API_KEY || "";
     }
 
@@ -319,6 +322,14 @@ export class CerberusTriggerService {
      */
     async analyzeCharterViolations(messages: Message[], group: Group, lastVoteMessage?: Message): Promise<{
         violations: string[];
+        userViolations: Array<{
+            userId: string;
+            userName: string;
+            userEname: string | null;
+            violation: string;
+            severity: "low" | "medium" | "high";
+            score: number;
+        }>;
         summary: string;
         hasVotingIssues: boolean;
         votingStatus: string;
@@ -327,6 +338,7 @@ export class CerberusTriggerService {
         if (!this.openaiApiKey) {
             return {
                 violations: [],
+                userViolations: [],
                 summary: "⚠️ OpenAI API key not configured. Cannot analyze charter violations.",
                 hasVotingIssues: false,
                 votingStatus: "Not analyzed",
@@ -385,10 +397,13 @@ VOTING CONTEXT:
                 console.log(votingContext);
             }
 
-            // Format messages for analysis
-            const messagesText = messages.map(msg => 
-                `[${msg.createdAt.toLocaleString()}] ${msg.sender ? msg.sender.name : 'System'}: ${msg.text}`
-            ).join('\n');
+            // Format messages for analysis — include sender ID and ename for structured violation reporting
+            const messagesText = messages.map(msg => {
+                const senderInfo = msg.sender
+                    ? `${msg.sender.name || 'Unknown'} (id:${msg.sender.id}${msg.sender.ename ? ', ename:' + msg.sender.ename : ''})`
+                    : 'System';
+                return `[${msg.createdAt.toLocaleString()}] ${senderInfo}: ${msg.text}`;
+            }).join('\n');
 
             const charterText = group.charter || "No charter defined for this group.";
 
@@ -430,6 +445,16 @@ CHARTER ENFORCEMENT:
 RESPOND WITH ONLY PURE JSON - NO MARKDOWN, NO CODE BLOCKS:
 {
     "violations": ["array of detailed violation descriptions with justifications"],
+    "userViolations": [
+        {
+            "userId": "the user's id from the message (id:xxx)",
+            "userName": "the user's display name",
+            "userEname": "the user's ename if available, or null",
+            "violation": "one-sentence description of what rule was violated",
+            "severity": "low" | "medium" | "high",
+            "score": 1-5 (1 = severe, 5 = minor/warning)
+        }
+    ],
     "summary": "comprehensive summary with specific examples and actionable recommendations",
     "hasVotingIssues": boolean,
     "votingStatus": "string describing current voting situation with reasoning",
@@ -486,8 +511,14 @@ Be thorough and justify your reasoning. Provide clear, actionable recommendation
 
             // Parse the JSON response
             try {
-                const analysis = JSON.parse(content);
-                
+                // Strip markdown code fences if present
+                let jsonContent = content.trim();
+                if (jsonContent.startsWith("```")) {
+                    jsonContent = jsonContent.replace(/^```(?:json)?\s*/, "").replace(/```\s*$/, "").trim();
+                }
+
+                const analysis = JSON.parse(jsonContent);
+
                 // Validate required fields
                 if (!Array.isArray(analysis.violations) ||
                     typeof analysis.summary !== 'string' ||
@@ -495,6 +526,11 @@ Be thorough and justify your reasoning. Provide clear, actionable recommendation
                     typeof analysis.votingStatus !== 'string' ||
                     typeof analysis.enforcement !== 'string') {
                     throw new Error("Invalid JSON structure from OpenAI");
+                }
+
+                // Ensure userViolations exists and is an array
+                if (!Array.isArray(analysis.userViolations)) {
+                    analysis.userViolations = [];
                 }
 
                 return analysis;
@@ -505,6 +541,7 @@ Be thorough and justify your reasoning. Provide clear, actionable recommendation
                 
                 return {
                     violations: [],
+                    userViolations: [],
                     summary: "❌ Error analyzing messages. Please check the logs.",
                     hasVotingIssues: false,
                     votingStatus: "Error occurred",
@@ -516,6 +553,7 @@ Be thorough and justify your reasoning. Provide clear, actionable recommendation
             console.error("Error analyzing with AI:", error);
             return {
                 violations: [],
+                userViolations: [],
                 summary: "❌ Error analyzing charter violations. Please check the logs.",
                 hasVotingIssues: false,
                 votingStatus: "Error occurred",
@@ -589,11 +627,50 @@ Be thorough and justify your reasoning. Provide clear, actionable recommendation
                 });
             }
 
+            // Write violation references for users who violated the charter
+            if (analysis.userViolations && analysis.userViolations.length > 0) {
+                try {
+                    // Resolve a Cerberus system user as the author of the reference
+                    // Use the first group participant as a fallback author, or try "cerberus" ename
+                    let authorId: string | null = null;
+                    const cerberusUser = await this.referenceWriterService.resolveUserId("cerberus");
+                    if (cerberusUser) {
+                        authorId = cerberusUser.id;
+                    } else {
+                        // Use the trigger message sender or first available user
+                        const allUsers = await this.userService.getAllUsers();
+                        if (allUsers.length > 0) authorId = allUsers[0].id;
+                    }
+
+                    if (authorId) {
+                        const violationRefs = analysis.userViolations.map((uv: any) => ({
+                            targetId: uv.userId,
+                            targetName: uv.userName,
+                            targetEname: uv.userEname || undefined,
+                            content: `[Cerberus - Charter Violation in ${groupWithCharter.name}] ${uv.violation}`,
+                            numericScore: Math.max(1, Math.min(5, uv.score || 2))
+                        }));
+
+                        await this.referenceWriterService.writeViolationReferences(
+                            violationRefs,
+                            triggerMessage.group.id,
+                            groupWithCharter.name,
+                            authorId
+                        );
+                        console.log(`📝 Wrote ${violationRefs.length} violation references`);
+                    } else {
+                        console.warn("⚠️ No author user found for violation references");
+                    }
+                } catch (refError) {
+                    console.error("❌ Error writing violation references:", refError);
+                }
+            }
+
             // Build the final analysis text
             let analysisText: string;
             if (analysis.violations.length > 0) {
                 analysisText = `🚨 CHARTER VIOLATIONS DETECTED!\n\n${analysis.summary}`;
-                
+
                 // Add enforcement information if available
                 if (analysis.enforcement && analysis.enforcement !== "No enforcement possible - API not configured") {
                     analysisText += `\n\n⚖️ ENFORCEMENT:\n${analysis.enforcement}`;
