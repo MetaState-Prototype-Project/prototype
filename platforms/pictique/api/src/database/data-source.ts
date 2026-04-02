@@ -10,7 +10,7 @@ import { Chat } from "./entities/Chat";
 import { MessageReadStatus } from "./entities/MessageReadStatus";
 import { PostgresSubscriber } from "../web3adapter/watchers/subscriber";
 
-config({ path: path.resolve(__dirname, "../../../../.env") });
+config({ path: path.resolve(__dirname, "../../../../../.env") });
 
 export const AppDataSource = new DataSource({
     type: "postgres",

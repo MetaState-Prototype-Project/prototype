@@ -16,7 +16,7 @@ import { MatchingJob } from "./services/MatchingJob";
 import { PlatformEVaultService } from "./services/PlatformEVaultService";
 import { WishlistSummaryService } from "./services/WishlistSummaryService";
 
-config({ path: path.resolve(__dirname, "../../../.env") });
+config({ path: path.resolve(__dirname, "../../../../.env") });
 
 const app = express();
 const port = process.env.PORT || 4001;

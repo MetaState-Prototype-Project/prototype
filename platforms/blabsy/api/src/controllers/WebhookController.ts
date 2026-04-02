@@ -68,7 +68,7 @@ type Message = {
     isSystemMessage?: boolean; // Flag for system messages
 };
 
-dotenv.config({ path: path.resolve(__dirname, "../../../../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../../../../../.env") });
 
 export const adapter = new Web3Adapter({
     schemasPath: path.resolve(__dirname, "../web3adapter/mappings/"),

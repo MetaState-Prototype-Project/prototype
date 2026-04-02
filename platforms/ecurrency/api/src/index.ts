@@ -15,7 +15,7 @@ import { authMiddleware, authGuard } from "./middleware/auth";
 import { adapter } from "./web3adapter/watchers/subscriber";
 import { PlatformEVaultService } from "./services/PlatformEVaultService";
 
-config({ path: path.resolve(__dirname, "../../../.env") });
+config({ path: path.resolve(__dirname, "../../../../.env") });
 
 const app = express();
 const port = process.env.PORT || 8989;

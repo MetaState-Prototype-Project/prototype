@@ -5,7 +5,7 @@ import { DataSource, type DataSourceOptions } from "typeorm";
 import { Migration } from "./entities/Migration";
 import { User } from "./entities/User";
 
-config({ path: path.resolve(__dirname, "../../../../.env") });
+config({ path: path.resolve(__dirname, "../../../../../.env") });
 
 export const dataSourceOptions: DataSourceOptions = {
     type: "postgres",
