@@ -13,7 +13,7 @@ import { AppDataSource } from "../../database/data-source";
 import axios from "axios";
 import { table } from "console";
 
-dotenv.config({ path: path.resolve(__dirname, "../../../../../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../../../../../../.env") });
 export const adapter = new Web3Adapter({
     schemasPath: path.resolve(__dirname, "../mappings/"),
     dbPath: path.resolve(process.env.PICTIQUE_MAPPING_DB_PATH as string),

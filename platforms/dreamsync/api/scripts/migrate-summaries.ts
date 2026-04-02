@@ -6,7 +6,7 @@ import { WishlistSummaryService } from "../src/services/WishlistSummaryService";
 import { Wishlist } from "../src/database/entities/Wishlist";
 
 // Load environment variables
-config({ path: path.resolve(__dirname, "../../../.env") });
+config({ path: path.resolve(__dirname, "../../../../.env") });
 
 async function migrateSummaries() {
     console.log("Starting migration: Converting text summaries to AI-generated arrays...\n");

@@ -2,7 +2,7 @@ import "reflect-metadata";
 import path from "node:path";
 import { config } from "dotenv";
 
-config({ path: path.resolve(__dirname, "../../../../.env") });
+config({ path: path.resolve(__dirname, "../../../../../.env") });
 
 import axios from "axios";
 import { AppDataSource } from "../database/data-source";

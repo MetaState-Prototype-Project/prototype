@@ -4,7 +4,7 @@ import { readFileSync, existsSync } from "fs";
 
 // Read NEXT_PUBLIC_CALENDAR_API_URL from monorepo root .env so client bundle gets it (Next loads project .env first, so process.env can be wrong)
 function getRootEnv(name: string): string | undefined {
-  const rootEnv = path.resolve(__dirname, "../../.env");
+  const rootEnv = path.resolve(__dirname, "../../../.env");
   if (!existsSync(rootEnv)) return undefined;
   const content = readFileSync(rootEnv, "utf-8");
   const match = new RegExp(`^${name}\\s*=\\s*(.+)$`, "m").exec(content);

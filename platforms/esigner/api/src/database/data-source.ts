@@ -11,7 +11,7 @@ import { UserEVaultMapping } from "./entities/UserEVaultMapping";
 import path from "path";
 import { PostgresSubscriber } from "../web3adapter/watchers/subscriber";
 
-config({ path: path.resolve(__dirname, "../../../../.env") });
+config({ path: path.resolve(__dirname, "../../../../../.env") });
 
 export const AppDataSource = new DataSource({
     type: "postgres",

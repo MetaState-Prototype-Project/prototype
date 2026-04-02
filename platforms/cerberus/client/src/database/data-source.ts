@@ -11,7 +11,7 @@ import { VotingObservation } from "./entities/VotingObservation";
 import { CharterSignature } from "./entities/CharterSignature";
 import { Reference } from "./entities/Reference";
 
-config({ path: path.resolve(__dirname, "../../../../.env") });
+config({ path: path.resolve(__dirname, "../../../../../.env") });
 
 export const AppDataSource = new DataSource({
     type: "postgres",
