@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { EVaultProfileService } from "../services/EVaultProfileService";
 import type {
 	ProfileUpdatePayload,
+	ProfessionalProfile,
 	WorkExperience,
 	Education,
 	SocialLink,
@@ -29,6 +30,16 @@ export class ProfileController {
 		}
 	};
 
+	/**
+	 * Fire-and-forget helper: sends the eVault upsert in the background
+	 * and logs any failures without blocking the HTTP response.
+	 */
+	private syncInBackground(ename: string, data: Partial<ProfessionalProfile>) {
+		this.evaultService.upsertProfile(ename, data).catch((err) => {
+			console.error(`[eVault bg-sync] ${ename}:`, err.message);
+		});
+	}
+
 	updateProfile = async (req: Request, res: Response) => {
 		try {
 			const ename = req.user?.ename;
@@ -37,11 +48,8 @@ export class ProfileController {
 			}
 
 			const payload: ProfileUpdatePayload = req.body;
-			const profile = await this.evaultService.upsertProfile(
-				ename,
-				payload,
-			);
-			res.json(profile);
+			this.syncInBackground(ename, payload);
+			res.json({ ok: true });
 		} catch (error: any) {
 			console.error("Error updating profile:", error.message);
 			res.status(500).json({ error: "Failed to update profile" });
@@ -62,10 +70,8 @@ export class ProfileController {
 					.json({ error: "Body must be an array of work experience entries" });
 			}
 
-			const profile = await this.evaultService.upsertProfile(ename, {
-				workExperience,
-			});
-			res.json(profile);
+			this.syncInBackground(ename, { workExperience });
+			res.json({ ok: true });
 		} catch (error: any) {
 			console.error("Error updating work experience:", error.message);
 			res.status(500).json({ error: "Failed to update work experience" });
@@ -86,10 +92,8 @@ export class ProfileController {
 					.json({ error: "Body must be an array of education entries" });
 			}
 
-			const profile = await this.evaultService.upsertProfile(ename, {
-				education,
-			});
-			res.json(profile);
+			this.syncInBackground(ename, { education });
+			res.json({ ok: true });
 		} catch (error: any) {
 			console.error("Error updating education:", error.message);
 			res.status(500).json({ error: "Failed to update education" });
@@ -110,10 +114,8 @@ export class ProfileController {
 					.json({ error: "Body must be an array of skill strings" });
 			}
 
-			const profile = await this.evaultService.upsertProfile(ename, {
-				skills,
-			});
-			res.json(profile);
+			this.syncInBackground(ename, { skills });
+			res.json({ ok: true });
 		} catch (error: any) {
 			console.error("Error updating skills:", error.message);
 			res.status(500).json({ error: "Failed to update skills" });
@@ -134,10 +136,8 @@ export class ProfileController {
 					.json({ error: "Body must be an array of social link entries" });
 			}
 
-			const profile = await this.evaultService.upsertProfile(ename, {
-				socialLinks,
-			});
-			res.json(profile);
+			this.syncInBackground(ename, { socialLinks });
+			res.json({ ok: true });
 		} catch (error: any) {
 			console.error("Error updating social links:", error.message);
 			res.status(500).json({ error: "Failed to update social links" });
