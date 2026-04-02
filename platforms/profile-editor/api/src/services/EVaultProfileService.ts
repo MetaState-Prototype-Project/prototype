@@ -112,6 +112,8 @@ export class EVaultProfileService {
 	 * newer local state.
 	 */
 	private cacheGen = new Map<string, number>();
+	/** Per-user write queue to serialise eVault writes and prevent clobbering. */
+	private writeQueue = new Map<string, Promise<void>>();
 
 	constructor(registryService: RegistryService) {
 		this.registryService = registryService;
@@ -119,6 +121,23 @@ export class EVaultProfileService {
 
 	private gen(eName: string): number {
 		return this.cacheGen.get(eName) ?? 0;
+	}
+
+	/**
+	 * Serialise an async operation per eName so concurrent writes don't race.
+	 * Each queued fn runs only after the previous one settles.
+	 */
+	private enqueueWrite(eName: string, fn: () => Promise<void>): Promise<void> {
+		const prev = this.writeQueue.get(eName) ?? Promise.resolve();
+		const next = prev.catch(() => {}).then(fn);
+		this.writeQueue.set(eName, next);
+		// Clean up ref when this is still the tail
+		next.catch(() => {}).then(() => {
+			if (this.writeQueue.get(eName) === next) {
+				this.writeQueue.delete(eName);
+			}
+		});
+		return next;
 	}
 
 	/** Update the cache with a partial professional-profile merge. */
@@ -251,93 +270,106 @@ export class EVaultProfileService {
 		return profile;
 	}
 
-	async upsertProfile(
-		eName: string,
-		data: Partial<ProfessionalProfile>,
-	): Promise<FullProfile> {
-		const client = await this.getClient(eName);
+	/**
+	 * Persist the current cached profile to eVault.
+	 *
+	 * Uses the CACHE as the source of truth (not re-reading from eVault) so
+	 * concurrent writes never clobber each other.  Writes are serialised per
+	 * eName via the write queue.
+	 */
+	async syncToEvault(eName: string): Promise<void> {
+		return this.enqueueWrite(eName, async () => {
+			const cached = this.profileCache.get(eName);
+			if (!cached) return;
 
-		const existing = await this.findMetaEnvelopeByOntology(
-			client,
-			PROFESSIONAL_PROFILE_ONTOLOGY,
-		);
+			const payload: ProfessionalProfile = { ...cached.professional };
+			const acl =
+				payload.isPublic === true ? ["*"] : [normalizeEName(eName)];
 
-	const merged: ProfessionalProfile = {
-		...(existing?.parsed as ProfessionalProfile | undefined),
-		...data,
-	};
-
-	const acl = merged.isPublic === true ? ["*"] : [normalizeEName(eName)];
-
-	if (existing) {
-		const result = await client.request<UpdateResult>(UPDATE_MUTATION, {
-			id: existing.id,
-			input: {
-				ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
-				payload: merged,
-				acl,
-			},
-		});
-
-		if (result.updateMetaEnvelope.errors?.length) {
-			throw new Error(
-				result.updateMetaEnvelope.errors
-					.map((e) => e.message)
-					.join("; "),
-			);
-		}
-	} else {
-		const result = await client.request<CreateResult>(CREATE_MUTATION, {
-			input: {
-				ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
-				payload: merged,
-				acl,
-			},
-		});
-
-		if (result.createMetaEnvelope.errors?.length) {
-			const errors = result.createMetaEnvelope.errors;
-			const couldBeConflict = errors.some(
-				(e) => e.code === "CREATE_FAILED" || e.code === "ONTOLOGY_ALREADY_EXISTS",
-			);
-
-			if (!couldBeConflict) {
-				throw new Error(errors.map((e) => e.message).join("; "));
-			}
-
-			// Re-query in case a concurrent create won the race (TOCTOU)
-			const raced = await this.findMetaEnvelopeByOntology(
+			const client = await this.getClient(eName);
+			const existing = await this.findMetaEnvelopeByOntology(
 				client,
 				PROFESSIONAL_PROFILE_ONTOLOGY,
 			);
-			if (raced) {
-				const updateResult = await client.request<UpdateResult>(
+
+			if (existing) {
+				const result = await client.request<UpdateResult>(
 					UPDATE_MUTATION,
 					{
-						id: raced.id,
+						id: existing.id,
 						input: {
 							ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
-							payload: merged,
+							payload,
 							acl,
 						},
 					},
 				);
-				if (updateResult.updateMetaEnvelope.errors?.length) {
+
+				if (result.updateMetaEnvelope.errors?.length) {
 					throw new Error(
-						updateResult.updateMetaEnvelope.errors
+						result.updateMetaEnvelope.errors
 							.map((e) => e.message)
 							.join("; "),
 					);
 				}
 			} else {
-				// No existing envelope found — this wasn't a conflict, surface original errors
-				throw new Error(errors.map((e) => e.message).join("; "));
-			}
-		}
-	}
+				const result = await client.request<CreateResult>(
+					CREATE_MUTATION,
+					{
+						input: {
+							ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
+							payload,
+							acl,
+						},
+					},
+				);
 
-		// Refresh cache from eVault after successful write
-		return this.fetchProfileFromEvault(eName);
+				if (result.createMetaEnvelope.errors?.length) {
+					const errors = result.createMetaEnvelope.errors;
+					const couldBeConflict = errors.some(
+						(e) =>
+							e.code === "CREATE_FAILED" ||
+							e.code === "ONTOLOGY_ALREADY_EXISTS",
+					);
+
+					if (!couldBeConflict) {
+						throw new Error(
+							errors.map((e) => e.message).join("; "),
+						);
+					}
+
+					// Re-query in case a concurrent create won the race (TOCTOU)
+					const raced = await this.findMetaEnvelopeByOntology(
+						client,
+						PROFESSIONAL_PROFILE_ONTOLOGY,
+					);
+					if (raced) {
+						const updateResult = await client.request<UpdateResult>(
+							UPDATE_MUTATION,
+							{
+								id: raced.id,
+								input: {
+									ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
+									payload,
+									acl,
+								},
+							},
+						);
+						if (updateResult.updateMetaEnvelope.errors?.length) {
+							throw new Error(
+								updateResult.updateMetaEnvelope.errors
+									.map((e) => e.message)
+									.join("; "),
+							);
+						}
+					} else {
+						throw new Error(
+							errors.map((e) => e.message).join("; "),
+						);
+					}
+				}
+			}
+		});
 	}
 
 	async getProfileByEnvelope(

@@ -4,6 +4,7 @@ import type { EVaultSyncService } from "../services/EVaultSyncService";
 import type {
 	ProfileUpdatePayload,
 	ProfessionalProfile,
+	FullProfile,
 	WorkExperience,
 	Education,
 	SocialLink,
@@ -40,16 +41,23 @@ export class ProfileController {
 	 * Update the local cache immediately and fire the eVault write in the
 	 * background.  Returns the patched profile so the response carries the
 	 * authoritative local state.
+	 *
+	 * When `blocking` is true the returned promise resolves only after the
+	 * eVault write completes (used for visibility toggles where the user
+	 * needs confirmation the change persisted).
 	 */
-	private patchAndSync(ename: string, data: Partial<ProfessionalProfile>) {
+	private patchAndSync(
+		ename: string,
+		data: Partial<ProfessionalProfile>,
+	): { profile: FullProfile; persisted: Promise<void> } {
 		const patched = this.evaultService.patchCache(ename, data);
-		// Sync to eVault in background
-		this.evaultService.upsertProfile(ename, data).catch((err) => {
+		// Sync full cached state to eVault (serialised per user)
+		const persisted = this.evaultService.syncToEvault(ename).catch((err) => {
 			console.error(`[eVault bg-sync] ${ename}:`, err.message);
-		});
+		}) as Promise<void>;
 		// Also update the local search DB so discover page reflects changes
 		this.syncService?.syncUserToSearchDb(patched);
-		return patched;
+		return { profile: patched, persisted };
 	}
 
 	updateProfile = async (req: Request, res: Response) => {
@@ -60,7 +68,12 @@ export class ProfileController {
 			}
 
 			const payload: ProfileUpdatePayload = req.body;
-			const profile = this.patchAndSync(ename, payload);
+			// Visibility changes must be blocking so the ACL is persisted
+			const isVisibilityChange = "isPublic" in payload;
+			const { profile, persisted } = this.patchAndSync(ename, payload);
+			if (isVisibilityChange) {
+				await persisted;
+			}
 			res.json(profile);
 		} catch (error: any) {
 			console.error("Error updating profile:", error.message);
@@ -82,7 +95,7 @@ export class ProfileController {
 					.json({ error: "Body must be an array of work experience entries" });
 			}
 
-			const profile = this.patchAndSync(ename, { workExperience });
+			const { profile } = this.patchAndSync(ename, { workExperience });
 			res.json(profile);
 		} catch (error: any) {
 			console.error("Error updating work experience:", error.message);
@@ -104,7 +117,7 @@ export class ProfileController {
 					.json({ error: "Body must be an array of education entries" });
 			}
 
-			const profile = this.patchAndSync(ename, { education });
+			const { profile } = this.patchAndSync(ename, { education });
 			res.json(profile);
 		} catch (error: any) {
 			console.error("Error updating education:", error.message);
@@ -126,7 +139,7 @@ export class ProfileController {
 					.json({ error: "Body must be an array of skill strings" });
 			}
 
-			const profile = this.patchAndSync(ename, { skills });
+			const { profile } = this.patchAndSync(ename, { skills });
 			res.json(profile);
 		} catch (error: any) {
 			console.error("Error updating skills:", error.message);
@@ -148,7 +161,7 @@ export class ProfileController {
 					.json({ error: "Body must be an array of social link entries" });
 			}
 
-			const profile = this.patchAndSync(ename, { socialLinks });
+			const { profile } = this.patchAndSync(ename, { socialLinks });
 			res.json(profile);
 		} catch (error: any) {
 			console.error("Error updating social links:", error.message);
