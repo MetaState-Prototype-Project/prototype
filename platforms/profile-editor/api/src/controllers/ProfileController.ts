@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { EVaultProfileService } from "../services/EVaultProfileService";
+import type { EVaultSyncService } from "../services/EVaultSyncService";
 import type {
 	ProfileUpdatePayload,
 	ProfessionalProfile,
@@ -10,9 +11,14 @@ import type {
 
 export class ProfileController {
 	private evaultService: EVaultProfileService;
+	private syncService?: EVaultSyncService;
 
 	constructor(evaultService: EVaultProfileService) {
 		this.evaultService = evaultService;
+	}
+
+	setSyncService(syncService: EVaultSyncService) {
+		this.syncService = syncService;
 	}
 
 	getProfile = async (req: Request, res: Response) => {
@@ -31,13 +37,19 @@ export class ProfileController {
 	};
 
 	/**
-	 * Fire-and-forget helper: sends the eVault upsert in the background
-	 * and logs any failures without blocking the HTTP response.
+	 * Update the local cache immediately and fire the eVault write in the
+	 * background.  Returns the patched profile so the response carries the
+	 * authoritative local state.
 	 */
-	private syncInBackground(ename: string, data: Partial<ProfessionalProfile>) {
+	private patchAndSync(ename: string, data: Partial<ProfessionalProfile>) {
+		const patched = this.evaultService.patchCache(ename, data);
+		// Sync to eVault in background
 		this.evaultService.upsertProfile(ename, data).catch((err) => {
 			console.error(`[eVault bg-sync] ${ename}:`, err.message);
 		});
+		// Also update the local search DB so discover page reflects changes
+		this.syncService?.syncUserToSearchDb(patched);
+		return patched;
 	}
 
 	updateProfile = async (req: Request, res: Response) => {
@@ -48,8 +60,8 @@ export class ProfileController {
 			}
 
 			const payload: ProfileUpdatePayload = req.body;
-			this.syncInBackground(ename, payload);
-			res.json({ ok: true });
+			const profile = this.patchAndSync(ename, payload);
+			res.json(profile);
 		} catch (error: any) {
 			console.error("Error updating profile:", error.message);
 			res.status(500).json({ error: "Failed to update profile" });
@@ -70,8 +82,8 @@ export class ProfileController {
 					.json({ error: "Body must be an array of work experience entries" });
 			}
 
-			this.syncInBackground(ename, { workExperience });
-			res.json({ ok: true });
+			const profile = this.patchAndSync(ename, { workExperience });
+			res.json(profile);
 		} catch (error: any) {
 			console.error("Error updating work experience:", error.message);
 			res.status(500).json({ error: "Failed to update work experience" });
@@ -92,8 +104,8 @@ export class ProfileController {
 					.json({ error: "Body must be an array of education entries" });
 			}
 
-			this.syncInBackground(ename, { education });
-			res.json({ ok: true });
+			const profile = this.patchAndSync(ename, { education });
+			res.json(profile);
 		} catch (error: any) {
 			console.error("Error updating education:", error.message);
 			res.status(500).json({ error: "Failed to update education" });
@@ -114,8 +126,8 @@ export class ProfileController {
 					.json({ error: "Body must be an array of skill strings" });
 			}
 
-			this.syncInBackground(ename, { skills });
-			res.json({ ok: true });
+			const profile = this.patchAndSync(ename, { skills });
+			res.json(profile);
 		} catch (error: any) {
 			console.error("Error updating skills:", error.message);
 			res.status(500).json({ error: "Failed to update skills" });
@@ -136,8 +148,8 @@ export class ProfileController {
 					.json({ error: "Body must be an array of social link entries" });
 			}
 
-			this.syncInBackground(ename, { socialLinks });
-			res.json({ ok: true });
+			const profile = this.patchAndSync(ename, { socialLinks });
+			res.json(profile);
 		} catch (error: any) {
 			console.error("Error updating social links:", error.message);
 			res.status(500).json({ error: "Failed to update social links" });

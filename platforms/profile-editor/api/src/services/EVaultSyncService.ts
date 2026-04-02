@@ -86,7 +86,8 @@ export class EVaultSyncService {
 	}
 
 	private async syncUser(ename: string): Promise<void> {
-		const profile = await this.evaultService.getProfile(ename);
+		// Force-refresh from eVault so the cache + local DB get the canonical state
+		const profile = await this.evaultService.fetchProfileFromEvault(ename);
 
 		await this.userSearchService.upsertFromWebhook({
 			ename,
@@ -101,6 +102,26 @@ export class EVaultSyncService {
 			skills: profile.professional.skills,
 			isPublic: profile.professional.isPublic === true,
 			isArchived: false,
+		});
+	}
+
+	/** Sync a single user's profile to the local search DB from the profile cache. */
+	syncUserToSearchDb(profile: import("../types/profile").FullProfile): void {
+		this.userSearchService.upsertFromWebhook({
+			ename: profile.ename,
+			name: profile.name,
+			handle: profile.handle,
+			isVerified: profile.isVerified ?? false,
+			bio: profile.professional.bio,
+			headline: profile.professional.headline,
+			location: profile.professional.location,
+			avatarFileId: profile.professional.avatarFileId,
+			bannerFileId: profile.professional.bannerFileId,
+			skills: profile.professional.skills,
+			isPublic: profile.professional.isPublic === true,
+			isArchived: false,
+		}).catch((err) => {
+			console.error(`[search-db sync] ${profile.ename}:`, err.message);
 		});
 	}
 }

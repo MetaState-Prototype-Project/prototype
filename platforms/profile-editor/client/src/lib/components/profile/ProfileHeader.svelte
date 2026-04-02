@@ -19,15 +19,20 @@
 	let uploadingBanner = $state(false);
 	let bannerInput = $state<HTMLInputElement | null>(null);
 	let avatarInput = $state<HTMLInputElement | null>(null);
+	/** Local blob previews — shown instantly before upload completes */
+	let avatarPreview = $state<string | null>(null);
+	let bannerPreview = $state<string | null>(null);
 
-	function avatarUrl(): string | null {
+	function avatarSrc(): string | null {
+		if (avatarPreview) return avatarPreview;
 		if (profile.professional.avatarFileId) {
 			return getProfileAssetUrl(profile.ename, 'avatar');
 		}
 		return null;
 	}
 
-	function bannerUrl(): string | null {
+	function bannerSrc(): string | null {
+		if (bannerPreview) return bannerPreview;
 		if (profile.professional.bannerFileId) {
 			return getProfileAssetUrl(profile.ename, 'banner');
 		}
@@ -39,6 +44,9 @@
 		const file = input.files?.[0];
 		if (!file) return;
 
+		// Show local preview instantly
+		avatarPreview = URL.createObjectURL(file);
+
 		uploadingAvatar = true;
 		try {
 			const result = await uploadFile(file);
@@ -46,6 +54,7 @@
 			toast.success('Avatar updated');
 		} catch {
 			toast.error('Failed to upload avatar');
+			avatarPreview = null; // revert on failure
 		} finally {
 			uploadingAvatar = false;
 		}
@@ -56,6 +65,9 @@
 		const file = input.files?.[0];
 		if (!file) return;
 
+		// Show local preview instantly
+		bannerPreview = URL.createObjectURL(file);
+
 		uploadingBanner = true;
 		try {
 			const result = await uploadFile(file);
@@ -63,6 +75,7 @@
 			toast.success('Banner updated');
 		} catch {
 			toast.error('Failed to upload banner');
+			bannerPreview = null; // revert on failure
 		} finally {
 			uploadingBanner = false;
 		}
@@ -82,8 +95,8 @@
 <Card class="overflow-hidden p-0">
 	<!-- Banner -->
 	<div class="relative h-48 bg-gradient-to-r from-primary/20 to-primary/5">
-		{#if bannerUrl()}
-			<img src={bannerUrl()} alt="Banner" class="h-full w-full object-cover" />
+		{#if bannerSrc()}
+			<img src={bannerSrc()} alt="Banner" class="h-full w-full object-cover" />
 		{/if}
 		{#if editable}
 			<div class="absolute bottom-3 right-3">
@@ -101,8 +114,8 @@
 			<!-- Avatar -->
 			<div class="-mt-16 relative">
 				<Avatar class="h-32 w-32 border-4 border-card">
-					{#if avatarUrl()}
-						<AvatarImage src={avatarUrl()} alt={profile.name ?? profile.ename} />
+					{#if avatarSrc()}
+						<AvatarImage src={avatarSrc()} alt={profile.name ?? profile.ename} />
 					{/if}
 					<AvatarFallback class="text-3xl font-bold">
 						{(profile.name ?? profile.ename ?? '?')[0]?.toUpperCase()}

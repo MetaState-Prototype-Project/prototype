@@ -104,9 +104,41 @@ type UpdateResult = {
 
 export class EVaultProfileService {
 	private registryService: RegistryService;
+	/** In-memory profile cache: serves reads instantly and absorbs writes. */
+	private profileCache = new Map<string, FullProfile>();
 
 	constructor(registryService: RegistryService) {
 		this.registryService = registryService;
+	}
+
+	/** Update the cache with a partial professional-profile merge. */
+	patchCache(eName: string, data: Partial<ProfessionalProfile>): FullProfile {
+		const existing = this.profileCache.get(eName);
+		if (existing) {
+			const merged: FullProfile = {
+				...existing,
+				professional: { ...existing.professional, ...data },
+			};
+			if (data.displayName) merged.name = data.displayName;
+			this.profileCache.set(eName, merged);
+			return merged;
+		}
+		// No cached profile yet — build a minimal one so the next getProfile
+		// returns something sensible instead of hitting the slow eVault path.
+		const fresh: FullProfile = {
+			ename: eName,
+			name: data.displayName,
+			professional: {
+				isPublic: true,
+				workExperience: [],
+				education: [],
+				skills: [],
+				socialLinks: [],
+				...data,
+			},
+		};
+		this.profileCache.set(eName, fresh);
+		return fresh;
 	}
 
 	private async getClient(eName: string): Promise<GraphQLClient> {
@@ -135,7 +167,11 @@ export class EVaultProfileService {
 		return edge?.node ?? null;
 	}
 
-	async getProfile(eName: string): Promise<FullProfile> {
+	/**
+	 * Fetch the canonical profile from eVault (slow — multiple network hops).
+	 * Updates the local cache on success.
+	 */
+	async fetchProfileFromEvault(eName: string): Promise<FullProfile> {
 		const client = await this.getClient(eName);
 
 		const [professionalNode, userNode] = await Promise.all([
@@ -149,7 +185,7 @@ export class EVaultProfileService {
 		const name =
 			profData.displayName ?? userData.displayName ?? eName;
 
-		return {
+		const profile: FullProfile = {
 			ename: eName,
 			name,
 			handle: userData.username,
@@ -166,13 +202,31 @@ export class EVaultProfileService {
 				phone: profData.phone,
 				website: profData.website,
 				location: profData.location,
-				isPublic: profData.isPublic === true, // default to public when not explicitly set
+				isPublic: profData.isPublic === true,
 				workExperience: profData.workExperience ?? [],
 				education: profData.education ?? [],
 				skills: profData.skills ?? [],
 				socialLinks: profData.socialLinks ?? [],
 			},
 		};
+
+		this.profileCache.set(eName, profile);
+		return profile;
+	}
+
+	/**
+	 * Return the profile for eName.  Serves from cache when available (instant),
+	 * and kicks off a background eVault refresh so the cache stays warm.
+	 */
+	async getProfile(eName: string): Promise<FullProfile> {
+		const cached = this.profileCache.get(eName);
+		if (cached) {
+			// Refresh cache in background so it doesn't go stale
+			this.fetchProfileFromEvault(eName).catch(() => {});
+			return cached;
+		}
+		// Cache miss — must fetch from eVault (first load)
+		return this.fetchProfileFromEvault(eName);
 	}
 
 	async getPublicProfile(eName: string): Promise<FullProfile | null> {
@@ -268,7 +322,8 @@ export class EVaultProfileService {
 		}
 	}
 
-		return this.getProfile(eName);
+		// Refresh cache from eVault after successful write
+		return this.fetchProfileFromEvault(eName);
 	}
 
 	async getProfileByEnvelope(

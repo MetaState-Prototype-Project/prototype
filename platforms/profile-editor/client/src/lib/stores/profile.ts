@@ -76,37 +76,39 @@ export async function fetchProfile(): Promise<ProfileData> {
 	}
 }
 
-export async function updateProfile(data: Record<string, unknown>): Promise<void> {
-	// Optimistic update
-	profile.update((p) => p ? { ...p, ...data, professional: { ...p.professional, ...data } } : p);
-	if (data.displayName || data.name) {
-		const user = get(currentUser);
-		const name = (data.displayName ?? data.name) as string;
-		if (user && name) {
-			currentUser.update((u) => (u ? { ...u, name } : u));
-		}
+export async function updateProfile(data: Record<string, unknown>): Promise<ProfileData> {
+	const response = await apiClient.patch('/api/profile', data);
+	const updated = response.data;
+	profile.set(updated);
+	const user = get(currentUser);
+	if (user?.ename === updated.ename && updated.name) {
+		currentUser.update((u) => (u ? { ...u, name: updated.name } : u));
 	}
-	await apiClient.patch('/api/profile', data);
+	return updated;
 }
 
-export async function updateWorkExperience(entries: WorkExperience[]): Promise<void> {
-	profile.update((p) => p ? { ...p, professional: { ...p.professional, workExperience: entries } } : p);
-	await apiClient.put('/api/profile/work-experience', entries);
+export async function updateWorkExperience(entries: WorkExperience[]): Promise<ProfileData> {
+	const response = await apiClient.put('/api/profile/work-experience', entries);
+	profile.set(response.data);
+	return response.data;
 }
 
-export async function updateEducation(entries: Education[]): Promise<void> {
-	profile.update((p) => p ? { ...p, professional: { ...p.professional, education: entries } } : p);
-	await apiClient.put('/api/profile/education', entries);
+export async function updateEducation(entries: Education[]): Promise<ProfileData> {
+	const response = await apiClient.put('/api/profile/education', entries);
+	profile.set(response.data);
+	return response.data;
 }
 
-export async function updateSkills(skills: string[]): Promise<void> {
-	profile.update((p) => p ? { ...p, professional: { ...p.professional, skills } } : p);
-	await apiClient.put('/api/profile/skills', skills);
+export async function updateSkills(skills: string[]): Promise<ProfileData> {
+	const response = await apiClient.put('/api/profile/skills', skills);
+	profile.set(response.data);
+	return response.data;
 }
 
-export async function updateSocialLinks(links: SocialLink[]): Promise<void> {
-	profile.update((p) => p ? { ...p, professional: { ...p.professional, socialLinks: links } } : p);
-	await apiClient.put('/api/profile/social-links', links);
+export async function updateSocialLinks(links: SocialLink[]): Promise<ProfileData> {
+	const response = await apiClient.put('/api/profile/social-links', links);
+	profile.set(response.data);
+	return response.data;
 }
 
 export async function fetchPublicProfile(ename: string): Promise<ProfileData> {
