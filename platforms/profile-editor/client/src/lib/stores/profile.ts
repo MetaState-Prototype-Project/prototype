@@ -59,10 +59,19 @@ export interface ProfileData {
 export const profile = writable<ProfileData | null>(null);
 export const profileLoading = writable(false);
 
+/** TEMPORARY: set via ?as= query param to impersonate another user for testing */
+let _adminOverride: string | null = null;
+export function setAdminOverride(ename: string | null) { _adminOverride = ename; }
+export function getAdminOverride() { return _adminOverride; }
+
+function apiSuffix(): string {
+	return _adminOverride ? `?as=${encodeURIComponent(_adminOverride)}` : '';
+}
+
 export async function fetchProfile(): Promise<ProfileData> {
 	profileLoading.set(true);
 	try {
-		const response = await apiClient.get('/api/profile');
+		const response = await apiClient.get(`/api/profile${apiSuffix()}`);
 		const data = response.data;
 		profile.set(data);
 		// Sync name to header when viewing own profile
@@ -77,7 +86,7 @@ export async function fetchProfile(): Promise<ProfileData> {
 }
 
 export async function updateProfile(data: Record<string, unknown>): Promise<ProfileData> {
-	const response = await apiClient.patch('/api/profile', data);
+	const response = await apiClient.patch(`/api/profile${apiSuffix()}`, data);
 	const updated = response.data;
 	profile.set(updated);
 	const user = get(currentUser);
@@ -88,25 +97,25 @@ export async function updateProfile(data: Record<string, unknown>): Promise<Prof
 }
 
 export async function updateWorkExperience(entries: WorkExperience[]): Promise<ProfileData> {
-	const response = await apiClient.put('/api/profile/work-experience', entries);
+	const response = await apiClient.put(`/api/profile/work-experience${apiSuffix()}`, entries);
 	profile.set(response.data);
 	return response.data;
 }
 
 export async function updateEducation(entries: Education[]): Promise<ProfileData> {
-	const response = await apiClient.put('/api/profile/education', entries);
+	const response = await apiClient.put(`/api/profile/education${apiSuffix()}`, entries);
 	profile.set(response.data);
 	return response.data;
 }
 
 export async function updateSkills(skills: string[]): Promise<ProfileData> {
-	const response = await apiClient.put('/api/profile/skills', skills);
+	const response = await apiClient.put(`/api/profile/skills${apiSuffix()}`, skills);
 	profile.set(response.data);
 	return response.data;
 }
 
 export async function updateSocialLinks(links: SocialLink[]): Promise<ProfileData> {
-	const response = await apiClient.put('/api/profile/social-links', links);
+	const response = await apiClient.put(`/api/profile/social-links${apiSuffix()}`, links);
 	profile.set(response.data);
 	return response.data;
 }

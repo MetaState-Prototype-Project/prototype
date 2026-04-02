@@ -128,9 +128,14 @@ export class EVaultProfileService {
 			META_ENVELOPES_QUERY,
 			{
 				filter: { ontologyId },
-				first: 1,
+				first: 10,
 			},
 		);
+		if (result.metaEnvelopes.totalCount > 1) {
+			console.warn(
+				`[eVault] DUPLICATE ENVELOPES: found ${result.metaEnvelopes.totalCount} envelopes for ontology ${ontologyId}. IDs: ${result.metaEnvelopes.edges.map((e) => e.node.id).join(", ")}`,
+			);
+		}
 		const edge = result.metaEnvelopes.edges[0];
 		return edge?.node ?? null;
 	}
@@ -219,15 +224,38 @@ export class EVaultProfileService {
 		console.log(
 			`[eVault write] ${eName}: existing envelope ${existing ? `found (id=${existing.id})` : "NOT found — will create"}`,
 		);
+		if (existing) {
+			const existingParsed = existing.parsed as Record<string, unknown>;
+			console.log(
+				`[eVault write] ${eName}: existing parsed keys=[${Object.keys(existingParsed).join(", ")}]`,
+			);
+			if ("education" in data) {
+				console.log(
+					`[eVault write] ${eName}: existing education=${JSON.stringify(existingParsed.education)}`,
+				);
+			}
+		}
 
 		const merged: ProfessionalProfile = {
 			...(existing?.parsed as ProfessionalProfile | undefined),
 			...data,
 		};
 
+		// The eVault stores each payload field as a separate Envelope node.
+		// serializeValue([]) doesn't JSON-stringify empty arrays, so Neo4j
+		// can't properly overwrite the existing value.  Instead, strip empty
+		// arrays (and null/undefined) from the payload — the eVault will
+		// DELETE the corresponding Envelope nodes, and reads default to [].
+		const payload: Record<string, unknown> = {};
+		for (const [key, value] of Object.entries(merged)) {
+			if (value === null || value === undefined) continue;
+			if (Array.isArray(value) && value.length === 0) continue;
+			payload[key] = value;
+		}
+
 		const acl = merged.isPublic === true ? ["*"] : [normalizeEName(eName)];
 		console.log(
-			`[eVault write] ${eName}: merged payload isPublic=${merged.isPublic}, acl=${JSON.stringify(acl)}, education=${(merged.education ?? []).length} entries`,
+			`[eVault write] ${eName}: merged isPublic=${merged.isPublic}, acl=${JSON.stringify(acl)}, education=${(merged.education ?? []).length} entries, payload keys=[${Object.keys(payload).join(", ")}]`,
 		);
 
 		if (existing) {
@@ -236,7 +264,7 @@ export class EVaultProfileService {
 				id: existing.id,
 				input: {
 					ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
-					payload: merged,
+					payload,
 					acl,
 				},
 			});
@@ -257,7 +285,7 @@ export class EVaultProfileService {
 			const result = await client.request<CreateResult>(CREATE_MUTATION, {
 				input: {
 					ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
-					payload: merged,
+					payload,
 					acl,
 				},
 			});
@@ -295,7 +323,7 @@ export class EVaultProfileService {
 							id: raced.id,
 							input: {
 								ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
-								payload: merged,
+								payload,
 								acl,
 							},
 						},

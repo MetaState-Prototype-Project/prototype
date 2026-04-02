@@ -20,9 +20,19 @@ export class ProfileController {
 		this.syncService = syncService;
 	}
 
+	/** TEMPORARY: allow `?as=ename` query param to impersonate another user for testing. */
+	private resolveEname(req: Request): string | undefined {
+		const override = req.query.as as string | undefined;
+		if (override) {
+			console.warn(`[profile] ADMIN OVERRIDE: acting as ${override} (real user: ${req.user?.ename})`);
+			return override;
+		}
+		return req.user?.ename;
+	}
+
 	getProfile = async (req: Request, res: Response) => {
 		try {
-			const ename = req.user?.ename;
+			const ename = this.resolveEname(req);
 			if (!ename) {
 				return res.status(401).json({ error: "Authentication required" });
 			}
@@ -37,7 +47,7 @@ export class ProfileController {
 
 	updateProfile = async (req: Request, res: Response) => {
 		try {
-			const ename = req.user?.ename;
+			const ename = this.resolveEname(req);
 			if (!ename) {
 				return res.status(401).json({ error: "Authentication required" });
 			}
@@ -55,7 +65,7 @@ export class ProfileController {
 
 	updateWorkExperience = async (req: Request, res: Response) => {
 		try {
-			const ename = req.user?.ename;
+			const ename = this.resolveEname(req);
 			if (!ename) {
 				return res.status(401).json({ error: "Authentication required" });
 			}
@@ -79,7 +89,7 @@ export class ProfileController {
 
 	updateEducation = async (req: Request, res: Response) => {
 		try {
-			const ename = req.user?.ename;
+			const ename = this.resolveEname(req);
 			if (!ename) {
 				return res.status(401).json({ error: "Authentication required" });
 			}
@@ -105,7 +115,7 @@ export class ProfileController {
 
 	updateSkills = async (req: Request, res: Response) => {
 		try {
-			const ename = req.user?.ename;
+			const ename = this.resolveEname(req);
 			if (!ename) {
 				return res.status(401).json({ error: "Authentication required" });
 			}
@@ -129,7 +139,7 @@ export class ProfileController {
 
 	updateSocialLinks = async (req: Request, res: Response) => {
 		try {
-			const ename = req.user?.ename;
+			const ename = this.resolveEname(req);
 			if (!ename) {
 				return res.status(401).json({ error: "Authentication required" });
 			}
