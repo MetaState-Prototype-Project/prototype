@@ -9,6 +9,7 @@ import path from "path";
 import { UserEVaultMapping } from "./entities/UserEVaultMapping";
 import { VotingObservation } from "./entities/VotingObservation";
 import { CharterSignature } from "./entities/CharterSignature";
+import { Reference } from "./entities/Reference";
 
 config({ path: path.resolve(__dirname, "../../../../.env") });
 
@@ -25,6 +26,7 @@ export const AppDataSource = new DataSource({
         UserEVaultMapping,
         VotingObservation,
         CharterSignature,
+        Reference,
     ],
     migrations: [path.join(__dirname, "migrations", "*.ts")],
     subscribers: [PostgresSubscriber],

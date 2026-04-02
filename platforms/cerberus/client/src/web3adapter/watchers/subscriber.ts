@@ -448,6 +448,8 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 return ["sender", "group"];
             case "CharterSignature":
                 return ["user", "group"];
+            case "Reference":
+                return ["author"];
             default:
                 return [];
         }

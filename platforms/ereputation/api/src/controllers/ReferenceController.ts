@@ -295,6 +295,61 @@ export class ReferenceController {
         }
     };
 
+    /**
+     * Internal endpoint for service-to-service reference creation (e.g., from Cerberus).
+     * Requires X-Platform-Secret header matching PLATFORM_SHARED_SECRET env var.
+     * Creates references with "signed" status directly (no signing session needed).
+     */
+    createSystemReference = async (req: Request, res: Response) => {
+        try {
+            const secret = process.env.PLATFORM_SHARED_SECRET;
+            if (!secret || req.headers['x-platform-secret'] !== secret) {
+                return res.status(401).json({ error: "Unauthorized" });
+            }
+
+            const { targetType, targetId, targetName, content, referenceType, numericScore, authorId, anonymous } = req.body;
+
+            if (!targetType || !targetId || !targetName || !content || !authorId) {
+                return res.status(400).json({ error: "Missing required fields: targetType, targetId, targetName, content, authorId" });
+            }
+
+            if (numericScore && (numericScore < 1 || numericScore > 5)) {
+                return res.status(400).json({ error: "Numeric score must be between 1 and 5" });
+            }
+
+            // Create reference directly with "signed" status (trusted platform call)
+            const reference = this.referenceService.referenceRepository.create({
+                targetType,
+                targetId,
+                targetName,
+                content,
+                referenceType: referenceType || "violation",
+                numericScore,
+                authorId,
+                anonymous: anonymous ?? false,
+                status: "signed"
+            });
+
+            const saved = await this.referenceService.referenceRepository.save(reference);
+
+            res.status(201).json({
+                message: "System reference created successfully",
+                reference: {
+                    id: saved.id,
+                    targetType: saved.targetType,
+                    targetName: saved.targetName,
+                    content: saved.content,
+                    numericScore: saved.numericScore,
+                    status: saved.status,
+                    createdAt: saved.createdAt
+                }
+            });
+        } catch (error) {
+            console.error("Error creating system reference:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    };
+
     deleteReference = async (req: Request, res: Response) => {
         try {
             const { referenceId } = req.params;
