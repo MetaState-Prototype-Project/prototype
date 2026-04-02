@@ -41,7 +41,7 @@ export async function proxyFileFromFileManager(
 		if (contentLength) {
 			res.set("Content-Length", contentLength);
 		}
-		res.set("Cache-Control", "public, max-age=3600");
+		res.set("Cache-Control", "public, max-age=300");
 
 		response.data.pipe(res);
 	} catch (error: any) {

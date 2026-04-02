@@ -24,6 +24,8 @@ export async function uploadFile(
 
 export type ProfileAssetType = 'avatar' | 'banner' | 'cv' | 'video';
 
-export function getProfileAssetUrl(ename: string, type: ProfileAssetType): string {
-	return `${API_BASE()}/api/profiles/${encodeURIComponent(ename)}/${type}`;
+export function getProfileAssetUrl(ename: string, type: ProfileAssetType, bustCache = false): string {
+	const base = `${API_BASE()}/api/profiles/${encodeURIComponent(ename)}/${type}`;
+	if (bustCache) return `${base}?t=${Date.now()}`;
+	return base;
 }

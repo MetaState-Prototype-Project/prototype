@@ -22,11 +22,16 @@
 	/** Local blob previews — shown instantly before upload completes */
 	let avatarPreview = $state<string | null>(null);
 	let bannerPreview = $state<string | null>(null);
+	/** Cache-bust counters — incremented after successful upload */
+	let avatarCacheBust = $state(0);
+	let bannerCacheBust = $state(0);
 
 	function avatarSrc(): string | null {
 		if (avatarPreview) return avatarPreview;
 		if (profile.professional.avatarFileId) {
-			return getProfileAssetUrl(profile.ename, 'avatar');
+			// Use cacheBust to force re-read; also needed on initial load
+			void avatarCacheBust;
+			return getProfileAssetUrl(profile.ename, 'avatar', avatarCacheBust > 0);
 		}
 		return null;
 	}
@@ -34,7 +39,8 @@
 	function bannerSrc(): string | null {
 		if (bannerPreview) return bannerPreview;
 		if (profile.professional.bannerFileId) {
-			return getProfileAssetUrl(profile.ename, 'banner');
+			void bannerCacheBust;
+			return getProfileAssetUrl(profile.ename, 'banner', bannerCacheBust > 0);
 		}
 		return null;
 	}
@@ -51,10 +57,12 @@
 		try {
 			const result = await uploadFile(file);
 			await updateProfile({ avatarFileId: result.id });
+			avatarPreview = null;
+			avatarCacheBust++;
 			toast.success('Avatar updated');
 		} catch {
 			toast.error('Failed to upload avatar');
-			avatarPreview = null; // revert on failure
+			avatarPreview = null;
 		} finally {
 			uploadingAvatar = false;
 		}
@@ -72,10 +80,12 @@
 		try {
 			const result = await uploadFile(file);
 			await updateProfile({ bannerFileId: result.id });
+			bannerPreview = null;
+			bannerCacheBust++;
 			toast.success('Banner updated');
 		} catch {
 			toast.error('Failed to upload banner');
-			bannerPreview = null; // revert on failure
+			bannerPreview = null;
 		} finally {
 			uploadingBanner = false;
 		}

@@ -106,13 +106,26 @@ export class EVaultProfileService {
 	private registryService: RegistryService;
 	/** In-memory profile cache: serves reads instantly and absorbs writes. */
 	private profileCache = new Map<string, FullProfile>();
+	/**
+	 * Generation counter per ename.  Incremented on every local write so that
+	 * a slow eVault refresh that started before the write cannot overwrite the
+	 * newer local state.
+	 */
+	private cacheGen = new Map<string, number>();
 
 	constructor(registryService: RegistryService) {
 		this.registryService = registryService;
 	}
 
+	private gen(eName: string): number {
+		return this.cacheGen.get(eName) ?? 0;
+	}
+
 	/** Update the cache with a partial professional-profile merge. */
 	patchCache(eName: string, data: Partial<ProfessionalProfile>): FullProfile {
+		// Bump generation so any in-flight eVault refresh won't overwrite this.
+		this.cacheGen.set(eName, this.gen(eName) + 1);
+
 		const existing = this.profileCache.get(eName);
 		if (existing) {
 			const merged: FullProfile = {
@@ -169,9 +182,12 @@ export class EVaultProfileService {
 
 	/**
 	 * Fetch the canonical profile from eVault (slow — multiple network hops).
-	 * Updates the local cache on success.
+	 * Only writes to cache if no newer local write happened while the fetch
+	 * was in flight (generation check).
 	 */
 	async fetchProfileFromEvault(eName: string): Promise<FullProfile> {
+		const genBefore = this.gen(eName);
+
 		const client = await this.getClient(eName);
 
 		const [professionalNode, userNode] = await Promise.all([
@@ -210,21 +226,19 @@ export class EVaultProfileService {
 			},
 		};
 
-		this.profileCache.set(eName, profile);
+		// Only update cache if no local write happened while we were fetching.
+		if (this.gen(eName) === genBefore) {
+			this.profileCache.set(eName, profile);
+		}
 		return profile;
 	}
 
 	/**
-	 * Return the profile for eName.  Serves from cache when available (instant),
-	 * and kicks off a background eVault refresh so the cache stays warm.
+	 * Return the profile for eName.  Serves from cache when available (instant).
 	 */
 	async getProfile(eName: string): Promise<FullProfile> {
 		const cached = this.profileCache.get(eName);
-		if (cached) {
-			// Refresh cache in background so it doesn't go stale
-			this.fetchProfileFromEvault(eName).catch(() => {});
-			return cached;
-		}
+		if (cached) return cached;
 		// Cache miss — must fetch from eVault (first load)
 		return this.fetchProfileFromEvault(eName);
 	}
