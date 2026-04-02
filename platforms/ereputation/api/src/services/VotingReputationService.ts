@@ -169,11 +169,11 @@ export class VotingReputationService {
 
             // Call OpenAI once for all members
             const response = await this.openai.chat.completions.create({
-                model: "gpt-4",
+                model: "gpt-4o",
                 messages: [
                     {
                         role: "system",
-                        content: "You are an expert reputation analyst for voting systems. Analyze the group charter and references to calculate reputation scores for voting purposes. Always respond with valid JSON containing an array of results, each with ename (user's ename identifier), score (1-5), and a one-sentence justification."
+                        content: "You are an expert reputation analyst for voting systems. Analyze the evaluation criteria and references to calculate reputation scores for voting purposes. Always respond with valid JSON containing an array of results, each with ename (user's ename identifier), score (1-5), and a one-sentence justification."
                     },
                     {
                         role: "user",
@@ -196,7 +196,12 @@ export class VotingReputationService {
 
             let result;
             try {
-                result = JSON.parse(aiResponseContent);
+                // Strip markdown code fences if present (e.g. ```json ... ```)
+                let jsonContent = aiResponseContent.trim();
+                if (jsonContent.startsWith("```")) {
+                    jsonContent = jsonContent.replace(/^```(?:json)?\s*/, "").replace(/```\s*$/, "").trim();
+                }
+                result = JSON.parse(jsonContent);
                 console.log(`   → Successfully parsed JSON response`);
                 console.log(`      Results array length: ${Array.isArray(result) ? result.length : 'not an array'}`);
             } catch (parseError) {
@@ -302,7 +307,7 @@ export class VotingReputationService {
 
             // Call OpenAI
             const response = await this.openai.chat.completions.create({
-                model: "gpt-4",
+                model: "gpt-4o",
                 messages: [
                     {
                         role: "system",
@@ -401,19 +406,19 @@ ${refsText}`;
         return `
 You are analyzing the reputation of multiple users for voting purposes within a group.
 
-GROUP CHARTER:
+EVALUATION CRITERIA:
 ${charter}
 
 USERS AND THEIR REFERENCES:
 ${membersCSV}
 
 TASK:
-Based on the group charter and the references provided, calculate a reputation score from 1-5 for EACH user that will be used for weighted voting.
+Based on the evaluation criteria and the references provided, calculate a reputation score from 1-5 for EACH user that will be used for weighted voting.
 
-IMPORTANT: 
+IMPORTANT:
 - Each score must be between 1 and 5 (inclusive)
-- Consider how well the references align with the group's charter and values
-- Focus on voting-relevant reputation factors mentioned in the charter
+- Consider how well the references align with the evaluation criteria and values
+- Focus on voting-relevant reputation factors mentioned in the evaluation criteria
 - Provide a ONE SENTENCE justification explaining each score
 
 Respond with a JSON array in this exact format:

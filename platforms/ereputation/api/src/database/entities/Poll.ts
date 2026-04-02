@@ -46,6 +46,9 @@ export class Poll {
     @Column("uuid", { nullable: true })
     groupId!: string | null; // Group this poll belongs to
 
+    @Column("text", { nullable: true })
+    customPrompt!: string | null;
+
     @OneToMany(
         () => Vote,
         (vote) => vote.poll,

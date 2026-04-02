@@ -258,11 +258,12 @@ export class WebhookController {
                         poll.mode = local.data.mode as "normal" | "point" | "rank";
                         poll.visibility = local.data.visibility as "public" | "private";
                         poll.votingWeight = (local.data.votingWeight || "1p1v") as "1p1v" | "ereputation";
-                        poll.options = Array.isArray(local.data.options) 
-                            ? local.data.options 
+                        poll.options = Array.isArray(local.data.options)
+                            ? local.data.options
                             : (local.data.options as string).split(",");
                         poll.deadline = local.data.deadline ? new Date(local.data.deadline as string) : null;
                         poll.groupId = groupId;
+                        poll.customPrompt = (local.data.customPrompt as string) || null;
                         
                         await pollRepository.save(poll);
                         finalLocalId = poll.id;
@@ -281,11 +282,12 @@ export class WebhookController {
                         mode: local.data.mode as "normal" | "point" | "rank",
                         visibility: local.data.visibility as "public" | "private",
                         votingWeight: (local.data.votingWeight || "1p1v") as "1p1v" | "ereputation",
-                        options: Array.isArray(local.data.options) 
-                            ? local.data.options 
+                        options: Array.isArray(local.data.options)
+                            ? local.data.options
                             : (local.data.options as string).split(","),
                         deadline: local.data.deadline ? new Date(local.data.deadline as string) : null,
-                        groupId: groupId
+                        groupId: groupId,
+                        customPrompt: (local.data.customPrompt as string) || null
                     });
                     
                     const savedPoll = await pollRepository.save(poll);
@@ -443,10 +445,12 @@ export class WebhookController {
         const group = await this.groupService.getGroupById(poll.groupId);
         if (!group) return;
 
-        const charter = (group.charter && group.charter.trim()) ? group.charter : "";
+        const evaluationCriteria = (poll.customPrompt && poll.customPrompt.trim())
+            ? poll.customPrompt
+            : (group.charter && group.charter.trim()) ? group.charter : "";
         const reputationResults = await this.votingReputationService.calculateGroupMemberReputations(
             poll.groupId,
-            charter
+            evaluationCriteria
         );
 
         const voteReputationResult = await this.votingReputationService.saveReputationResults(
