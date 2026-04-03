@@ -311,10 +311,10 @@ export class ReferenceController {
                 return res.status(401).json({ error: "Unauthorized" });
             }
 
-            const { targetType, targetId, targetName, content, referenceType, numericScore, anonymous } = req.body;
+            const { targetType, targetId, targetName, targetEname, content, referenceType, numericScore, anonymous } = req.body;
 
-            if (!targetType || !targetId || !targetName || !content) {
-                return res.status(400).json({ error: "Missing required fields: targetType, targetId, targetName, content" });
+            if (!targetType || !targetName || !content) {
+                return res.status(400).json({ error: "Missing required fields: targetType, targetName, content" });
             }
 
             if (numericScore && (numericScore < 1 || numericScore > 5)) {
@@ -325,16 +325,29 @@ export class ReferenceController {
             const userRepo = AppDataSource.getRepository(User);
             let systemUser = await userRepo.findOneBy({ name: SYSTEM_AUTHOR_NAME });
             if (!systemUser) {
-                // Auto-create the system user if it doesn't exist
                 systemUser = userRepo.create({ name: SYSTEM_AUTHOR_NAME, handle: "cerberus" });
                 systemUser = await userRepo.save(systemUser);
                 console.log(`[erep] Created system user "${SYSTEM_AUTHOR_NAME}" id=${systemUser.id}`);
             }
 
+            // Resolve the target user by ename to get the correct local eReputation user ID.
+            // Cross-platform calls (e.g. from Cerberus) send their own DB user ID which
+            // won't match eReputation's user ID — ename is the shared identifier.
+            let resolvedTargetId = targetId;
+            if (targetEname && targetType === "user") {
+                const targetUser = await userRepo.findOneBy({ ename: targetEname });
+                if (targetUser) {
+                    resolvedTargetId = targetUser.id;
+                    console.log(`[erep] Resolved target ename=${targetEname} to local id=${targetUser.id}`);
+                } else {
+                    console.warn(`[erep] Could not resolve target ename=${targetEname}, using provided targetId=${targetId}`);
+                }
+            }
+
             // Create reference directly with "signed" status (trusted platform call)
             const reference = this.referenceService.referenceRepository.create({
                 targetType,
-                targetId,
+                targetId: resolvedTargetId,
                 targetName,
                 content,
                 referenceType: referenceType || "violation",

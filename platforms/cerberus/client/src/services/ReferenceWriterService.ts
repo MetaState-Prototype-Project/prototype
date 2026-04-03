@@ -86,6 +86,7 @@ export class ReferenceWriterService {
                     targetType: "user",
                     targetId: violation.targetId,
                     targetName: violation.targetName,
+                    targetEname: violation.targetEname,
                     content: violation.content,
                     referenceType: "violation",
                     numericScore: violation.numericScore,
