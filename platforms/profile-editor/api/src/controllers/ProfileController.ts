@@ -202,6 +202,15 @@ export class ProfileController {
 		return true;
 	}
 
+	/**
+	 * Resolve the identity to use for the file-manager JWT.
+	 * Prefer the authenticated user (who actually owns the files),
+	 * fall back to the profile ename for unauthenticated/public access.
+	 */
+	private fileOwner(req: Request, profileEname: string): string {
+		return req.user?.ename ?? profileEname;
+	}
+
 	getProfileAvatar = async (req: Request, res: Response) => {
 		try {
 			const { ename } = req.params;
@@ -216,12 +225,14 @@ export class ProfileController {
 				console.log(`[profile] avatar ${ename}: no fileId set, keys=[${Object.keys(profile.professional).join(",")}]`);
 				return res.status(404).json({ error: "No avatar set" });
 			}
-			console.log(`[profile] avatar ${ename}: proxying fileId=${fileId}`);
+
+			const owner = this.fileOwner(req, ename);
+			console.log(`[profile] avatar ${ename}: proxying fileId=${fileId} as=${owner}`);
 
 			const { proxyFileFromFileManager } = await import(
 				"../utils/file-proxy"
 			);
-			await proxyFileFromFileManager(fileId, ename, res);
+			await proxyFileFromFileManager(fileId, owner, res);
 		} catch (error: any) {
 			console.error("Error proxying avatar:", error.message);
 			res.status(500).json({ error: "Failed to fetch avatar" });
@@ -242,12 +253,14 @@ export class ProfileController {
 				console.log(`[profile] banner ${ename}: no fileId set, keys=[${Object.keys(profile.professional).join(",")}]`);
 				return res.status(404).json({ error: "No banner set" });
 			}
-			console.log(`[profile] banner ${ename}: proxying fileId=${fileId}`);
+
+			const owner = this.fileOwner(req, ename);
+			console.log(`[profile] banner ${ename}: proxying fileId=${fileId} as=${owner}`);
 
 			const { proxyFileFromFileManager } = await import(
 				"../utils/file-proxy"
 			);
-			await proxyFileFromFileManager(fileId, ename, res);
+			await proxyFileFromFileManager(fileId, owner, res);
 		} catch (error: any) {
 			console.error("Error proxying banner:", error.message);
 			res.status(500).json({ error: "Failed to fetch banner" });
@@ -271,7 +284,7 @@ export class ProfileController {
 			const { proxyFileFromFileManager } = await import(
 				"../utils/file-proxy"
 			);
-			await proxyFileFromFileManager(fileId, ename, res);
+			await proxyFileFromFileManager(fileId, this.fileOwner(req, ename), res);
 		} catch (error: any) {
 			console.error("Error proxying CV:", error.message);
 			res.status(500).json({ error: "Failed to fetch CV" });
@@ -295,7 +308,7 @@ export class ProfileController {
 			const { proxyFileFromFileManager } = await import(
 				"../utils/file-proxy"
 			);
-			await proxyFileFromFileManager(fileId, ename, res);
+			await proxyFileFromFileManager(fileId, this.fileOwner(req, ename), res);
 		} catch (error: any) {
 			console.error("Error proxying video:", error.message);
 			res.status(500).json({ error: "Failed to fetch video" });

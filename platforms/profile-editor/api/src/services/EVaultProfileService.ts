@@ -167,6 +167,8 @@ export class EVaultProfileService {
 	 */
 	private cache = new Map<string, CacheEntry>();
 	private static CACHE_TTL = 30 * 1000; // 30 seconds
+	/** Per-user write queue — serializes eVault writes so rapid edits don't race. */
+	private writeQueue = new Map<string, Promise<void>>();
 
 	constructor(registryService: RegistryService) {
 		this.registryService = registryService;
@@ -243,8 +245,9 @@ export class EVaultProfileService {
 	}
 
 	/**
-	 * Prepare a profile update. Reads existing data, merges, returns the
-	 * optimistic profile immediately. The eVault write runs as `persisted`.
+	 * Prepare a profile update. Uses the cache as merge base when available
+	 * so rapid back-to-back edits don't clobber each other (the eVault write
+	 * is async and may not have landed yet). Falls back to eVault if no cache.
 	 */
 	async prepareUpdate(
 		eName: string,
@@ -256,15 +259,41 @@ export class EVaultProfileService {
 
 		const client = await this.getClient(eName);
 
-		const [existing, userNode] = await Promise.all([
-			this.findMetaEnvelopeByOntology(client, PROFESSIONAL_PROFILE_ONTOLOGY),
-			this.findMetaEnvelopeByOntology(client, USER_ONTOLOGY),
-		]);
+		// Use cache as merge base if available — this prevents a concurrent
+		// background write from being clobbered by a stale eVault read.
+		const cached = this.cache.get(eName);
+		let baseProfessional: ProfessionalProfile;
+		let userData: UserOntologyData;
+		let existingEnvelope: MetaEnvelopeNode | null;
 
-		const userData = (userNode?.parsed ?? {}) as UserOntologyData;
+		if (cached) {
+			baseProfessional = cached.profile.professional;
+			userData = {
+				displayName: cached.profile.name,
+				username: cached.profile.handle,
+				isVerified: cached.profile.isVerified,
+			} as UserOntologyData;
+			// Still need the envelope ID for the update mutation
+			existingEnvelope = await this.findMetaEnvelopeByOntology(
+				client,
+				PROFESSIONAL_PROFILE_ONTOLOGY,
+			);
+		} else {
+			const [existing, userNode] = await Promise.all([
+				this.findMetaEnvelopeByOntology(
+					client,
+					PROFESSIONAL_PROFILE_ONTOLOGY,
+				),
+				this.findMetaEnvelopeByOntology(client, USER_ONTOLOGY),
+			]);
+			existingEnvelope = existing;
+			userData = (userNode?.parsed ?? {}) as UserOntologyData;
+			baseProfessional =
+				(existing?.parsed as ProfessionalProfile | undefined) ?? ({} as ProfessionalProfile);
+		}
 
 		const merged: ProfessionalProfile = {
-			...(existing?.parsed as ProfessionalProfile | undefined),
+			...baseProfessional,
 			...data,
 		};
 
@@ -272,7 +301,7 @@ export class EVaultProfileService {
 		const acl = merged.isPublic === true ? ["*"] : [normalizeEName(eName)];
 
 		console.log(
-			`[eVault] ${eName}: payload keys=[${Object.keys(payload).join(", ")}], acl=${JSON.stringify(acl)}`,
+			`[eVault] ${eName}: payload keys=[${Object.keys(payload).join(", ")}], acl=${JSON.stringify(acl)}, fromCache=${!!cached}`,
 		);
 
 		const profile = buildFullProfile(eName, merged, userData);
@@ -283,15 +312,31 @@ export class EVaultProfileService {
 			expiresAt: Date.now() + EVaultProfileService.CACHE_TTL,
 		});
 
-		const persisted = this.writeToEvault(
-			client,
-			eName,
-			existing,
-			payload,
-			acl,
+		const persisted = this.enqueueWrite(eName, () =>
+			this.writeToEvault(client, eName, existingEnvelope, payload, acl),
 		);
 
 		return { profile, persisted };
+	}
+
+	/**
+	 * Enqueue a write for a user — ensures writes are serialized so a
+	 * slow write #1 can't be overwritten by a fast write #2.
+	 */
+	private enqueueWrite(
+		eName: string,
+		fn: () => Promise<void>,
+	): Promise<void> {
+		const prev = this.writeQueue.get(eName) ?? Promise.resolve();
+		const next = prev.then(fn, fn); // run even if previous failed
+		this.writeQueue.set(eName, next);
+		// Clean up the queue entry when done
+		next.finally(() => {
+			if (this.writeQueue.get(eName) === next) {
+				this.writeQueue.delete(eName);
+			}
+		});
+		return next;
 	}
 
 	private async writeToEvault(
