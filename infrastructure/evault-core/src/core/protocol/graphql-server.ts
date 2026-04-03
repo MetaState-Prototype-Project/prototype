@@ -374,12 +374,19 @@ export class GraphQLServer {
                                 context.eName,
                             );
 
-                            // Build the full metaEnvelope response
+                            // Build parsed from actual written envelopes, not input
+                            const parsedFromEnvelopes = result.envelopes.reduce(
+                                (acc: Record<string, any>, env: any) => {
+                                    acc[env.ontology] = env.value;
+                                    return acc;
+                                },
+                                {},
+                            );
                             const metaEnvelope = {
                                 id: result.metaEnvelope.id,
                                 ontology: result.metaEnvelope.ontology,
                                 envelopes: result.envelopes,
-                                parsed: input.payload,
+                                parsed: parsedFromEnvelopes,
                             };
 
                             // Deliver webhooks for create operation
@@ -508,12 +515,19 @@ export class GraphQLServer {
                                 context.eName,
                             );
 
-                            // Build the full metaEnvelope response
+                            // Build parsed from actual written envelopes, not input
+                            const parsedFromEnvelopes = result.envelopes.reduce(
+                                (acc: Record<string, any>, env: any) => {
+                                    acc[env.ontology] = env.value;
+                                    return acc;
+                                },
+                                {},
+                            );
                             const metaEnvelope = {
                                 id: result.metaEnvelope.id,
                                 ontology: result.metaEnvelope.ontology,
                                 envelopes: result.envelopes,
-                                parsed: input.payload,
+                                parsed: parsedFromEnvelopes,
                             };
 
                             // Deliver webhooks for update operation

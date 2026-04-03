@@ -167,6 +167,8 @@ export class EVaultProfileService {
 	 */
 	private cache = new Map<string, CacheEntry>();
 	private static CACHE_TTL = 30 * 1000; // 30 seconds
+	/** Longer TTL after writes — rides out eVault eventual consistency window. */
+	private static WRITE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 	/** Per-user write queue — serializes eVault writes so rapid edits don't race. */
 	private writeQueue = new Map<string, Promise<void>>();
 
@@ -449,21 +451,12 @@ export class EVaultProfileService {
 				}
 			}
 
-			// Verification read — catch eventual-consistency issues
-			try {
-				const verify = await this.findMetaEnvelopeByOntology(
-					client,
-					PROFESSIONAL_PROFILE_ONTOLOGY,
-				);
-				const vParsed = verify?.parsed as Record<string, unknown> | undefined;
-				const sentAvatar = payload.avatarFileId ?? "NONE";
-				const gotAvatar = vParsed?.avatarFileId ?? "NONE";
-				const match = sentAvatar === gotAvatar ? "MATCH" : "MISMATCH!";
-				console.log(
-					`[eVault VERIFY] ${eName}: sent avatarFileId=${sentAvatar} got=${gotAvatar} ${match} | sent bannerFileId=${payload.bannerFileId ?? "NONE"} got=${vParsed?.bannerFileId ?? "NONE"}`,
-				);
-			} catch (verifyErr: any) {
-				console.warn(`[eVault VERIFY] ${eName}: verification read failed:`, verifyErr.message);
+			// Write succeeded — extend the cache with a long TTL so we ride out
+			// eVault's eventual-consistency window instead of reading stale data.
+			const cached = this.cache.get(eName);
+			if (cached) {
+				cached.expiresAt = Date.now() + EVaultProfileService.WRITE_CACHE_TTL;
+				console.log(`[eVault CACHE PIN] ${eName}: extended cache TTL to ${EVaultProfileService.WRITE_CACHE_TTL / 1000}s after successful write`);
 			}
 		} catch (err) {
 			// On write failure, invalidate cache so next read gets fresh data
