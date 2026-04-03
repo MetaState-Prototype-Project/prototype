@@ -1,7 +1,11 @@
 import { Request, Response } from "express";
+import { AppDataSource } from "../database/data-source";
+import { User } from "../database/entities/User";
 import { ReferenceService } from "../services/ReferenceService";
 import { ReferenceSigningSessionService } from "../services/ReferenceSigningSessionService";
 import { authGuard } from "../middleware/auth";
+
+const SYSTEM_AUTHOR_NAME = "Cerberus Platform";
 
 export class ReferenceController {
     private referenceService: ReferenceService;
@@ -307,14 +311,24 @@ export class ReferenceController {
                 return res.status(401).json({ error: "Unauthorized" });
             }
 
-            const { targetType, targetId, targetName, content, referenceType, numericScore, authorId, anonymous } = req.body;
+            const { targetType, targetId, targetName, content, referenceType, numericScore, anonymous } = req.body;
 
-            if (!targetType || !targetId || !targetName || !content || !authorId) {
-                return res.status(400).json({ error: "Missing required fields: targetType, targetId, targetName, content, authorId" });
+            if (!targetType || !targetId || !targetName || !content) {
+                return res.status(400).json({ error: "Missing required fields: targetType, targetId, targetName, content" });
             }
 
             if (numericScore && (numericScore < 1 || numericScore > 5)) {
                 return res.status(400).json({ error: "Numeric score must be between 1 and 5" });
+            }
+
+            // Resolve the system author — use the "Cerberus Platform" user
+            const userRepo = AppDataSource.getRepository(User);
+            let systemUser = await userRepo.findOneBy({ name: SYSTEM_AUTHOR_NAME });
+            if (!systemUser) {
+                // Auto-create the system user if it doesn't exist
+                systemUser = userRepo.create({ name: SYSTEM_AUTHOR_NAME, handle: "cerberus" });
+                systemUser = await userRepo.save(systemUser);
+                console.log(`[erep] Created system user "${SYSTEM_AUTHOR_NAME}" id=${systemUser.id}`);
             }
 
             // Create reference directly with "signed" status (trusted platform call)
@@ -325,7 +339,7 @@ export class ReferenceController {
                 content,
                 referenceType: referenceType || "violation",
                 numericScore,
-                authorId,
+                authorId: systemUser.id,
                 anonymous: anonymous ?? false,
                 status: "signed"
             });
