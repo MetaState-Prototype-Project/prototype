@@ -62,7 +62,10 @@ export class ProfileController {
 				return res.status(401).json({ error: "Authentication required" });
 			}
 
-			const profile = await this.evaultService.getFreshProfile(ename);
+			const isOwnProfile = !req.query.as && req.user?.ename === ename;
+			const profile = isOwnProfile
+				? await this.evaultService.getProfile(ename)
+				: await this.evaultService.getFreshProfile(ename);
 			res.json(profile);
 		} catch (error: any) {
 			console.error("Error fetching profile:", error.message);
