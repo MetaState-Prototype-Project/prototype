@@ -217,6 +217,10 @@ export class EVaultProfileService {
 		const userData = (userNode?.parsed ?? {}) as UserOntologyData;
 		const profData = (professionalNode?.parsed ?? {}) as ProfessionalProfile;
 
+		console.log(
+			`[eVault READ] ${eName}: envelopeId=${professionalNode?.id ?? "NONE"} avatarFileId=${profData.avatarFileId ?? "NONE"} bannerFileId=${profData.bannerFileId ?? "NONE"} keys=[${Object.keys(profData).join(",")}]`,
+		);
+
 		return buildFullProfile(eName, profData, userData);
 	}
 
@@ -225,9 +229,14 @@ export class EVaultProfileService {
 		const now = Date.now();
 		const cached = this.cache.get(eName);
 		if (cached && cached.expiresAt > now) {
+			const ttl = Math.round((cached.expiresAt - now) / 1000);
+			console.log(
+				`[eVault CACHE HIT] ${eName}: ttl=${ttl}s avatarFileId=${cached.profile.professional.avatarFileId ?? "NONE"} bannerFileId=${cached.profile.professional.bannerFileId ?? "NONE"}`,
+			);
 			return cached.profile;
 		}
 
+		console.log(`[eVault CACHE MISS] ${eName}: fetching from eVault`);
 		const profile = await this.fetchFromEvault(eName);
 		this.cache.set(eName, {
 			profile,
@@ -278,6 +287,9 @@ export class EVaultProfileService {
 				client,
 				PROFESSIONAL_PROFILE_ONTOLOGY,
 			);
+			console.log(
+				`[eVault MERGE-BASE] ${eName}: FROM CACHE — avatarFileId=${baseProfessional.avatarFileId ?? "NONE"} bannerFileId=${baseProfessional.bannerFileId ?? "NONE"} envelopeId=${existingEnvelope?.id ?? "NONE"}`,
+			);
 		} else {
 			const [existing, userNode] = await Promise.all([
 				this.findMetaEnvelopeByOntology(
@@ -290,6 +302,9 @@ export class EVaultProfileService {
 			userData = (userNode?.parsed ?? {}) as UserOntologyData;
 			baseProfessional =
 				(existing?.parsed as ProfessionalProfile | undefined) ?? ({} as ProfessionalProfile);
+			console.log(
+				`[eVault MERGE-BASE] ${eName}: FROM EVAULT — avatarFileId=${baseProfessional.avatarFileId ?? "NONE"} bannerFileId=${baseProfessional.bannerFileId ?? "NONE"} envelopeId=${existingEnvelope?.id ?? "NONE"}`,
+			);
 		}
 
 		const merged: ProfessionalProfile = {
@@ -301,7 +316,7 @@ export class EVaultProfileService {
 		const acl = merged.isPublic === true ? ["*"] : [normalizeEName(eName)];
 
 		console.log(
-			`[eVault] ${eName}: payload keys=[${Object.keys(payload).join(", ")}], acl=${JSON.stringify(acl)}, fromCache=${!!cached}`,
+			`[eVault MERGED] ${eName}: avatarFileId=${merged.avatarFileId ?? "NONE"} bannerFileId=${merged.bannerFileId ?? "NONE"} payload keys=[${Object.keys(payload).join(", ")}] acl=${JSON.stringify(acl)}`,
 		);
 
 		const profile = buildFullProfile(eName, merged, userData);
@@ -346,6 +361,10 @@ export class EVaultProfileService {
 		payload: Record<string, unknown>,
 		acl: string[],
 	): Promise<void> {
+		console.log(
+			`[eVault WRITE] ${eName}: starting ${existing ? "UPDATE" : "CREATE"} envelopeId=${existing?.id ?? "NEW"} avatarFileId=${payload.avatarFileId ?? "NONE"} bannerFileId=${payload.bannerFileId ?? "NONE"}`,
+		);
+
 		try {
 			if (existing) {
 				const result = await client.request<UpdateResult>(UPDATE_MUTATION, {
@@ -361,10 +380,14 @@ export class EVaultProfileService {
 					const errMsg = result.updateMetaEnvelope.errors
 						.map((e) => e.message)
 						.join("; ");
-					console.error(`[eVault] ${eName}: UPDATE failed:`, errMsg);
+					console.error(`[eVault WRITE FAIL] ${eName}: UPDATE errors: ${errMsg}`);
 					throw new Error(errMsg);
 				}
-				console.log(`[eVault] ${eName}: UPDATE ok`);
+
+				const returned = result.updateMetaEnvelope.metaEnvelope?.parsed as Record<string, unknown> | undefined;
+				console.log(
+					`[eVault WRITE OK] ${eName}: UPDATE response avatarFileId=${returned?.avatarFileId ?? "NONE"} bannerFileId=${returned?.bannerFileId ?? "NONE"} keys=[${returned ? Object.keys(returned).join(",") : "EMPTY"}]`,
+				);
 			} else {
 				const result = await client.request<CreateResult>(CREATE_MUTATION, {
 					input: {
@@ -376,6 +399,7 @@ export class EVaultProfileService {
 
 				if (result.createMetaEnvelope.errors?.length) {
 					const errors = result.createMetaEnvelope.errors;
+					console.warn(`[eVault WRITE] ${eName}: CREATE got errors: ${JSON.stringify(errors)}`);
 					const couldBeConflict = errors.some(
 						(e) =>
 							e.code === "CREATE_FAILED" ||
@@ -391,6 +415,7 @@ export class EVaultProfileService {
 						PROFESSIONAL_PROFILE_ONTOLOGY,
 					);
 					if (raced) {
+						console.log(`[eVault WRITE] ${eName}: CREATE conflict, falling back to UPDATE on ${raced.id}`);
 						const updateResult = await client.request<UpdateResult>(
 							UPDATE_MUTATION,
 							{
@@ -409,15 +434,40 @@ export class EVaultProfileService {
 									.join("; "),
 							);
 						}
+						const returned = updateResult.updateMetaEnvelope.metaEnvelope?.parsed as Record<string, unknown> | undefined;
+						console.log(
+							`[eVault WRITE OK] ${eName}: fallback UPDATE response avatarFileId=${returned?.avatarFileId ?? "NONE"}`,
+						);
 					} else {
 						throw new Error(errors.map((e) => e.message).join("; "));
 					}
 				} else {
-					console.log(`[eVault] ${eName}: CREATE ok`);
+					const returned = result.createMetaEnvelope.metaEnvelope?.parsed as Record<string, unknown> | undefined;
+					console.log(
+						`[eVault WRITE OK] ${eName}: CREATE response avatarFileId=${returned?.avatarFileId ?? "NONE"} bannerFileId=${returned?.bannerFileId ?? "NONE"}`,
+					);
 				}
+			}
+
+			// Verification read — catch eventual-consistency issues
+			try {
+				const verify = await this.findMetaEnvelopeByOntology(
+					client,
+					PROFESSIONAL_PROFILE_ONTOLOGY,
+				);
+				const vParsed = verify?.parsed as Record<string, unknown> | undefined;
+				const sentAvatar = payload.avatarFileId ?? "NONE";
+				const gotAvatar = vParsed?.avatarFileId ?? "NONE";
+				const match = sentAvatar === gotAvatar ? "MATCH" : "MISMATCH!";
+				console.log(
+					`[eVault VERIFY] ${eName}: sent avatarFileId=${sentAvatar} got=${gotAvatar} ${match} | sent bannerFileId=${payload.bannerFileId ?? "NONE"} got=${vParsed?.bannerFileId ?? "NONE"}`,
+				);
+			} catch (verifyErr: any) {
+				console.warn(`[eVault VERIFY] ${eName}: verification read failed:`, verifyErr.message);
 			}
 		} catch (err) {
 			// On write failure, invalidate cache so next read gets fresh data
+			console.error(`[eVault WRITE FAIL] ${eName}: invalidating cache`, (err as Error).message);
 			this.cache.delete(eName);
 			throw err;
 		}

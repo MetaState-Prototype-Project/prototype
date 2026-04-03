@@ -40,11 +40,17 @@ export class ProfileController {
 		data: Partial<ProfessionalProfile>,
 		res: Response,
 	) {
+		console.log(`[controller] optimisticUpdate ${ename}: keys=[${Object.keys(data).join(",")}] avatarFileId=${(data as any).avatarFileId ?? "N/A"} bannerFileId=${(data as any).bannerFileId ?? "N/A"}`);
 		const { profile, persisted } = await this.evaultService.prepareUpdate(ename, data);
+		console.log(`[controller] optimisticUpdate ${ename}: returning avatarFileId=${profile.professional.avatarFileId ?? "NONE"} bannerFileId=${profile.professional.bannerFileId ?? "NONE"}`);
 		// Fire eVault write in background — don't block the response
-		persisted.catch((err) => {
-			console.error(`[eVault bg] ${ename}:`, err.message);
-		});
+		persisted
+			.then(() => {
+				console.log(`[controller] bg write ${ename}: SUCCESS`);
+			})
+			.catch((err) => {
+				console.error(`[controller] bg write ${ename}: FAILED:`, err.message);
+			});
 		this.syncService?.syncUserToSearchDb(profile);
 		res.json(profile);
 	}
