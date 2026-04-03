@@ -156,6 +156,8 @@ function buildFullProfile(
 interface CacheEntry {
 	profile: FullProfile;
 	expiresAt: number;
+	/** Cached envelope ID so writes don't need a read round-trip. */
+	envelopeId?: string;
 }
 
 export class EVaultProfileService {
@@ -207,8 +209,8 @@ export class EVaultProfileService {
 		return edge?.node ?? null;
 	}
 
-	/** Fetch profile from eVault (bypasses cache). */
-	private async fetchFromEvault(eName: string): Promise<FullProfile> {
+	/** Fetch profile from eVault (bypasses cache). Returns profile + envelope ID. */
+	private async fetchFromEvault(eName: string): Promise<{ profile: FullProfile; envelopeId?: string }> {
 		const client = await this.getClient(eName);
 
 		const [professionalNode, userNode] = await Promise.all([
@@ -223,7 +225,10 @@ export class EVaultProfileService {
 			`[eVault READ] ${eName}: envelopeId=${professionalNode?.id ?? "NONE"} avatarFileId=${profData.avatarFileId ?? "NONE"} bannerFileId=${profData.bannerFileId ?? "NONE"} keys=[${Object.keys(profData).join(",")}]`,
 		);
 
-		return buildFullProfile(eName, profData, userData);
+		return {
+			profile: buildFullProfile(eName, profData, userData),
+			envelopeId: professionalNode?.id,
+		};
 	}
 
 	/** Get profile — serves from 30s cache, falls back to eVault. */
@@ -239,10 +244,11 @@ export class EVaultProfileService {
 		}
 
 		console.log(`[eVault CACHE MISS] ${eName}: fetching from eVault`);
-		const profile = await this.fetchFromEvault(eName);
+		const { profile, envelopeId } = await this.fetchFromEvault(eName);
 		this.cache.set(eName, {
 			profile,
 			expiresAt: now + EVaultProfileService.CACHE_TTL,
+			envelopeId,
 		});
 		return profile;
 	}
@@ -268,14 +274,12 @@ export class EVaultProfileService {
 			`[eVault] ${eName}: prepareUpdate keys=[${Object.keys(data).join(", ")}]`,
 		);
 
-		const client = await this.getClient(eName);
-
 		// Use cache as merge base if available — this prevents a concurrent
 		// background write from being clobbered by a stale eVault read.
 		const cached = this.cache.get(eName);
 		let baseProfessional: ProfessionalProfile;
 		let userData: UserOntologyData;
-		let existingEnvelope: MetaEnvelopeNode | null;
+		let cachedEnvelopeId: string | undefined;
 
 		if (cached) {
 			baseProfessional = cached.profile.professional;
@@ -284,30 +288,30 @@ export class EVaultProfileService {
 				username: cached.profile.handle,
 				isVerified: cached.profile.isVerified,
 			} as UserOntologyData;
-			// Still need the envelope ID for the update mutation
-			existingEnvelope = await this.findMetaEnvelopeByOntology(
-				client,
-				PROFESSIONAL_PROFILE_ONTOLOGY,
-			);
+			cachedEnvelopeId = cached.envelopeId;
 			console.log(
-				`[eVault MERGE-BASE] ${eName}: FROM CACHE — avatarFileId=${baseProfessional.avatarFileId ?? "NONE"} bannerFileId=${baseProfessional.bannerFileId ?? "NONE"} envelopeId=${existingEnvelope?.id ?? "NONE"}`,
+				`[eVault MERGE-BASE] ${eName}: FROM CACHE — avatarFileId=${baseProfessional.avatarFileId ?? "NONE"} bannerFileId=${baseProfessional.bannerFileId ?? "NONE"} envelopeId=${cachedEnvelopeId ?? "NONE"}`,
 			);
 		} else {
-			const [existing, userNode] = await Promise.all([
-				this.findMetaEnvelopeByOntology(
-					client,
-					PROFESSIONAL_PROFILE_ONTOLOGY,
-				),
-				this.findMetaEnvelopeByOntology(client, USER_ONTOLOGY),
-			]);
-			existingEnvelope = existing;
-			userData = (userNode?.parsed ?? {}) as UserOntologyData;
-			baseProfessional =
-				(existing?.parsed as ProfessionalProfile | undefined) ?? ({} as ProfessionalProfile);
+			// No cache — must read from eVault
+			const { profile, envelopeId } = await this.fetchFromEvault(eName);
+			baseProfessional = profile.professional;
+			userData = {
+				displayName: profile.name,
+				username: profile.handle,
+				isVerified: profile.isVerified,
+			} as UserOntologyData;
+			cachedEnvelopeId = envelopeId;
 			console.log(
-				`[eVault MERGE-BASE] ${eName}: FROM EVAULT — avatarFileId=${baseProfessional.avatarFileId ?? "NONE"} bannerFileId=${baseProfessional.bannerFileId ?? "NONE"} envelopeId=${existingEnvelope?.id ?? "NONE"}`,
+				`[eVault MERGE-BASE] ${eName}: FROM EVAULT — avatarFileId=${baseProfessional.avatarFileId ?? "NONE"} bannerFileId=${baseProfessional.bannerFileId ?? "NONE"} envelopeId=${cachedEnvelopeId ?? "NONE"}`,
 			);
 		}
+
+		const client = await this.getClient(eName);
+		// Build a minimal MetaEnvelopeNode stub for writeToEvault
+		const existingEnvelope: MetaEnvelopeNode | null = cachedEnvelopeId
+			? { id: cachedEnvelopeId, ontology: PROFESSIONAL_PROFILE_ONTOLOGY, parsed: {} }
+			: null;
 
 		const merged: ProfessionalProfile = {
 			...baseProfessional,
@@ -327,6 +331,7 @@ export class EVaultProfileService {
 		this.cache.set(eName, {
 			profile,
 			expiresAt: Date.now() + EVaultProfileService.CACHE_TTL,
+			envelopeId: cachedEnvelopeId,
 		});
 
 		const persisted = this.enqueueWrite(eName, () =>
