@@ -19,17 +19,27 @@
 	let uploadingBanner = $state(false);
 	let bannerInput = $state<HTMLInputElement | null>(null);
 	let avatarInput = $state<HTMLInputElement | null>(null);
+	/** Local blob previews — shown instantly before upload completes */
+	let avatarPreview = $state<string | null>(null);
+	let bannerPreview = $state<string | null>(null);
+	/** Hide broken images when they 404 */
+	let bannerBroken = $state(false);
+	let avatarBroken = $state(false);
 
-	function avatarUrl(): string | null {
-		if (profile.professional.avatarFileId) {
-			return getProfileAssetUrl(profile.ename, 'avatar');
+	function avatarSrc(): string | null {
+		if (avatarPreview) return avatarPreview;
+		const fid = profile.professional.avatarFileId;
+		if (fid) {
+			return `${getProfileAssetUrl(profile.ename, 'avatar')}?v=${encodeURIComponent(fid)}`;
 		}
 		return null;
 	}
 
-	function bannerUrl(): string | null {
-		if (profile.professional.bannerFileId) {
-			return getProfileAssetUrl(profile.ename, 'banner');
+	function bannerSrc(): string | null {
+		if (bannerPreview) return bannerPreview;
+		const fid = profile.professional.bannerFileId;
+		if (fid) {
+			return `${getProfileAssetUrl(profile.ename, 'banner')}?v=${encodeURIComponent(fid)}`;
 		}
 		return null;
 	}
@@ -39,13 +49,18 @@
 		const file = input.files?.[0];
 		if (!file) return;
 
+		avatarPreview = URL.createObjectURL(file);
+		avatarBroken = false;
+
 		uploadingAvatar = true;
 		try {
 			const result = await uploadFile(file);
 			await updateProfile({ avatarFileId: result.id });
+			avatarPreview = null;
 			toast.success('Avatar updated');
 		} catch {
 			toast.error('Failed to upload avatar');
+			avatarPreview = null;
 		} finally {
 			uploadingAvatar = false;
 		}
@@ -56,13 +71,18 @@
 		const file = input.files?.[0];
 		if (!file) return;
 
+		bannerPreview = URL.createObjectURL(file);
+		bannerBroken = false;
+
 		uploadingBanner = true;
 		try {
 			const result = await uploadFile(file);
 			await updateProfile({ bannerFileId: result.id });
+			bannerPreview = null;
 			toast.success('Banner updated');
 		} catch {
 			toast.error('Failed to upload banner');
+			bannerPreview = null;
 		} finally {
 			uploadingBanner = false;
 		}
@@ -82,8 +102,8 @@
 <Card class="overflow-hidden p-0">
 	<!-- Banner -->
 	<div class="relative h-48 bg-gradient-to-r from-primary/20 to-primary/5">
-		{#if bannerUrl()}
-			<img src={bannerUrl()} alt="Banner" class="h-full w-full object-cover" />
+		{#if bannerSrc() && !bannerBroken}
+			<img src={bannerSrc()} alt="Banner" class="h-full w-full object-cover" onerror={() => { bannerBroken = true; }} />
 		{/if}
 		{#if editable}
 			<div class="absolute bottom-3 right-3">
@@ -101,8 +121,8 @@
 			<!-- Avatar -->
 			<div class="-mt-16 relative">
 				<Avatar class="h-32 w-32 border-4 border-card">
-					{#if avatarUrl()}
-						<AvatarImage src={avatarUrl()} alt={profile.name ?? profile.ename} />
+					{#if avatarSrc() && !avatarBroken}
+						<AvatarImage src={avatarSrc()} alt={profile.name ?? profile.ename} />
 					{/if}
 					<AvatarFallback class="text-3xl font-bold">
 						{(profile.name ?? profile.ename ?? '?')[0]?.toUpperCase()}

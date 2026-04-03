@@ -114,6 +114,51 @@ export class UserSearchService {
 		};
 	}
 
+	async listPublicUsers(page: number = 1, limit: number = 12) {
+		const queryBuilder = this.userRepository
+			.createQueryBuilder("user")
+			.select([
+				"user.id",
+				"user.ename",
+				"user.name",
+				"user.handle",
+				"user.bio",
+				"user.avatarFileId",
+				"user.headline",
+				"user.location",
+				"user.skills",
+				"user.isVerified",
+			])
+			.where("user.isPublic = :isPublic", { isPublic: true })
+			.andWhere("user.isArchived = :archived", { archived: false })
+			.orderBy("user.isVerified", "DESC")
+			.addOrderBy("user.name", "ASC");
+
+		const offset = (page - 1) * limit;
+		queryBuilder.skip(offset).take(limit);
+
+		const [results, total] = await queryBuilder.getManyAndCount();
+
+		return {
+			results: results.map((user) => ({
+				id: user.id,
+				ename: user.ename,
+				name: user.name,
+				handle: user.handle,
+				bio: user.bio,
+				avatarFileId: user.avatarFileId,
+				headline: user.headline,
+				location: user.location,
+				skills: user.skills,
+				isVerified: user.isVerified,
+			})),
+			total,
+			page,
+			limit,
+			totalPages: Math.ceil(total / limit),
+		};
+	}
+
 	async findByEname(ename: string): Promise<User | null> {
 		return this.userRepository.findOneBy({ ename });
 	}

@@ -36,7 +36,8 @@ export async function searchProfiles(
 ): Promise<SearchResponse> {
 	searchLoading.set(true);
 	try {
-		const params: Record<string, string> = { q: query, _: String(Date.now()) };
+		const params: Record<string, string> = { _: String(Date.now()) };
+		if (query) params.q = query;
 		if (options?.skills?.length) params.skills = options.skills.join(',');
 		if (options?.page) params.page = String(options.page);
 		if (options?.limit) params.limit = String(options.limit);

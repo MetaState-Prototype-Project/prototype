@@ -15,37 +15,62 @@ export async function proxyFileFromFileManager(
 	fileId: string,
 	ename: string,
 	res: Response,
-	mode: "preview" | "download" = "preview",
+	disposition: "inline" | "attachment" = "inline",
 ): Promise<void> {
 	try {
 		const token = mintFmToken(ename);
-		const endpoint = mode === "download" ? "download" : "preview";
-		const url = `${FILE_MANAGER_BASE_URL()}/api/files/${fileId}/${endpoint}`;
-		const response = await axios.get(url, {
-			responseType: "stream",
-			timeout: 60000,
-			headers: {
-				Authorization: `Bearer ${token}`,
-			},
-		});
+		// Try preview first (works for images/PDFs); fall back to download for
+		// videos and other types that file-manager doesn't support previewing.
+		let response: import("axios").AxiosResponse;
+		try {
+			response = await axios.get(
+				`${FILE_MANAGER_BASE_URL()}/api/files/${fileId}/preview`,
+				{
+					responseType: "stream",
+					timeout: 60000,
+					headers: { Authorization: `Bearer ${token}` },
+				},
+			);
+		} catch (previewErr: any) {
+			if (previewErr?.response?.status === 400) {
+				// Preview not supported for this type — use download endpoint
+				response = await axios.get(
+					`${FILE_MANAGER_BASE_URL()}/api/files/${fileId}/download`,
+					{
+						responseType: "stream",
+						timeout: 60000,
+						headers: { Authorization: `Bearer ${token}` },
+					},
+				);
+			} else {
+				throw previewErr;
+			}
+		}
 
 		const contentType =
 			response.headers["content-type"] || "application/octet-stream";
-		const contentDisposition = response.headers["content-disposition"];
 		const contentLength = response.headers["content-length"];
 
 		res.set("Content-Type", contentType);
-		if (contentDisposition) {
-			res.set("Content-Disposition", contentDisposition);
-		}
+		res.set("Cache-Control", "no-cache");
+		// Always set our own disposition so videos/PDFs render inline
+		const filename =
+			response.headers["content-disposition"]?.match(
+				/filename="?([^"]+)"?/,
+			)?.[1] ?? fileId;
+		res.set(
+			"Content-Disposition",
+			disposition === "attachment"
+				? `attachment; filename="${filename}"`
+				: `inline; filename="${filename}"`,
+		);
 		if (contentLength) {
 			res.set("Content-Length", contentLength);
 		}
-		res.set("Cache-Control", "public, max-age=3600");
-
 		response.data.pipe(res);
 	} catch (error: any) {
 		if (error?.response?.status === 404) {
+			console.warn(`[file-proxy] 404 from file-manager for fileId=${fileId} (user=${ename})`);
 			res.status(404).json({ error: "File not found" });
 		} else if (error?.response) {
 			const chunks: Buffer[] = [];

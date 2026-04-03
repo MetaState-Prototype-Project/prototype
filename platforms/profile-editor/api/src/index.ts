@@ -91,6 +91,7 @@ AppDataSource.initialize()
 		console.log("Database connection established");
 
 		const syncService = new EVaultSyncService(evaultService);
+		profileController.setSyncService(syncService);
 		syncService.start(5 * 60 * 1000);
 
 		app.listen(PORT, () => {

@@ -565,6 +565,36 @@ export class DbService {
                 { id, ontology: meta.ontology, acl, eName },
             );
 
+            // Deduplicate envelopes — if multiple Envelope nodes share the
+            // same ontology (field name), keep the first and delete the rest.
+            // This prevents non-deterministic reads where collect(e) returns
+            // duplicates in undefined order and reduce picks the wrong one.
+            const seen = new Map<string, string>(); // ontology → kept envelope id
+            const dupsToDelete: string[] = [];
+            for (const env of existing.envelopes) {
+                if (seen.has(env.ontology)) {
+                    dupsToDelete.push(env.id);
+                } else {
+                    seen.set(env.ontology, env.id);
+                }
+            }
+            if (dupsToDelete.length > 0) {
+                console.warn(
+                    `[eVault] Cleaning ${dupsToDelete.length} duplicate envelope(s) for MetaEnvelope ${id}`,
+                );
+                for (const dupId of dupsToDelete) {
+                    await this.runQueryInternal(
+                        `MATCH (e:Envelope { id: $envelopeId }) DETACH DELETE e`,
+                        { envelopeId: dupId },
+                    );
+                }
+                // Remove deleted dupes from the existing list so the update
+                // loop below doesn't try to reference them.
+                existing.envelopes = existing.envelopes.filter(
+                    (e) => !dupsToDelete.includes(e.id),
+                );
+            }
+
             const createdEnvelopes: Envelope<T[keyof T]>[] = [];
             let counter = 0;
 
@@ -601,21 +631,18 @@ export class DbService {
                             valueType,
                         });
                     } else {
-                        // Create new envelope
+                        // Create new envelope — use MERGE on the relationship
+                        // + ontology to prevent duplicate Envelopes if two
+                        // concurrent updates race.
                         const envW3id = await new W3IDBuilder().build();
                         const envelopeId = envW3id.id;
 
                         await this.runQueryInternal(
                             `
                             MATCH (m:MetaEnvelope { id: $metaId, eName: $eName })
-                            CREATE (${alias}:Envelope {
-                                id: $${alias}_id,
-                                ontology: $${alias}_ontology,
-                                value: $${alias}_value,
-                                valueType: $${alias}_type
-                            })
-                            WITH m, ${alias}
-                            MERGE (m)-[:LINKS_TO]->(${alias})
+                            MERGE (m)-[:LINKS_TO]->(${alias}:Envelope { ontology: $${alias}_ontology })
+                            ON CREATE SET ${alias}.id = $${alias}_id, ${alias}.value = $${alias}_value, ${alias}.valueType = $${alias}_type
+                            ON MATCH SET ${alias}.value = $${alias}_value, ${alias}.valueType = $${alias}_type
                             `,
                             {
                                 metaId: id,

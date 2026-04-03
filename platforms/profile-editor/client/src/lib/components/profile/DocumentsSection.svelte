@@ -88,6 +88,17 @@
 					</div>
 
 					{#if cvFileId}
+						<div class="mb-2 overflow-hidden rounded border">
+							<object
+								data={getProfileAssetUrl(ename, 'cv')}
+								type="application/pdf"
+								class="h-48 w-full"
+							>
+								<a href={getProfileAssetUrl(ename, 'cv')} target="_blank" rel="noopener noreferrer" class="flex items-center justify-center h-48 text-sm text-muted-foreground hover:underline">
+									Download CV
+								</a>
+							</object>
+						</div>
 						<div class="flex items-center gap-2">
 							<Button variant="link" size="sm" href={getProfileAssetUrl(ename, 'cv')} class="h-auto p-0">Download CV</Button>
 							{#if editable}
@@ -121,8 +132,19 @@
 					</div>
 
 					{#if videoIntroFileId}
+						<div class="mb-2 overflow-hidden rounded border">
+							<!-- svelte-ignore a11y_media_has_caption -->
+							<video
+								src={getProfileAssetUrl(ename, 'video')}
+								controls
+								preload="metadata"
+								class="h-48 w-full bg-black"
+							>
+								<a href={getProfileAssetUrl(ename, 'video')} target="_blank" rel="noopener noreferrer">Download Video</a>
+							</video>
+						</div>
 						<div class="flex items-center gap-2">
-							<Button variant="link" size="sm" href={getProfileAssetUrl(ename, 'video')} class="h-auto p-0">View Video</Button>
+							<Button variant="link" size="sm" href={getProfileAssetUrl(ename, 'video')} class="h-auto p-0">Download Video</Button>
 							{#if editable}
 								<Button variant="link" size="sm" class="h-auto p-0 text-destructive" onclick={removeVideo}>Remove</Button>
 							{/if}

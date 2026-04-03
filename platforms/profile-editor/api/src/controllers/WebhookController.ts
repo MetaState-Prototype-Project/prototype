@@ -15,6 +15,7 @@ export class WebhookController {
 		try {
 			const schemaId = req.body.schemaId;
 			const globalId = req.body.id;
+			console.log(`[webhook] incoming: schemaId=${schemaId} globalId=${globalId} w3id=${req.body.w3id ?? "N/A"} keys=[${Object.keys(req.body.data ?? {}).join(",")}]`);
 			const mapping = Object.values(this.adapter.mapping).find(
 				(m) => m.schemaId === schemaId,
 			);
@@ -96,6 +97,8 @@ export class WebhookController {
 	) {
 		const ename = rawBody.w3id;
 		if (!ename) return;
+
+		console.log(`[webhook] professional_profile ${ename}: avatarFileId=${localData.avatarFileId ?? "NONE"} bannerFileId=${localData.bannerFileId ?? "NONE"} keys=[${Object.keys(localData).join(",")}]`);
 
 		const profileData: any = { ename };
 
