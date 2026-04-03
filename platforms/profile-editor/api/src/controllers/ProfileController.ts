@@ -62,7 +62,7 @@ export class ProfileController {
 				return res.status(401).json({ error: "Authentication required" });
 			}
 
-			const profile = await this.evaultService.getProfile(ename);
+			const profile = await this.evaultService.getFreshProfile(ename);
 			res.json(profile);
 		} catch (error: any) {
 			console.error("Error fetching profile:", error.message);
@@ -80,15 +80,7 @@ export class ProfileController {
 			const payload: ProfileUpdatePayload = req.body;
 			console.log(`[profile] PATCH ${ename}:`, Object.keys(payload));
 
-			// Visibility changes MUST block — ACL needs to persist
-			if ("isPublic" in payload) {
-				const { profile, persisted } = await this.evaultService.prepareUpdate(ename, payload);
-				await persisted;
-				this.syncService?.syncUserToSearchDb(profile);
-				res.json(profile);
-			} else {
-				await this.optimisticUpdate(ename, payload, res);
-			}
+			await this.optimisticUpdate(ename, payload, res);
 		} catch (error: any) {
 			console.error(`[profile] PATCH failed:`, error.message);
 			res.status(500).json({ error: "Failed to update profile" });

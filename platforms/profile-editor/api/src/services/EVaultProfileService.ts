@@ -179,8 +179,14 @@ export class EVaultProfileService {
 	}
 
 	private async getClient(eName: string): Promise<GraphQLClient> {
+		const t0 = Date.now();
 		const endpoint = await this.registryService.getEvaultGraphqlUrl(eName);
+		const t1 = Date.now();
 		const token = await this.registryService.ensurePlatformToken();
+		const t2 = Date.now();
+		if (t2 - t0 > 50) {
+			console.log(`[eVault] getClient ${eName}: resolve=${t1 - t0}ms token=${t2 - t1}ms`);
+		}
 		return new GraphQLClient(endpoint, {
 			headers: {
 				Authorization: `Bearer ${token}`,
@@ -248,6 +254,18 @@ export class EVaultProfileService {
 		this.cache.set(eName, {
 			profile,
 			expiresAt: now + EVaultProfileService.CACHE_TTL,
+			envelopeId,
+		});
+		return profile;
+	}
+
+	/** Get profile fresh from eVault — bypasses cache, but updates it. */
+	async getFreshProfile(eName: string): Promise<FullProfile> {
+		console.log(`[eVault FRESH] ${eName}: bypassing cache`);
+		const { profile, envelopeId } = await this.fetchFromEvault(eName);
+		this.cache.set(eName, {
+			profile,
+			expiresAt: Date.now() + EVaultProfileService.CACHE_TTL,
 			envelopeId,
 		});
 		return profile;
