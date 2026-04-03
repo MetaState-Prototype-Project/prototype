@@ -335,7 +335,10 @@ export class ReferenceController {
             // won't match eReputation's user ID — ename is the shared identifier.
             let resolvedTargetId = targetId;
             if (targetEname && targetType === "user") {
-                const targetUser = await userRepo.findOneBy({ ename: targetEname });
+                // Try both with and without @ prefix
+                const cleanEname = targetEname.replace(/^@/, "");
+                const targetUser = await userRepo.findOneBy({ ename: cleanEname })
+                    ?? await userRepo.findOneBy({ ename: `@${cleanEname}` });
                 if (targetUser) {
                     resolvedTargetId = targetUser.id;
                     console.log(`[erep] Resolved target ename=${targetEname} to local id=${targetUser.id}`);
