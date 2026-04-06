@@ -44,6 +44,9 @@ export class File {
     @Column({ type: "text", nullable: true })
     url!: string | null;
 
+    @Column({ default: false })
+    isPublic!: boolean;
+
     @Column()
     ownerId!: string;
 

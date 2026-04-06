@@ -453,7 +453,7 @@ export class FileController {
             }
 
             const { id } = req.params;
-            const { displayName, description, folderId } = req.body;
+            const { displayName, description, folderId, isPublic } = req.body;
 
             const file = await this.fileService.updateFile(
                 id,
@@ -473,6 +473,11 @@ export class FileController {
                     .json({ error: "File not found or not authorized" });
             }
 
+            if (typeof isPublic === "boolean") {
+                await this.fileService.setFilePublic(id, isPublic);
+                file.isPublic = isPublic;
+            }
+
             res.json({
                 id: file.id,
                 name: file.name,
@@ -483,6 +488,7 @@ export class FileController {
                 md5Hash: file.md5Hash,
                 ownerId: file.ownerId,
                 folderId: file.folderId,
+                isPublic: file.isPublic,
                 createdAt: file.createdAt,
                 updatedAt: file.updatedAt,
             });
@@ -568,8 +574,8 @@ export class FileController {
     };
 
     /**
-     * Serves a file publicly without authentication.
-     * The file ID acts as an unguessable capability token.
+     * Serves a file publicly. Only files explicitly marked isPublic=true
+     * are served; all others return 404.
      */
     publicPreview = async (req: Request, res: Response) => {
         try {
@@ -584,7 +590,10 @@ export class FileController {
                 return res.redirect(file.url);
             }
 
-            // Legacy fallback for files still in DB
+            if (!file.data) {
+                return res.status(410).json({ error: "File data unavailable" });
+            }
+
             res.setHeader("Content-Type", file.mimeType);
             res.setHeader(
                 "Content-Disposition",

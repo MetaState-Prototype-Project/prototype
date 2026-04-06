@@ -469,8 +469,12 @@ async function doProvision() {
                 identity.w3id,
                 profile,
             );
-            const next = [...identities];
-            next[selectedIndex] = { ...next[selectedIndex], displayName: profile.displayName };
+            const provisionedKeyId = identity.keyId;
+            const next = identities.map((id) =>
+                id.keyId === provisionedKeyId
+                    ? { ...id, displayName: profile.displayName }
+                    : id,
+            );
             identities = next;
             saveIdentities(next);
             addLog("success", "UserProfile created", profile.displayName);

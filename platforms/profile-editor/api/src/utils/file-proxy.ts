@@ -12,6 +12,59 @@ function mintFmToken(userId: string): string {
 	return jwt.sign({ userId }, secret, { expiresIn: "1h" });
 }
 
+import dns from "dns/promises";
+import net from "net";
+
+/**
+ * Validates a URL is safe to fetch (not internal/private).
+ * Blocks non-https schemes (except data:), loopback, private, and link-local IPs.
+ */
+async function isUrlAllowed(url: string): Promise<boolean> {
+	if (url.startsWith("data:")) return true;
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return false;
+	}
+	if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return false;
+
+	const hostname = parsed.hostname;
+	if (hostname === "localhost" || hostname === "[::1]") return false;
+
+	// Resolve hostname to IP and check for private ranges
+	let addresses: string[];
+	try {
+		if (net.isIP(hostname)) {
+			addresses = [hostname];
+		} else {
+			const results = await dns.resolve4(hostname).catch(() => [] as string[]);
+			const results6 = await dns.resolve6(hostname).catch(() => [] as string[]);
+			addresses = [...results, ...results6];
+		}
+	} catch {
+		return false;
+	}
+
+	for (const addr of addresses) {
+		if (net.isIPv4(addr)) {
+			const parts = addr.split(".").map(Number);
+			if (parts[0] === 127) return false;                                    // 127.0.0.0/8
+			if (parts[0] === 10) return false;                                     // 10.0.0.0/8
+			if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return false; // 172.16.0.0/12
+			if (parts[0] === 192 && parts[1] === 168) return false;                // 192.168.0.0/16
+			if (parts[0] === 169 && parts[1] === 254) return false;                // 169.254.0.0/16
+			if (parts[0] === 0) return false;                                      // 0.0.0.0/8
+		} else if (net.isIPv6(addr)) {
+			const normalized = addr.toLowerCase();
+			if (normalized === "::1") return false;
+			if (normalized.startsWith("fc") || normalized.startsWith("fd")) return false; // fc00::/7
+			if (normalized.startsWith("fe80")) return false;                              // fe80::/10
+		}
+	}
+	return true;
+}
+
 /**
  * Downloads an image from a URL (HTTP or data: URI) and uploads it to the
  * file-manager service, returning the resulting file ID.
@@ -22,6 +75,11 @@ export async function downloadUrlAndUploadToFileManager(
 	ename: string,
 ): Promise<string | null> {
 	try {
+		if (!(await isUrlAllowed(url))) {
+			console.warn("SSRF blocked: disallowed URL", url);
+			return null;
+		}
+
 		let buffer: Buffer;
 		let mimeType = "image/png";
 		let filename = "avatar.png";
@@ -37,6 +95,7 @@ export async function downloadUrlAndUploadToFileManager(
 			const response = await axios.get(url, {
 				responseType: "arraybuffer",
 				timeout: 15_000,
+				maxRedirects: 3,
 			});
 			buffer = Buffer.from(response.data);
 			const ct = response.headers["content-type"];
@@ -63,13 +122,39 @@ export async function downloadUrlAndUploadToFileManager(
 			},
 		);
 
-		return res.data?.id ?? null;
+		const fileId = res.data?.id;
+		if (fileId) {
+			await markFilePublic(fileId, ename);
+		}
+		return fileId ?? null;
 	} catch (error: any) {
 		console.error(
 			"Failed to download/upload avatar or banner:",
 			error.message,
 		);
 		return null;
+	}
+}
+
+/**
+ * Marks a file as publicly accessible in file-manager via PATCH.
+ */
+export async function markFilePublic(fileId: string, ename: string): Promise<void> {
+	try {
+		const token = mintFmToken(ename);
+		await axios.patch(
+			`${FILE_MANAGER_BASE_URL()}/api/files/${fileId}`,
+			{ isPublic: true },
+			{
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`,
+				},
+				timeout: 10_000,
+			},
+		);
+	} catch (error: any) {
+		console.error("Failed to mark file as public:", error.message);
 	}
 }
 

@@ -116,12 +116,16 @@ export class FileService {
 
     async getFileByIdPublic(id: string): Promise<File | null> {
         const file = await this.fileRepository.findOne({
-            where: { id },
+            where: { id, isPublic: true },
         });
         if (!file || file.name === SOFT_DELETED_FILE_NAME) {
             return null;
         }
         return file;
+    }
+
+    async setFilePublic(id: string, isPublic: boolean): Promise<void> {
+        await this.fileRepository.update(id, { isPublic });
     }
 
     async getFileById(id: string, userId: string): Promise<File | null> {

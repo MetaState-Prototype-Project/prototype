@@ -295,6 +295,11 @@ export class EVaultProfileService {
 			if (data.avatar !== undefined) u.avatar = data.avatar;
 			if (data.banner !== undefined) u.banner = data.banner;
 			await repo.save(u);
+
+			// Mark new avatar/banner files as publicly accessible
+			const { markFilePublic } = await import("../utils/file-proxy");
+			if (data.avatar) markFilePublic(data.avatar, eName).catch(() => {});
+			if (data.banner) markFilePublic(data.banner, eName).catch(() => {});
 		}
 
 		const cached = this.cache.get(eName);
@@ -470,7 +475,10 @@ export class EVaultProfileService {
 		try {
 			const userNode = await this.findMetaEnvelopeByOntology(client, USER_ONTOLOGY);
 			const existing = (userNode?.parsed ?? {}) as Record<string, unknown>;
+			// Preserve the existing ACL; only default to public for new envelopes
+			const existingAcl = (userNode as any)?.acl;
 
+			// Only patch avatarUrl/bannerUrl — don't overwrite other User fields
 			const patch: Record<string, unknown> = { ...existing };
 			if (profile.avatar) {
 				patch.avatarUrl = getFileManagerPublicUrl(profile.avatar);
@@ -482,7 +490,11 @@ export class EVaultProfileService {
 			if (userNode) {
 				await client.request<UpdateResult>(UPDATE_MUTATION, {
 					id: userNode.id,
-					input: { ontology: USER_ONTOLOGY, payload: patch, acl: ["*"] },
+					input: {
+						ontology: USER_ONTOLOGY,
+						payload: patch,
+						acl: existingAcl ?? ["*"],
+					},
 				});
 			} else {
 				patch.ename = eName;
