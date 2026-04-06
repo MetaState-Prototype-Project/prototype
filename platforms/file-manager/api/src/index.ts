@@ -16,7 +16,7 @@ import { GroupService } from "./services/GroupService";
 import { adapter } from "./web3adapter/watchers/subscriber";
 import { PlatformEVaultService } from "./services/PlatformEVaultService";
 
-config({ path: path.resolve(__dirname, "../../../.env") });
+config({ path: path.resolve(__dirname, "../../../../.env") });
 
 const app = express();
 const port = process.env.PORT || 3005;

@@ -11,7 +11,7 @@ import path from "path";
 import dotenv from "dotenv";
 import { AppDataSource } from "../../database/data-source";
 
-dotenv.config({ path: path.resolve(__dirname, "../../../../../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../../../../../../.env") });
 export const adapter = new Web3Adapter({
     schemasPath: path.resolve(__dirname, "../mappings/"),
     dbPath: path.resolve(process.env.FILE_MANAGER_MAPPING_DB_PATH as string),

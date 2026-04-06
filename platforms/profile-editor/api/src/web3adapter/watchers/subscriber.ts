@@ -9,7 +9,7 @@ import { Web3Adapter } from "web3-adapter";
 import path from "path";
 import dotenv from "dotenv";
 
-dotenv.config({ path: path.resolve(__dirname, "../../../../../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../../../../../../.env") });
 
 export const adapter = new Web3Adapter({
 	schemasPath: path.resolve(__dirname, "../mappings/"),
@@ -69,6 +69,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
 	private async handleChange(data: any, tableName: string): Promise<void> {
 		if (tableName === "sessions" || tableName === "users") return;
 		if (!data.id) return;
+		console.log(`[subscriber] change detected: table=${tableName} id=${data.id} keys=[${Object.keys(data).join(",")}]`);
 
 		const changeKey = `${tableName}:${data.id}`;
 		if (this.pendingChanges.has(changeKey)) return;

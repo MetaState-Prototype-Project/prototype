@@ -138,47 +138,19 @@ app.listen(port, () => {
     console.log(`Cerberus API running on port ${port}`);
 });
 
-// Initialize Cerberus intervals and periodic check-ins for groups with charters
+// Initialize Cerberus intervals for groups with charters
 setTimeout(async () => {
     try {
         console.log("🐕 Starting Cerberus services...");
-        
+
         // Import services after server is running
-        const { CharterMonitoringService } = await import("./services/CharterMonitoringService");
-        const { GroupService } = await import("./services/GroupService");
         const { CerberusIntervalService } = await import("./services/CerberusIntervalService");
-        
-        const charterMonitoringService = new CharterMonitoringService();
-        const groupService = new GroupService();
+
         const intervalService = new CerberusIntervalService();
-        
+
         // Initialize Cerberus intervals for all groups with charters
         await intervalService.initializeIntervals();
-        
-        // Send periodic check-ins every 24 hours (separate from charter-based intervals)
-        setInterval(async () => {
-            try {
-                const groups = await groupService.getAllGroups();
-                const groupsWithCharters = groups.filter(group => group.charter && group.charter.trim() !== '');
-                
-                console.log(`🐕 Sending periodic check-ins to ${groupsWithCharters.length} groups with charters...`);
-                
-                for (const group of groupsWithCharters) {
-                    try {
-                        await charterMonitoringService.sendPeriodicCheckIn(group.id, group.name);
-                        // Add a small delay between messages to avoid overwhelming the system
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                    } catch (error) {
-                        console.error(`Error sending check-in to group ${group.name}:`, error);
-                    }
-                }
-                
-                console.log("✅ Periodic check-ins completed");
-            } catch (error) {
-                console.error("Error during periodic check-ins:", error);
-            }
-        }, 24 * 60 * 60 * 1000); // 24 hours
-        
+
         console.log("✅ Cerberus services initialized");
         
         // Graceful shutdown cleanup

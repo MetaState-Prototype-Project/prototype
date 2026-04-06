@@ -9,7 +9,7 @@ import * as fs from "fs";
 import { Web3Adapter } from "./web3adapter";
 import { WebhookController, adapter } from "./controllers/WebhookController";
 
-config({ path: path.resolve(__dirname, "../../../.env") });
+config({ path: path.resolve(__dirname, "../../../../.env") });
 
 const app = express();
 const port = process.env.PORT || 3000;

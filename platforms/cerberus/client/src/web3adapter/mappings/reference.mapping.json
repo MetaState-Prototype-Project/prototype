@@ -1,0 +1,19 @@
+{
+    "tableName": "references",
+    "schemaId": "550e8400-e29b-41d4-a716-446655440010",
+    "ownerEnamePath": "users(author.ename)",
+    "localToUniversalMap": {
+        "id": "id",
+        "targetType": "targetType",
+        "targetId": "targetId",
+        "targetName": "targetName",
+        "content": "content",
+        "referenceType": "referenceType",
+        "numericScore": "numericScore",
+        "authorId": "users(author.id),author",
+        "status": "status",
+        "anonymous": "anonymous",
+        "createdAt": "__date(createdAt)",
+        "updatedAt": "__date(updatedAt)"
+    }
+}

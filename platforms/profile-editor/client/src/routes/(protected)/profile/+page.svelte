@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { profile, profileLoading, fetchProfile, updateProfile } from '$lib/stores/profile';
+	import { profile, profileLoading, fetchProfile, updateProfile, setAdminOverride } from '$lib/stores/profile';
 	import { currentUser } from '$lib/stores/auth';
+	import { page } from '$app/stores';
 	import { toast } from 'svelte-sonner';
 	import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@metastate-foundation/ui/card';
 	import { Button } from '@metastate-foundation/ui/button';
@@ -18,7 +19,11 @@
 	let lastFetchedEname = '';
 
 	$effect(() => {
-		const ename = $currentUser?.ename;
+		// TEMPORARY: ?as=ename lets you edit another user's profile
+		const asParam = $page.url.searchParams.get('as');
+		setAdminOverride(asParam || null);
+
+		const ename = asParam || $currentUser?.ename;
 		if (ename && ename !== lastFetchedEname) {
 			lastFetchedEname = ename;
 			untrack(() => {

@@ -1,7 +1,11 @@
 import { Request, Response } from "express";
+import { AppDataSource } from "../database/data-source";
+import { User } from "../database/entities/User";
 import { ReferenceService } from "../services/ReferenceService";
 import { ReferenceSigningSessionService } from "../services/ReferenceSigningSessionService";
 import { authGuard } from "../middleware/auth";
+
+const SYSTEM_AUTHOR_NAME = "Cerberus Platform";
 
 export class ReferenceController {
     private referenceService: ReferenceService;
@@ -291,6 +295,87 @@ export class ReferenceController {
             });
         } catch (error) {
             console.error("Error revoking reference:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    };
+
+    /**
+     * Internal endpoint for service-to-service reference creation (e.g., from Cerberus).
+     * Requires X-Platform-Secret header matching PLATFORM_SHARED_SECRET env var.
+     * Creates references with "signed" status directly (no signing session needed).
+     */
+    createSystemReference = async (req: Request, res: Response) => {
+        try {
+            const secret = process.env.PLATFORM_SHARED_SECRET;
+            if (!secret || req.headers['x-platform-secret'] !== secret) {
+                return res.status(401).json({ error: "Unauthorized" });
+            }
+
+            const { targetType, targetId, targetName, targetEname, content, referenceType, numericScore, anonymous } = req.body;
+
+            if (!targetType || !targetName || !content) {
+                return res.status(400).json({ error: "Missing required fields: targetType, targetName, content" });
+            }
+
+            if (numericScore && (numericScore < 1 || numericScore > 5)) {
+                return res.status(400).json({ error: "Numeric score must be between 1 and 5" });
+            }
+
+            // Resolve the system author — use the "Cerberus Platform" user
+            const userRepo = AppDataSource.getRepository(User);
+            let systemUser = await userRepo.findOneBy({ name: SYSTEM_AUTHOR_NAME });
+            if (!systemUser) {
+                systemUser = userRepo.create({ name: SYSTEM_AUTHOR_NAME, handle: "cerberus" });
+                systemUser = await userRepo.save(systemUser);
+                console.log(`[erep] Created system user "${SYSTEM_AUTHOR_NAME}" id=${systemUser.id}`);
+            }
+
+            // Resolve the target user by ename to get the correct local eReputation user ID.
+            // Cross-platform calls (e.g. from Cerberus) send their own DB user ID which
+            // won't match eReputation's user ID — ename is the shared identifier.
+            let resolvedTargetId = targetId;
+            if (targetEname && targetType === "user") {
+                // Try both with and without @ prefix
+                const cleanEname = targetEname.replace(/^@/, "");
+                const targetUser = await userRepo.findOneBy({ ename: cleanEname })
+                    ?? await userRepo.findOneBy({ ename: `@${cleanEname}` });
+                if (targetUser) {
+                    resolvedTargetId = targetUser.id;
+                    console.log(`[erep] Resolved target ename=${targetEname} to local id=${targetUser.id}`);
+                } else {
+                    console.warn(`[erep] Could not resolve target ename=${targetEname}, using provided targetId=${targetId}`);
+                }
+            }
+
+            // Create reference directly with "signed" status (trusted platform call)
+            const reference = this.referenceService.referenceRepository.create({
+                targetType,
+                targetId: resolvedTargetId,
+                targetName,
+                content,
+                referenceType: referenceType || "violation",
+                numericScore,
+                authorId: systemUser.id,
+                anonymous: anonymous ?? false,
+                status: "signed"
+            });
+
+            const saved = await this.referenceService.referenceRepository.save(reference);
+
+            res.status(201).json({
+                message: "System reference created successfully",
+                reference: {
+                    id: saved.id,
+                    targetType: saved.targetType,
+                    targetName: saved.targetName,
+                    content: saved.content,
+                    numericScore: saved.numericScore,
+                    status: saved.status,
+                    createdAt: saved.createdAt
+                }
+            });
+        } catch (error) {
+            console.error("Error creating system reference:", error);
             res.status(500).json({ error: "Internal server error" });
         }
     };

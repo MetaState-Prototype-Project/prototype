@@ -102,10 +102,14 @@
 						size="sm"
 						onclick={async () => {
 							const newValue = $profile?.professional.isPublic === false;
+							// Flip UI instantly
+							profile.update(p => p ? { ...p, professional: { ...p.professional, isPublic: newValue } } : p);
+							toast.success(newValue ? 'Profile is now public' : 'Profile is now private');
 							try {
 								await updateProfile({ isPublic: newValue });
-								toast.success(newValue ? 'Profile is now public' : 'Profile is now private');
 							} catch {
+								// Revert on failure
+								profile.update(p => p ? { ...p, professional: { ...p.professional, isPublic: !newValue } } : p);
 								toast.error('Failed to update visibility');
 							}
 						}}

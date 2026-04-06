@@ -13,7 +13,7 @@ import { UserController } from "./controllers/UserController";
 import { WebhookController } from "./controllers/WebhookController";
 import { adapter } from "./web3adapter/watchers/subscriber";
 
-config({ path: path.resolve(__dirname, "../../../.env") });
+config({ path: path.resolve(__dirname, "../../../../.env") });
 
 const app = express();
 const port = process.env.PORT || 1111;

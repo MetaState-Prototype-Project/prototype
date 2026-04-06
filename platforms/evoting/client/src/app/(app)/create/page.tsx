@@ -34,6 +34,7 @@ const createPollSchema = z.object({
         return true;
     }, "Please select a valid group"),
     votingWeight: z.enum(["1p1v", "ereputation"]).default("1p1v"),
+    customPrompt: z.string().optional(),
     options: z
         .array(z.string()
             .min(1, "Option cannot be empty")
@@ -74,6 +75,7 @@ export default function CreatePoll() {
             visibility: "public",
             groupId: "",
             votingWeight: "1p1v",
+            customPrompt: "",
             options: ["", ""],
             deadline: "",
         },
@@ -219,7 +221,8 @@ export default function CreatePoll() {
                 votingWeight: data.votingWeight,
                 groupId: data.groupId,
                 options: data.options.filter(option => option.trim() !== ""),
-                ...(utcDeadline ? { deadline: utcDeadline } : {})
+                ...(utcDeadline ? { deadline: utcDeadline } : {}),
+                ...(data.customPrompt?.trim() ? { customPrompt: data.customPrompt.trim() } : {})
             });
 
             toast({
@@ -597,9 +600,22 @@ export default function CreatePoll() {
                         </div>
                     </RadioGroup>
                     {watchedVotingWeight === "ereputation" && (
-                        <p className="mt-2 text-sm text-gray-600">
-                            Votes will be weighted by each voter's eReputation score.
-                        </p>
+                        <div className="mt-4 space-y-2">
+                            <p className="text-sm text-gray-600">
+                                Votes will be weighted by each voter's eReputation score.
+                            </p>
+                            <Label className="text-sm font-semibold text-gray-700">
+                                Custom Evaluation Prompt (Optional)
+                            </Label>
+                            <textarea
+                                {...register("customPrompt")}
+                                placeholder="Enter custom criteria for evaluating member reputations. If left empty, the group's charter will be used."
+                                className="w-full min-h-[100px] p-3 border border-gray-300 rounded-lg focus:ring-(--crimson) focus:border-(--crimson) text-sm"
+                            />
+                            <p className="text-sm text-gray-500">
+                                If provided, this prompt will be used instead of the group charter for evaluating member reputations in this poll.
+                            </p>
+                        </div>
                     )}
                     {errors.votingWeight && (
                         <p className="mt-1 text-sm text-red-600">

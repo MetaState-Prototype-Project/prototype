@@ -20,7 +20,7 @@ import { Group } from "./entities/Group";
 import { Calculation } from "./entities/Calculation";
 import { Message } from "./entities/Message";
 
-config({ path: path.resolve(__dirname, "../../../../.env") });
+config({ path: path.resolve(__dirname, "../../../../../.env") });
 
 // Parse DB URL into explicit connection options (avoids SCRAM password parsing issues)
 function parseDbUrl(url: string) {

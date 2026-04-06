@@ -159,19 +159,25 @@ async function remove(index: number) {
                 {/if}
                 <div class="flex items-start justify-between">
                     <div>
-                        <h3 class="text-sm font-semibold text-foreground">
-                            {entry.role}
-                        </h3>
-                        <p class="text-sm text-muted-foreground">
-                            {entry.company}
-                        </p>
-                        <p class="text-xs text-muted-foreground/60">
-                            {entry.startDate}{entry.endDate
-                                ? ` — ${entry.endDate}`
-                                : " — Present"}
-                            {#if entry.location}
-                                · {entry.location}{/if}
-                        </p>
+                        {#if entry.role}
+                            <h3 class="text-sm font-semibold text-foreground">
+                                {entry.role}
+                            </h3>
+                        {/if}
+                        {#if entry.company}
+                            <p class="text-sm text-muted-foreground">
+                                {entry.company}
+                            </p>
+                        {/if}
+                        {#if entry.startDate}
+                            <p class="text-xs text-muted-foreground/60">
+                                {entry.startDate}{entry.endDate
+                                    ? ` — ${entry.endDate}`
+                                    : " — Present"}
+                                {#if entry.location}
+                                    · {entry.location}{/if}
+                            </p>
+                        {/if}
                         {#if entry.description}
                             <p class="mt-2 text-sm text-muted-foreground">
                                 {entry.description}

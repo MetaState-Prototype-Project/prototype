@@ -11,6 +11,7 @@ export interface Poll {
   deadline?: string | null;
   creatorId: string;
   groupId?: string;
+  customPrompt?: string | null;
   group?: {
     id: string;
     name: string;
@@ -61,6 +62,7 @@ export interface CreatePollData {
   options: string[];
   deadline?: string;
   groupId: string;
+  customPrompt?: string;
 }
 
 export interface Group {

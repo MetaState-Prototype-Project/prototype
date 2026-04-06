@@ -12,26 +12,25 @@ export class DiscoveryController {
 		try {
 			const { q, page, limit, sortBy } = req.query;
 
-			if (!q) {
-				res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-				res.setHeader("Pragma", "no-cache");
-				return res
-					.status(400)
-					.json({ error: 'Query parameter "q" is required' });
-			}
-
 			const pageNum = Math.max(1, parseInt(page as string) || 1);
 			const limitNum = Math.min(
 				100,
-				Math.max(1, parseInt(limit as string) || 10),
+				Math.max(1, parseInt(limit as string) || 12),
 			);
 
-			const results = await this.userSearchService.searchUsers(
-				q as string,
-				pageNum,
-				limitNum,
-				(sortBy as string) || "relevance",
-			);
+			const query = ((q as string) ?? "").trim();
+
+			const results = query
+				? await this.userSearchService.searchUsers(
+						query,
+						pageNum,
+						limitNum,
+						(sortBy as string) || "relevance",
+					)
+				: await this.userSearchService.listPublicUsers(
+						pageNum,
+						limitNum,
+					);
 
 			res.setHeader(
 				"Cache-Control",

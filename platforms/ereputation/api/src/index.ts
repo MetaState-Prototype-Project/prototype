@@ -17,7 +17,7 @@ import { ReferenceSigningController } from "./controllers/ReferenceSigningContro
 import { authMiddleware, authGuard } from "./middleware/auth";
 import { adapter } from "./web3adapter/watchers/subscriber";
 
-config({ path: path.resolve(__dirname, "../../../.env") });
+config({ path: path.resolve(__dirname, "../../../../.env") });
 
 const app = express();
 const port = process.env.PORT || 8765;
@@ -106,6 +106,7 @@ app.get("/api/dashboard/stats", authGuard, dashboardController.getStats);
 app.get("/api/dashboard/activities", authGuard, dashboardController.getActivities);
 
 // Reference routes
+app.post("/api/references/system", referenceController.createSystemReference);
 app.post("/api/references", authGuard, referenceController.createReference);
 app.get("/api/references/target/:targetType/:targetId", referenceController.getReferencesForTarget);
 app.get("/api/references/my", authGuard, referenceController.getUserReferences);

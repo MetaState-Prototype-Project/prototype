@@ -11,7 +11,9 @@ export async function uploadFile(
 	formData.append('file', file);
 
 	const response = await apiClient.post('/api/files', formData, {
-		headers: { 'Content-Type': 'multipart/form-data' },
+		// Let the browser set Content-Type with the multipart boundary automatically.
+		// Explicitly setting it strips the boundary and breaks multer parsing.
+		headers: { 'Content-Type': undefined as unknown as string },
 		onUploadProgress: (e) => {
 			if (onProgress && e.total) {
 				onProgress(Math.round((e.loaded * 100) / e.total));

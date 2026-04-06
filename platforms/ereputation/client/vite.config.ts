@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
-const envDir = path.resolve(import.meta.dirname, "../../");
+const envDir = path.resolve(import.meta.dirname, "../../../");
 console.log("🔍 Vite envDir:", envDir);
 
 export default defineConfig(async () => {

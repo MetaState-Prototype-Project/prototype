@@ -5,7 +5,7 @@ import path from "node:path";
 import { MatchingService, MatchResult, WishlistData } from "./src/services/MatchingService";
 
 // Load environment variables from root directory
-config({ path: path.resolve(__dirname, "../../.env") });
+config({ path: path.resolve(__dirname, "../../../.env") });
 
 // 🔥 PUT YOUR JSON DATA HERE 🔥
 const YOUR_WISHLIST_DATA = [

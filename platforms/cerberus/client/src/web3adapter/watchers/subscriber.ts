@@ -11,7 +11,7 @@ import path from "path";
 import dotenv from "dotenv";
 import { AppDataSource } from "../../database/data-source";
 
-dotenv.config({ path: path.resolve(__dirname, "../../../../../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../../../../../../.env") });
 export const adapter = new Web3Adapter({
     schemasPath: path.resolve(__dirname, "../mappings/"),
     dbPath: path.resolve(process.env.CERBERUS_MAPPING_DB_PATH as string),
@@ -448,6 +448,8 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 return ["sender", "group"];
             case "CharterSignature":
                 return ["user", "group"];
+            case "Reference":
+                return ["author"];
             default:
                 return [];
         }

@@ -11,7 +11,7 @@ import { UserEVaultMapping } from "./entities/UserEVaultMapping";
 import { PostgresSubscriber } from "../web3adapter/watchers/subscriber";
 
 // Use absolute path for better CLI compatibility
-const envPath = path.resolve(__dirname, "../../../../.env");
+const envPath = path.resolve(__dirname, "../../../../../.env");
 config({ path: envPath });
 
 export const dataSourceOptions: DataSourceOptions = {

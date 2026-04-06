@@ -53,10 +53,10 @@ export class PollController {
     createPoll = async (req: Request, res: Response) => {
         try {
             console.log('🔍 Full request body:', req.body);
-            const { title, mode, visibility, votingWeight, options, deadline, groupId } = req.body;
+            const { title, mode, visibility, votingWeight, options, deadline, groupId, customPrompt } = req.body;
             const creatorId = (req as any).user.id;
-            
-            console.log('🔍 Extracted data:', { title, mode, visibility, votingWeight, options, deadline, groupId, creatorId });
+
+            console.log('🔍 Extracted data:', { title, mode, visibility, votingWeight, options, deadline, groupId, customPrompt, creatorId });
             console.log('🔍 groupId type:', typeof groupId, 'value:', groupId);
 
             // groupId is optional - only required for system messages
@@ -69,7 +69,8 @@ export class PollController {
                 options,
                 deadline,
                 creatorId,
-                groupId
+                groupId,
+                customPrompt
             });
 
             console.log('🔍 Created poll:', poll);

@@ -11,6 +11,7 @@ import { Group } from "../database/entities/Group";
 import { Poll } from "../database/entities/Poll";
 import { VoteReputationResult } from "../database/entities/VoteReputationResult";
 import { Wishlist } from "../database/entities/Wishlist";
+import { Reference } from "../database/entities/Reference";
 import { AppDataSource } from "../database/data-source";
 import axios from "axios";
 
@@ -257,11 +258,12 @@ export class WebhookController {
                         poll.mode = local.data.mode as "normal" | "point" | "rank";
                         poll.visibility = local.data.visibility as "public" | "private";
                         poll.votingWeight = (local.data.votingWeight || "1p1v") as "1p1v" | "ereputation";
-                        poll.options = Array.isArray(local.data.options) 
-                            ? local.data.options 
+                        poll.options = Array.isArray(local.data.options)
+                            ? local.data.options
                             : (local.data.options as string).split(",");
                         poll.deadline = local.data.deadline ? new Date(local.data.deadline as string) : null;
                         poll.groupId = groupId;
+                        poll.customPrompt = (local.data.customPrompt as string) || null;
                         
                         await pollRepository.save(poll);
                         finalLocalId = poll.id;
@@ -280,11 +282,12 @@ export class WebhookController {
                         mode: local.data.mode as "normal" | "point" | "rank",
                         visibility: local.data.visibility as "public" | "private",
                         votingWeight: (local.data.votingWeight || "1p1v") as "1p1v" | "ereputation",
-                        options: Array.isArray(local.data.options) 
-                            ? local.data.options 
+                        options: Array.isArray(local.data.options)
+                            ? local.data.options
                             : (local.data.options as string).split(","),
                         deadline: local.data.deadline ? new Date(local.data.deadline as string) : null,
-                        groupId: groupId
+                        groupId: groupId,
+                        customPrompt: (local.data.customPrompt as string) || null
                     });
                     
                     const savedPoll = await pollRepository.save(poll);
@@ -369,8 +372,66 @@ export class WebhookController {
                     });
                     finalLocalId = savedWishlist.id;
                 }
+            } else if (mapping.tableName === "references") {
+                const referenceRepository = AppDataSource.getRepository(Reference);
+
+                // Get authorId from author reference
+                let authorId: string | null = null;
+                if (local.data.author) {
+                    if (typeof local.data.author === "string" && local.data.author.includes("(")) {
+                        authorId = local.data.author.split("(")[1].split(")")[0];
+                    } else if (typeof local.data.author === "object" && local.data.author !== null && "id" in local.data.author) {
+                        authorId = (local.data.author as { id: string }).id;
+                    }
+                } else if (local.data.authorId) {
+                    authorId = local.data.authorId as string;
+                }
+
+                if (localId) {
+                    // Update existing reference
+                    const reference = await referenceRepository.findOne({
+                        where: { id: localId }
+                    });
+
+                    if (reference) {
+                        reference.targetType = local.data.targetType as string;
+                        reference.targetId = local.data.targetId as string;
+                        reference.targetName = local.data.targetName as string;
+                        reference.content = local.data.content as string;
+                        reference.referenceType = (local.data.referenceType as string) || "general";
+                        reference.numericScore = local.data.numericScore as number | undefined;
+                        reference.status = (local.data.status as string) || "signed";
+                        reference.anonymous = (local.data.anonymous as boolean) ?? false;
+                        if (authorId) reference.authorId = authorId;
+
+                        await referenceRepository.save(reference);
+                        finalLocalId = reference.id;
+                    }
+                } else {
+                    // Create new reference
+                    const reference = referenceRepository.create({
+                        targetType: local.data.targetType as string,
+                        targetId: local.data.targetId as string,
+                        targetName: local.data.targetName as string,
+                        content: local.data.content as string,
+                        referenceType: (local.data.referenceType as string) || "general",
+                        numericScore: local.data.numericScore as number | undefined,
+                        authorId: authorId || undefined,
+                        status: (local.data.status as string) || "signed",
+                        anonymous: (local.data.anonymous as boolean) ?? false
+                    });
+
+                    const savedReference = await referenceRepository.save(reference);
+
+                    this.adapter.addToLockedIds(savedReference.id);
+                    await this.adapter.mappingDb.storeMapping({
+                        localId: savedReference.id,
+                        globalId: req.body.id,
+                    });
+                    finalLocalId = savedReference.id;
+                }
             }
-            
+
             res.status(200).send();
         } catch (e) {
             console.error("Webhook error:", e);
@@ -384,10 +445,12 @@ export class WebhookController {
         const group = await this.groupService.getGroupById(poll.groupId);
         if (!group) return;
 
-        const charter = (group.charter && group.charter.trim()) ? group.charter : "";
+        const evaluationCriteria = (poll.customPrompt && poll.customPrompt.trim())
+            ? poll.customPrompt
+            : (group.charter && group.charter.trim()) ? group.charter : "";
         const reputationResults = await this.votingReputationService.calculateGroupMemberReputations(
             poll.groupId,
-            charter
+            evaluationCriteria
         );
 
         const voteReputationResult = await this.votingReputationService.saveReputationResults(

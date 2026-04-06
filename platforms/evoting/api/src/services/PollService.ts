@@ -181,6 +181,7 @@ export class PollService {
         deadline?: string;
         creatorId: string;
         groupId?: string; // Optional groupId for system messages
+        customPrompt?: string;
     }): Promise<Poll> {
         console.log('🔍 PollService.createPoll called with:', pollData);
         
@@ -229,7 +230,8 @@ export class PollService {
             deadline: hasDeadline ? new Date(pollData.deadline!) : null,
             creator,
             creatorId: pollData.creatorId,
-            groupId: pollData.groupId || null
+            groupId: pollData.groupId || null,
+            customPrompt: pollData.customPrompt || null
         };
         console.log('🔍 Creating poll entity with data:', pollDataForEntity);
 

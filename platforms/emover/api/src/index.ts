@@ -12,7 +12,7 @@ import { AppDataSource } from "./database/data-source";
 import { authGuard, authMiddleware } from "./middleware/auth";
 import { adminGuard } from "./middleware/admin";
 
-config({ path: path.resolve(__dirname, "../../../.env") });
+config({ path: path.resolve(__dirname, "../../../../.env") });
 
 const app = express();
 const port = process.env.PORT || 4003;

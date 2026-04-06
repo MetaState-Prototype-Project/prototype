@@ -8,7 +8,7 @@ import { PostgresSubscriber } from "../web3adapter/watchers/subscriber";
 import path from "path";
 import { CharterSignature } from "./entities/CharterSignature";
 
-config({ path: path.resolve(__dirname, "../../../../.env") });
+config({ path: path.resolve(__dirname, "../../../../../.env") });
 
 export const AppDataSource = new DataSource({
     type: "postgres",

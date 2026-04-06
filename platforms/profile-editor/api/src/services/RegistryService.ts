@@ -14,6 +14,13 @@ export class RegistryService {
 	private platformToken: string | null = null;
 	private tokenExpiresAt: number = 0;
 
+	/** Cache registry resolution: eName → { uri, evault, expiresAt } */
+	private resolveCache = new Map<
+		string,
+		{ uri: string; evault: string; expiresAt: number }
+	>();
+	private static RESOLVE_TTL = 10 * 60 * 1000; // 10 minutes
+
 	private get registryUrl(): string {
 		const url = process.env.PUBLIC_REGISTRY_URL;
 		if (!url) throw new Error("PUBLIC_REGISTRY_URL not configured");
@@ -45,11 +52,22 @@ export class RegistryService {
 	}
 
 	async resolveEName(eName: string): Promise<{ uri: string; evault: string }> {
+		const now = Date.now();
+		const cached = this.resolveCache.get(eName);
+		if (cached && cached.expiresAt > now) {
+			return { uri: cached.uri, evault: cached.evault };
+		}
+
 		const response = await axios.get<ResolveResponse>(
 			`${this.registryUrl}/resolve`,
 			{ params: { w3id: eName } },
 		);
-		return { uri: response.data.uri, evault: response.data.evault };
+		const result = { uri: response.data.uri, evault: response.data.evault };
+		this.resolveCache.set(eName, {
+			...result,
+			expiresAt: now + RegistryService.RESOLVE_TTL,
+		});
+		return result;
 	}
 
 	async getEvaultGraphqlUrl(eName: string): Promise<string> {

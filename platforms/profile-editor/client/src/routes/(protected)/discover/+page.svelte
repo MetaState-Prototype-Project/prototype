@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { searchProfiles, searchResults, searchLoading, searchTotal, searchPage, searchTotalPages } from '$lib/stores/discovery';
 	import ProfileCard from '$lib/components/profile/ProfileCard.svelte';
 	import { Input } from '@metastate-foundation/ui/input';
@@ -10,16 +11,29 @@
 	let skillFilter = $state('');
 	let activeSkills = $state<string[]>([]);
 	let currentPage = $state(1);
+	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
-	async function handleSearch() {
-		if (!query.trim()) return;
-		currentPage = 1;
-		await searchProfiles(query, { skills: activeSkills, page: 1, limit: 12 });
+	onMount(() => {
+		searchProfiles('', { page: 1, limit: 12 });
+	});
+
+	function doSearch(page: number = 1) {
+		currentPage = page;
+		searchProfiles(query, { skills: activeSkills, page, limit: 12 });
+	}
+
+	function handleInput() {
+		clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(() => doSearch(1), 300);
+	}
+
+	function handleSearch() {
+		clearTimeout(debounceTimer);
+		doSearch(1);
 	}
 
 	async function goToPage(page: number) {
-		currentPage = page;
-		await searchProfiles(query, { skills: activeSkills, page, limit: 12 });
+		doSearch(page);
 	}
 
 	function addSkillFilter() {
@@ -27,13 +41,13 @@
 		if (trimmed && !activeSkills.includes(trimmed)) {
 			activeSkills = [...activeSkills, trimmed];
 			skillFilter = '';
-			if (query.trim()) handleSearch();
+			doSearch(1);
 		}
 	}
 
 	function removeSkillFilter(skill: string) {
 		activeSkills = activeSkills.filter((s) => s !== skill);
-		if (query.trim()) handleSearch();
+		doSearch(1);
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -65,6 +79,7 @@
 	<div class="mb-6 flex gap-3">
 		<Input
 			bind:value={query}
+			oninput={handleInput}
 			onkeydown={handleKeydown}
 			placeholder="Search by name, headline, skills..."
 			class="flex-1"
@@ -135,7 +150,7 @@
 		</div>
 	{:else}
 		<div class="flex flex-col items-center justify-center py-16 text-center">
-			<p class="text-muted-foreground">Search for people to discover</p>
+			<p class="text-muted-foreground">No public profiles yet</p>
 		</div>
 	{/if}
 </div>
