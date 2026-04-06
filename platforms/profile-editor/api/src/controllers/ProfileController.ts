@@ -201,7 +201,7 @@ export class ProfileController {
 				return res.status(403).json({ error: "This profile is private" });
 			}
 
-			const fileId = profile.professional.avatarFileId;
+			const fileId = profile.professional.avatar;
 			if (!fileId) {
 				return res.status(404).json({ error: "No avatar set" });
 			}
@@ -225,7 +225,7 @@ export class ProfileController {
 				return res.status(403).json({ error: "This profile is private" });
 			}
 
-			const fileId = profile.professional.bannerFileId;
+			const fileId = profile.professional.banner;
 			if (!fileId) {
 				return res.status(404).json({ error: "No banner set" });
 			}

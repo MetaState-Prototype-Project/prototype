@@ -19,7 +19,7 @@ import { EVaultSyncService } from "./services/EVaultSyncService";
 import { adapter } from "./web3adapter/watchers/subscriber";
 
 const app = express();
-const PORT = process.env.PROFILE_EDITOR_API_PORT || 3006;
+const PORT = process.env.PROFILE_EDITOR_API_PORT || 3007;
 
 app.use(cors());
 app.use(express.json());

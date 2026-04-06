@@ -114,6 +114,16 @@ export class FileService {
         return savedFile;
     }
 
+    async getFileByIdPublic(id: string): Promise<File | null> {
+        const file = await this.fileRepository.findOne({
+            where: { id },
+        });
+        if (!file || file.name === SOFT_DELETED_FILE_NAME) {
+            return null;
+        }
+        return file;
+    }
+
     async getFileById(id: string, userId: string): Promise<File | null> {
         const file = await this.fileRepository.findOne({
             where: { id },

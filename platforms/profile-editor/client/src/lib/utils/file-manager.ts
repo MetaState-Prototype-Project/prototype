@@ -1,7 +1,7 @@
 import { PUBLIC_PROFILE_EDITOR_BASE_URL } from '$env/static/public';
 import { apiClient } from './axios';
 
-const API_BASE = () => PUBLIC_PROFILE_EDITOR_BASE_URL || 'http://localhost:3006';
+const API_BASE = () => PUBLIC_PROFILE_EDITOR_BASE_URL || 'http://localhost:3007';
 
 export async function uploadFile(
 	file: File,

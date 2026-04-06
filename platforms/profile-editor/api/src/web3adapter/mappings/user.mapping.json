@@ -7,8 +7,6 @@
 		"handle": "username",
 		"name": "displayName",
 		"bio": "bio",
-		"avatarFileId": "avatarFileId",
-		"bannerFileId": "bannerFileId",
 		"ename": "ename",
 		"isVerified": "isVerified",
 		"isPublic": "isPublic",

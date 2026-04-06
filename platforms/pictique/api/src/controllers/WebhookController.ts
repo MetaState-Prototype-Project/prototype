@@ -43,7 +43,9 @@ export class WebhookController {
             );
             this.adapter.addToLockedIds(globalId);
 
-            if (!mapping) throw new Error();
+            if (!mapping) {
+                return res.status(200).send();
+            }
             const local = await this.adapter.fromGlobal({
                 data: req.body.data,
                 mapping,

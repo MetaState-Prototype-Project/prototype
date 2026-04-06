@@ -87,5 +87,13 @@
     "category": "Storage",
     "logoUrl": "/emover.png",
     "url": "https://emover.w3ds.metastate.foundation"
+  },
+  {
+    "id": "profile-editor",
+    "name": "Profile Editor",
+    "description": "Create and manage your professional profile across the W3DS ecosystem. Showcase your skills, experience, and credentials.",
+    "category": "Identity",
+    "logoUrl": "/profile-editor.png",
+    "url": "https://profile-editor.w3ds.metastate.foundation"
   }
 ]

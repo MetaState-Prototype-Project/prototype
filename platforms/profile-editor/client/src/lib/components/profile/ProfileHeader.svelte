@@ -20,19 +20,17 @@
 	let bannerInput = $state<HTMLInputElement | null>(null);
 	let avatarInput = $state<HTMLInputElement | null>(null);
 
-	function avatarUrl(): string | null {
-		if (profile.professional.avatarFileId) {
-			return getProfileAssetUrl(profile.ename, 'avatar');
-		}
-		return null;
-	}
+	let avatarSrc = $derived(
+		profile.professional.avatar
+			? `${getProfileAssetUrl(profile.ename, 'avatar')}?v=${profile.professional.avatar}`
+			: null
+	);
 
-	function bannerUrl(): string | null {
-		if (profile.professional.bannerFileId) {
-			return getProfileAssetUrl(profile.ename, 'banner');
-		}
-		return null;
-	}
+	let bannerSrc = $derived(
+		profile.professional.banner
+			? `${getProfileAssetUrl(profile.ename, 'banner')}?v=${profile.professional.banner}`
+			: null
+	);
 
 	async function handleAvatarUpload(e: Event) {
 		const input = e.target as HTMLInputElement;
@@ -42,7 +40,7 @@
 		uploadingAvatar = true;
 		try {
 			const result = await uploadFile(file);
-			await updateProfile({ avatarFileId: result.id });
+			await updateProfile({ avatar: result.id });
 			toast.success('Avatar updated');
 		} catch {
 			toast.error('Failed to upload avatar');
@@ -59,7 +57,7 @@
 		uploadingBanner = true;
 		try {
 			const result = await uploadFile(file);
-			await updateProfile({ bannerFileId: result.id });
+			await updateProfile({ banner: result.id });
 			toast.success('Banner updated');
 		} catch {
 			toast.error('Failed to upload banner');
@@ -82,8 +80,8 @@
 <Card class="overflow-hidden p-0">
 	<!-- Banner -->
 	<div class="relative h-48 bg-gradient-to-r from-primary/20 to-primary/5">
-		{#if bannerUrl()}
-			<img src={bannerUrl()} alt="Banner" class="h-full w-full object-cover" />
+		{#if bannerSrc}
+			<img src={bannerSrc} alt="Banner" class="h-full w-full object-cover" />
 		{/if}
 		{#if editable}
 			<div class="absolute bottom-3 right-3">
@@ -101,8 +99,8 @@
 			<!-- Avatar -->
 			<div class="-mt-16 relative">
 				<Avatar class="h-32 w-32 border-4 border-card">
-					{#if avatarUrl()}
-						<AvatarImage src={avatarUrl()} alt={profile.name ?? profile.ename} />
+					{#if avatarSrc}
+						<AvatarImage src={avatarSrc} alt={profile.name ?? profile.ename} />
 					{/if}
 					<AvatarFallback class="text-3xl font-bold">
 						{(profile.name ?? profile.ename ?? '?')[0]?.toUpperCase()}

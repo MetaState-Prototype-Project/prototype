@@ -567,6 +567,38 @@ export class FileController {
         }
     };
 
+    /**
+     * Serves a file publicly without authentication.
+     * The file ID acts as an unguessable capability token.
+     */
+    publicPreview = async (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+            const file = await this.fileService.getFileByIdPublic(id);
+
+            if (!file) {
+                return res.status(404).json({ error: "File not found" });
+            }
+
+            if (file.url) {
+                return res.redirect(file.url);
+            }
+
+            // Legacy fallback for files still in DB
+            res.setHeader("Content-Type", file.mimeType);
+            res.setHeader(
+                "Content-Disposition",
+                `inline; filename="${file.name}"`,
+            );
+            res.setHeader("Content-Length", file.size.toString());
+            res.setHeader("Cache-Control", "public, max-age=3600");
+            res.send(file.data);
+        } catch (error) {
+            console.error("Error serving public file:", error);
+            res.status(500).json({ error: "Failed to serve file" });
+        }
+    };
+
     deleteFile = async (req: Request, res: Response) => {
         try {
             if (!req.user) {

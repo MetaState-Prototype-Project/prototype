@@ -9,6 +9,11 @@ import type {
 const PROFESSIONAL_PROFILE_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440009";
 const USER_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440000";
 
+function getFileManagerPublicUrl(fileId: string): string {
+	const base = process.env.PUBLIC_FILE_MANAGER_BASE_URL || "http://localhost:3005";
+	return `${base}/api/public/files/${fileId}`;
+}
+
 /** Match BindingDocumentService's normalizeSubject format for ACL entries */
 function normalizeEName(eName: string): string {
 	return eName.startsWith("@") ? eName : `@${eName}`;
@@ -146,6 +151,12 @@ export class EVaultProfileService {
 		const userData = (userNode?.parsed ?? {}) as UserOntologyData;
 		const profData = (professionalNode?.parsed ?? {}) as ProfessionalProfile;
 
+		// Avatar/banner live on the local User entity (file-manager IDs),
+		// not in any eVault ontology.
+		const { AppDataSource } = await import("../database/data-source");
+		const { User } = await import("../database/entities/User");
+		const localUser = await AppDataSource.getRepository(User).findOneBy({ ename: eName });
+
 		const name =
 			profData.displayName ?? userData.displayName ?? eName;
 
@@ -158,8 +169,8 @@ export class EVaultProfileService {
 				displayName: profData.displayName,
 				headline: profData.headline,
 				bio: profData.bio,
-				avatarFileId: profData.avatarFileId,
-				bannerFileId: profData.bannerFileId,
+				avatar: localUser?.avatar ?? undefined,
+				banner: localUser?.banner ?? undefined,
 				cvFileId: profData.cvFileId,
 				videoIntroFileId: profData.videoIntroFileId,
 				email: profData.email,
@@ -268,7 +279,68 @@ export class EVaultProfileService {
 		}
 	}
 
+		// Always persist avatar/banner to the local User row first so
+		// getProfile returns the correct value immediately.
+		if (data.avatar !== undefined || data.banner !== undefined) {
+			const { AppDataSource } = await import("../database/data-source");
+			const { User } = await import("../database/entities/User");
+			const userRepo = AppDataSource.getRepository(User);
+			let localUser = await userRepo.findOneBy({ ename: eName });
+			if (!localUser) {
+				localUser = userRepo.create({ ename: eName });
+			}
+			if (data.avatar !== undefined) localUser.avatar = data.avatar;
+			if (data.banner !== undefined) localUser.banner = data.banner;
+			await userRepo.save(localUser);
+
+			// Propagate a public file-manager URL to the User ontology so
+			// other platforms (Pictique, Blabsy, etc.) pick it up.
+			this.syncAvatarBannerToUserOntology(client, eName, merged).catch(
+				(e) => console.error("Failed to sync avatar/banner to User ontology:", e),
+			);
+		}
+
 		return this.getProfile(eName);
+	}
+
+	/**
+	 * Writes avatarUrl / bannerUrl as public file-manager URLs into the
+	 * User ontology MetaEnvelope so other platforms can render them directly.
+	 * Also updates the local User entity so the DB stays in sync.
+	 */
+	private async syncAvatarBannerToUserOntology(
+		client: GraphQLClient,
+		eName: string,
+		profile: ProfessionalProfile,
+	): Promise<void> {
+		try {
+			const userNode = await this.findMetaEnvelopeByOntology(client, USER_ONTOLOGY);
+			const existing = (userNode?.parsed ?? {}) as Record<string, unknown>;
+
+			const patch: Record<string, unknown> = { ...existing };
+			if (profile.avatar) {
+				patch.avatarUrl = getFileManagerPublicUrl(profile.avatar);
+			}
+			if (profile.banner) {
+				patch.bannerUrl = getFileManagerPublicUrl(profile.banner);
+			}
+
+			if (userNode) {
+				await client.request<UpdateResult>(UPDATE_MUTATION, {
+					id: userNode.id,
+					input: { ontology: USER_ONTOLOGY, payload: patch, acl: ["*"] },
+				});
+			} else {
+				patch.ename = eName;
+				patch.displayName = profile.displayName ?? eName;
+				await client.request<CreateResult>(CREATE_MUTATION, {
+					input: { ontology: USER_ONTOLOGY, payload: patch, acl: ["*"] },
+				});
+			}
+
+		} catch (e) {
+			console.error("Failed to sync avatar/banner to User ontology:", e);
+		}
 	}
 
 	async getProfileByEnvelope(

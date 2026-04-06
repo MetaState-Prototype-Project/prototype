@@ -1,0 +1,181 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "schemaId": "550e8400-e29b-41d4-a716-446655440009",
+    "title": "ProfessionalProfile",
+    "type": "object",
+    "properties": {
+        "displayName": {
+            "type": "string",
+            "description": "The user's display name"
+        },
+        "headline": {
+            "type": "string",
+            "description": "A short professional headline or tagline"
+        },
+        "bio": {
+            "type": "string",
+            "description": "Professional biography or summary"
+        },
+        "avatar": {
+            "type": "string",
+            "description": "File-manager file ID for the user's profile picture"
+        },
+        "banner": {
+            "type": "string",
+            "description": "File-manager file ID for the user's profile banner"
+        },
+        "cvFileId": {
+            "type": "string",
+            "description": "File-manager file ID for the user's CV/resume document"
+        },
+        "videoIntroFileId": {
+            "type": "string",
+            "description": "File-manager file ID for the user's video introduction"
+        },
+        "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Professional contact email"
+        },
+        "phone": {
+            "type": "string",
+            "description": "Professional contact phone number"
+        },
+        "website": {
+            "type": "string",
+            "format": "uri",
+            "description": "Personal or professional website URL"
+        },
+        "location": {
+            "type": "string",
+            "description": "Professional location or city"
+        },
+        "isPublic": {
+            "type": "boolean",
+            "description": "Whether the professional profile is publicly visible"
+        },
+        "workExperience": {
+            "type": "array",
+            "description": "List of work experience entries",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the entry"
+                    },
+                    "company": {
+                        "type": "string",
+                        "description": "Company or organization name"
+                    },
+                    "role": {
+                        "type": "string",
+                        "description": "Job title or role"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Description of responsibilities and achievements"
+                    },
+                    "startDate": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Start date of the position"
+                    },
+                    "endDate": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "End date of the position (omit if current)"
+                    },
+                    "location": {
+                        "type": "string",
+                        "description": "Location of the position"
+                    },
+                    "sortOrder": {
+                        "type": "integer",
+                        "description": "Display order"
+                    }
+                },
+                "required": ["company", "role", "startDate", "sortOrder"]
+            }
+        },
+        "education": {
+            "type": "array",
+            "description": "List of education entries",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the entry"
+                    },
+                    "institution": {
+                        "type": "string",
+                        "description": "Educational institution name"
+                    },
+                    "degree": {
+                        "type": "string",
+                        "description": "Degree or qualification obtained"
+                    },
+                    "fieldOfStudy": {
+                        "type": "string",
+                        "description": "Field or area of study"
+                    },
+                    "startDate": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Start date"
+                    },
+                    "endDate": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "End date (omit if ongoing)"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Additional details about the education"
+                    },
+                    "sortOrder": {
+                        "type": "integer",
+                        "description": "Display order"
+                    }
+                },
+                "required": ["institution", "degree", "startDate", "sortOrder"]
+            }
+        },
+        "skills": {
+            "type": "array",
+            "description": "List of professional skills",
+            "items": {
+                "type": "string"
+            }
+        },
+        "socialLinks": {
+            "type": "array",
+            "description": "List of social media or professional links",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the link"
+                    },
+                    "platform": {
+                        "type": "string",
+                        "description": "Platform name (e.g. LinkedIn, GitHub, Twitter)"
+                    },
+                    "url": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "URL to the profile on the platform"
+                    },
+                    "label": {
+                        "type": "string",
+                        "description": "Optional display label"
+                    }
+                },
+                "required": ["platform", "url"]
+            }
+        }
+    },
+    "required": ["displayName"]
+}
