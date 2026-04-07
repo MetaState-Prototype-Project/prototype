@@ -129,6 +129,9 @@ function buildPayload(merged: ProfessionalProfile): Record<string, unknown> {
 async function getLocalUser(eName: string) {
 	const { AppDataSource } = await import("../database/data-source");
 	const { User } = await import("../database/entities/User");
+	if (!AppDataSource.isInitialized) {
+		throw new Error("Database not initialized — cannot access local user");
+	}
 	const repo = AppDataSource.getRepository(User);
 	return { repo, user: await repo.findOneBy({ ename: eName }), User };
 }
