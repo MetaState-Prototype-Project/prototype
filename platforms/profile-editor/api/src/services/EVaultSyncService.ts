@@ -89,7 +89,7 @@ export class EVaultSyncService {
 		const profile = await this.evaultService.getProfile(ename);
 		console.log(`[sync] ${ename}: avatar=${profile.professional.avatar ?? "NONE"} banner=${profile.professional.banner ?? "NONE"}`);
 
-		await this.userSearchService.upsertFromWebhook({
+		const data: any = {
 			ename,
 			name: profile.name,
 			handle: profile.handle,
@@ -97,17 +97,20 @@ export class EVaultSyncService {
 			bio: profile.professional.bio,
 			headline: profile.professional.headline,
 			location: profile.professional.location,
-			avatar: profile.professional.avatar,
-			banner: profile.professional.banner,
 			skills: profile.professional.skills,
 			isPublic: profile.professional.isPublic === true,
 			isArchived: false,
-		});
+		};
+
+		if (profile.professional.avatar) data.avatar = profile.professional.avatar;
+		if (profile.professional.banner) data.banner = profile.professional.banner;
+
+		await this.userSearchService.upsertFromWebhook(data);
 	}
 
 	/** Sync a single user's profile to the local search DB from the profile cache. */
 	syncUserToSearchDb(profile: import("../types/profile").FullProfile): void {
-		this.userSearchService.upsertFromWebhook({
+		const data: any = {
 			ename: profile.ename,
 			name: profile.name,
 			handle: profile.handle,
@@ -115,12 +118,15 @@ export class EVaultSyncService {
 			bio: profile.professional.bio,
 			headline: profile.professional.headline,
 			location: profile.professional.location,
-			avatar: profile.professional.avatar,
-			banner: profile.professional.banner,
 			skills: profile.professional.skills,
 			isPublic: profile.professional.isPublic === true,
 			isArchived: false,
-		}).catch((err) => {
+		};
+
+		if (profile.professional.avatar) data.avatar = profile.professional.avatar;
+		if (profile.professional.banner) data.banner = profile.professional.banner;
+
+		this.userSearchService.upsertFromWebhook(data).catch((err) => {
 			console.error(`[search-db sync] ${profile.ename}:`, err.message);
 		});
 	}
