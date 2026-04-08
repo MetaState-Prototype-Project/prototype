@@ -18,19 +18,19 @@
         },
         "avatar": {
             "type": "string",
-            "description": "File-manager file ID for the user's profile picture"
+            "description": "ID for the user's profile picture"
         },
         "banner": {
             "type": "string",
-            "description": "File-manager file ID for the user's profile banner"
+            "description": "file ID for the user's profile banner"
         },
         "cvFileId": {
             "type": "string",
-            "description": "File-manager file ID for the user's CV/resume document"
+            "description": "file ID for the user's CV/resume document"
         },
         "videoIntroFileId": {
             "type": "string",
-            "description": "File-manager file ID for the user's video introduction"
+            "description": "file ID for the user's video introduction"
         },
         "email": {
             "type": "string",
