@@ -9,6 +9,11 @@ import type {
 const PROFESSIONAL_PROFILE_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440009";
 const USER_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440000";
 
+function getFileManagerPublicUrl(fileId: string): string {
+	const base = process.env.PUBLIC_FILE_MANAGER_BASE_URL || "http://localhost:3005";
+	return `${base}/api/public/files/${fileId}`;
+}
+
 function normalizeEName(eName: string): string {
 	return eName.startsWith("@") ? eName : `@${eName}`;
 }
@@ -121,10 +126,22 @@ function buildPayload(merged: ProfessionalProfile): Record<string, unknown> {
 	return payload;
 }
 
+async function getLocalUser(eName: string) {
+	const { AppDataSource } = await import("../database/data-source");
+	const { User } = await import("../database/entities/User");
+	if (!AppDataSource.isInitialized) {
+		throw new Error("Database not initialized — cannot access local user");
+	}
+	const repo = AppDataSource.getRepository(User);
+	return { repo, user: await repo.findOneBy({ ename: eName }), User };
+}
+
 function buildFullProfile(
 	eName: string,
 	merged: ProfessionalProfile,
 	userData: UserOntologyData,
+	localAvatar?: string,
+	localBanner?: string,
 ): FullProfile {
 	const name = merged.displayName ?? userData.displayName ?? eName;
 	return {
@@ -136,8 +153,8 @@ function buildFullProfile(
 			displayName: merged.displayName,
 			headline: merged.headline,
 			bio: merged.bio,
-			avatarFileId: merged.avatarFileId,
-			bannerFileId: merged.bannerFileId,
+			avatar: localAvatar ?? undefined,
+			banner: localBanner ?? undefined,
 			cvFileId: merged.cvFileId,
 			videoIntroFileId: merged.videoIntroFileId,
 			email: merged.email,
@@ -162,16 +179,9 @@ interface CacheEntry {
 
 export class EVaultProfileService {
 	private registryService: RegistryService;
-	/**
-	 * Short-lived profile cache. Prevents repeated eVault round-trips for
-	 * the same user within a short window (e.g. page load fetches profile
-	 * data + avatar + banner = 3 calls). Invalidated immediately on writes.
-	 */
 	private cache = new Map<string, CacheEntry>();
-	private static CACHE_TTL = 30 * 1000; // 30 seconds
-	/** Longer TTL after writes — rides out eVault eventual consistency window. */
-	private static WRITE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-	/** Per-user write queue — serializes eVault writes so rapid edits don't race. */
+	private static CACHE_TTL = 30 * 1000;
+	private static WRITE_CACHE_TTL = 5 * 60 * 1000;
 	private writeQueue = new Map<string, Promise<void>>();
 
 	constructor(registryService: RegistryService) {
@@ -227,12 +237,11 @@ export class EVaultProfileService {
 		const userData = (userNode?.parsed ?? {}) as UserOntologyData;
 		const profData = (professionalNode?.parsed ?? {}) as ProfessionalProfile;
 
-		console.log(
-			`[eVault READ] ${eName}: envelopeId=${professionalNode?.id ?? "NONE"} avatarFileId=${profData.avatarFileId ?? "NONE"} bannerFileId=${profData.bannerFileId ?? "NONE"} keys=[${Object.keys(profData).join(",")}]`,
-		);
+		// Avatar/banner live on the local User entity (file-manager IDs)
+		const { user: localUser } = await getLocalUser(eName);
 
 		return {
-			profile: buildFullProfile(eName, profData, userData),
+			profile: buildFullProfile(eName, profData, userData, localUser?.avatar, localUser?.banner),
 			envelopeId: professionalNode?.id,
 		};
 	}
@@ -242,14 +251,9 @@ export class EVaultProfileService {
 		const now = Date.now();
 		const cached = this.cache.get(eName);
 		if (cached && cached.expiresAt > now) {
-			const ttl = Math.round((cached.expiresAt - now) / 1000);
-			console.log(
-				`[eVault CACHE HIT] ${eName}: ttl=${ttl}s avatarFileId=${cached.profile.professional.avatarFileId ?? "NONE"} bannerFileId=${cached.profile.professional.bannerFileId ?? "NONE"}`,
-			);
 			return cached.profile;
 		}
 
-		console.log(`[eVault CACHE MISS] ${eName}: fetching from eVault`);
 		const { profile, envelopeId } = await this.fetchFromEvault(eName);
 		this.cache.set(eName, {
 			profile,
@@ -261,7 +265,6 @@ export class EVaultProfileService {
 
 	/** Get profile fresh from eVault — bypasses cache, but updates it. */
 	async getFreshProfile(eName: string): Promise<FullProfile> {
-		console.log(`[eVault FRESH] ${eName}: bypassing cache`);
 		const { profile, envelopeId } = await this.fetchFromEvault(eName);
 		this.cache.set(eName, {
 			profile,
@@ -281,19 +284,27 @@ export class EVaultProfileService {
 
 	/**
 	 * Prepare a profile update. Uses the cache as merge base when available
-	 * so rapid back-to-back edits don't clobber each other (the eVault write
-	 * is async and may not have landed yet). Falls back to eVault if no cache.
+	 * so rapid back-to-back edits don't clobber each other.
 	 */
 	async prepareUpdate(
 		eName: string,
 		data: Partial<ProfessionalProfile>,
 	): Promise<PreparedWrite> {
-		console.log(
-			`[eVault] ${eName}: prepareUpdate keys=[${Object.keys(data).join(", ")}]`,
-		);
+		// Persist avatar/banner to the local User row immediately so
+		// getProfile returns the correct value right away.
+		if (data.avatar !== undefined || data.banner !== undefined) {
+			const { repo, user: localUser, User } = await getLocalUser(eName);
+			const u = localUser ?? repo.create({ ename: eName });
+			if (data.avatar !== undefined) u.avatar = data.avatar;
+			if (data.banner !== undefined) u.banner = data.banner;
+			await repo.save(u);
 
-		// Use cache as merge base if available — this prevents a concurrent
-		// background write from being clobbered by a stale eVault read.
+			// Mark new avatar/banner files as publicly accessible
+			const { markFilePublic } = await import("../utils/file-proxy");
+			if (data.avatar) markFilePublic(data.avatar, eName).catch(() => {});
+			if (data.banner) markFilePublic(data.banner, eName).catch(() => {});
+		}
+
 		const cached = this.cache.get(eName);
 		let baseProfessional: ProfessionalProfile;
 		let userData: UserOntologyData;
@@ -307,11 +318,7 @@ export class EVaultProfileService {
 				isVerified: cached.profile.isVerified,
 			} as UserOntologyData;
 			cachedEnvelopeId = cached.envelopeId;
-			console.log(
-				`[eVault MERGE-BASE] ${eName}: FROM CACHE — avatarFileId=${baseProfessional.avatarFileId ?? "NONE"} bannerFileId=${baseProfessional.bannerFileId ?? "NONE"} envelopeId=${cachedEnvelopeId ?? "NONE"}`,
-			);
 		} else {
-			// No cache — must read from eVault
 			const { profile, envelopeId } = await this.fetchFromEvault(eName);
 			baseProfessional = profile.professional;
 			userData = {
@@ -320,13 +327,9 @@ export class EVaultProfileService {
 				isVerified: profile.isVerified,
 			} as UserOntologyData;
 			cachedEnvelopeId = envelopeId;
-			console.log(
-				`[eVault MERGE-BASE] ${eName}: FROM EVAULT — avatarFileId=${baseProfessional.avatarFileId ?? "NONE"} bannerFileId=${baseProfessional.bannerFileId ?? "NONE"} envelopeId=${cachedEnvelopeId ?? "NONE"}`,
-			);
 		}
 
 		const client = await this.getClient(eName);
-		// Build a minimal MetaEnvelopeNode stub for writeToEvault
 		const existingEnvelope: MetaEnvelopeNode | null = cachedEnvelopeId
 			? { id: cachedEnvelopeId, ontology: PROFESSIONAL_PROFILE_ONTOLOGY, parsed: {} }
 			: null;
@@ -339,11 +342,9 @@ export class EVaultProfileService {
 		const payload = buildPayload(merged);
 		const acl = merged.isPublic === true ? ["*"] : [normalizeEName(eName)];
 
-		console.log(
-			`[eVault MERGED] ${eName}: avatarFileId=${merged.avatarFileId ?? "NONE"} bannerFileId=${merged.bannerFileId ?? "NONE"} payload keys=[${Object.keys(payload).join(", ")}] acl=${JSON.stringify(acl)}`,
-		);
-
-		const profile = buildFullProfile(eName, merged, userData);
+		// Read local user for the optimistic profile (may have just been updated above)
+		const { user: freshLocalUser } = await getLocalUser(eName);
+		const profile = buildFullProfile(eName, merged, userData, freshLocalUser?.avatar, freshLocalUser?.banner);
 
 		// Immediately update the cache with the optimistic result
 		this.cache.set(eName, {
@@ -352,25 +353,24 @@ export class EVaultProfileService {
 			envelopeId: cachedEnvelopeId,
 		});
 
-		const persisted = this.enqueueWrite(eName, () =>
-			this.writeToEvault(client, eName, existingEnvelope, payload, acl),
-		);
+		const persisted = this.enqueueWrite(eName, async () => {
+			await this.writeToEvault(client, eName, existingEnvelope, payload, acl);
+			// After eVault write, sync avatar/banner URLs to User ontology
+			if (data.avatar !== undefined || data.banner !== undefined) {
+				await this.syncAvatarBannerToUserOntology(client, eName, merged);
+			}
+		});
 
 		return { profile, persisted };
 	}
 
-	/**
-	 * Enqueue a write for a user — ensures writes are serialized so a
-	 * slow write #1 can't be overwritten by a fast write #2.
-	 */
 	private enqueueWrite(
 		eName: string,
 		fn: () => Promise<void>,
 	): Promise<void> {
 		const prev = this.writeQueue.get(eName) ?? Promise.resolve();
-		const next = prev.then(fn, fn); // run even if previous failed
+		const next = prev.then(fn, fn);
 		this.writeQueue.set(eName, next);
-		// Clean up the queue entry when done
 		next.finally(() => {
 			if (this.writeQueue.get(eName) === next) {
 				this.writeQueue.delete(eName);
@@ -386,10 +386,6 @@ export class EVaultProfileService {
 		payload: Record<string, unknown>,
 		acl: string[],
 	): Promise<void> {
-		console.log(
-			`[eVault WRITE] ${eName}: starting ${existing ? "UPDATE" : "CREATE"} envelopeId=${existing?.id ?? "NEW"} avatarFileId=${payload.avatarFileId ?? "NONE"} bannerFileId=${payload.bannerFileId ?? "NONE"}`,
-		);
-
 		try {
 			if (existing) {
 				const result = await client.request<UpdateResult>(UPDATE_MUTATION, {
@@ -402,17 +398,12 @@ export class EVaultProfileService {
 				});
 
 				if (result.updateMetaEnvelope.errors?.length) {
-					const errMsg = result.updateMetaEnvelope.errors
-						.map((e) => e.message)
-						.join("; ");
-					console.error(`[eVault WRITE FAIL] ${eName}: UPDATE errors: ${errMsg}`);
-					throw new Error(errMsg);
+					throw new Error(
+						result.updateMetaEnvelope.errors
+							.map((e) => e.message)
+							.join("; "),
+					);
 				}
-
-				const returned = result.updateMetaEnvelope.metaEnvelope?.parsed as Record<string, unknown> | undefined;
-				console.log(
-					`[eVault WRITE OK] ${eName}: UPDATE response avatarFileId=${returned?.avatarFileId ?? "NONE"} bannerFileId=${returned?.bannerFileId ?? "NONE"} keys=[${returned ? Object.keys(returned).join(",") : "EMPTY"}]`,
-				);
 			} else {
 				const result = await client.request<CreateResult>(CREATE_MUTATION, {
 					input: {
@@ -424,7 +415,6 @@ export class EVaultProfileService {
 
 				if (result.createMetaEnvelope.errors?.length) {
 					const errors = result.createMetaEnvelope.errors;
-					console.warn(`[eVault WRITE] ${eName}: CREATE got errors: ${JSON.stringify(errors)}`);
 					const couldBeConflict = errors.some(
 						(e) =>
 							e.code === "CREATE_FAILED" ||
@@ -440,7 +430,6 @@ export class EVaultProfileService {
 						PROFESSIONAL_PROFILE_ONTOLOGY,
 					);
 					if (raced) {
-						console.log(`[eVault WRITE] ${eName}: CREATE conflict, falling back to UPDATE on ${raced.id}`);
 						const updateResult = await client.request<UpdateResult>(
 							UPDATE_MUTATION,
 							{
@@ -459,33 +448,66 @@ export class EVaultProfileService {
 									.join("; "),
 							);
 						}
-						const returned = updateResult.updateMetaEnvelope.metaEnvelope?.parsed as Record<string, unknown> | undefined;
-						console.log(
-							`[eVault WRITE OK] ${eName}: fallback UPDATE response avatarFileId=${returned?.avatarFileId ?? "NONE"}`,
-						);
 					} else {
 						throw new Error(errors.map((e) => e.message).join("; "));
 					}
-				} else {
-					const returned = result.createMetaEnvelope.metaEnvelope?.parsed as Record<string, unknown> | undefined;
-					console.log(
-						`[eVault WRITE OK] ${eName}: CREATE response avatarFileId=${returned?.avatarFileId ?? "NONE"} bannerFileId=${returned?.bannerFileId ?? "NONE"}`,
-					);
 				}
 			}
 
-			// Write succeeded — extend the cache with a long TTL so we ride out
-			// eVault's eventual-consistency window instead of reading stale data.
+			// Write succeeded — extend the cache TTL
 			const cached = this.cache.get(eName);
 			if (cached) {
 				cached.expiresAt = Date.now() + EVaultProfileService.WRITE_CACHE_TTL;
-				console.log(`[eVault CACHE PIN] ${eName}: extended cache TTL to ${EVaultProfileService.WRITE_CACHE_TTL / 1000}s after successful write`);
 			}
 		} catch (err) {
-			// On write failure, invalidate cache so next read gets fresh data
 			console.error(`[eVault WRITE FAIL] ${eName}: invalidating cache`, (err as Error).message);
 			this.cache.delete(eName);
 			throw err;
+		}
+	}
+
+	/**
+	 * Writes avatarUrl / bannerUrl as public file-manager URLs into the
+	 * User ontology so other platforms can render them directly.
+	 */
+	private async syncAvatarBannerToUserOntology(
+		client: GraphQLClient,
+		eName: string,
+		profile: ProfessionalProfile,
+	): Promise<void> {
+		try {
+			const userNode = await this.findMetaEnvelopeByOntology(client, USER_ONTOLOGY);
+			const existing = (userNode?.parsed ?? {}) as Record<string, unknown>;
+			// Preserve the existing ACL; only default to public for new envelopes
+			const existingAcl = (userNode as any)?.acl;
+
+			// Only patch avatarUrl/bannerUrl — don't overwrite other User fields
+			const patch: Record<string, unknown> = { ...existing };
+			if (profile.avatar) {
+				patch.avatarUrl = getFileManagerPublicUrl(profile.avatar);
+			}
+			if (profile.banner) {
+				patch.bannerUrl = getFileManagerPublicUrl(profile.banner);
+			}
+
+			if (userNode) {
+				await client.request<UpdateResult>(UPDATE_MUTATION, {
+					id: userNode.id,
+					input: {
+						ontology: USER_ONTOLOGY,
+						payload: patch,
+						acl: existingAcl ?? ["*"],
+					},
+				});
+			} else {
+				patch.ename = eName;
+				patch.displayName = profile.displayName ?? eName;
+				await client.request<CreateResult>(CREATE_MUTATION, {
+					input: { ontology: USER_ONTOLOGY, payload: patch, acl: ["*"] },
+				});
+			}
+		} catch (e) {
+			console.error("Failed to sync avatar/banner to User ontology:", e);
 		}
 	}
 

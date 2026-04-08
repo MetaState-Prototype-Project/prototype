@@ -49,6 +49,7 @@ interface Identity {
     w3id: string;
     uri: string;
     keyId: string;
+    displayName?: string;
     bearerToken?: string;
     tokenExpiresAt?: number;
 }
@@ -468,6 +469,14 @@ async function doProvision() {
                 identity.w3id,
                 profile,
             );
+            const provisionedKeyId = identity.keyId;
+            const next = identities.map((id) =>
+                id.keyId === provisionedKeyId
+                    ? { ...id, displayName: profile.displayName }
+                    : id,
+            );
+            identities = next;
+            saveIdentities(next);
             addLog("success", "UserProfile created", profile.displayName);
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
@@ -826,7 +835,7 @@ async function doSign() {
                         <h2>Selected identity</h2>
                         <select bind:value={selectedIndex}>
                             {#each identities as id, i}
-                                <option value={i}>{id.w3id}</option>
+                                <option value={i}>{id.displayName ? `${id.displayName} (${id.w3id})` : id.w3id}</option>
                             {/each}
                         </select>
                     </section>

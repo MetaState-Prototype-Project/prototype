@@ -46,6 +46,10 @@ const appDetails: Record<string, { fullDescription: string; screenshots: string[
   "file-manager": {
     fullDescription: "File Manager is a decentralized file management system built on the Web 3.0 Data Space (W3DS) architecture. Organize, store, and share files with complete control over your data across the MetaState ecosystem.\n\nBuilt around the principle of data-platform separation, all your files are stored in your own sovereign eVault. Manage folders, organize documents, control access, and share files securely. Experience file management reimagined with privacy-first principles and complete data sovereignty.",
     screenshots: []
+  },
+  "profile-editor": {
+    fullDescription: "Profile Editor is a professional profile management platform built on the Web 3.0 Data Space (W3DS) architecture. Create, edit, and share your professional profile across the entire MetaState ecosystem with a single source of truth.\n\nShowcase your work experience, education, skills, and social links. Upload your CV and video introduction. All your profile data is stored in your own sovereign eVault and automatically synced across every W3DS platform — update once, reflected everywhere.",
+    screenshots: []
   }
 };
 

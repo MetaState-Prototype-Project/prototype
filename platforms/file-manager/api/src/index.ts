@@ -80,6 +80,7 @@ app.get("/api/auth/offer", authController.getOffer);
 app.post("/api/auth", authController.login);
 app.get("/api/auth/sessions/:id", authController.sseStream);
 app.post("/api/webhook", webhookController.handleWebhook);
+app.get("/api/public/files/:id", fileController.publicPreview);
 
 // Protected routes (auth required)
 app.use(authMiddleware);

@@ -41,9 +41,13 @@ export class WebhookController {
             const mapping = Object.values(this.adapter.mapping).find(
                 (m) => m.schemaId === schemaId
             );
-            this.adapter.addToLockedIds(globalId);
 
-            if (!mapping) throw new Error();
+            if (!mapping) {
+                console.log(`[webhook] skipping unknown schema ${schemaId} for ${globalId}`);
+                return res.status(200).send();
+            }
+
+            this.adapter.addToLockedIds(globalId);
             const local = await this.adapter.fromGlobal({
                 data: req.body.data,
                 mapping,

@@ -40,9 +40,9 @@ export class ProfileController {
 		data: Partial<ProfessionalProfile>,
 		res: Response,
 	) {
-		console.log(`[controller] optimisticUpdate ${ename}: keys=[${Object.keys(data).join(",")}] avatarFileId=${(data as any).avatarFileId ?? "N/A"} bannerFileId=${(data as any).bannerFileId ?? "N/A"}`);
+		console.log(`[controller] optimisticUpdate ${ename}: keys=[${Object.keys(data).join(",")}] avatar=${(data as any).avatar ?? "N/A"} banner=${(data as any).banner ?? "N/A"}`);
 		const { profile, persisted } = await this.evaultService.prepareUpdate(ename, data);
-		console.log(`[controller] optimisticUpdate ${ename}: returning avatarFileId=${profile.professional.avatarFileId ?? "NONE"} bannerFileId=${profile.professional.bannerFileId ?? "NONE"}`);
+		console.log(`[controller] optimisticUpdate ${ename}: returning avatar=${profile.professional.avatar ?? "NONE"} banner=${profile.professional.banner ?? "NONE"}`);
 		// Fire eVault write in background — don't block the response
 		persisted
 			.then(() => {
@@ -221,7 +221,7 @@ export class ProfileController {
 				return res.status(403).json({ error: "This profile is private" });
 			}
 
-			const fileId = profile.professional.avatarFileId;
+			const fileId = profile.professional.avatar;
 			if (!fileId) {
 				console.log(`[profile] avatar ${ename}: no fileId set, keys=[${Object.keys(profile.professional).join(",")}]`);
 				return res.status(404).json({ error: "No avatar set" });
@@ -249,7 +249,7 @@ export class ProfileController {
 				return res.status(403).json({ error: "This profile is private" });
 			}
 
-			const fileId = profile.professional.bannerFileId;
+			const fileId = profile.professional.banner;
 			if (!fileId) {
 				console.log(`[profile] banner ${ename}: no fileId set, keys=[${Object.keys(profile.professional).join(",")}]`);
 				return res.status(404).json({ error: "No banner set" });

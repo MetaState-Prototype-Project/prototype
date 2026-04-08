@@ -1,7 +1,4 @@
-import { PUBLIC_PROFILE_EDITOR_BASE_URL } from '$env/static/public';
 import { apiClient } from './axios';
-
-const API_BASE = () => PUBLIC_PROFILE_EDITOR_BASE_URL || 'http://localhost:3006';
 
 export async function uploadFile(
 	file: File,
@@ -27,5 +24,6 @@ export async function uploadFile(
 export type ProfileAssetType = 'avatar' | 'banner' | 'cv' | 'video';
 
 export function getProfileAssetUrl(ename: string, type: ProfileAssetType): string {
-	return `${API_BASE()}/api/profiles/${encodeURIComponent(ename)}/${type}`;
+	const base = apiClient.defaults.baseURL || 'http://localhost:3007';
+	return `${base}/api/profiles/${encodeURIComponent(ename)}/${type}`;
 }

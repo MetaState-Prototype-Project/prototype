@@ -31,8 +31,8 @@ export interface ProfessionalProfile {
 	displayName?: string;
 	headline?: string;
 	bio?: string;
-	avatarFileId?: string;
-	bannerFileId?: string;
+	avatar?: string;
+	banner?: string;
 	cvFileId?: string;
 	videoIntroFileId?: string;
 	email?: string;
@@ -50,8 +50,8 @@ export interface UserOntologyData {
 	username?: string;
 	displayName?: string;
 	bio?: string;
-	avatarUrl?: string;
-	bannerUrl?: string;
+	avatar?: string;
+	banner?: string;
 	ename?: string;
 	isVerified?: boolean;
 	isPrivate?: boolean;
@@ -71,8 +71,8 @@ export interface ProfileUpdatePayload {
 	displayName?: string;
 	headline?: string;
 	bio?: string;
-	avatarFileId?: string;
-	bannerFileId?: string;
+	avatar?: string;
+	banner?: string;
 	cvFileId?: string;
 	videoIntroFileId?: string;
 	email?: string;

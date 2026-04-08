@@ -42,6 +42,6 @@ if (token) {
 }
 
 export const apiClient: AxiosInstance = axios.create({
-	baseURL: PUBLIC_PROFILE_EDITOR_BASE_URL || 'http://localhost:3006',
+	baseURL: PUBLIC_PROFILE_EDITOR_BASE_URL || 'http://localhost:3007',
 	headers
 });

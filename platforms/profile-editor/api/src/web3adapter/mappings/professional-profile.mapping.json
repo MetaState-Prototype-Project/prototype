@@ -7,8 +7,6 @@
 		"name": "displayName",
 		"headline": "headline",
 		"bio": "bio",
-		"avatarFileId": "avatarFileId",
-		"bannerFileId": "bannerFileId",
 		"cvFileId": "cvFileId",
 		"videoIntroFileId": "videoIntroFileId",
 		"location": "location",

@@ -87,7 +87,7 @@ export class EVaultSyncService {
 
 	private async syncUser(ename: string): Promise<void> {
 		const profile = await this.evaultService.getProfile(ename);
-		console.log(`[sync] ${ename}: avatarFileId=${profile.professional.avatarFileId ?? "NONE"} bannerFileId=${profile.professional.bannerFileId ?? "NONE"}`);
+		console.log(`[sync] ${ename}: avatar=${profile.professional.avatar ?? "NONE"} banner=${profile.professional.banner ?? "NONE"}`);
 
 		await this.userSearchService.upsertFromWebhook({
 			ename,
@@ -97,8 +97,8 @@ export class EVaultSyncService {
 			bio: profile.professional.bio,
 			headline: profile.professional.headline,
 			location: profile.professional.location,
-			avatarFileId: profile.professional.avatarFileId,
-			bannerFileId: profile.professional.bannerFileId,
+			avatar: profile.professional.avatar,
+			banner: profile.professional.banner,
 			skills: profile.professional.skills,
 			isPublic: profile.professional.isPublic === true,
 			isArchived: false,
@@ -115,8 +115,8 @@ export class EVaultSyncService {
 			bio: profile.professional.bio,
 			headline: profile.professional.headline,
 			location: profile.professional.location,
-			avatarFileId: profile.professional.avatarFileId,
-			bannerFileId: profile.professional.bannerFileId,
+			avatar: profile.professional.avatar,
+			banner: profile.professional.banner,
 			skills: profile.professional.skills,
 			isPublic: profile.professional.isPublic === true,
 			isArchived: false,

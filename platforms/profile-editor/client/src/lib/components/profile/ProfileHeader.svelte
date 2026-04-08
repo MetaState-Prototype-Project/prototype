@@ -26,23 +26,21 @@
 	let bannerBroken = $state(false);
 	let avatarBroken = $state(false);
 
-	function avatarSrc(): string | null {
-		if (avatarPreview) return avatarPreview;
-		const fid = profile.professional.avatarFileId;
-		if (fid) {
-			return `${getProfileAssetUrl(profile.ename, 'avatar')}?v=${encodeURIComponent(fid)}`;
-		}
-		return null;
-	}
+	let avatarSrc = $derived(
+		avatarPreview
+			? avatarPreview
+			: profile.professional.avatar
+				? `${getProfileAssetUrl(profile.ename, 'avatar')}?v=${encodeURIComponent(profile.professional.avatar)}`
+				: null
+	);
 
-	function bannerSrc(): string | null {
-		if (bannerPreview) return bannerPreview;
-		const fid = profile.professional.bannerFileId;
-		if (fid) {
-			return `${getProfileAssetUrl(profile.ename, 'banner')}?v=${encodeURIComponent(fid)}`;
-		}
-		return null;
-	}
+	let bannerSrc = $derived(
+		bannerPreview
+			? bannerPreview
+			: profile.professional.banner
+				? `${getProfileAssetUrl(profile.ename, 'banner')}?v=${encodeURIComponent(profile.professional.banner)}`
+				: null
+	);
 
 	async function handleAvatarUpload(e: Event) {
 		const input = e.target as HTMLInputElement;
@@ -55,7 +53,7 @@
 		uploadingAvatar = true;
 		try {
 			const result = await uploadFile(file);
-			await updateProfile({ avatarFileId: result.id });
+			await updateProfile({ avatar: result.id });
 			avatarPreview = null;
 			toast.success('Avatar updated');
 		} catch {
@@ -77,7 +75,7 @@
 		uploadingBanner = true;
 		try {
 			const result = await uploadFile(file);
-			await updateProfile({ bannerFileId: result.id });
+			await updateProfile({ banner: result.id });
 			bannerPreview = null;
 			toast.success('Banner updated');
 		} catch {
@@ -102,8 +100,8 @@
 <Card class="overflow-hidden p-0">
 	<!-- Banner -->
 	<div class="relative h-48 bg-gradient-to-r from-primary/20 to-primary/5">
-		{#if bannerSrc() && !bannerBroken}
-			<img src={bannerSrc()} alt="Banner" class="h-full w-full object-cover" onerror={() => { bannerBroken = true; }} />
+		{#if bannerSrc && !bannerBroken}
+			<img src={bannerSrc} alt="Banner" class="h-full w-full object-cover" onerror={() => { bannerBroken = true; }} />
 		{/if}
 		{#if editable}
 			<div class="absolute bottom-3 right-3">
@@ -121,8 +119,8 @@
 			<!-- Avatar -->
 			<div class="-mt-16 relative">
 				<Avatar class="h-32 w-32 border-4 border-card">
-					{#if avatarSrc() && !avatarBroken}
-						<AvatarImage src={avatarSrc()} alt={profile.name ?? profile.ename} />
+					{#if avatarSrc && !avatarBroken}
+						<AvatarImage src={avatarSrc} alt={profile.name ?? profile.ename} />
 					{/if}
 					<AvatarFallback class="text-3xl font-bold">
 						{(profile.name ?? profile.ename ?? '?')[0]?.toUpperCase()}
