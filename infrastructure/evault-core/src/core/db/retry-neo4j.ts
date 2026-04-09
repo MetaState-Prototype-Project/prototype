@@ -23,7 +23,13 @@ export async function connectWithRetry(
             const driver = neo4j.driver(
                 uri,
                 neo4j.auth.basic(user, password),
-                { encrypted: "ENCRYPTION_OFF" }, // or { encrypted: false }
+                {
+                    encrypted: "ENCRYPTION_OFF",
+                    maxConnectionPoolSize: 300,
+                    connectionAcquisitionTimeout: 120_000,
+                    maxConnectionLifetime: 30 * 60 * 1000,
+                    connectionTimeout: 30_000,
+                },
             );
             await driver.getServerInfo();
             console.log("Connected to Neo4j!");

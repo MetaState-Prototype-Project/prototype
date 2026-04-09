@@ -1289,20 +1289,13 @@ export class DbService {
                 : "AND m.id < $cursorId";
         }
 
-        // Get total count (without pagination)
+        // Run count + main query in a single session to reduce pool pressure
         const countQuery = `
             MATCH (m:MetaEnvelope)
             WHERE ${conditions.join(" AND ")}
             ${searchCondition}
             RETURN count(m) AS total
         `;
-        const countResult = await this.runQueryInternal(countQuery, params);
-        const totalCount =
-            countResult.records[0]?.get("total")?.toNumber?.() ??
-            countResult.records[0]?.get("total") ??
-            0;
-
-        // Build main query with pagination
         const orderDirection = isBackward ? "DESC" : "ASC";
         const mainQuery = `
             MATCH (m:MetaEnvelope)
@@ -1315,9 +1308,22 @@ export class DbService {
             MATCH (m)-[:LINKS_TO]->(e:Envelope)
             RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, collect(e) AS envelopes
         `;
-
         params.limitPlusOne = neo4j.int(limit + 1);
-        const result = await this.runQueryInternal(mainQuery, params);
+
+        const session = this.driver.session();
+        let countResult;
+        let result;
+        try {
+            countResult = await session.run(countQuery, params);
+            result = await session.run(mainQuery, params);
+        } finally {
+            await session.close();
+        }
+
+        const totalCount =
+            countResult.records[0]?.get("total")?.toNumber?.() ??
+            countResult.records[0]?.get("total") ??
+            0;
 
         // Process results
         let records = result.records;
