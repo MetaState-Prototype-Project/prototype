@@ -13,6 +13,7 @@ import { ProvisioningService } from "./services/ProvisioningService";
 import { VerificationService } from "./services/VerificationService";
 import { createHmacSignature } from "./utils/hmac";
 
+import { checkGlobalRateLimit } from "./core/http/global-rate-limiter";
 import fastifyCors from "@fastify/cors";
 import fastify, {
     type FastifyInstance,
@@ -174,6 +175,25 @@ const initializeEVault = async (
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allowedHeaders: ["Content-Type", "Authorization", "X-ENAME", "x-shared-secret"],
         credentials: true,
+    });
+
+    // Global rate limiting by platform token identity (IP fallback)
+    fastifyServer.addHook("onRequest", async (request, reply) => {
+        const authHeader = request.headers.authorization;
+        const token = authHeader?.startsWith("Bearer ")
+            ? authHeader.substring(7)
+            : null;
+        const ip = request.ip;
+        const { allowed, retryAfterSeconds } = checkGlobalRateLimit(token, ip);
+        if (!allowed) {
+            reply
+                .code(429)
+                .header("Retry-After", String(retryAfterSeconds))
+                .send({
+                    error: "Too Many Requests",
+                    retryAfterSeconds,
+                });
+        }
     });
 
     // Register HTTP routes with provisioning service if available
