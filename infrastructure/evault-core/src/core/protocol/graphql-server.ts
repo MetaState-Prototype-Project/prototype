@@ -530,14 +530,21 @@ export class GraphQLServer {
                                 parsed: parsedFromEnvelopes,
                             };
 
-                            // Deliver webhooks for update operation
+                            // Deliver webhooks for update operation.
+                            // Use the FULL post-write state, not input.payload —
+                            // input.payload is the partial diff the caller sent,
+                            // and receivers overwrite their local row with
+                            // whatever the webhook carries. Sending the diff
+                            // would make the receiver lose every untouched
+                            // field (e.g. a read-receipt update would wipe
+                            // participantIds on the receiver side).
                             const requestingPlatform =
                                 context.tokenPayload?.platform || null;
                             const webhookPayload = {
                                 id,
                                 w3id: context.eName,
                                 evaultPublicKey: this.evaultPublicKey,
-                                data: input.payload,
+                                data: result.mergedPayload ?? input.payload,
                                 schemaId: input.ontology,
                             };
 
@@ -1222,14 +1229,18 @@ export class GraphQLServer {
                                 context.eName,
                             );
 
-                            // Deliver webhooks for update operation
+                            // Deliver webhooks with the FULL post-write state.
+                            // See the long comment on the new updateMetaEnvelope
+                            // resolver above — sending input.payload (the
+                            // partial diff) would make receivers clobber their
+                            // own untouched fields.
                             const requestingPlatform =
                                 context.tokenPayload?.platform || null;
                             const webhookPayload = {
                                 id: id,
                                 w3id: context.eName,
                                 evaultPublicKey: this.evaultPublicKey,
-                                data: input.payload,
+                                data: result.mergedPayload ?? input.payload,
                                 schemaId: input.ontology,
                             };
 

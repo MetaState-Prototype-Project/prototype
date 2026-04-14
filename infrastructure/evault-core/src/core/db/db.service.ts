@@ -665,6 +665,20 @@ export class DbService {
                 // field on the meta-envelope (e.g. wiping participantIds when
                 // a read-receipt update arrives).
 
+                // Build the full post-write state by merging the pre-write
+                // envelope set with everything we just wrote. Used by
+                // resolvers to fan out webhooks containing the complete
+                // merged state — receivers overwrite their local row with
+                // whatever the webhook carries, so a partial diff would
+                // make them lose every untouched field.
+                const mergedPayload: Record<string, any> = {};
+                for (const env of workingEnvelopes) {
+                    mergedPayload[env.ontology] = env.value;
+                }
+                for (const env of createdEnvelopes) {
+                    mergedPayload[env.ontology] = env.value;
+                }
+
                 return {
                     metaEnvelope: {
                         id,
@@ -672,6 +686,7 @@ export class DbService {
                         acl,
                     },
                     envelopes: createdEnvelopes,
+                    mergedPayload,
                 };
             });
         } catch (error) {
