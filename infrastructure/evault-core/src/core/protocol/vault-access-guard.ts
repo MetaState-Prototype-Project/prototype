@@ -3,6 +3,7 @@ import type { YogaInitialContext } from "graphql-yoga";
 import * as jose from "jose";
 import type { DbService } from "../db/db.service";
 import type { MetaEnvelope } from "../db/types";
+import { newTraceId, timed } from "../utils/timing";
 
 export type VaultContext = YogaInitialContext & {
     currentUser: string | null;
@@ -51,17 +52,26 @@ export class VaultAccessGuard {
             const now = Date.now();
             let cached = jwksCache.get(jwksUrl);
             if (!cached || cached.expiresAt <= now) {
-                const jwksResponse = await axios.get(jwksUrl, {
-                    timeout: JWKS_FETCH_TIMEOUT_MS,
-                });
+                const jwksResponse = await timed(
+                    "guard.validateToken.fetchJWKS",
+                    () =>
+                        axios.get(jwksUrl, {
+                            timeout: JWKS_FETCH_TIMEOUT_MS,
+                        }),
+                );
                 cached = {
                     jwks: jose.createLocalJWKSet(jwksResponse.data),
                     expiresAt: now + JWKS_TTL_MS,
                 };
                 jwksCache.set(jwksUrl, cached);
+            } else {
+                console.log("[timing] guard.validateToken.jwksCacheHit");
             }
 
-            const { payload } = await jose.jwtVerify(token, cached.jwks);
+            const { payload } = await timed(
+                "guard.validateToken.jwtVerify",
+                () => jose.jwtVerify(token, cached!.jwks),
+            );
 
             return payload;
         } catch (error) {
@@ -242,6 +252,13 @@ export class VaultAccessGuard {
         ) => Promise<any>,
     ) {
         return async (parent: T, args: Args, context: VaultContext) => {
+            const traceId = newTraceId("op");
+            const opKind = args.id
+                ? "id-targeted"
+                : args.envelopeId
+                  ? "envelope-targeted"
+                  : "bulk";
+            console.log(`[timing] ${traceId} guard.middleware.begin ${opKind}`);
             // Check if this is storeMetaEnvelope operation (has input with ontology, payload, acl)
             const isStoreOperation =
                 args.input &&
@@ -252,12 +269,20 @@ export class VaultAccessGuard {
                 !args.id; // storeMetaEnvelope doesn't have id, updateMetaEnvelopeById does
 
             // CRITICAL: Validate authentication BEFORE executing any resolver
-            await this.validateAuthentication(context, isStoreOperation);
+            await timed(
+                "guard.validateAuthentication",
+                () => this.validateAuthentication(context, isStoreOperation),
+                traceId,
+            );
 
             // For operations that don't require a specific meta envelope ID (bulk queries)
             if (!args.id && !args.envelopeId) {
                 // Authentication validated, now execute resolver
-                const result = await resolver(parent, args, context);
+                const result = await timed(
+                    "guard.resolver(bulk)",
+                    () => resolver(parent, args, context),
+                    traceId,
+                );
 
                 // If the result is an array
                 if (Array.isArray(result)) {
@@ -282,20 +307,29 @@ export class VaultAccessGuard {
             const metaEnvelopeId = args.id || args.envelopeId;
             if (!metaEnvelopeId) {
                 // Authentication validated, now execute resolver
-                const result = await resolver(parent, args, context);
+                const result = await timed(
+                    "guard.resolver(no-id)",
+                    () => resolver(parent, args, context),
+                    traceId,
+                );
                 return this.filterACL(result);
             }
 
             // Check if envelope exists and user has access
-            const { hasAccess, exists } = await this.checkAccess(
-                metaEnvelopeId,
-                context,
+            const { hasAccess, exists } = await timed(
+                "guard.checkAccess",
+                () => this.checkAccess(metaEnvelopeId, context),
+                traceId,
             );
 
             // For update operations with input, allow in-place creation if envelope doesn't exist
             if (!exists && args.input) {
                 // Envelope doesn't exist for this eName - allow in-place creation
-                const result = await resolver(parent, args, context);
+                const result = await timed(
+                    "guard.resolver(in-place-create)",
+                    () => resolver(parent, args, context),
+                    traceId,
+                );
                 return this.filterACL(result);
             }
 
@@ -309,7 +343,11 @@ export class VaultAccessGuard {
             }
 
             // Execute resolver and filter ACL
-            const result = await resolver(parent, args, context);
+            const result = await timed(
+                "guard.resolver(targeted)",
+                () => resolver(parent, args, context),
+                traceId,
+            );
 
             // If result is null (envelope not found), return null
             if (result === null) {

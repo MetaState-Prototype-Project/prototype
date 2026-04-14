@@ -1,5 +1,6 @@
 import neo4j, { type Driver } from "neo4j-driver";
 import { W3IDBuilder } from "w3id";
+import { timed } from "../utils/timing";
 import { deserializeValue, serializeValue } from "./schema";
 import type {
     AppendEnvelopeOperationLogParams,
@@ -41,12 +42,19 @@ export class DbService {
      * @returns The result of the query execution
      */
     private async runQueryInternal(query: string, params: Record<string, any>) {
-        const session = this.driver.session();
-        try {
-            return await session.run(query, params);
-        } finally {
-            await session.close();
-        }
+        const firstLine = query.trim().split("\n")[0].slice(0, 80);
+        return timed(`db.query "${firstLine}"`, async () => {
+            const session = await timed("db.session.open", async () =>
+                this.driver.session(),
+            );
+            try {
+                return await timed("db.session.run", () =>
+                    session.run(query, params),
+                );
+            } finally {
+                await timed("db.session.close", () => session.close());
+            }
+        });
     }
 
     /**
@@ -74,11 +82,14 @@ export class DbService {
         acl: string[],
         eName: string,
     ): Promise<StoreMetaEnvelopeResult<T>> {
+      return timed("db.storeMetaEnvelope", async () => {
         if (!eName) {
             throw new Error("eName is required for storing meta-envelopes");
         }
 
-        const w3id = await new W3IDBuilder().build();
+        const w3id = await timed("db.storeMetaEnvelope.buildMetaId", () =>
+            new W3IDBuilder().build(),
+        );
 
         const cypher: string[] = [
             `CREATE (m:MetaEnvelope { id: $metaId, ontology: $ontology, acl: $acl, eName: $eName })`,
@@ -128,7 +139,9 @@ export class DbService {
             counter++;
         }
 
-        await this.runQueryInternal(cypher.join("\n"), envelopeParams);
+        await timed("db.storeMetaEnvelope.runQuery", () =>
+            this.runQueryInternal(cypher.join("\n"), envelopeParams),
+        );
 
         return {
             metaEnvelope: {
@@ -138,6 +151,7 @@ export class DbService {
             },
             envelopes: createdEnvelopes,
         };
+      });
     }
 
     /**
@@ -528,16 +542,22 @@ export class DbService {
         acl: string[],
         eName: string,
     ): Promise<StoreMetaEnvelopeResult<T>> {
+      return timed("db.updateMetaEnvelopeById", async () => {
         if (!eName) {
             throw new Error("eName is required for updating meta-envelopes");
         }
 
         try {
-            let existing = await this.findMetaEnvelopeById<T>(id, eName);
+            let existing = await timed(
+                "db.updateMetaEnvelopeById.findExisting",
+                () => this.findMetaEnvelopeById<T>(id, eName),
+            );
             if (!existing) {
-                const metaW3id = await new W3IDBuilder().build();
-                await this.runQueryInternal(
-                    `
+                await timed(
+                    "db.updateMetaEnvelopeById.createMissing",
+                    () =>
+                        this.runQueryInternal(
+                            `
                     CREATE (m:MetaEnvelope {
                         id: $id,
                         ontology: $ontology,
@@ -545,7 +565,8 @@ export class DbService {
                         eName: $eName
                     })
                     `,
-                    { id, ontology: meta.ontology, acl, eName },
+                            { id, ontology: meta.ontology, acl, eName },
+                        ),
                 );
                 existing = {
                     id,
@@ -557,12 +578,14 @@ export class DbService {
             }
 
             // Update the meta-envelope properties (ensure eName matches)
-            await this.runQueryInternal(
-                `
+            await timed("db.updateMetaEnvelopeById.updateMetaProps", () =>
+                this.runQueryInternal(
+                    `
                 MATCH (m:MetaEnvelope { id: $id, eName: $eName })
                 SET m.ontology = $ontology, m.acl = $acl
                 `,
-                { id, ontology: meta.ontology, acl, eName },
+                    { id, ontology: meta.ontology, acl, eName },
+                ),
             );
 
             // Deduplicate envelopes — if multiple Envelope nodes share the
@@ -705,6 +728,7 @@ export class DbService {
             console.error("Error in updateMetaEnvelopeById:", error);
             throw error;
         }
+      });
     }
 
     /**
