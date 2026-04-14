@@ -115,6 +115,17 @@ const initializeEVault = async (
         console.warn("Failed to create User index:", error);
     }
 
+    // Create id indexes on Envelope and MetaEnvelope so per-field point
+    // lookups inside updateMetaEnvelopeById don't scan the whole label.
+    try {
+        const { createIdIndexes } = await import(
+            "./core/db/migrations/add-id-indexes"
+        );
+        await createIdIndexes(driver);
+    } catch (error) {
+        console.warn("Failed to create id indexes:", error);
+    }
+
     // Migrate publicKey (string) to publicKeys (array)
     try {
         const { migratePublicKeyToArray } = await import(
