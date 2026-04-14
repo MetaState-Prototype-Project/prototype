@@ -657,17 +657,13 @@ export class DbService {
                     }
                 }
 
-                // Delete envelopes that are no longer in the payload
-                const newOntologies = new Set(Object.keys(meta.payload));
-                const idsToDelete = workingEnvelopes
-                    .filter((e) => !newOntologies.has(e.ontology))
-                    .map((e) => e.id);
-                if (idsToDelete.length > 0) {
-                    await tx.run(
-                        `MATCH (e:Envelope) WHERE e.id IN $ids DETACH DELETE e`,
-                        { ids: idsToDelete },
-                    );
-                }
+                // PATCH semantics: fields absent from the new payload are
+                // left alone. Callers (notably web3-adapter) project partial
+                // platform updates through toGlobal — if the platform only
+                // touched one column, only one ontology reaches us, and
+                // deleting "stale" envelopes here would clobber every other
+                // field on the meta-envelope (e.g. wiping participantIds when
+                // a read-receipt update arrives).
 
                 return {
                     metaEnvelope: {
