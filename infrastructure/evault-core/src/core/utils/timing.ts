@@ -1,5 +1,8 @@
 const ENABLED = process.env.EVAULT_TIMING !== "0";
-const SLOW_MS = Number(process.env.EVAULT_TIMING_SLOW_MS) || 0;
+const SLOW_MS =
+    process.env.EVAULT_TIMING_SLOW_MS !== undefined
+        ? Number(process.env.EVAULT_TIMING_SLOW_MS)
+        : 50;
 
 let counter = 0;
 export function newTraceId(prefix = "t"): string {

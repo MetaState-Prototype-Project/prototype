@@ -44,15 +44,11 @@ export class DbService {
     private async runQueryInternal(query: string, params: Record<string, any>) {
         const firstLine = query.trim().split("\n")[0].slice(0, 80);
         return timed(`db.query "${firstLine}"`, async () => {
-            const session = await timed("db.session.open", async () =>
-                this.driver.session(),
-            );
+            const session = this.driver.session();
             try {
-                return await timed("db.session.run", () =>
-                    session.run(query, params),
-                );
+                return await session.run(query, params);
             } finally {
-                await timed("db.session.close", () => session.close());
+                await session.close();
             }
         });
     }
