@@ -92,6 +92,21 @@ export class GraphQLServer {
         requestingPlatform: string | null,
         webhookPayload: any,
     ): Promise<void> {
+        // One log line per dispatch — the same payload goes to every
+        // target platform, so we log the body once here instead of per
+        // target. This is the source of truth for "what eVault claims it
+        // sent"; correlate against receiver logs to find divergence.
+        try {
+            const payloadJson = JSON.stringify(webhookPayload);
+            console.log(
+                `[webhook] id=${webhookPayload?.id} schemaId=${webhookPayload?.schemaId} w3id=${webhookPayload?.w3id} from=${requestingPlatform ?? "<none>"} payload=${payloadJson}`,
+            );
+        } catch {
+            console.log(
+                `[webhook] id=${webhookPayload?.id} schemaId=${webhookPayload?.schemaId} payload=<unserializable>`,
+            );
+        }
+
         try {
             const activePlatforms = await this.getActivePlatforms();
 
