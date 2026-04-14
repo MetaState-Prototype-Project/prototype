@@ -186,7 +186,11 @@ const initializeEVault = async (
         const ip = request.ip;
         const { allowed, retryAfterSeconds } = checkGlobalRateLimit(token, ip);
         if (!allowed) {
-            reply
+            // In an async onRequest hook, Fastify only short-circuits the
+            // handler chain if you return the reply object. Without the
+            // return, the 429 is queued but the downstream handler (GraphQL)
+            // still runs — turning the rate limiter into a silent counter.
+            return reply
                 .code(429)
                 .header("Retry-After", String(retryAfterSeconds))
                 .send({
