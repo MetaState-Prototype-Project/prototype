@@ -49,8 +49,10 @@
 			totalChats = data.total;
 			hasMorePages = data.page < data.totalPages;
 
-			// Transform chats to messages
-			const newMessages = data.chats.map((c) => {
+			// Transform chats to messages, hiding chats that only contain a single user
+			const newMessages = data.chats
+				.filter((c) => c.participants.length >= 2)
+				.map((c) => {
 				const members = c.participants.filter((u) => u.id !== userData.id);
 				const memberNames = members.map((m) => m.name ?? m.handle ?? m.ename);
 				const isGroup = members.length > 1;

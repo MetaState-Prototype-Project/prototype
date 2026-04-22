@@ -66,7 +66,10 @@ export function ChatList(): JSX.Element {
         return <Loading className='mt-5' />;
     }
 
-    if (!chats?.length) {
+    const visibleChats =
+        chats?.filter((chat) => chat.participants.length >= 2) ?? [];
+
+    if (!visibleChats.length) {
         console.log('ChatList: No chats found');
         return (
             <div className='flex h-full flex-col gap-4'>
@@ -94,7 +97,7 @@ export function ChatList(): JSX.Element {
     return (
         <div className='flex h-full flex-col'>
             <div className='flex-1 overflow-y-auto overflow-x-hidden px-2 py-2 space-y-1'>
-                {chats.map((chat) => {
+                {visibleChats.map((chat) => {
                     const otherParticipant = chat.participants.find(
                         (p) => p !== user?.id
                     );
