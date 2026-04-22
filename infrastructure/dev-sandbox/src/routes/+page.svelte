@@ -36,6 +36,10 @@ const config = $derived({
 let ontologies: { id: string; title: string }[] = $state([]);
 let selectedOntologyId: string | null = $state(null);
 let inspectorEName: string = $state("");
+const ontologyTitleMap = $derived(
+    new Map(ontologies.map((o) => [o.id, o.title || o.id])),
+);
+
 let schemasLoading = $state(false);
 let schemasError: string | null = $state(null);
 
@@ -257,6 +261,88 @@ let afterCursor: string | null = $state(null);
 let beforeCursor: string | null = $state(null);
 let pageOffset: number = $state(0);
 let currentTab = $state<string>("sandbox");
+
+// eVault Logs state
+interface EvaultLog {
+    id: string;
+    eName: string;
+    metaEnvelopeId: string;
+    envelopeHash: string;
+    operation: string;
+    platform: string;
+    timestamp: string;
+    ontology: string;
+}
+let logsEName: string = $state("");
+let evaultLogs: EvaultLog[] = $state([]);
+let logsLoading = $state(false);
+let logsError: string | null = $state(null);
+let logsNextCursor: string | null = $state(null);
+let logsHasMore = $state(false);
+let logsPageSize = 20;
+
+async function loadEvaultLogs(cursor?: string | null): Promise<void> {
+    const ename = logsEName.trim() || selectedIdentity?.w3id;
+    if (!ename) {
+        logsError = "Enter an eName or provision an identity first.";
+        return;
+    }
+
+    logsLoading = true;
+    logsError = null;
+    if (ontologies.length === 0) await loadOntologies();
+    try {
+        const token = await getPlatformToken();
+
+        // Resolve eVault URI
+        let baseUrl: string;
+        const lookupEName = logsEName.trim();
+        if (!lookupEName && selectedIdentity) {
+            baseUrl = selectedIdentity.uri.replace(/\/+$/, "");
+        } else {
+            const resolveRes = await fetch(
+                new URL(`resolve?w3id=${encodeURIComponent(ename)}`, registryUrl).toString(),
+            );
+            if (!resolveRes.ok) throw new Error(`Registry resolve failed: ${resolveRes.status}`);
+            const resolveData = await resolveRes.json();
+            if (!resolveData.uri) throw new Error("Registry returned no URI for that eName.");
+            baseUrl = resolveData.uri.replace(/\/+$/, "");
+        }
+
+        const params = new URLSearchParams({ limit: String(logsPageSize) });
+        if (cursor) params.set("cursor", cursor);
+
+        const headers: Record<string, string> = { "X-ENAME": ename };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const res = await fetch(`${baseUrl}/logs?${params.toString()}`, { headers });
+        if (!res.ok) throw new Error(`Logs request failed: ${res.status}`);
+
+        const data = await res.json();
+        if (cursor) {
+            evaultLogs = [...evaultLogs, ...data.logs];
+        } else {
+            evaultLogs = data.logs;
+        }
+        logsNextCursor = data.nextCursor ?? null;
+        logsHasMore = data.hasMore ?? false;
+    } catch (e) {
+        logsError = e instanceof Error ? e.message : String(e);
+    } finally {
+        logsLoading = false;
+    }
+}
+
+function loadLogsFirstPage() {
+    evaultLogs = [];
+    logsNextCursor = null;
+    logsHasMore = false;
+    loadEvaultLogs();
+}
+
+function loadLogsNextPage() {
+    if (logsNextCursor) loadEvaultLogs(logsNextCursor);
+}
 
 // Expanded envelope IDs set
 let expandedIds = $state(new Set<string>());
@@ -787,6 +873,13 @@ async function doSign() {
                     eVault Inspector
                 </button>
                 <button
+                    class:active={currentTab === "logs"}
+                    type="button"
+                    onclick={() => (currentTab = "logs")}
+                >
+                    eVault Logs
+                </button>
+                <button
                     class:active={currentTab === "config"}
                     type="button"
                     onclick={() => (currentTab = "config")}
@@ -1063,6 +1156,72 @@ async function doSign() {
                     </div>
                 {/if}
             {/if}
+            </div>
+
+            <div class="view view-logs" class:hidden={currentTab !== 'logs'}>
+                <section class="card">
+                    <h2>eVault Operation Logs</h2>
+                    <p class="config-hint">View create, update, and delete operations logged by an eVault.</p>
+                    <div class="field">
+                        <label for="logsEName"><strong>eName (X-ENAME):</strong></label>
+                        <input
+                            id="logsEName"
+                            type="text"
+                            bind:value={logsEName}
+                            placeholder="Enter any eName"
+                        />
+                    </div>
+                    <div class="inspector-actions">
+                        <button disabled={logsLoading || (!logsEName.trim() && !selectedIdentity)} onclick={loadLogsFirstPage}>
+                            {logsLoading && evaultLogs.length === 0 ? "Loading..." : "Load Logs"}
+                        </button>
+                    </div>
+                </section>
+
+                {#if logsError}
+                    <p class="error">{logsError}</p>
+                {/if}
+
+                {#if logsLoading && evaultLogs.length === 0}
+                    <div class="envelope-loading">Loading logs...</div>
+                {:else if evaultLogs.length === 0 && !logsError && currentTab === 'logs'}
+                    <div class="envelope-empty">No logs loaded. Enter an eName and click Load Logs.</div>
+                {:else if evaultLogs.length > 0}
+                    <div class="logs-table-wrap">
+                        <table class="logs-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Operation</th>
+                                    <th>Ontology</th>
+                                    <th>MetaEnvelope ID</th>
+                                    <th>Platform</th>
+                                    <th>Hash</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {#each evaultLogs as log (log.id)}
+                                    <tr>
+                                        <td class="logs-td-ts">{log.timestamp.slice(0, 19).replace('T', ' ')}</td>
+                                        <td><span class="logs-op-badge" class:op-create={log.operation === 'create'} class:op-update={log.operation === 'update' || log.operation === 'update_envelope_value'} class:op-delete={log.operation === 'delete'}>{log.operation}</span></td>
+                                        <td class="logs-td-ontology">{ontologyTitleMap.get(log.ontology) ?? "Unknown"}</td>
+                                        <td class="logs-td-mono">{log.metaEnvelopeId}</td>
+                                        <td>{log.platform}</td>
+                                        <td class="logs-td-mono logs-td-hash">{log.envelopeHash}</td>
+                                    </tr>
+                                {/each}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {#if logsHasMore}
+                        <div class="pagination-footer">
+                            <button disabled={logsLoading} onclick={loadLogsNextPage}>
+                                {logsLoading ? "Loading..." : "Load More"}
+                            </button>
+                        </div>
+                    {/if}
+                {/if}
             </div>
 
             <div class="view view-config" class:hidden={currentTab !== 'config'}>
@@ -1707,4 +1866,77 @@ async function doSign() {
         color: var(--muted, #64748b);
         margin-right: 0.35rem;
     }
+
+    /* eVault Logs — table */
+    .logs-table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--border, #e2e8f0);
+        border-radius: 10px;
+        background: var(--bg-card, #fff);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+    .logs-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.82rem;
+    }
+    .logs-table thead th {
+        text-align: left;
+        padding: 0.6rem 0.75rem;
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--muted, #64748b);
+        background: var(--bg-page, #f0f2f5);
+        border-bottom: 2px solid var(--border, #e2e8f0);
+        white-space: nowrap;
+    }
+    .logs-table tbody tr {
+        border-bottom: 1px solid var(--border, #e2e8f0);
+    }
+    .logs-table tbody tr:last-child {
+        border-bottom: none;
+    }
+    .logs-table tbody tr:hover {
+        background: var(--bg-page, #f8fafc);
+    }
+    .logs-table td {
+        padding: 0.55rem 0.75rem;
+        vertical-align: top;
+    }
+    .logs-td-ts {
+        white-space: nowrap;
+        color: var(--muted, #64748b);
+        font-size: 0.78rem;
+    }
+    .logs-td-mono {
+        font-family: ui-monospace, "Cascadia Code", "SF Mono", monospace;
+        font-size: 0.75rem;
+        word-break: break-all;
+    }
+    .logs-td-hash {
+        color: var(--muted, #64748b);
+        max-width: 18ch;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .logs-td-ontology {
+        font-weight: 500;
+    }
+    .logs-op-badge {
+        display: inline-block;
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        padding: 0.15em 0.45em;
+        border-radius: 4px;
+        background: #475569;
+        color: #fff;
+        white-space: nowrap;
+    }
+    .logs-op-badge.op-create { background: #15803d; }
+    .logs-op-badge.op-update { background: #b45309; }
+    .logs-op-badge.op-delete { background: #b91c1c; }
 </style>
