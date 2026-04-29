@@ -466,6 +466,58 @@ export class DbService {
     }
 
     /**
+     * Finds all meta-envelopes by ontology across every eName (no tenant isolation).
+     * Temporary helper — use with care; intended for the token-gated cross-eVault read endpoint.
+     */
+    async findMetaEnvelopesByOntologyAcrossAllENames<
+        T extends Record<string, any> = Record<string, any>,
+    >(
+        ontology: string,
+    ): Promise<(MetaEnvelopeResult<T> & { eName: string })[]> {
+        const result = await this.runQueryInternal(
+            `
+    MATCH (m:MetaEnvelope { ontology: $ontology })-[:LINKS_TO]->(e:Envelope)
+    RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, m.eName AS eName, collect(e) AS envelopes
+    `,
+            { ontology },
+        );
+
+        return result.records.map((record) => {
+            const envelopes = record
+                .get("envelopes")
+                .map((node: any): Envelope<T[keyof T]> => {
+                    const properties = node.properties;
+                    return {
+                        id: properties.id,
+                        ontology: properties.ontology,
+                        value: deserializeValue(
+                            properties.value,
+                            properties.valueType,
+                        ) as T[keyof T],
+                        valueType: properties.valueType,
+                    };
+                });
+
+            const parsed = envelopes.reduce(
+                (acc: T, envelope: Envelope<T[keyof T]>) => {
+                    (acc as any)[envelope.ontology] = envelope.value;
+                    return acc;
+                },
+                {} as T,
+            );
+
+            return {
+                id: record.get("id"),
+                ontology: record.get("ontology"),
+                acl: record.get("acl"),
+                eName: record.get("eName"),
+                envelopes,
+                parsed,
+            };
+        });
+    }
+
+    /**
      * Deletes a meta-envelope and all its associated envelopes.
      * @param id - The ID of the meta-envelope to delete
      * @param eName - The eName identifier for multi-tenant isolation
