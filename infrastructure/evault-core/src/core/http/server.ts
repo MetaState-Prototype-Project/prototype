@@ -355,6 +355,40 @@ export async function registerHttpRoutes(
         },
     );
 
+    // Temporary token-gated cross-eVault read by ontology. Intentionally undocumented in Swagger.
+    server.get<{ Params: { ontology: string } }>(
+        "/metaenvelopes/by-ontology/:ontology",
+        async (request, reply) => {
+            const authHeader =
+                request.headers.authorization || request.headers.Authorization;
+            const tokenPayload = await validateToken(
+                typeof authHeader === "string" ? authHeader : null,
+            );
+            if (!tokenPayload) {
+                return reply
+                    .status(401)
+                    .send({ error: "Invalid or missing authentication token" });
+            }
+            if (!dbService) {
+                return reply
+                    .status(503)
+                    .send({ error: "Database service unavailable" });
+            }
+            try {
+                const results =
+                    await dbService.findMetaEnvelopesByOntologyAcrossAllENames(
+                        request.params.ontology,
+                    );
+                return reply.send({ metaEnvelopes: results });
+            } catch (err) {
+                request.log.error(err);
+                return reply
+                    .status(500)
+                    .send({ error: "Failed to fetch meta-envelopes" });
+            }
+        },
+    );
+
     // Watchers signature endpoint - DISABLED: Requires W3ID functionality
     // This endpoint is disabled because the eVault no longer creates/manages W3IDs
     // The private key is now stored on the user's phone
