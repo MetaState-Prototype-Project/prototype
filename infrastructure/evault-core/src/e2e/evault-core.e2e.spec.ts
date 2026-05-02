@@ -222,8 +222,13 @@ describe("web3-adapter + evault-core Integration", () => {
                 });
 
                 const fetched = await client.fetchMetaEnvelope(envelopeId, evault1.w3id);
-                // Note: updateMetaEnvelopeById replaces the entire payload, not merges
-                expect(fetched.data).toEqual(partialUpdate);
+                // updateMetaEnvelopeById has PATCH semantics: fields absent
+                // from the update are preserved (web3-adapter relies on this
+                // to avoid clobbering untouched ontologies on partial writes).
+                expect(fetched.data).toEqual({
+                    ...initialData,
+                    ...partialUpdate,
+                });
             });
         });
 

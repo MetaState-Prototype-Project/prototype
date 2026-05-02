@@ -3,12 +3,21 @@ import type { YogaInitialContext } from "graphql-yoga";
 import * as jose from "jose";
 import type { DbService } from "../db/db.service";
 import type { MetaEnvelope } from "../db/types";
+import { timed } from "../utils/timing";
 
 export type VaultContext = YogaInitialContext & {
     currentUser: string | null;
     tokenPayload?: any;
     eName: string | null;
 };
+
+type CachedJWKS = {
+    jwks: ReturnType<typeof jose.createLocalJWKSet>;
+    expiresAt: number;
+};
+const jwksCache = new Map<string, CachedJWKS>();
+const JWKS_TTL_MS = 24 * 60 * 60 * 1000;
+const JWKS_FETCH_TIMEOUT_MS = 5000;
 
 export class VaultAccessGuard {
     constructor(private db: DbService) {}
@@ -35,12 +44,29 @@ export class VaultAccessGuard {
                 return null;
             }
 
-            const jwksResponse = await axios.get(
-                new URL(`/.well-known/jwks.json`, registryUrl).toString(),
-            );
+            const jwksUrl = new URL(
+                `/.well-known/jwks.json`,
+                registryUrl,
+            ).toString();
 
-            const JWKS = jose.createLocalJWKSet(jwksResponse.data);
-            const { payload } = await jose.jwtVerify(token, JWKS);
+            const now = Date.now();
+            let cached = jwksCache.get(jwksUrl);
+            if (!cached || cached.expiresAt <= now) {
+                const jwksResponse = await timed(
+                    "guard.validateToken.fetchJWKS",
+                    () =>
+                        axios.get(jwksUrl, {
+                            timeout: JWKS_FETCH_TIMEOUT_MS,
+                        }),
+                );
+                cached = {
+                    jwks: jose.createLocalJWKSet(jwksResponse.data),
+                    expiresAt: now + JWKS_TTL_MS,
+                };
+                jwksCache.set(jwksUrl, cached);
+            }
+
+            const { payload } = await jose.jwtVerify(token, cached.jwks);
 
             return payload;
         } catch (error) {
@@ -115,11 +141,16 @@ export class VaultAccessGuard {
         metaEnvelopeId: string,
         context: VaultContext,
     ): Promise<{ hasAccess: boolean; exists: boolean }> {
-        // Validate token if present
-        const authHeader =
-            context.request?.headers?.get("authorization") ??
-            context.request?.headers?.get("Authorization");
-        const tokenPayload = await this.validateToken(authHeader);
+        // Reuse token payload already validated by validateAuthentication() earlier
+        // in the middleware; only re-validate as a fallback (e.g. store operations
+        // where an upstream pass may not have populated it).
+        let tokenPayload = context.tokenPayload ?? null;
+        if (!tokenPayload) {
+            const authHeader =
+                context.request?.headers?.get("authorization") ??
+                context.request?.headers?.get("Authorization");
+            tokenPayload = await this.validateToken(authHeader);
+        }
 
         if (tokenPayload) {
             // Token is valid, set platform context and allow access
@@ -226,7 +257,9 @@ export class VaultAccessGuard {
                 !args.id; // storeMetaEnvelope doesn't have id, updateMetaEnvelopeById does
 
             // CRITICAL: Validate authentication BEFORE executing any resolver
-            await this.validateAuthentication(context, isStoreOperation);
+            await timed("guard.validateAuthentication", () =>
+                this.validateAuthentication(context, isStoreOperation),
+            );
 
             // For operations that don't require a specific meta envelope ID (bulk queries)
             if (!args.id && !args.envelopeId) {
@@ -261,9 +294,8 @@ export class VaultAccessGuard {
             }
 
             // Check if envelope exists and user has access
-            const { hasAccess, exists } = await this.checkAccess(
-                metaEnvelopeId,
-                context,
+            const { hasAccess, exists } = await timed("guard.checkAccess", () =>
+                this.checkAccess(metaEnvelopeId, context),
             );
 
             // For update operations with input, allow in-place creation if envelope doesn't exist

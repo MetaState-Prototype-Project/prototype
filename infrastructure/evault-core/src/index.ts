@@ -115,6 +115,17 @@ const initializeEVault = async (
         console.warn("Failed to create User index:", error);
     }
 
+    // Create id indexes on Envelope and MetaEnvelope so per-field point
+    // lookups inside updateMetaEnvelopeById don't scan the whole label.
+    try {
+        const { createIdIndexes } = await import(
+            "./core/db/migrations/add-id-indexes"
+        );
+        await createIdIndexes(driver);
+    } catch (error) {
+        console.warn("Failed to create id indexes:", error);
+    }
+
     // Migrate publicKey (string) to publicKeys (array)
     try {
         const { migratePublicKeyToArray } = await import(
@@ -186,7 +197,11 @@ const initializeEVault = async (
         const ip = request.ip;
         const { allowed, retryAfterSeconds } = checkGlobalRateLimit(token, ip);
         if (!allowed) {
-            reply
+            // In an async onRequest hook, Fastify only short-circuits the
+            // handler chain if you return the reply object. Without the
+            // return, the 429 is queued but the downstream handler (GraphQL)
+            // still runs — turning the rate limiter into a silent counter.
+            return reply
                 .code(429)
                 .header("Retry-After", String(retryAfterSeconds))
                 .send({

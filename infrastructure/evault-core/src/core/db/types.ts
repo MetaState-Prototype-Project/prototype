@@ -37,6 +37,11 @@ export type MetaEnvelopeResult<
 
 /**
  * Result type for storing a new meta-envelope.
+ *
+ * `envelopes` are the envelopes touched by this operation. `mergedPayload`,
+ * when present, is the FULL post-write state of the meta-envelope (every
+ * field, not just the touched ones) — used by callers that need to fan out
+ * a webhook with the complete merged state rather than the partial diff.
  */
 export type StoreMetaEnvelopeResult<
     T extends Record<string, any> = Record<string, any>
@@ -47,6 +52,7 @@ export type StoreMetaEnvelopeResult<
         acl: string[];
     };
     envelopes: Envelope<T[keyof T]>[];
+    mergedPayload?: Record<string, any>;
 };
 
 /**
