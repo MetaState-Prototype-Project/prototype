@@ -2,7 +2,9 @@ import "reflect-metadata";
 import cors from "cors";
 import express from "express";
 import { config } from "./config";
+import { ingestRouter } from "./controllers/IngestController";
 import { AppDataSource } from "./database/data-source";
+import { DeliveryEngine } from "./services/DeliveryEngine";
 
 async function start(): Promise<void> {
     await AppDataSource.initialize();
@@ -15,6 +17,11 @@ async function start(): Promise<void> {
     app.get("/health", (_req, res) => {
         res.json({ status: "ok", service: "awareness-service" });
     });
+
+    app.use(ingestRouter());
+
+    const deliveryEngine = new DeliveryEngine();
+    deliveryEngine.start();
 
     app.listen(config.apiPort, () => {
         console.log(`[aaas] API listening on :${config.apiPort}`);
