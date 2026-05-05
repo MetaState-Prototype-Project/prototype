@@ -2,7 +2,10 @@ import "reflect-metadata";
 import cors from "cors";
 import express from "express";
 import { config } from "./config";
+import { consumerRouter } from "./controllers/ConsumerController";
 import { ingestRouter } from "./controllers/IngestController";
+import { queryRouter } from "./controllers/QueryController";
+import { subscriptionRouter } from "./controllers/SubscriptionController";
 import { AppDataSource } from "./database/data-source";
 import { DeliveryEngine } from "./services/DeliveryEngine";
 
@@ -19,6 +22,9 @@ async function start(): Promise<void> {
     });
 
     app.use(ingestRouter());
+    app.use(queryRouter());
+    app.use(subscriptionRouter());
+    app.use(consumerRouter());
 
     const deliveryEngine = new DeliveryEngine();
     deliveryEngine.start();
