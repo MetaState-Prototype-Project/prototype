@@ -2,6 +2,9 @@ import "reflect-metadata";
 import cors from "cors";
 import express from "express";
 import { config } from "./config";
+import { adminRouter } from "./controllers/AdminController";
+import { applicationRouter } from "./controllers/ApplicationController";
+import { authRouter } from "./controllers/AuthController";
 import { consumerRouter } from "./controllers/ConsumerController";
 import { ingestRouter } from "./controllers/IngestController";
 import { queryRouter } from "./controllers/QueryController";
@@ -25,6 +28,9 @@ async function start(): Promise<void> {
     app.use(queryRouter());
     app.use(subscriptionRouter());
     app.use(consumerRouter());
+    app.use(authRouter());
+    app.use(applicationRouter());
+    app.use(adminRouter());
 
     const deliveryEngine = new DeliveryEngine();
     deliveryEngine.start();
