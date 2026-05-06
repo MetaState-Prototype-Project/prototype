@@ -40,17 +40,22 @@ export class ProfileController {
 		data: Partial<ProfessionalProfile>,
 		res: Response,
 	) {
-		console.log(`[controller] optimisticUpdate ${ename}: keys=[${Object.keys(data).join(",")}] avatar=${(data as any).avatar ?? "N/A"} banner=${(data as any).banner ?? "N/A"}`);
+		console.log(`[controller] update ${ename}: keys=[${Object.keys(data).join(",")}] avatar=${(data as any).avatar ?? "N/A"} banner=${(data as any).banner ?? "N/A"}`);
 		const { profile, persisted } = await this.evaultService.prepareUpdate(ename, data);
-		console.log(`[controller] optimisticUpdate ${ename}: returning avatar=${profile.professional.avatar ?? "NONE"} banner=${profile.professional.banner ?? "NONE"}`);
-		// Fire eVault write in background — don't block the response
-		persisted
-			.then(() => {
-				console.log(`[controller] bg write ${ename}: SUCCESS`);
-			})
-			.catch((err) => {
-				console.error(`[controller] bg write ${ename}: FAILED:`, err.message);
-			});
+
+		// Wait for the eVault write to actually land before responding —
+		// otherwise we return success on a write that may fail and silently
+		// drop the user's edits (the eVault cache gets invalidated on
+		// failure, so the next read returns pre-update state).
+		try {
+			await persisted;
+		} catch (err: any) {
+			console.error(`[controller] write ${ename}: FAILED:`, err.message);
+			res.status(502).json({ error: "Failed to persist profile update" });
+			return;
+		}
+
+		console.log(`[controller] update ${ename}: persisted avatar=${profile.professional.avatar ?? "NONE"} banner=${profile.professional.banner ?? "NONE"}`);
 		this.syncService?.syncUserToSearchDb(profile);
 		res.json(profile);
 	}

@@ -118,7 +118,11 @@ export interface PreparedWrite {
  */
 function buildPayload(merged: ProfessionalProfile): Record<string, unknown> {
 	const payload: Record<string, unknown> = {};
+	// avatarUrl/bannerUrl belong in the User Ontology envelope, not the
+	// Professional Profile — keep them off this payload.
+	const skip = new Set(["avatarUrl", "bannerUrl"]);
 	for (const [key, value] of Object.entries(merged)) {
+		if (skip.has(key)) continue;
 		if (value === null || value === undefined) continue;
 		if (Array.isArray(value) && value.length === 0) continue;
 		payload[key] = value;
@@ -155,6 +159,8 @@ function buildFullProfile(
 			bio: merged.bio,
 			avatar: localAvatar ?? undefined,
 			banner: localBanner ?? undefined,
+			avatarUrl: userData.avatarUrl,
+			bannerUrl: userData.bannerUrl,
 			cvFileId: merged.cvFileId,
 			videoIntroFileId: merged.videoIntroFileId,
 			email: merged.email,
@@ -316,6 +322,8 @@ export class EVaultProfileService {
 				displayName: cached.profile.name,
 				username: cached.profile.handle,
 				isVerified: cached.profile.isVerified,
+				avatarUrl: cached.profile.professional.avatarUrl,
+				bannerUrl: cached.profile.professional.bannerUrl,
 			} as UserOntologyData;
 			cachedEnvelopeId = cached.envelopeId;
 		} else {
@@ -325,8 +333,20 @@ export class EVaultProfileService {
 				displayName: profile.name,
 				username: profile.handle,
 				isVerified: profile.isVerified,
+				avatarUrl: profile.professional.avatarUrl,
+				bannerUrl: profile.professional.bannerUrl,
 			} as UserOntologyData;
 			cachedEnvelopeId = envelopeId;
+		}
+
+		// Optimistically reflect the new avatarUrl/bannerUrl in the response
+		// so the editor sees them right after upload, before the queued
+		// User Ontology write lands.
+		if (data.avatar) {
+			userData.avatarUrl = getFileManagerPublicUrl(data.avatar);
+		}
+		if (data.banner) {
+			userData.bannerUrl = getFileManagerPublicUrl(data.banner);
 		}
 
 		const client = await this.getClient(eName);
@@ -469,45 +489,54 @@ export class EVaultProfileService {
 	/**
 	 * Writes avatarUrl / bannerUrl as public file-manager URLs into the
 	 * User ontology so other platforms can render them directly.
+	 * Errors propagate — the User Ontology is the canonical source for
+	 * avatarUrl/bannerUrl per the schema, and a silent failure here
+	 * leaves consumers with stale URLs.
 	 */
 	private async syncAvatarBannerToUserOntology(
 		client: GraphQLClient,
 		eName: string,
 		profile: ProfessionalProfile,
 	): Promise<void> {
-		try {
-			const userNode = await this.findMetaEnvelopeByOntology(client, USER_ONTOLOGY);
-			const existing = (userNode?.parsed ?? {}) as Record<string, unknown>;
-			// Preserve the existing ACL; only default to public for new envelopes
-			const existingAcl = (userNode as any)?.acl;
+		const userNode = await this.findMetaEnvelopeByOntology(client, USER_ONTOLOGY);
+		const existing = (userNode?.parsed ?? {}) as Record<string, unknown>;
+		const existingAcl = (userNode as any)?.acl;
 
-			// Only patch avatarUrl/bannerUrl — don't overwrite other User fields
-			const patch: Record<string, unknown> = { ...existing };
-			if (profile.avatar) {
-				patch.avatarUrl = getFileManagerPublicUrl(profile.avatar);
-			}
-			if (profile.banner) {
-				patch.bannerUrl = getFileManagerPublicUrl(profile.banner);
-			}
+		const patch: Record<string, unknown> = { ...existing };
+		if (profile.avatar) {
+			patch.avatarUrl = getFileManagerPublicUrl(profile.avatar);
+		}
+		if (profile.banner) {
+			patch.bannerUrl = getFileManagerPublicUrl(profile.banner);
+		}
 
-			if (userNode) {
-				await client.request<UpdateResult>(UPDATE_MUTATION, {
-					id: userNode.id,
-					input: {
-						ontology: USER_ONTOLOGY,
-						payload: patch,
-						acl: existingAcl ?? ["*"],
-					},
-				});
-			} else {
-				patch.ename = eName;
-				patch.displayName = profile.displayName ?? eName;
-				await client.request<CreateResult>(CREATE_MUTATION, {
-					input: { ontology: USER_ONTOLOGY, payload: patch, acl: ["*"] },
-				});
+		if (userNode) {
+			const result = await client.request<UpdateResult>(UPDATE_MUTATION, {
+				id: userNode.id,
+				input: {
+					ontology: USER_ONTOLOGY,
+					payload: patch,
+					acl: existingAcl ?? ["*"],
+				},
+			});
+			if (result.updateMetaEnvelope.errors?.length) {
+				throw new Error(
+					"User ontology update failed: " +
+						result.updateMetaEnvelope.errors.map((e) => e.message).join("; "),
+				);
 			}
-		} catch (e) {
-			console.error("Failed to sync avatar/banner to User ontology:", e);
+		} else {
+			patch.ename = eName;
+			patch.displayName = profile.displayName ?? eName;
+			const result = await client.request<CreateResult>(CREATE_MUTATION, {
+				input: { ontology: USER_ONTOLOGY, payload: patch, acl: ["*"] },
+			});
+			if (result.createMetaEnvelope.errors?.length) {
+				throw new Error(
+					"User ontology create failed: " +
+						result.createMetaEnvelope.errors.map((e) => e.message).join("; "),
+				);
+			}
 		}
 	}
 
