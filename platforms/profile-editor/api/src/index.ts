@@ -45,16 +45,8 @@ app.get("/api/discover", discoveryController.discover);
 
 // Public profile view + file proxy routes (authMiddleware is optional here — populates req.user if logged in)
 app.get("/api/profiles/:ename", profileController.getPublicProfile);
-app.get(
-	"/api/profiles/:ename/avatar",
-	authMiddleware,
-	profileController.getProfileAvatar,
-);
-app.get(
-	"/api/profiles/:ename/banner",
-	authMiddleware,
-	profileController.getProfileBanner,
-);
+// Avatar/banner are served directly via the public file-manager URL stored
+// in the User Ontology (avatarUrl/bannerUrl) — no proxy needed.
 app.get(
 	"/api/profiles/:ename/cv",
 	authMiddleware,

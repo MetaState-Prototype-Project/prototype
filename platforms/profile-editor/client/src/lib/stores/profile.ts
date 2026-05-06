@@ -40,8 +40,8 @@ export interface ProfileData {
 		displayName?: string;
 		headline?: string;
 		bio?: string;
-		avatar?: string;
-		banner?: string;
+		avatarUrl?: string;
+		bannerUrl?: string;
 		cvFileId?: string;
 		videoIntroFileId?: string;
 		email?: string;

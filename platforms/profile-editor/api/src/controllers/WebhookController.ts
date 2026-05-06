@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import { Web3Adapter } from "web3-adapter";
 import { UserSearchService } from "../services/UserSearchService";
-import { downloadUrlAndUploadToFileManager } from "../utils/file-proxy";
 
 export class WebhookController {
 	private userSearchService: UserSearchService;
@@ -76,19 +75,11 @@ export class WebhookController {
 			isArchived: localData.isArchived ?? false,
 		};
 
-		if (localData.avatar) userData.avatar = localData.avatar;
-		if (localData.banner) userData.banner = localData.banner;
-
-		// If the source platform sent a URL (Blabsy/Pictique) instead of a
-		// file-manager ID, download the image and upload it to file-manager.
-		if (!userData.avatar && rawBody.data?.avatarUrl) {
-			const fileId = await downloadUrlAndUploadToFileManager(rawBody.data.avatarUrl, ename);
-			if (fileId) userData.avatar = fileId;
-		}
-		if (!userData.banner && rawBody.data?.bannerUrl) {
-			const fileId = await downloadUrlAndUploadToFileManager(rawBody.data.bannerUrl, ename);
-			if (fileId) userData.banner = fileId;
-		}
+		// User Ontology owns the canonical avatar/banner URLs.
+		const avatarUrl = localData.avatarUrl ?? rawBody.data?.avatarUrl;
+		const bannerUrl = localData.bannerUrl ?? rawBody.data?.bannerUrl;
+		if (avatarUrl) userData.avatarUrl = avatarUrl;
+		if (bannerUrl) userData.bannerUrl = bannerUrl;
 
 		if (localData.location) userData.location = localData.location;
 
@@ -111,7 +102,7 @@ export class WebhookController {
 		const ename = rawBody.w3id;
 		if (!ename) return;
 
-		console.log(`[webhook] professional_profile ${ename}: avatar=${localData.avatar ?? "NONE"} banner=${localData.banner ?? "NONE"} keys=[${Object.keys(localData).join(",")}]`);
+		console.log(`[webhook] professional_profile ${ename}: keys=[${Object.keys(localData).join(",")}]`);
 
 		const profileData: any = { ename };
 
@@ -120,21 +111,6 @@ export class WebhookController {
 		}
 		if (localData.headline) profileData.headline = localData.headline;
 		if (localData.bio) profileData.bio = localData.bio;
-		if (localData.avatar)
-			profileData.avatar = localData.avatar;
-		if (localData.banner)
-			profileData.banner = localData.banner;
-
-		// If the source platform sent a URL instead of a file-manager ID,
-		// download the image and upload it to file-manager.
-		if (!profileData.avatar && rawBody.data?.avatarUrl) {
-			const fileId = await downloadUrlAndUploadToFileManager(rawBody.data.avatarUrl, ename);
-			if (fileId) profileData.avatar = fileId;
-		}
-		if (!profileData.banner && rawBody.data?.bannerUrl) {
-			const fileId = await downloadUrlAndUploadToFileManager(rawBody.data.bannerUrl, ename);
-			if (fileId) profileData.banner = fileId;
-		}
 
 		if (localData.cvFileId) profileData.cvFileId = localData.cvFileId;
 		if (localData.videoIntroFileId)

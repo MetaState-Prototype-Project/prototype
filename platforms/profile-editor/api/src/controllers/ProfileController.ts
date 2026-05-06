@@ -40,7 +40,7 @@ export class ProfileController {
 		data: Partial<ProfessionalProfile>,
 		res: Response,
 	) {
-		console.log(`[controller] update ${ename}: keys=[${Object.keys(data).join(",")}] avatar=${(data as any).avatar ?? "N/A"} banner=${(data as any).banner ?? "N/A"}`);
+		console.log(`[controller] update ${ename}: keys=[${Object.keys(data).join(",")}] avatarUrl=${(data as any).avatarUrl ?? "N/A"} bannerUrl=${(data as any).bannerUrl ?? "N/A"}`);
 		const { profile, persisted } = await this.evaultService.prepareUpdate(ename, data);
 
 		// Wait for the eVault write to actually land before responding —
@@ -55,7 +55,7 @@ export class ProfileController {
 			return;
 		}
 
-		console.log(`[controller] update ${ename}: persisted avatar=${profile.professional.avatar ?? "NONE"} banner=${profile.professional.banner ?? "NONE"}`);
+		console.log(`[controller] update ${ename}: persisted avatarUrl=${profile.professional.avatarUrl ?? "NONE"} bannerUrl=${profile.professional.bannerUrl ?? "NONE"}`);
 		this.syncService?.syncUserToSearchDb(profile);
 		res.json(profile);
 	}
@@ -216,62 +216,6 @@ export class ProfileController {
 	private fileOwner(req: Request, profileEname: string): string {
 		return req.user?.ename ?? profileEname;
 	}
-
-	getProfileAvatar = async (req: Request, res: Response) => {
-		try {
-			const { ename } = req.params;
-			const profile = await this.evaultService.getProfile(ename);
-
-			if (!this.canAccessAsset(profile, req)) {
-				return res.status(403).json({ error: "This profile is private" });
-			}
-
-			const fileId = profile.professional.avatar;
-			if (!fileId) {
-				console.log(`[profile] avatar ${ename}: no fileId set, keys=[${Object.keys(profile.professional).join(",")}]`);
-				return res.status(404).json({ error: "No avatar set" });
-			}
-
-			const owner = this.fileOwner(req, ename);
-			console.log(`[profile] avatar ${ename}: proxying fileId=${fileId} as=${owner}`);
-
-			const { proxyFileFromFileManager } = await import(
-				"../utils/file-proxy"
-			);
-			await proxyFileFromFileManager(fileId, owner, res);
-		} catch (error: any) {
-			console.error("Error proxying avatar:", error.message);
-			res.status(500).json({ error: "Failed to fetch avatar" });
-		}
-	};
-
-	getProfileBanner = async (req: Request, res: Response) => {
-		try {
-			const { ename } = req.params;
-			const profile = await this.evaultService.getProfile(ename);
-
-			if (!this.canAccessAsset(profile, req)) {
-				return res.status(403).json({ error: "This profile is private" });
-			}
-
-			const fileId = profile.professional.banner;
-			if (!fileId) {
-				console.log(`[profile] banner ${ename}: no fileId set, keys=[${Object.keys(profile.professional).join(",")}]`);
-				return res.status(404).json({ error: "No banner set" });
-			}
-
-			const owner = this.fileOwner(req, ename);
-			console.log(`[profile] banner ${ename}: proxying fileId=${fileId} as=${owner}`);
-
-			const { proxyFileFromFileManager } = await import(
-				"../utils/file-proxy"
-			);
-			await proxyFileFromFileManager(fileId, owner, res);
-		} catch (error: any) {
-			console.error("Error proxying banner:", error.message);
-			res.status(500).json({ error: "Failed to fetch banner" });
-		}
-	};
 
 	getProfileCv = async (req: Request, res: Response) => {
 		try {

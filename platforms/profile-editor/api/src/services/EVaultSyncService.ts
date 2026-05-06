@@ -87,7 +87,7 @@ export class EVaultSyncService {
 
 	private async syncUser(ename: string): Promise<void> {
 		const profile = await this.evaultService.getProfile(ename);
-		console.log(`[sync] ${ename}: avatar=${profile.professional.avatar ?? "NONE"} banner=${profile.professional.banner ?? "NONE"}`);
+		console.log(`[sync] ${ename}: avatarUrl=${profile.professional.avatarUrl ?? "NONE"} bannerUrl=${profile.professional.bannerUrl ?? "NONE"}`);
 
 		const data: any = {
 			ename,
@@ -102,8 +102,8 @@ export class EVaultSyncService {
 			isArchived: false,
 		};
 
-		if (profile.professional.avatar) data.avatar = profile.professional.avatar;
-		if (profile.professional.banner) data.banner = profile.professional.banner;
+		if (profile.professional.avatarUrl) data.avatarUrl = profile.professional.avatarUrl;
+		if (profile.professional.bannerUrl) data.bannerUrl = profile.professional.bannerUrl;
 
 		await this.userSearchService.upsertFromWebhook(data);
 	}
@@ -123,8 +123,8 @@ export class EVaultSyncService {
 			isArchived: false,
 		};
 
-		if (profile.professional.avatar) data.avatar = profile.professional.avatar;
-		if (profile.professional.banner) data.banner = profile.professional.banner;
+		if (profile.professional.avatarUrl) data.avatarUrl = profile.professional.avatarUrl;
+		if (profile.professional.bannerUrl) data.bannerUrl = profile.professional.bannerUrl;
 
 		this.userSearchService.upsertFromWebhook(data).catch((err) => {
 			console.error(`[search-db sync] ${profile.ename}:`, err.message);

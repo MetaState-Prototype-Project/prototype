@@ -31,8 +31,6 @@ export interface ProfessionalProfile {
 	displayName?: string;
 	headline?: string;
 	bio?: string;
-	avatar?: string;
-	banner?: string;
 	avatarUrl?: string;
 	bannerUrl?: string;
 	cvFileId?: string;
@@ -75,8 +73,8 @@ export interface ProfileUpdatePayload {
 	displayName?: string;
 	headline?: string;
 	bio?: string;
-	avatar?: string;
-	banner?: string;
+	avatarUrl?: string;
+	bannerUrl?: string;
 	cvFileId?: string;
 	videoIntroFileId?: string;
 	email?: string;

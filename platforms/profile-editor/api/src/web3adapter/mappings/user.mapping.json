@@ -11,6 +11,8 @@
 		"isVerified": "isVerified",
 		"isPublic": "isPublic",
 		"location": "location",
+		"avatarUrl": "avatarUrl",
+		"bannerUrl": "bannerUrl",
 		"createdAt": "createdAt",
 		"updatedAt": "updatedAt",
 		"isArchived": "isArchived"

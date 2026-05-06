@@ -3,6 +3,12 @@ import multer from "multer";
 import FormData from "form-data";
 import axios from "axios";
 import jwt from "jsonwebtoken";
+import { markFilePublic } from "../utils/file-proxy";
+
+function publicFileUrl(fileId: string): string {
+	const base = process.env.PUBLIC_FILE_MANAGER_BASE_URL || "http://localhost:3005";
+	return `${base}/api/public/files/${fileId}`;
+}
 
 const upload = multer({
 	limits: { fileSize: 100 * 1024 * 1024 },
@@ -54,7 +60,16 @@ async function handleUpload(req: Request, res: Response): Promise<void> {
 			},
 		);
 
-		res.json(response.data);
+		const fileId = response.data?.id;
+		const makePublic = req.query.public === "true" || req.query.public === "1";
+		if (fileId && makePublic) {
+			await markFilePublic(fileId, userId);
+		}
+
+		res.json({
+			...response.data,
+			publicUrl: fileId && makePublic ? publicFileUrl(fileId) : undefined,
+		});
 	} catch (error: any) {
 		console.error("File proxy error:", error?.response?.data ?? error.message);
 		const status = error?.response?.status ?? 500;

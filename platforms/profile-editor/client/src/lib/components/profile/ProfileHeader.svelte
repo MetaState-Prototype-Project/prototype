@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { ProfileData } from '$lib/stores/profile';
 	import { updateProfile } from '$lib/stores/profile';
-	import { uploadFile, getProfileAssetUrl } from '$lib/utils/file-manager';
+	import { uploadFile } from '$lib/utils/file-manager';
 	import { toast } from 'svelte-sonner';
 	import { Card, CardContent } from '@metastate-foundation/ui/card';
 	import { Button } from '@metastate-foundation/ui/button';
@@ -26,21 +26,8 @@
 	let bannerBroken = $state(false);
 	let avatarBroken = $state(false);
 
-	let avatarSrc = $derived(
-		avatarPreview
-			? avatarPreview
-			: profile.professional.avatar
-				? `${getProfileAssetUrl(profile.ename, 'avatar')}?v=${encodeURIComponent(profile.professional.avatar)}`
-				: null
-	);
-
-	let bannerSrc = $derived(
-		bannerPreview
-			? bannerPreview
-			: profile.professional.banner
-				? `${getProfileAssetUrl(profile.ename, 'banner')}?v=${encodeURIComponent(profile.professional.banner)}`
-				: null
-	);
+	let avatarSrc = $derived(avatarPreview ?? profile.professional.avatarUrl ?? null);
+	let bannerSrc = $derived(bannerPreview ?? profile.professional.bannerUrl ?? null);
 
 	async function handleAvatarUpload(e: Event) {
 		const input = e.target as HTMLInputElement;
@@ -52,8 +39,9 @@
 
 		uploadingAvatar = true;
 		try {
-			const result = await uploadFile(file);
-			await updateProfile({ avatar: result.id });
+			const result = await uploadFile(file, { makePublic: true });
+			if (!result.publicUrl) throw new Error('Upload did not return a public URL');
+			await updateProfile({ avatarUrl: result.publicUrl });
 			avatarPreview = null;
 			toast.success('Avatar updated');
 		} catch {
@@ -74,8 +62,9 @@
 
 		uploadingBanner = true;
 		try {
-			const result = await uploadFile(file);
-			await updateProfile({ banner: result.id });
+			const result = await uploadFile(file, { makePublic: true });
+			if (!result.publicUrl) throw new Error('Upload did not return a public URL');
+			await updateProfile({ bannerUrl: result.publicUrl });
 			bannerPreview = null;
 			toast.success('Banner updated');
 		} catch {

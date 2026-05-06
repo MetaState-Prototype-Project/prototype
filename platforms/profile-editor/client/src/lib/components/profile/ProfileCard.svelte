@@ -1,26 +1,18 @@
 <script lang="ts">
 	import type { ProfileSearchResult } from '$lib/stores/discovery';
-	import { PUBLIC_PROFILE_EDITOR_BASE_URL } from '$env/static/public';
 	import { Card, CardContent } from '@metastate-foundation/ui/card';
 	import { Avatar, AvatarImage, AvatarFallback } from '@metastate-foundation/ui/avatar';
 	import { Badge } from '@metastate-foundation/ui/badge';
 
 	let { result }: { result: ProfileSearchResult } = $props();
-
-	function avatarProxyUrl(): string | null {
-		if (result.ename) {
-			return `${PUBLIC_PROFILE_EDITOR_BASE_URL}/api/profiles/${result.ename}/avatar`;
-		}
-		return null;
-	}
 </script>
 
 <a href="/profile/{result.ename}" class="block">
 	<Card class="h-full transition-shadow hover:shadow-md">
 		<CardContent class="flex flex-col items-center p-5 text-center">
 			<Avatar class="mb-3 h-16 w-16">
-				{#if avatarProxyUrl()}
-					<AvatarImage src={avatarProxyUrl()} alt={result.name} />
+				{#if result.avatarUrl}
+					<AvatarImage src={result.avatarUrl} alt={result.name} />
 				{/if}
 				<AvatarFallback class="text-xl font-bold">
 					{(result.name || result.ename || '?')[0]?.toUpperCase()}

@@ -24,10 +24,10 @@ export class User {
 	bio!: string;
 
 	@Column({ nullable: true })
-	avatar!: string;
+	avatarUrl!: string;
 
 	@Column({ nullable: true })
-	banner!: string;
+	bannerUrl!: string;
 
 	@Column({ nullable: true })
 	headline!: string;

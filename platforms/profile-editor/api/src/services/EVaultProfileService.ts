@@ -9,11 +9,6 @@ import type {
 const PROFESSIONAL_PROFILE_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440009";
 const USER_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440000";
 
-function getFileManagerPublicUrl(fileId: string): string {
-	const base = process.env.PUBLIC_FILE_MANAGER_BASE_URL || "http://localhost:3005";
-	return `${base}/api/public/files/${fileId}`;
-}
-
 function normalizeEName(eName: string): string {
 	return eName.startsWith("@") ? eName : `@${eName}`;
 }
@@ -130,22 +125,10 @@ function buildPayload(merged: ProfessionalProfile): Record<string, unknown> {
 	return payload;
 }
 
-async function getLocalUser(eName: string) {
-	const { AppDataSource } = await import("../database/data-source");
-	const { User } = await import("../database/entities/User");
-	if (!AppDataSource.isInitialized) {
-		throw new Error("Database not initialized — cannot access local user");
-	}
-	const repo = AppDataSource.getRepository(User);
-	return { repo, user: await repo.findOneBy({ ename: eName }), User };
-}
-
 function buildFullProfile(
 	eName: string,
 	merged: ProfessionalProfile,
 	userData: UserOntologyData,
-	localAvatar?: string,
-	localBanner?: string,
 ): FullProfile {
 	const name = merged.displayName ?? userData.displayName ?? eName;
 	return {
@@ -157,8 +140,6 @@ function buildFullProfile(
 			displayName: merged.displayName,
 			headline: merged.headline,
 			bio: merged.bio,
-			avatar: localAvatar ?? undefined,
-			banner: localBanner ?? undefined,
 			avatarUrl: userData.avatarUrl,
 			bannerUrl: userData.bannerUrl,
 			cvFileId: merged.cvFileId,
@@ -243,11 +224,8 @@ export class EVaultProfileService {
 		const userData = (userNode?.parsed ?? {}) as UserOntologyData;
 		const profData = (professionalNode?.parsed ?? {}) as ProfessionalProfile;
 
-		// Avatar/banner live on the local User entity (file-manager IDs)
-		const { user: localUser } = await getLocalUser(eName);
-
 		return {
-			profile: buildFullProfile(eName, profData, userData, localUser?.avatar, localUser?.banner),
+			profile: buildFullProfile(eName, profData, userData),
 			envelopeId: professionalNode?.id,
 		};
 	}
@@ -296,21 +274,6 @@ export class EVaultProfileService {
 		eName: string,
 		data: Partial<ProfessionalProfile>,
 	): Promise<PreparedWrite> {
-		// Persist avatar/banner to the local User row immediately so
-		// getProfile returns the correct value right away.
-		if (data.avatar !== undefined || data.banner !== undefined) {
-			const { repo, user: localUser, User } = await getLocalUser(eName);
-			const u = localUser ?? repo.create({ ename: eName });
-			if (data.avatar !== undefined) u.avatar = data.avatar;
-			if (data.banner !== undefined) u.banner = data.banner;
-			await repo.save(u);
-
-			// Mark new avatar/banner files as publicly accessible
-			const { markFilePublic } = await import("../utils/file-proxy");
-			if (data.avatar) markFilePublic(data.avatar, eName).catch(() => {});
-			if (data.banner) markFilePublic(data.banner, eName).catch(() => {});
-		}
-
 		const cached = this.cache.get(eName);
 		let baseProfessional: ProfessionalProfile;
 		let userData: UserOntologyData;
@@ -342,11 +305,11 @@ export class EVaultProfileService {
 		// Optimistically reflect the new avatarUrl/bannerUrl in the response
 		// so the editor sees them right after upload, before the queued
 		// User Ontology write lands.
-		if (data.avatar) {
-			userData.avatarUrl = getFileManagerPublicUrl(data.avatar);
+		if (data.avatarUrl !== undefined) {
+			userData.avatarUrl = data.avatarUrl;
 		}
-		if (data.banner) {
-			userData.bannerUrl = getFileManagerPublicUrl(data.banner);
+		if (data.bannerUrl !== undefined) {
+			userData.bannerUrl = data.bannerUrl;
 		}
 
 		const client = await this.getClient(eName);
@@ -362,9 +325,7 @@ export class EVaultProfileService {
 		const payload = buildPayload(merged);
 		const acl = merged.isPublic === true ? ["*"] : [normalizeEName(eName)];
 
-		// Read local user for the optimistic profile (may have just been updated above)
-		const { user: freshLocalUser } = await getLocalUser(eName);
-		const profile = buildFullProfile(eName, merged, userData, freshLocalUser?.avatar, freshLocalUser?.banner);
+		const profile = buildFullProfile(eName, merged, userData);
 
 		// Immediately update the cache with the optimistic result
 		this.cache.set(eName, {
@@ -375,8 +336,9 @@ export class EVaultProfileService {
 
 		const persisted = this.enqueueWrite(eName, async () => {
 			await this.writeToEvault(client, eName, existingEnvelope, payload, acl);
-			// After eVault write, sync avatar/banner URLs to User ontology
-			if (data.avatar !== undefined || data.banner !== undefined) {
+			// avatarUrl/bannerUrl live in the User Ontology, not the
+			// Professional Profile envelope.
+			if (data.avatarUrl !== undefined || data.bannerUrl !== undefined) {
 				await this.syncAvatarBannerToUserOntology(client, eName, merged);
 			}
 		});
@@ -503,11 +465,11 @@ export class EVaultProfileService {
 		const existingAcl = (userNode as any)?.acl;
 
 		const patch: Record<string, unknown> = { ...existing };
-		if (profile.avatar) {
-			patch.avatarUrl = getFileManagerPublicUrl(profile.avatar);
+		if (profile.avatarUrl !== undefined) {
+			patch.avatarUrl = profile.avatarUrl;
 		}
-		if (profile.banner) {
-			patch.bannerUrl = getFileManagerPublicUrl(profile.banner);
+		if (profile.bannerUrl !== undefined) {
+			patch.bannerUrl = profile.bannerUrl;
 		}
 
 		if (userNode) {

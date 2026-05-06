@@ -23,7 +23,7 @@
 		uploadingCv = true;
 		cvProgress = 0;
 		try {
-			const result = await uploadFile(file, (p) => { cvProgress = p; });
+			const result = await uploadFile(file, { onProgress: (p) => { cvProgress = p; } });
 			await updateProfile({ cvFileId: result.id });
 			toast.success('CV uploaded');
 		} catch {
@@ -41,7 +41,7 @@
 		uploadingVideo = true;
 		videoProgress = 0;
 		try {
-			const result = await uploadFile(file, (p) => { videoProgress = p; });
+			const result = await uploadFile(file, { onProgress: (p) => { videoProgress = p; } });
 			await updateProfile({ videoIntroFileId: result.id });
 			toast.success('Video introduction uploaded');
 		} catch {

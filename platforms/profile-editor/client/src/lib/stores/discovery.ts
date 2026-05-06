@@ -10,7 +10,7 @@ export interface ProfileSearchResult {
 	bio: string;
 	location: string;
 	skills: string[];
-	avatar: string | null;
+	avatarUrl: string | null;
 	isVerified: boolean;
 }
 
