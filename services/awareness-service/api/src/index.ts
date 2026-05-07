@@ -11,6 +11,7 @@ import { queryRouter } from "./controllers/QueryController";
 import { subscriptionRouter } from "./controllers/SubscriptionController";
 import { AppDataSource } from "./database/data-source";
 import { DeliveryEngine } from "./services/DeliveryEngine";
+import { SeedService } from "./services/SeedService";
 
 async function start(): Promise<void> {
     await AppDataSource.initialize();
@@ -31,6 +32,10 @@ async function start(): Promise<void> {
     app.use(authRouter());
     app.use(applicationRouter());
     app.use(adminRouter());
+
+    // Backward compat: keep every currently-registered platform receiving
+    // everything, the same way evault-core's old fanout did.
+    await new SeedService().seedCatchAll();
 
     const deliveryEngine = new DeliveryEngine();
     deliveryEngine.start();
