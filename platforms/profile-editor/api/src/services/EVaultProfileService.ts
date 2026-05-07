@@ -13,6 +13,14 @@ function normalizeEName(eName: string): string {
 	return eName.startsWith("@") ? eName : `@${eName}`;
 }
 
+function isEmpty(value: unknown): boolean {
+	if (value === null || value === undefined) return true;
+	if (typeof value === "string" && value.length === 0) return true;
+	if (Array.isArray(value) && value.length === 0) return true;
+	if (typeof value === "object" && Object.keys(value as object).length === 0) return true;
+	return false;
+}
+
 const META_ENVELOPES_QUERY = `
   query MetaEnvelopes($filter: MetaEnvelopeFilterInput, $first: Int, $after: String) {
     metaEnvelopes(filter: $filter, first: $first, after: $after) {
@@ -66,6 +74,12 @@ const UPDATE_MUTATION = `
       }
       errors { message code }
     }
+  }
+`;
+
+const DELETE_MUTATION = `
+  mutation DeleteMetaEnvelope($id: String!) {
+    deleteMetaEnvelope(id: $id)
   }
 `;
 
@@ -192,6 +206,16 @@ export class EVaultProfileService {
 		});
 	}
 
+	/**
+	 * Find the canonical envelope for an ontology. If duplicates exist,
+	 * merge their `parsed` payloads into one winner (the first edge —
+	 * cursor-ordered, typically the oldest) and delete the rest. The
+	 * winner's existing values take precedence; loser values only fill
+	 * in keys the winner had empty/null/missing, so no data is lost.
+	 *
+	 * Best-effort: a delete or merge-update failure is logged and
+	 * swallowed so reads keep working with the winner.
+	 */
 	private async findMetaEnvelopeByOntology(
 		client: GraphQLClient,
 		ontologyId: string,
@@ -200,16 +224,63 @@ export class EVaultProfileService {
 			META_ENVELOPES_QUERY,
 			{
 				filter: { ontologyId },
-				first: 10,
+				first: 50,
 			},
 		);
-		if (result.metaEnvelopes.totalCount > 1) {
-			console.warn(
-				`[eVault] DUPLICATE ENVELOPES: ${result.metaEnvelopes.totalCount} for ontology ${ontologyId}`,
-			);
+
+		const edges = result.metaEnvelopes.edges;
+		if (edges.length === 0) return null;
+		if (edges.length === 1) return edges[0].node;
+
+		const winner = edges[0].node;
+		const losers = edges.slice(1).map((e) => e.node);
+		console.warn(
+			`[eVault] DUPLICATE ENVELOPES: ${edges.length} for ontology ${ontologyId} — consolidating into ${winner.id}, deleting ${losers.length}`,
+		);
+
+		const merged: Record<string, unknown> = { ...winner.parsed };
+		for (const loser of losers) {
+			for (const [key, value] of Object.entries(loser.parsed ?? {})) {
+				if (isEmpty(merged[key]) && !isEmpty(value)) {
+					merged[key] = value;
+				}
+			}
 		}
-		const edge = result.metaEnvelopes.edges[0];
-		return edge?.node ?? null;
+
+		// If merge added anything beyond the winner, persist it before
+		// deleting losers so we don't lose data on a partial failure.
+		const winnerKeys = Object.keys(winner.parsed ?? {});
+		const mergedKeys = Object.keys(merged);
+		const addedKeys = mergedKeys.filter((k) => !winnerKeys.includes(k) || isEmpty(winner.parsed?.[k]));
+		if (addedKeys.length > 0) {
+			try {
+				await client.request<UpdateResult>(UPDATE_MUTATION, {
+					id: winner.id,
+					input: { ontology: ontologyId, payload: merged, acl: ["*"] },
+				});
+				winner.parsed = merged;
+			} catch (e: any) {
+				console.error(
+					`[eVault] consolidate-merge failed for ${ontologyId} winner=${winner.id}:`,
+					e.message,
+				);
+			}
+		}
+
+		for (const loser of losers) {
+			try {
+				await client.request<{ deleteMetaEnvelope: boolean }>(DELETE_MUTATION, {
+					id: loser.id,
+				});
+			} catch (e: any) {
+				console.error(
+					`[eVault] consolidate-delete failed for ${ontologyId} loser=${loser.id}:`,
+					e.message,
+				);
+			}
+		}
+
+		return winner;
 	}
 
 	/** Fetch profile from eVault (bypasses cache). Returns profile + envelope ID. */
