@@ -8,6 +8,11 @@ export interface AwarenessPayload {
     data?: Record<string, unknown> | null;
     schemaId: string;
     operation?: "create" | "update" | "delete";
+    /**
+     * The platform that triggered the change, if known. Used only to skip
+     * delivering the packet back to its origin; never persisted or delivered.
+     */
+    requestingPlatform?: string | null;
 }
 
 declare global {
