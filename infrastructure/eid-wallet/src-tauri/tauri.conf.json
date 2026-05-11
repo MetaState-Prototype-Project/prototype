@@ -19,7 +19,8 @@
         ],
         "security": {
             "capabilities": [
-                "mobile-capability"
+                "mobile-capability",
+                "desktop-capability"
             ],
             "csp": null
         }
