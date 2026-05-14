@@ -43,14 +43,15 @@ onMount(async () => {
     );
 
     if (!onboardingComplete || !user) {
+        // First-time user — the layout's splash + drawer owns this entry,
+        // we stay on / so the drawer's CTAs route from here.
         console.log(
-            "[ROOT] → /onboarding (onboardingComplete:",
+            "[ROOT] staying on / for splash drawer (onboardingComplete:",
             onboardingComplete,
             ", user:",
             !!user,
             ")",
         );
-        await goto("/onboarding");
         return;
     }
     if (!pinHash) {

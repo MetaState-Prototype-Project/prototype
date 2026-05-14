@@ -69,7 +69,7 @@ interface DiditCompleteResult {
     };
 }
 
-let step = $state<Step>("home");
+let step = $state<Step>("new-evault");
 let error = $state<string | null>(null);
 let loading = $state(false);
 

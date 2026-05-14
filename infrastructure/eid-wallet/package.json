@@ -22,7 +22,10 @@
     "license": "MIT",
     "dependencies": {
         "@auvo/tauri-plugin-crypto-hw-api": "^0.1.0",
+        "@choochmeque/tauri-plugin-notifications-api": "^0.4.3",
         "@didit-protocol/sdk-web": "^0.1.6",
+        "@fontsource-variable/roboto": "^5.2.10",
+        "@fontsource-variable/roboto-condensed": "^5.2.8",
         "@hugeicons/core-free-icons": "^1.0.13",
         "@hugeicons/svelte": "^1.0.2",
         "@tailwindcss/container-queries": "^0.1.1",
@@ -30,7 +33,6 @@
         "@tauri-apps/plugin-barcode-scanner": "^2.4.2",
         "@tauri-apps/plugin-biometric": "^2.3.2",
         "@tauri-apps/plugin-deep-link": "^2.4.5",
-        "@choochmeque/tauri-plugin-notifications-api": "^0.4.3",
         "@tauri-apps/plugin-opener": "^2.5.2",
         "@tauri-apps/plugin-store": "^2.4.1",
         "axios": "^1.6.7",
