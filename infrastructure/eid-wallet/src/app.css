@@ -62,12 +62,13 @@
     --color-danger-300: #ff968e;
     --color-danger-400: #ff7b77;
     --color-danger-500: #ff5255;
+
+    /* Typography */
+    --font-sans: "Roboto Variable", sans-serif;
+    --font-condensed: "Roboto Condensed Variable", sans-serif;
 }
 
 body {
-    font-family: "Roboto Variable", sans-serif;
-    /* padding-top: env(safe-area-inset-top); */
-    /* padding-bottom: env(safe-area-inset-bottom); */
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
 }
@@ -143,18 +144,24 @@ body {
     }
 }
 
-:root[data-transition]::view-transition-old(root) {
-    animation: 400ms ease-out both fade-out;
+/* Forward (data-transition="left"): the NEW page slides in from the right,
+   covering the OLD which stays put. */
+:root[data-transition="left"]::view-transition-old(root) {
+    animation: none;
 }
-
-:root[data-transition="right"]::view-transition-new(root) {
+:root[data-transition="left"]::view-transition-new(root) {
     animation: 200ms cubic-bezier(0.4, 0, 0.2, 1) both slide-from-right;
     position: relative;
     z-index: 1;
 }
 
-:root[data-transition="left"]::view-transition-new(root) {
-    animation: 200ms cubic-bezier(0.4, 0, 0.2, 1) both slide-from-left;
+/* Backward (data-transition="right"): the OLD page slides out to the right,
+   revealing the NEW page underneath which stays put. */
+:root[data-transition="right"]::view-transition-new(root) {
+    animation: none;
+}
+:root[data-transition="right"]::view-transition-old(root) {
+    animation: 200ms cubic-bezier(0.4, 0, 0.2, 1) both slide-to-right;
     position: relative;
     z-index: 1;
 }

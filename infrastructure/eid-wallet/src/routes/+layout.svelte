@@ -1,8 +1,9 @@
 <script lang="ts">
-    import SplashScreen from "$lib/fragments/SplashScreen/SplashScreen.svelte";
-    import { getContext, onDestroy, onMount, setContext } from "svelte";
+    import { onDestroy, onMount, setContext } from "svelte";
+    import { cubicOut } from "svelte/easing";
     import "../app.css";
-    import { goto, onNavigate } from "$app/navigation";
+    import { goto, onNavigate, preloadCode } from "$app/navigation";
+    import { page } from "$app/state";
     import { GlobalState } from "$lib/global/state";
 
     import { runtime } from "$lib/global/runtime.svelte";
@@ -12,30 +13,55 @@
     const { children } = $props();
 
     let globalState: GlobalState | undefined = $state(undefined);
-
-    // Splash is visible from the very first paint to avoid the race where
-    // the destination route flashes before the splash mounts.
-    let showSplashScreen = $state(true);
-    // false = state A (logo "closed"); true = state B (tagline revealed).
-    let splashOpen = $state(false);
-    // true = state C (bottom drawer with CTAs revealed); only for new users.
-    let splashShowDrawer = $state(false);
-    let previousRoute = null;
     let navigationStack: string[] = [];
+    // Direction of the next route transition. Set by onNavigate before the
+    // route content swaps, read by the slide transitions wrapping {@render children()}.
+    let routeDirection = $state<"forward" | "backward">("forward");
+
+    // Asymmetric route transitions: only one element moves per direction.
+    //   Forward  → NEW slides in over OLD (OLD stays put).
+    //   Backward → OLD slides out to the right, revealing NEW (NEW stays put).
+    // The moving element gets a higher z-index so it sits on top of the
+    // static one during the animation.
+    function slideIn(
+        _node: HTMLElement,
+        { direction }: { direction: "forward" | "backward" },
+    ) {
+        if (direction === "backward") {
+            // NEW stays put — no animation, just instantaneous mount.
+            return { duration: 0 };
+        }
+        return {
+            duration: 200,
+            easing: cubicOut,
+            css: (t: number) =>
+                `transform: translateX(${(1 - t) * 100}%); z-index: 70;`,
+        };
+    }
+
+    function slideOut(
+        _node: HTMLElement,
+        { direction }: { direction: "forward" | "backward" },
+    ) {
+        if (direction === "forward") {
+            // OLD stays put for the duration of the new page's slide-in.
+            return {
+                duration: 200,
+                css: () => `transform: translateX(0);`,
+            };
+        }
+        // Backward — slide OLD off to the right.
+        return {
+            duration: 200,
+            easing: cubicOut,
+            css: (t: number) =>
+                `transform: translateX(${(1 - t) * 100}%); z-index: 70;`,
+        };
+    }
     let globalDeepLinkHandler: ((event: Event) => void) | undefined;
     let mainWrapper: HTMLElement | undefined = $state(undefined);
     let isAppReady = $state(false);
     let pendingDeepLinks: string[] = $state([]);
-
-    async function handleCreateDigitalSelf() {
-        showSplashScreen = false;
-        await goto("/onboarding");
-    }
-
-    async function handleRestoreDigitalSelf() {
-        showSplashScreen = false;
-        await goto("/recover");
-    }
 
     setContext("globalState", () => globalState);
     setContext("setGlobalState", (value: GlobalState | undefined) => {
@@ -43,6 +69,11 @@
     });
 
     onMount(async () => {
+        // Bundle preload for the routes the splash CTAs reach — keeps the
+        // first navigation snappy on cold start.
+        preloadCode("/onboarding").catch(() => {});
+        preloadCode("/recover").catch(() => {});
+
         let status: Status | undefined = undefined;
         try {
             status = await checkStatus();
@@ -621,35 +652,6 @@
         }
 
         navigationStack.push(window.location.pathname);
-
-        // Hold state A briefly so the "logo closed" reads as intentional, then open.
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        splashOpen = true;
-
-        // Give state B a beat to land before deciding what comes next.
-        await new Promise((resolve) => setTimeout(resolve, 400));
-
-        let onboardingComplete = false;
-        let userExists = false;
-        if (globalState) {
-            try {
-                onboardingComplete = await globalState.isOnboardingComplete;
-                userExists = !!(await globalState.userController.user);
-            } catch (error) {
-                console.error("Failed to read onboarding state:", error);
-            }
-        }
-
-        if (!onboardingComplete || !userExists) {
-            // First-time user — reveal the drawer with CTAs and stay on the splash.
-            splashShowDrawer = true;
-        } else {
-            // Returning user — root +page.svelte has routed to /login or /register
-            // by now; fade the splash out to reveal the destination.
-            showSplashScreen = false;
-        }
-
-        // Mark app as ready and process any pending deep links
         isAppReady = true;
 
         // Process queued deep links
@@ -689,40 +691,33 @@
             ) || 0,
     );
 
-    $effect(() => console.log("top", safeAreaTop));
-
     onNavigate((navigation) => {
-        if (!document.startViewTransition) return;
-
         const from = navigation.from?.url.pathname;
         const to = navigation.to?.url.pathname;
 
         if (!from || !to || from === to) return;
 
-        let direction: "left" | "right" = "right";
+        // Mark routes that have their own mount-time refresh guard. A SvelteKit
+        // navigation (link/goto) fires this hook; a hard reload does not — so
+        // the guard's onMount sees the flag iff the user genuinely navigated
+        // in, and redirects to / otherwise. Any caller can goto("/onboarding")
+        // without thinking about it.
+        if (to === "/onboarding") {
+            sessionStorage.setItem("navigatingToOnboarding", "true");
+        }
 
         const fromIndex = navigationStack.lastIndexOf(from);
         const toIndex = navigationStack.lastIndexOf(to);
 
         if (toIndex !== -1 && toIndex < fromIndex) {
-            // Backward navigation
-            direction = "left";
+            // Backward navigation — current page slides out to the right.
+            routeDirection = "backward";
             navigationStack = navigationStack.slice(0, toIndex + 1);
         } else {
-            // Forward navigation (or new path)
-            direction = "right";
+            // Forward navigation — new page slides in from the right.
+            routeDirection = "forward";
             navigationStack.push(to);
         }
-
-        document.documentElement.setAttribute("data-transition", direction);
-        previousRoute = to;
-
-        return new Promise((resolve) => {
-            document.startViewTransition(async () => {
-                resolve();
-                await navigation.complete;
-            });
-        });
     });
 
     $effect(() => {
@@ -734,23 +729,29 @@
     });
 </script>
 
-{#if showSplashScreen}
-    <SplashScreen
-        open={splashOpen}
-        showDrawer={splashShowDrawer}
-        oncreate={handleCreateDigitalSelf}
-        onrestore={handleRestoreDigitalSelf}
-    />
-{:else}
-    <div
-        class="fixed top-0 left-0 right-0 h-[env(safe-area-inset-top)] bg-primary z-50"
-    ></div>
-    <div bind:this={mainWrapper} class="bg-white min-h-screen overflow-y-auto">
-        {#if children}
-            {@render children()}
-        {/if}
-    </div>
-{/if}
+<!-- Splash is now a regular route at /+page.svelte, so the layout just
+     wraps {@render children()} with the slide transition. No more fixed
+     overlay, no more stacking-context trickery. -->
+<div
+    bind:this={mainWrapper}
+    class="bg-white min-h-screen overflow-y-auto relative overflow-x-hidden"
+>
+    {#if children}
+        {#key page.url.pathname}
+            <div
+                class="absolute inset-0"
+                in:slideIn={{ direction: routeDirection }}
+                out:slideOut={{ direction: routeDirection }}
+            >
+                {@render children()}
+            </div>
+        {/key}
+    {/if}
+</div>
+
+<div
+    class="fixed top-0 left-0 right-0 h-[env(safe-area-inset-top)] bg-primary z-80"
+></div>
 
 <style>
     :root {

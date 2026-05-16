@@ -13,15 +13,22 @@ import { ButtonAction } from "$lib/ui";
 import { capitalize, getCanonicalBindingDocString } from "$lib/utils";
 import axios from "axios";
 import { GraphQLClient } from "graphql-request";
-import { getContext, onMount } from "svelte";
+import { getContext, onMount, tick } from "svelte";
+import { cubicOut } from "svelte/easing";
 import { Shadow } from "svelte-loading-spinners";
 import { v4 as uuidv4 } from "uuid";
 import { provision } from "wallet-sdk";
+import NameInput from "./steps/NameInput.svelte";
+import PinCreate from "./steps/PinCreate.svelte";
+import PinRepeat from "./steps/PinRepeat.svelte";
 
 const ANONYMOUS_VERIFICATION_CODE = "d66b7138-538a-465f-a6ce-f6985854c3f4";
 const KEY_ID = "default";
 
 type Step =
+    | "pin-create"
+    | "pin-repeat"
+    | "name"
     | "home"
     | "new-evault"
     | "already-have"
@@ -69,9 +76,208 @@ interface DiditCompleteResult {
     };
 }
 
-let step = $state<Step>("new-evault");
+let step = $state<Step>("pin-create");
 let error = $state<string | null>(null);
 let loading = $state(false);
+
+// New-onboarding flow state (PIN create -> repeat -> name -> new-evault)
+let pinFirstAttempt = $state("");
+let chosenName = $state("");
+let nameError = $state<string | null>(null);
+
+const handlePinCreateBack = () => {
+    // Skip the splash A→B intro on the way back — the route slide is the
+    // visible transition, replaying the logo animation on top would clash.
+    sessionStorage.setItem("splashImmediate", "true");
+    goto("/");
+};
+
+// Tracks which way the next step swap should slide.
+let stepDirection = $state<"forward" | "backward">("forward");
+
+const goToStep = (nextStep: Step, direction: "forward" | "backward") => {
+    stepDirection = direction;
+    step = nextStep;
+};
+
+// Asymmetric step transitions: only the active element moves.
+//   Forward  → NEW slides in over OLD (OLD stays put).
+//   Backward → OLD slides out to the right, revealing NEW (NEW stays put).
+function slideIn(
+    _node: HTMLElement,
+    { direction }: { direction: "forward" | "backward" },
+) {
+    if (direction === "backward") {
+        return { duration: 0 };
+    }
+    return {
+        duration: 200,
+        easing: cubicOut,
+        css: (t: number) =>
+            `transform: translateX(${(1 - t) * 100}%); z-index: 70;`,
+    };
+}
+
+function slideOut(
+    _node: HTMLElement,
+    { direction }: { direction: "forward" | "backward" },
+) {
+    if (direction === "forward") {
+        return {
+            duration: 200,
+            css: () => `transform: translateX(0);`,
+        };
+    }
+    return {
+        duration: 200,
+        easing: cubicOut,
+        css: (t: number) =>
+            `transform: translateX(${(1 - t) * 100}%); z-index: 70;`,
+    };
+}
+
+const handlePinCreateComplete = (enteredPin: string) => {
+    pinFirstAttempt = enteredPin;
+    goToStep("pin-repeat", "forward");
+};
+
+const handlePinRepeatBack = () => {
+    pinFirstAttempt = "";
+    goToStep("pin-create", "backward");
+};
+
+const handlePinRepeatComplete = async (confirmedPin: string) => {
+    // Persist the PIN now — local hash via Rust, no network. Both attempts are
+    // already validated as matching by PinRepeat, but setOnboardingPin double-
+    // checks. If hashing/storing fails, propagate to PinRepeat so the user
+    // sees an error instead of silently advancing.
+    await globalState.securityController.setOnboardingPin(
+        pinFirstAttempt,
+        confirmedPin,
+    );
+    goToStep("name", "forward");
+};
+
+const handleNameBack = () => {
+    nameError = null;
+    goToStep("pin-repeat", "backward");
+};
+
+const handleNameComplete = async (enteredName: string) => {
+    chosenName = enteredName;
+    nameError = null;
+    // Drop straight into the legacy loading screen — Shadow spinner + status.
+    step = "loading";
+
+    try {
+        globalState.userController.isFake = true;
+        await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
+
+        const provisionResult = await provision(globalState.walletSdkAdapter, {
+            registryUrl: PUBLIC_REGISTRY_URL,
+            provisionerUrl: PUBLIC_PROVISIONER_URL,
+            namespace: uuidv4(),
+            verificationId: ANONYMOUS_VERIFICATION_CODE,
+            keyId: KEY_ID,
+            context: "onboarding",
+            isPreVerification: true,
+        });
+
+        if (provisionResult.duplicate) {
+            throw new Error(
+                "An eVault already exists for this identity.",
+            );
+        }
+        if (
+            !provisionResult.success ||
+            !provisionResult.w3id ||
+            !provisionResult.uri
+        ) {
+            throw new Error("Provisioning failed — incomplete response.");
+        }
+
+        const ename = provisionResult.w3id;
+        const uri = provisionResult.uri;
+
+        // Resolve eVault GraphQL endpoint from registry.
+        const resolveResp = await axios.get(
+            new URL(`resolve?w3id=${ename}`, PUBLIC_REGISTRY_URL).toString(),
+        );
+        const evaultUri = resolveResp.data.uri as string;
+        const graphqlEndpoint = new URL("/graphql", evaultUri).toString();
+
+        // Sign the self-declaration binding document.
+        const timestamp = new Date().toISOString();
+        const subject = ename.startsWith("@") ? ename : `@${ename}`;
+        const bindingData = { kind: "self", name: enteredName };
+        const payload = getCanonicalBindingDocString({
+            subject,
+            type: "self",
+            data: bindingData,
+        });
+        const signature = await globalState.walletSdkAdapter.signPayload(
+            KEY_ID,
+            "signing",
+            payload,
+        );
+
+        const gqlClient = new GraphQLClient(graphqlEndpoint, {
+            headers: {
+                "X-ENAME": ename,
+                ...(PUBLIC_EID_WALLET_TOKEN
+                    ? { Authorization: `Bearer ${PUBLIC_EID_WALLET_TOKEN}` }
+                    : {}),
+            },
+        });
+
+        const bdResult = await gqlClient.request<{
+            createBindingDocument: {
+                metaEnvelopeId: string | null;
+                errors: { message: string; code: string }[] | null;
+            };
+        }>(
+            `mutation CreateBindingDocument($input: CreateBindingDocumentInput!) {
+                createBindingDocument(input: $input) {
+                    metaEnvelopeId
+                    errors { message code }
+                }
+            }`,
+            {
+                input: {
+                    subject,
+                    type: "self",
+                    data: bindingData,
+                    ownerSignature: {
+                        signer: subject,
+                        signature,
+                        timestamp,
+                    },
+                },
+            },
+        );
+
+        const bdErrors = bdResult.createBindingDocument.errors;
+        if (bdErrors?.length) {
+            throw new Error(
+                `Binding document error: ${bdErrors[0].message}`,
+            );
+        }
+
+        // Persist user + vault, then mark onboarding done.
+        globalState.userController.user = { name: enteredName };
+        globalState.vaultController.vault = { uri, ename };
+        globalState.isOnboardingComplete = true;
+
+        // TODO(next): step = "welcome" once the Welcome screen is built.
+        // For now we land directly on /main.
+        await goto("/main");
+    } catch (err) {
+        console.error("Failed to provision eVault:", err);
+        nameError =
+            "Couldn't create your eVault. Check your connection and try again.";
+        step = "name";
+    }
+};
 
 // KYC panel sub-state
 let checkingHardware = $state(false);
@@ -731,9 +937,26 @@ const handleEnamePassphraseRecovery = async () => {
 };
 
 onMount(async () => {
-    // Detect upgrade mode from query param
+    // Refresh guard: if the user landed here without going through the splash
+    // CTA (i.e. a hard reload or external nav), bounce back to /. Step state
+    // is in-memory only, so resuming mid-flow on refresh would drop them on
+    // pin-create regardless of how far they got — better to restart cleanly.
+    // The flag is set by splash's "Create Digital Self" handler and cleared
+    // here on first read.
     const url = new URL(window.location.href);
-    if (url.searchParams.get("upgrade") === "1") {
+    const upgradeRequested = url.searchParams.get("upgrade") === "1";
+    if (!upgradeRequested) {
+        const fromSplash =
+            sessionStorage.getItem("navigatingToOnboarding") === "true";
+        sessionStorage.removeItem("navigatingToOnboarding");
+        if (!fromSplash) {
+            await goto("/");
+            return;
+        }
+    }
+
+    // Detect upgrade mode from query param
+    if (upgradeRequested) {
         upgradeMode = true;
         step = "kyc-panel";
         // Trigger hardware check immediately
@@ -742,6 +965,36 @@ onMount(async () => {
 });
 </script>
 
+{#if step === "pin-create" || step === "pin-repeat" || step === "name"}
+    <div class="relative overflow-hidden min-h-dvh">
+        {#key step}
+            <div
+                class="absolute inset-0"
+                in:slideIn={{ direction: stepDirection }}
+                out:slideOut={{ direction: stepDirection }}
+            >
+                {#if step === "pin-create"}
+                    <PinCreate
+                        onback={handlePinCreateBack}
+                        oncomplete={handlePinCreateComplete}
+                    />
+                {:else if step === "pin-repeat"}
+                    <PinRepeat
+                        firstAttempt={pinFirstAttempt}
+                        onback={handlePinRepeatBack}
+                        oncomplete={handlePinRepeatComplete}
+                    />
+                {:else if step === "name"}
+                    <NameInput
+                        onback={handleNameBack}
+                        oncomplete={handleNameComplete}
+                        error={nameError}
+                    />
+                {/if}
+            </div>
+        {/key}
+    </div>
+{:else}
 <main
     class="min-h-svh px-[5vw] flex flex-col justify-between"
     style="padding-top: max(4svh, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));"
@@ -1555,4 +1808,5 @@ onMount(async () => {
             </ButtonAction>
         </div>
     </div>
+{/if}
 {/if}

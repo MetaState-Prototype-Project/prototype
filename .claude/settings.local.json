@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/julie/AppData/Local/Packages/Claude_pzs8sxrjxfjjc/LocalCache/Roaming/Claude/local-agent-mode-sessions/184ceb9f-c63d-479f-9de2-eb3191328fca/d7f7f518-2e61-4301-ac45-f5c68b836ee3/local_1b897c7e-d73e-435f-a62d-ce4a750943aa/outputs/frames/**)"
+    ]
+  }
+}

@@ -14,8 +14,16 @@ let globalState: GlobalState | undefined = $state(undefined);
 let notificationListener: PluginListener | undefined;
 
 onMount(async () => {
-    // Get global state
-    globalState = getContext<() => GlobalState>("globalState")();
+    // Get global state — poll briefly since root layout's init is async and
+    // can land after this guard mounts on a hard reload.
+    const getGlobalState = getContext<() => GlobalState>("globalState");
+    globalState = getGlobalState();
+    let retries = 0;
+    while (!globalState && retries < 50) {
+        await new Promise((r) => setTimeout(r, 100));
+        globalState = getGlobalState();
+        retries++;
+    }
 
     // Authentication guard for all app routes
     try {

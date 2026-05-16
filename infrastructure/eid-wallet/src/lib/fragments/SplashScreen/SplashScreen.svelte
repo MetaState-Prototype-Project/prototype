@@ -1,30 +1,29 @@
 <script lang="ts">
-    import { ButtonAction } from "$lib/ui";
-    import { cubicOut } from "svelte/easing";
-    import { fade, fly } from "svelte/transition";
+import { ButtonAction } from "$lib/ui";
+import { cubicOut } from "svelte/easing";
+import { fly } from "svelte/transition";
 
-    interface ISplashScreenProps {
-        /** false = state A (logo "closed"). true = state B (tagline revealed). */
-        open?: boolean;
-        /** true = state C (bottom drawer with CTAs revealed). */
-        showDrawer?: boolean;
-        /** Fired when "Create Digital Self" is tapped. */
-        oncreate?: () => void;
-        /** Fired when "Restore Digital Self" is tapped. */
-        onrestore?: () => void;
-    }
+interface ISplashScreenProps {
+    /** false = state A (logo "closed"). true = state B (tagline revealed). */
+    open?: boolean;
+    /** true = state C (bottom drawer with CTAs revealed). */
+    showDrawer?: boolean;
+    /** Fired when "Create Digital Self" is tapped. */
+    oncreate?: () => void;
+    /** Fired when "Restore Digital Self" is tapped. */
+    onrestore?: () => void;
+}
 
-    const {
-        open = false,
-        showDrawer = false,
-        oncreate,
-        onrestore,
-    }: ISplashScreenProps = $props();
+const {
+    open = false,
+    showDrawer = false,
+    oncreate,
+    onrestore,
+}: ISplashScreenProps = $props();
 </script>
 
 <div
-    out:fade={{ duration: 200 }}
-    class="z-50 fixed inset-0 bg-primary overflow-hidden flex flex-col"
+    class="relative min-h-dvh bg-primary overflow-hidden flex flex-col"
 >
     <!-- Logo group: vertically biased toward top-third, mirroring the Figma spec.
          CSS animation (not svelte in:fade) because Svelte 5 skips intros for
@@ -34,8 +33,7 @@
     >
         <div class="flex flex-col items-center">
             <span
-                class="text-white font-medium text-[110px] leading-[88%] tracking-[-0.02em] -my-1"
-                style="font-family: 'Roboto Condensed Variable', sans-serif;"
+                class="text-white font-condensed font-medium text-[110px] leading-[88%] tracking-[-0.02em] -my-1"
             >
                 eID
             </span>
@@ -63,7 +61,7 @@
 
     {#if showDrawer}
         <div
-            transition:fly={{
+            in:fly={{
                 y: 400,
                 duration: 500,
                 easing: cubicOut,
