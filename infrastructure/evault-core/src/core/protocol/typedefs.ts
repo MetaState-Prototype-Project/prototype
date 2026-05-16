@@ -138,6 +138,33 @@ export const typeDefs = /* GraphQL */ `
     }
 
     # ============================================================================
+    # File Upload Types
+    # ============================================================================
+
+    "Input for uploading a file to eVault object storage"
+    input UploadFileInput {
+        "Original file name"
+        filename: String!
+        "MIME type of the file"
+        contentType: String!
+        "Base64-encoded file content (raw base64 or a data: URI)"
+        content: String!
+        "Access control list for the created File meta-envelope"
+        acl: [String!]!
+    }
+
+    type UploadFilePayload {
+        "The w3ds://file URI addressing the uploaded file, null if errors occurred"
+        uri: String
+        "The ID of the File meta-envelope describing the upload"
+        metaEnvelopeId: String
+        "The public object-storage URL of the file"
+        publicUrl: String
+        "List of errors that occurred during the upload"
+        errors: [UserError!]
+    }
+
+    # ============================================================================
     # Binding Document Types
     # ============================================================================
 
@@ -290,6 +317,9 @@ export const typeDefs = /* GraphQL */ `
             "Skip webhook delivery (only allowed for migration platforms)"
             skipWebhooks: Boolean = false
         ): BulkCreateMetaEnvelopesPayload!
+
+        "Upload a file to object storage and create an addressable File meta-envelope"
+        uploadFile(input: UploadFileInput!): UploadFilePayload!
 
         # --- Binding Document Mutations ---
         "Create a new binding document"
