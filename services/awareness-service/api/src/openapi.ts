@@ -1,6 +1,12 @@
 /**
- * OpenAPI 3.1 description of the Awareness as a Service API. Served raw at
- * GET /openapi.json and rendered as interactive docs (Scalar) at GET /docs.
+ * OpenAPI 3.1 description of the *consumer-facing* Awareness as a Service API.
+ * Served raw at GET /openapi.json and rendered as interactive docs (Scalar) at
+ * GET /docs.
+ *
+ * Only endpoints a consuming platform integrates against are documented here -
+ * polling packet history and managing webhook subscriptions / API keys. The
+ * ingest endpoint (evault-core only), the W3DS portal login, access
+ * applications and the admin routes are intentionally omitted.
  */
 export const openApiDocument = {
     openapi: "3.1.0",
@@ -8,51 +14,27 @@ export const openApiDocument = {
         title: "Awareness as a Service API",
         version: "1.0.0",
         description:
-            "AaaS is the single fanout point for MetaEnvelope awareness " +
-            "packets. evault-core POSTs every change to `/ingest`; AaaS " +
-            "persists it, lets approved consumers poll history and register " +
-            "webhook subscriptions filtered by ontology and eVault, and " +
-            "delivers webhooks with retry + dead-lettering.\n\n" +
+            "Consume MetaEnvelope awareness packets: poll the packet history " +
+            "by ontology, eVault and time range, and register webhook " +
+            "subscriptions filtered by ontology and eVault.\n\n" +
             "## Authentication\n" +
-            "- **Ingest** (`/ingest`): the `x-ingest-secret` header, shared " +
-            "with evault-core.\n" +
-            "- **Consumer API** (`/api/packets`, `/api/subscriptions`, " +
-            "`/api/me/*`): `Authorization: Bearer <token>` where the token is " +
-            "either an issued API key (`aaas_...`) or a W3DS portal session " +
-            "JWT.\n" +
-            "- **Portal** (`/api/applications/*`): a W3DS portal session JWT.\n" +
-            "- **Admin** (`/api/admin/*`): a W3DS portal session JWT whose " +
-            "eName is in `AAAS_ADMIN_ENAMES`.",
+            "All endpoints use `Authorization: Bearer <token>`, where the " +
+            "token is an API key (`aaas_…`) issued to your approved consumer " +
+            "from the portal dashboard.",
     },
     servers: [{ url: "/", description: "This AaaS instance" }],
     tags: [
-        { name: "Ingest", description: "Awareness packet ingestion from evault-core" },
         { name: "Query", description: "Polling the awareness packet history" },
         { name: "Subscriptions", description: "Dynamic webhook subscriptions" },
         { name: "Consumer", description: "Consumer self-service" },
-        { name: "Auth", description: "W3DS portal login" },
-        { name: "Applications", description: "Access applications" },
-        { name: "Admin", description: "Application review and dead-letters" },
         { name: "System", description: "Health and service metadata" },
     ],
     components: {
         securitySchemes: {
-            ingestSecret: {
-                type: "apiKey",
-                in: "header",
-                name: "x-ingest-secret",
-                description: "Shared secret presented by evault-core.",
-            },
             consumerAuth: {
                 type: "http",
                 scheme: "bearer",
-                description:
-                    "An issued API key (`aaas_...`) or a W3DS portal session JWT.",
-            },
-            portalAuth: {
-                type: "http",
-                scheme: "bearer",
-                description: "A W3DS portal session JWT.",
+                description: "An API key (`aaas_…`) issued to your consumer.",
             },
         },
         schemas: {
@@ -61,49 +43,18 @@ export const openApiDocument = {
                 properties: { error: { type: "string" } },
                 required: ["error"],
             },
-            AwarenessPayload: {
+            Packet: {
                 type: "object",
-                description:
-                    "The packet evault-core POSTs to /ingest and the body " +
-                    "delivered to webhook subscribers.",
+                description: "A stored awareness packet.",
                 properties: {
                     id: { type: "string", description: "MetaEnvelope id" },
+                    ontology: { type: "string" },
+                    evaultPublicKey: { type: "string", nullable: true },
                     w3id: {
                         type: "string",
                         nullable: true,
                         description: "Owner's W3ID (eName)",
                     },
-                    evaultPublicKey: { type: "string", nullable: true },
-                    data: {
-                        type: "object",
-                        nullable: true,
-                        additionalProperties: true,
-                    },
-                    schemaId: {
-                        type: "string",
-                        description: "The MetaEnvelope ontology",
-                    },
-                    operation: {
-                        type: "string",
-                        enum: ["create", "update", "delete"],
-                    },
-                    requestingPlatform: {
-                        type: "string",
-                        nullable: true,
-                        description:
-                            "Origin platform; used to skip ping-pong delivery. " +
-                            "Never persisted or delivered.",
-                    },
-                },
-                required: ["id", "schemaId"],
-            },
-            Packet: {
-                type: "object",
-                properties: {
-                    id: { type: "string" },
-                    ontology: { type: "string" },
-                    evaultPublicKey: { type: "string", nullable: true },
-                    w3id: { type: "string", nullable: true },
                     data: { type: "object", nullable: true, additionalProperties: true },
                     operation: { type: "string", enum: ["create", "update", "delete"] },
                     receivedAt: { type: "string", format: "date-time" },
@@ -165,23 +116,6 @@ export const openApiDocument = {
                     deliveredAt: { type: "string", format: "date-time", nullable: true },
                 },
             },
-            DeadLetter: {
-                type: "object",
-                properties: {
-                    id: { type: "string", format: "uuid" },
-                    deliveryId: { type: "string", format: "uuid" },
-                    subscriptionId: { type: "string", format: "uuid" },
-                    packetId: { type: "string" },
-                    consumerId: { type: "string", format: "uuid" },
-                    payload: { type: "object", additionalProperties: true },
-                    targetUrl: { type: "string" },
-                    totalAttempts: { type: "integer" },
-                    lastError: { type: "string", nullable: true },
-                    lastResponseStatus: { type: "integer", nullable: true },
-                    resolved: { type: "boolean" },
-                    createdAt: { type: "string", format: "date-time" },
-                },
-            },
             Consumer: {
                 type: "object",
                 properties: {
@@ -193,22 +127,6 @@ export const openApiDocument = {
                         enum: ["pending", "approved", "rejected", "revoked"],
                     },
                     webhookBaseUrl: { type: "string", nullable: true },
-                },
-            },
-            AccessApplication: {
-                type: "object",
-                properties: {
-                    id: { type: "string", format: "uuid" },
-                    consumerId: { type: "string", format: "uuid" },
-                    justification: { type: "string", nullable: true },
-                    requestedOntologies: { type: "array", items: { type: "string" } },
-                    status: {
-                        type: "string",
-                        enum: ["pending", "approved", "rejected"],
-                    },
-                    reviewedByEname: { type: "string", nullable: true },
-                    reviewNote: { type: "string", nullable: true },
-                    createdAt: { type: "string", format: "date-time" },
                 },
             },
         },
@@ -233,44 +151,6 @@ export const openApiDocument = {
                             },
                         },
                     },
-                },
-            },
-        },
-        "/ingest": {
-            post: {
-                tags: ["Ingest"],
-                summary: "Ingest an awareness packet",
-                description:
-                    "The single sink evault-core POSTs every MetaEnvelope " +
-                    "change to. Upserts the packet and queues a delivery per " +
-                    "matching subscription.",
-                security: [{ ingestSecret: [] }],
-                requestBody: {
-                    required: true,
-                    content: {
-                        "application/json": {
-                            schema: { $ref: "#/components/schemas/AwarenessPayload" },
-                        },
-                    },
-                },
-                responses: {
-                    "200": {
-                        description: "Packet stored and deliveries queued",
-                        content: {
-                            "application/json": {
-                                schema: {
-                                    type: "object",
-                                    properties: {
-                                        ok: { type: "boolean" },
-                                        packetId: { type: "string" },
-                                        deliveriesQueued: { type: "integer" },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                    "400": { $ref: "#/components/responses/BadRequest" },
-                    "401": { $ref: "#/components/responses/Unauthorized" },
                 },
             },
         },
@@ -594,338 +474,6 @@ export const openApiDocument = {
                             },
                         },
                     },
-                },
-            },
-        },
-        "/api/auth/offer": {
-            post: {
-                tags: ["Auth"],
-                summary: "Start a W3DS login",
-                description: "Returns a `w3ds://auth` deeplink and a session id.",
-                responses: {
-                    "200": {
-                        description: "Auth offer",
-                        content: {
-                            "application/json": {
-                                schema: {
-                                    type: "object",
-                                    properties: {
-                                        uri: { type: "string" },
-                                        session: { type: "string" },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-            },
-        },
-        "/api/auth": {
-            post: {
-                tags: ["Auth"],
-                summary: "W3DS wallet callback",
-                description:
-                    "Called by the eID wallet to submit the signature over " +
-                    "the session id.",
-                requestBody: {
-                    required: true,
-                    content: {
-                        "application/json": {
-                            schema: {
-                                type: "object",
-                                properties: {
-                                    w3id: { type: "string" },
-                                    session: { type: "string" },
-                                    signature: { type: "string" },
-                                },
-                                required: ["w3id", "session", "signature"],
-                            },
-                        },
-                    },
-                },
-                responses: {
-                    "200": { $ref: "#/components/responses/Ok" },
-                    "401": { $ref: "#/components/responses/Unauthorized" },
-                },
-            },
-        },
-        "/api/auth/session/{session}": {
-            get: {
-                tags: ["Auth"],
-                summary: "Poll a login session",
-                description:
-                    "The portal polls this until the wallet has signed in, " +
-                    "then receives the session JWT.",
-                parameters: [
-                    {
-                        name: "session",
-                        in: "path",
-                        required: true,
-                        schema: { type: "string" },
-                    },
-                ],
-                responses: {
-                    "200": {
-                        description: "Session status",
-                        content: {
-                            "application/json": {
-                                schema: {
-                                    type: "object",
-                                    properties: {
-                                        status: {
-                                            type: "string",
-                                            enum: ["pending", "authenticated"],
-                                        },
-                                        token: {
-                                            type: "string",
-                                            description: "Present once authenticated",
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-            },
-        },
-        "/api/applications/me": {
-            get: {
-                tags: ["Applications"],
-                summary: "Your application status",
-                security: [{ portalAuth: [] }],
-                responses: {
-                    "200": {
-                        description: "Your consumer and latest application",
-                        content: {
-                            "application/json": {
-                                schema: {
-                                    type: "object",
-                                    properties: {
-                                        consumer: {
-                                            $ref: "#/components/schemas/Consumer",
-                                        },
-                                        application: {
-                                            $ref: "#/components/schemas/AccessApplication",
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                    "401": { $ref: "#/components/responses/Unauthorized" },
-                },
-            },
-        },
-        "/api/applications": {
-            post: {
-                tags: ["Applications"],
-                summary: "Apply for access",
-                security: [{ portalAuth: [] }],
-                requestBody: {
-                    required: true,
-                    content: {
-                        "application/json": {
-                            schema: {
-                                type: "object",
-                                properties: {
-                                    name: { type: "string" },
-                                    contactEmail: { type: "string" },
-                                    webhookBaseUrl: { type: "string" },
-                                    justification: { type: "string" },
-                                    requestedOntologies: {
-                                        type: "array",
-                                        items: { type: "string" },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-                responses: {
-                    "201": {
-                        description: "Application submitted",
-                        content: {
-                            "application/json": {
-                                schema: {
-                                    type: "object",
-                                    properties: {
-                                        consumer: {
-                                            $ref: "#/components/schemas/Consumer",
-                                        },
-                                        application: {
-                                            $ref: "#/components/schemas/AccessApplication",
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                    "409": {
-                        description: "Consumer is already approved",
-                        content: {
-                            "application/json": {
-                                schema: { $ref: "#/components/schemas/Error" },
-                            },
-                        },
-                    },
-                },
-            },
-        },
-        "/api/admin/applications": {
-            get: {
-                tags: ["Admin"],
-                summary: "List access applications",
-                security: [{ portalAuth: [] }],
-                parameters: [
-                    {
-                        name: "status",
-                        in: "query",
-                        schema: {
-                            type: "string",
-                            enum: ["pending", "approved", "rejected", "all"],
-                            default: "pending",
-                        },
-                    },
-                ],
-                responses: {
-                    "200": {
-                        description: "Applications with consumer details",
-                        content: {
-                            "application/json": {
-                                schema: {
-                                    type: "object",
-                                    properties: {
-                                        applications: {
-                                            type: "array",
-                                            items: {
-                                                $ref: "#/components/schemas/AccessApplication",
-                                            },
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                    "403": { $ref: "#/components/responses/Forbidden" },
-                },
-            },
-        },
-        "/api/admin/applications/{id}/approve": {
-            post: {
-                tags: ["Admin"],
-                summary: "Approve an application",
-                security: [{ portalAuth: [] }],
-                parameters: [
-                    {
-                        name: "id",
-                        in: "path",
-                        required: true,
-                        schema: { type: "string", format: "uuid" },
-                    },
-                ],
-                requestBody: {
-                    content: {
-                        "application/json": {
-                            schema: {
-                                type: "object",
-                                properties: { note: { type: "string" } },
-                            },
-                        },
-                    },
-                },
-                responses: {
-                    "200": { $ref: "#/components/responses/Ok" },
-                    "403": { $ref: "#/components/responses/Forbidden" },
-                    "404": { $ref: "#/components/responses/NotFound" },
-                },
-            },
-        },
-        "/api/admin/applications/{id}/reject": {
-            post: {
-                tags: ["Admin"],
-                summary: "Reject an application",
-                security: [{ portalAuth: [] }],
-                parameters: [
-                    {
-                        name: "id",
-                        in: "path",
-                        required: true,
-                        schema: { type: "string", format: "uuid" },
-                    },
-                ],
-                requestBody: {
-                    content: {
-                        "application/json": {
-                            schema: {
-                                type: "object",
-                                properties: { note: { type: "string" } },
-                            },
-                        },
-                    },
-                },
-                responses: {
-                    "200": { $ref: "#/components/responses/Ok" },
-                    "403": { $ref: "#/components/responses/Forbidden" },
-                    "404": { $ref: "#/components/responses/NotFound" },
-                },
-            },
-        },
-        "/api/admin/dead-letters": {
-            get: {
-                tags: ["Admin"],
-                summary: "List dead-lettered deliveries",
-                security: [{ portalAuth: [] }],
-                parameters: [
-                    {
-                        name: "resolved",
-                        in: "query",
-                        schema: { type: "boolean", default: false },
-                        description: "Include already-resolved dead letters",
-                    },
-                ],
-                responses: {
-                    "200": {
-                        description: "Dead letters",
-                        content: {
-                            "application/json": {
-                                schema: {
-                                    type: "object",
-                                    properties: {
-                                        deadLetters: {
-                                            type: "array",
-                                            items: {
-                                                $ref: "#/components/schemas/DeadLetter",
-                                            },
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                    "403": { $ref: "#/components/responses/Forbidden" },
-                },
-            },
-        },
-        "/api/admin/dead-letters/{id}/replay": {
-            post: {
-                tags: ["Admin"],
-                summary: "Replay a dead-lettered delivery",
-                description:
-                    "Re-queues the original delivery and marks the dead " +
-                    "letter resolved.",
-                security: [{ portalAuth: [] }],
-                parameters: [
-                    {
-                        name: "id",
-                        in: "path",
-                        required: true,
-                        schema: { type: "string", format: "uuid" },
-                    },
-                ],
-                responses: {
-                    "200": { $ref: "#/components/responses/Ok" },
-                    "403": { $ref: "#/components/responses/Forbidden" },
-                    "404": { $ref: "#/components/responses/NotFound" },
                 },
             },
         },
