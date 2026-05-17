@@ -107,7 +107,13 @@ export const openApiDocument = {
                     packetId: { type: "string" },
                     status: {
                         type: "string",
-                        enum: ["pending", "delivering", "delivered", "failed"],
+                        enum: [
+                            "pending",
+                            "delivering",
+                            "delivered",
+                            "failed",
+                            "dead",
+                        ],
                     },
                     attempts: { type: "integer" },
                     nextAttemptAt: { type: "string", format: "date-time" },

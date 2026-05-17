@@ -160,7 +160,7 @@ AaaS is designed to be dropped in with **zero receiver-side changes**:
 | `AWARENESS_SERVICE_URL` | (evault-core) where to POST packets |
 | `AAAS_ADMIN_ENAMES` | Comma-separated admin eNames |
 | `AAAS_JWT_SECRET` | Signs portal session JWTs |
-| `AWARENESS_MAX_ATTEMPTS` | Delivery attempts before dead-lettering (default 8) |
+| `AWARENESS_MAX_ATTEMPTS` | Delivery attempts before dead-lettering (default 3) |
 | `AWARENESS_DELIVERY_POLL_MS` | Delivery engine poll interval (default 2000) |
 | `NEO4J_URI` / `NEO4J_USER` / `NEO4J_PASSWORD` | Standard eVault Neo4j vars — reused by the one-time backfill |
 | `PUBLIC_AWARENESS_API_URL` | (portal) AaaS API base URL |

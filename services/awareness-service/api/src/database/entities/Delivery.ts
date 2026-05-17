@@ -11,7 +11,8 @@ export type DeliveryStatus =
     | "pending"
     | "delivering"
     | "delivered"
-    | "failed";
+    | "failed"
+    | "dead";
 
 /**
  * A queued webhook delivery of one packet to one subscription. The unique

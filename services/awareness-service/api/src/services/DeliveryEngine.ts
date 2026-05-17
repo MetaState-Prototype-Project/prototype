@@ -92,15 +92,19 @@ export class DeliveryEngine {
             .update(Delivery)
             .set({ status: "delivering" })
             .where(
+                // Only pending/failed deliveries still under the attempt
+                // limit are claimable. `dead` deliveries (and any that
+                // already hit the cap) are terminal and never re-claimed.
                 `id IN (
                     SELECT id FROM deliveries
                     WHERE status IN ('pending', 'failed')
+                      AND attempts < :maxAttempts
                       AND "nextAttemptAt" <= now()
                     ORDER BY "nextAttemptAt"
                     LIMIT :limit
                     FOR UPDATE SKIP LOCKED
                 )`,
-                { limit: BATCH_SIZE },
+                { limit: BATCH_SIZE, maxAttempts: config.maxAttempts },
             )
             .returning("*")
             .execute();
@@ -181,8 +185,11 @@ export class DeliveryEngine {
         const deliveryRepo = AppDataSource.getRepository(Delivery);
 
         if (attempts >= config.maxAttempts) {
+            // Terminal: mark `dead` so the engine never re-claims it. (Using
+            // `failed` here let exhausted deliveries be picked up again every
+            // tick, inflating attempts and spawning duplicate dead letters.)
             await deliveryRepo.update(delivery.id, {
-                status: "failed",
+                status: "dead",
                 attempts,
                 lastError: message,
                 lastResponseStatus: responseStatus,
