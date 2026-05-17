@@ -1,0 +1,11 @@
+{
+    "name": "awareness-service",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Awareness as a Service - awareness packet ingestion, polling and webhook fanout",
+    "scripts": {
+        "dev": "pnpm --filter awareness-service-api dev",
+        "build": "pnpm --filter awareness-service-api build",
+        "start": "pnpm --filter awareness-service-api start"
+    }
+}

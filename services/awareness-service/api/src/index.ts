@@ -1,0 +1,66 @@
+import "reflect-metadata";
+import { apiReference } from "@scalar/express-api-reference";
+import cors from "cors";
+import express from "express";
+import { config } from "./config";
+import { openApiDocument } from "./openapi";
+import { adminRouter } from "./controllers/AdminController";
+import { applicationRouter } from "./controllers/ApplicationController";
+import { authRouter } from "./controllers/AuthController";
+import { consumerRouter } from "./controllers/ConsumerController";
+import { ingestRouter } from "./controllers/IngestController";
+import { queryRouter } from "./controllers/QueryController";
+import { subscriptionRouter } from "./controllers/SubscriptionController";
+import { AppDataSource } from "./database/data-source";
+import { DeliveryEngine } from "./services/DeliveryEngine";
+import { SeedService } from "./services/SeedService";
+
+async function start(): Promise<void> {
+    await AppDataSource.initialize();
+    console.log("[aaas] database connected");
+
+    const app = express();
+    app.use(cors());
+    app.use(express.json({ limit: "5mb" }));
+
+    app.get("/health", (_req, res) => {
+        res.json({ status: "ok", service: "awareness-service" });
+    });
+
+    // Raw OpenAPI document + interactive Scalar API reference at /docs.
+    app.get("/openapi.json", (_req, res) => {
+        res.json(openApiDocument);
+    });
+    app.use(
+        "/docs",
+        apiReference({
+            content: openApiDocument,
+            theme: "purple",
+            metaData: { title: "Awareness as a Service API" },
+        }),
+    );
+
+    app.use(ingestRouter());
+    app.use(queryRouter());
+    app.use(subscriptionRouter());
+    app.use(consumerRouter());
+    app.use(authRouter());
+    app.use(applicationRouter());
+    app.use(adminRouter());
+
+    // Backward compat: keep every currently-registered platform receiving
+    // everything, the same way evault-core's old fanout did.
+    await new SeedService().seedCatchAll();
+
+    const deliveryEngine = new DeliveryEngine();
+    deliveryEngine.start();
+
+    app.listen(config.apiPort, () => {
+        console.log(`[aaas] API listening on :${config.apiPort}`);
+    });
+}
+
+start().catch((err) => {
+    console.error("[aaas] failed to start:", err);
+    process.exit(1);
+});

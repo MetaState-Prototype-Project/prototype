@@ -1,0 +1,17 @@
+{
+  "name": "webhook-inlet-test",
+  "version": "1.0.0",
+  "description": "Tiny Express server that prints every webhook it receives",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.25.0",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}

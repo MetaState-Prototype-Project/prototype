@@ -62,44 +62,29 @@ export class GraphQLServer {
     }
 
     /**
-     * Fetches the list of active platforms from the registry
-     * @returns Promise<string[]> - Array of platform URLs
+     * Forwards an awareness packet to Awareness as a Service (AaaS).
+     *
+     * AaaS has replaced eVault's built-in webhook fanout: instead of querying
+     * the registry and POSTing to every platform here, we make a single POST
+     * to AaaS, which owns subscription matching, retry/dead-letter delivery and
+     * the catch-all fanout that preserves the previous behaviour.
+     *
+     * @param webhookPayload - The awareness packet { id, w3id, evaultPublicKey,
+     *                         data, schemaId }
+     * @param requestingPlatform - The platform that triggered the change, if
+     *                         known. AaaS uses it to skip delivering the packet
+     *                         back to its origin (prevents webhook ping-pong).
      */
-    private async getActivePlatforms(): Promise<string[]> {
-        try {
-            if (!process.env.PUBLIC_REGISTRY_URL) {
-                return [];
-            }
-
-            const response = await axios.get(
-                new URL(
-                    "/platforms",
-                    process.env.PUBLIC_REGISTRY_URL,
-                ).toString(),
-            );
-            return response.data;
-        } catch (error) {
-            return [];
-        }
-    }
-
-    /**
-     * Delivers webhooks to all platforms except the requesting one
-     * @param requestingPlatform - The platform that made the request (if any)
-     * @param webhookPayload - The payload to send to webhooks
-     */
-    private async deliverWebhooks(
-        requestingPlatform: string | null,
+    private async notifyAwareness(
         webhookPayload: any,
+        requestingPlatform: string | null = null,
     ): Promise<void> {
-        // One log line per dispatch — the same payload goes to every
-        // target platform, so we log the body once here instead of per
-        // target. This is the source of truth for "what eVault claims it
-        // sent"; correlate against receiver logs to find divergence.
+        // One log line per dispatch — this remains the source of truth for
+        // "what eVault claims it sent"; correlate against AaaS ingest logs.
         try {
             const payloadJson = JSON.stringify(webhookPayload);
             console.log(
-                `[webhook] id=${webhookPayload?.id} schemaId=${webhookPayload?.schemaId} w3id=${webhookPayload?.w3id} from=${requestingPlatform ?? "<none>"} payload=${payloadJson}`,
+                `[webhook] id=${webhookPayload?.id} schemaId=${webhookPayload?.schemaId} w3id=${webhookPayload?.w3id} payload=${payloadJson}`,
             );
         } catch {
             console.log(
@@ -107,55 +92,29 @@ export class GraphQLServer {
             );
         }
 
+        if (!process.env.AWARENESS_SERVICE_URL) {
+            console.log("[webhook] AWARENESS_SERVICE_URL not set, skipping");
+            return;
+        }
+
         try {
-            const activePlatforms = await this.getActivePlatforms();
-
-            // Filter out the requesting platform
-            const platformsToNotify = activePlatforms.filter((platformUrl) => {
-                if (!requestingPlatform) return true;
-
-                try {
-                    // Normalize URLs for comparison
-                    const normalizedPlatformUrl = new URL(
-                        platformUrl,
-                    ).toString();
-                    const normalizedRequestingPlatform = new URL(
-                        requestingPlatform,
-                    ).toString();
-
-                    return (
-                        normalizedPlatformUrl !== normalizedRequestingPlatform
-                    );
-                } catch (error) {
-                    // If requestingPlatform is not a valid URL, don't filter it out
-                    // (treat it as a different platform identifier)
-                    return true;
-                }
-            });
-
-            // Send webhooks to all other platforms
-            const webhookPromises = platformsToNotify.map(
-                async (platformUrl) => {
-                    try {
-                        const webhookUrl = new URL(
-                            "/api/webhook",
-                            platformUrl,
-                        ).toString();
-                        await axios.post(webhookUrl, webhookPayload, {
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                            timeout: 5000, // 5 second timeout
-                        });
-                    } catch (error) {
-                        console.log(`Webhook delivery failed to ${platformUrl}`);
-                    }
+            await axios.post(
+                new URL(
+                    "/ingest",
+                    process.env.AWARENESS_SERVICE_URL,
+                ).toString(),
+                { ...webhookPayload, requestingPlatform },
+                {
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-ingest-secret":
+                            process.env.AWARENESS_INGEST_SECRET ?? "",
+                    },
+                    timeout: 5000,
                 },
             );
-
-            await Promise.allSettled(webhookPromises);
         } catch (error) {
-            console.log("Webhook delivery failed");
+            console.log("Awareness ingest delivery failed");
         }
     }
 
@@ -404,9 +363,7 @@ export class GraphQLServer {
                                 parsed: parsedFromEnvelopes,
                             };
 
-                            // Deliver webhooks for create operation
-                            const requestingPlatform =
-                                context.tokenPayload?.platform || null;
+                            // Forward the awareness packet for create operation
                             const webhookPayload = {
                                 id: result.metaEnvelope.id,
                                 w3id: context.eName,
@@ -415,13 +372,11 @@ export class GraphQLServer {
                                 schemaId: input.ontology,
                             };
 
-                            // Delayed webhook delivery to prevent ping-pong
-                            setTimeout(() => {
-                                this.deliverWebhooks(
-                                    requestingPlatform,
-                                    webhookPayload,
-                                );
-                            }, 3_000);
+                            // Fire-and-forget ingest to AaaS
+                            this.notifyAwareness(
+                                webhookPayload,
+                                context.tokenPayload?.platform || null,
+                            );
 
                             // Send push notifications for new messages
                             console.log(`[NOTIF] createMetaEnvelope ontology: "${input.ontology}"`);
@@ -553,8 +508,6 @@ export class GraphQLServer {
                             // would make the receiver lose every untouched
                             // field (e.g. a read-receipt update would wipe
                             // participantIds on the receiver side).
-                            const requestingPlatform =
-                                context.tokenPayload?.platform || null;
                             const webhookPayload = {
                                 id,
                                 w3id: context.eName,
@@ -563,10 +516,10 @@ export class GraphQLServer {
                                 schemaId: input.ontology,
                             };
 
-                            // Fire and forget webhook delivery
-                            this.deliverWebhooks(
-                                requestingPlatform,
+                            // Fire-and-forget ingest to AaaS
+                            this.notifyAwareness(
                                 webhookPayload,
+                                context.tokenPayload?.platform || null,
                             );
 
                             // Log envelope operation best-effort
@@ -777,10 +730,8 @@ export class GraphQLServer {
                                 });
                                 successCount++;
 
-                                // Deliver webhooks if not skipping
+                                // Forward awareness packet if not skipping
                                 if (!shouldSkipWebhooks) {
-                                    const requestingPlatform =
-                                        context.tokenPayload?.platform || null;
                                     const webhookPayload = {
                                         id: result.metaEnvelope.id,
                                         w3id: context.eName,
@@ -789,12 +740,12 @@ export class GraphQLServer {
                                         schemaId: input.ontology,
                                     };
 
-                                    // Fire and forget webhook delivery
-                                    this.deliverWebhooks(
-                                        requestingPlatform,
+                                    // Fire-and-forget ingest to AaaS
+                                    this.notifyAwareness(
                                         webhookPayload,
+                                        context.tokenPayload?.platform || null,
                                     ).catch((err) => {
-                                        console.error(`[WEBHOOK] Delivery failed for bulk-create envelope ${result.metaEnvelope.id}:`, err);
+                                        console.error(`[WEBHOOK] AaaS ingest failed for bulk-create envelope ${result.metaEnvelope.id}:`, err);
                                     });
                                 }
 
@@ -949,8 +900,6 @@ export class GraphQLServer {
                                     ),
                                 );
 
-                            const requestingPlatform =
-                                context.tokenPayload?.platform || null;
                             const webhookPayload = {
                                 id: metaEnvelopeId,
                                 w3id: context.eName,
@@ -959,12 +908,10 @@ export class GraphQLServer {
                                 schemaId:
                                     BINDING_DOCUMENT_ONTOLOGY,
                             };
-                            setTimeout(() => {
-                                this.deliverWebhooks(
-                                    requestingPlatform,
-                                    webhookPayload,
-                                );
-                            }, 3_000);
+                            this.notifyAwareness(
+                                webhookPayload,
+                                context.tokenPayload?.platform || null,
+                            );
 
                             return {
                                 bindingDocument: result.bindingDocument,
@@ -1059,8 +1006,6 @@ export class GraphQLServer {
                                     ),
                                 );
 
-                            const requestingPlatform =
-                                context.tokenPayload?.platform || null;
                             const webhookPayload = {
                                 id: input.bindingDocumentId,
                                 w3id: context.eName,
@@ -1069,12 +1014,10 @@ export class GraphQLServer {
                                 schemaId:
                                     BINDING_DOCUMENT_ONTOLOGY,
                             };
-                            setTimeout(() => {
-                                this.deliverWebhooks(
-                                    requestingPlatform,
-                                    webhookPayload,
-                                );
-                            }, 3_000);
+                            this.notifyAwareness(
+                                webhookPayload,
+                                context.tokenPayload?.platform || null,
+                            );
 
                             return {
                                 bindingDocument: result,
@@ -1138,9 +1081,10 @@ export class GraphQLServer {
                             parsed: input.payload,
                         };
 
-                        // Deliver webhooks for create operation
-                        const requestingPlatform =
-                            context.tokenPayload?.platform || null;
+                        // Forward the awareness packet for create operation.
+                        // The requesting platform is passed so AaaS can skip
+                        // delivering the packet back to its origin — the same
+                        // ping-pong guard the old fanout enforced here.
                         const webhookPayload = {
                             id: result.metaEnvelope.id,
                             w3id: context.eName,
@@ -1149,22 +1093,10 @@ export class GraphQLServer {
                             schemaId: input.ontology,
                         };
 
-                        /**
-                         * To whoever who reads this in the future please don't
-                         * remove this delay as this prevents a VERY horrible
-                         * disgusting edge case, where if a platform's URL is
-                         * not determinable the webhook to the same platform as
-                         * the one who sent off the request gets sent and that
-                         * is not an ideal case trust me I've suffered, it
-                         * causes an absolutely beautiful error where you get
-                         * stuck in what I like to call webhook ping-pong
-                         */
-                        setTimeout(() => {
-                            this.deliverWebhooks(
-                                requestingPlatform,
-                                webhookPayload,
-                            );
-                        }, 3_000);
+                        this.notifyAwareness(
+                            webhookPayload,
+                            context.tokenPayload?.platform || null,
+                        );
 
                         // Send push notifications for new messages
                         console.log(`[NOTIF] storeMetaEnvelope ontology: "${input.ontology}"`);
@@ -1249,8 +1181,6 @@ export class GraphQLServer {
                             // resolver above — sending input.payload (the
                             // partial diff) would make receivers clobber their
                             // own untouched fields.
-                            const requestingPlatform =
-                                context.tokenPayload?.platform || null;
                             const webhookPayload = {
                                 id: id,
                                 w3id: context.eName,
@@ -1259,10 +1189,10 @@ export class GraphQLServer {
                                 schemaId: input.ontology,
                             };
 
-                            // Fire and forget webhook delivery
-                            this.deliverWebhooks(
-                                requestingPlatform,
+                            // Fire-and-forget ingest to AaaS
+                            this.notifyAwareness(
                                 webhookPayload,
+                                context.tokenPayload?.platform || null,
                             );
 
                             // Log envelope operation best-effort (do not fail mutation)
