@@ -1,8 +1,8 @@
-import { env } from "$env/dynamic/public";
+import { PUBLIC_AWARENESS_API_URL } from "$env/static/public";
 
-/** Base URL of the AaaS API. Falls back to the default local dev port. */
+/** Base URL of the AaaS API. Inlined at build time from the root .env. */
 export const API_BASE =
-    env.PUBLIC_AWARENESS_API_URL ?? "http://localhost:4100";
+    PUBLIC_AWARENESS_API_URL || "http://localhost:4100";
 
 export interface ApiError {
     error: string;
