@@ -52,23 +52,35 @@ export class DeliveryEngine {
 
     /** Atomically move a batch of due deliveries to `delivering`. */
     private async claimBatch(): Promise<Delivery[]> {
-        const rows = await AppDataSource.query(
-            `UPDATE deliveries SET status = 'delivering'
-             WHERE id IN (
-                 SELECT id FROM deliveries
-                 WHERE status IN ('pending', 'failed')
-                   AND "nextAttemptAt" <= now()
-                 ORDER BY "nextAttemptAt"
-                 LIMIT $1
-                 FOR UPDATE SKIP LOCKED
-             )
-             RETURNING *`,
-            [BATCH_SIZE],
-        );
-        return rows as Delivery[];
+        // UPDATE ... RETURNING via the query builder so the returned rows are
+        // exposed as a well-defined `.raw` array. The inner SELECT ... FOR
+        // UPDATE SKIP LOCKED keeps the claim safe across concurrent ticks.
+        const result = await AppDataSource.getRepository(Delivery)
+            .createQueryBuilder()
+            .update(Delivery)
+            .set({ status: "delivering" })
+            .where(
+                `id IN (
+                    SELECT id FROM deliveries
+                    WHERE status IN ('pending', 'failed')
+                      AND "nextAttemptAt" <= now()
+                    ORDER BY "nextAttemptAt"
+                    LIMIT :limit
+                    FOR UPDATE SKIP LOCKED
+                )`,
+                { limit: BATCH_SIZE },
+            )
+            .returning("*")
+            .execute();
+
+        return (result.raw ?? []) as Delivery[];
     }
 
     private async attemptDelivery(delivery: Delivery): Promise<void> {
+        if (!delivery?.id) {
+            console.warn("[aaas] skipping delivery row with no id");
+            return;
+        }
         const subscription = await AppDataSource.getRepository(
             Subscription,
         ).findOne({ where: { id: delivery.subscriptionId } });
