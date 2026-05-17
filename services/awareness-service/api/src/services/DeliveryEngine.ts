@@ -148,7 +148,7 @@ export class DeliveryEngine {
                 subscriptionId: delivery.subscriptionId,
                 packetId: delivery.packetId,
                 consumerId: subscription?.consumerId ?? delivery.subscriptionId,
-                payload: (ctx?.payload ?? {}) as Record<string, unknown>,
+                payload: (ctx?.payload ?? {}) as any,
                 targetUrl: subscription?.targetUrl ?? "",
                 totalAttempts: attempts,
                 lastError: message,

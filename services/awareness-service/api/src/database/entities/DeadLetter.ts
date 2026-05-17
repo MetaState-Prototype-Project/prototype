@@ -29,7 +29,7 @@ export class DeadLetter {
 
     /** The exact body that failed to deliver. */
     @Column({ type: "jsonb" })
-    payload!: Record<string, unknown>;
+    payload!: any;
 
     @Column({ type: "varchar" })
     targetUrl!: string;

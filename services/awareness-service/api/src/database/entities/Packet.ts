@@ -33,8 +33,9 @@ export class Packet {
     @Column({ type: "varchar", nullable: true })
     w3id!: string | null;
 
+    // typed as `any` so TypeORM's deep-partial insert/upsert types accept it.
     @Column({ type: "jsonb", nullable: true })
-    data!: Record<string, unknown> | null;
+    data!: any;
 
     @Column({ type: "varchar", default: "create" })
     operation!: PacketOperation;
