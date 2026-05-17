@@ -162,7 +162,7 @@ AaaS is designed to be dropped in with **zero receiver-side changes**:
 | `AAAS_JWT_SECRET` | Signs portal session JWTs |
 | `AWARENESS_MAX_ATTEMPTS` | Delivery attempts before dead-lettering (default 8) |
 | `AWARENESS_DELIVERY_POLL_MS` | Delivery engine poll interval (default 2000) |
-| `AWARENESS_NEO4J_URI` / `_USER` / `_PASSWORD` | Neo4j source for the backfill |
+| `NEO4J_URI` / `NEO4J_USER` / `NEO4J_PASSWORD` | Standard eVault Neo4j vars — reused by the one-time backfill |
 | `PUBLIC_AWARENESS_API_URL` | (portal) AaaS API base URL |
 
 ## Running locally

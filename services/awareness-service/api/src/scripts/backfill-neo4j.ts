@@ -34,9 +34,11 @@ function deserialize(value: unknown, type: string): unknown {
 }
 
 async function main(): Promise<void> {
-    const uri = process.env.AWARENESS_NEO4J_URI ?? "bolt://localhost:7687";
-    const user = process.env.AWARENESS_NEO4J_USER ?? "neo4j";
-    const password = process.env.AWARENESS_NEO4J_PASSWORD ?? "neo4j";
+    // Reuse evault-core's own Neo4j connection vars from the root .env -
+    // AaaS runs on the same node, so it reads the same graph.
+    const uri = process.env.NEO4J_URI ?? "bolt://localhost:7687";
+    const user = process.env.NEO4J_USER ?? "neo4j";
+    const password = process.env.NEO4J_PASSWORD ?? "neo4j";
     const evaultPublicKey = process.env.EVAULT_PUBLIC_KEY ?? null;
 
     const driver = neo4j.driver(uri, neo4j.auth.basic(user, password));
