@@ -17,6 +17,7 @@ import {
     recordAttempt,
 } from "./passphrase-rate-limiter";
 import { type TypedReply, type TypedRequest, WatcherRequest } from "./types";
+import { FILE_SCHEMA_ID } from "../utils/w3ds-uri";
 
 interface WatcherSignatureRequest {
     w3id: string;
@@ -53,6 +54,10 @@ export async function registerHttpRoutes(
                 {
                     name: "provisioning",
                     description: "eVault provisioning endpoints",
+                },
+                {
+                    name: "files",
+                    description: "File dereferencing endpoints",
                 },
             ],
         },
@@ -350,6 +355,98 @@ export async function registerHttpRoutes(
                         error instanceof Error
                             ? error.message
                             : "Failed to fetch logs",
+                });
+            }
+        },
+    );
+
+    // Dereference a w3ds://file URI — resolves the File meta-envelope and
+    // redirects to the public object-storage URL of the underlying file.
+    server.get<{ Params: { metaEnvelopeId: string } }>(
+        "/files/:metaEnvelopeId",
+        {
+            schema: {
+                tags: ["files"],
+                description:
+                    "Dereference a file by its meta-envelope ID and redirect to its public URL",
+                headers: {
+                    type: "object",
+                    required: ["X-ENAME"],
+                    properties: {
+                        "X-ENAME": { type: "string" },
+                    },
+                },
+                params: {
+                    type: "object",
+                    required: ["metaEnvelopeId"],
+                    properties: {
+                        metaEnvelopeId: { type: "string" },
+                    },
+                },
+                response: {
+                    302: { type: "null" },
+                    400: {
+                        type: "object",
+                        properties: { error: { type: "string" } },
+                    },
+                    404: {
+                        type: "object",
+                        properties: { error: { type: "string" } },
+                    },
+                },
+            },
+        },
+        async (request, reply) => {
+            const eName =
+                request.headers["x-ename"] || request.headers["X-ENAME"];
+
+            if (!eName || typeof eName !== "string") {
+                return reply
+                    .status(400)
+                    .send({ error: "X-ENAME header is required" });
+            }
+
+            const { metaEnvelopeId } = request.params;
+            if (!metaEnvelopeId || typeof metaEnvelopeId !== "string") {
+                return reply
+                    .status(400)
+                    .send({ error: "A valid meta-envelope ID is required" });
+            }
+
+            if (!dbService) {
+                return reply
+                    .status(500)
+                    .send({ error: "Database service not available" });
+            }
+
+            try {
+                const metaEnvelope = await dbService.findMetaEnvelopeById(
+                    metaEnvelopeId,
+                    eName,
+                );
+
+                if (!metaEnvelope || metaEnvelope.ontology !== FILE_SCHEMA_ID) {
+                    return reply.status(404).send({
+                        error: `No file found for w3ds://file?id=${eName}/${metaEnvelopeId}`,
+                    });
+                }
+
+                const publicUrl = (metaEnvelope.parsed as Record<string, any>)
+                    ?.publicUrl;
+                if (!publicUrl || typeof publicUrl !== "string") {
+                    return reply.status(404).send({
+                        error: "File meta-envelope has no public URL",
+                    });
+                }
+
+                return reply.redirect(publicUrl);
+            } catch (error) {
+                console.error("Error dereferencing file:", error);
+                return reply.status(500).send({
+                    error:
+                        error instanceof Error
+                            ? error.message
+                            : "Failed to dereference file",
                 });
             }
         },
