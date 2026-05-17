@@ -78,7 +78,13 @@ export class W3dsAuthService {
     }
 
     issueToken(ename: string): string {
-        return jwt.sign({ ename }, config.jwtSecret, { expiresIn: "7d" });
+        // isAdmin is embedded so the portal can show/hide admin UI without an
+        // extra round-trip; the API still re-checks it server-side.
+        return jwt.sign(
+            { ename, isAdmin: config.adminEnames.includes(ename) },
+            config.jwtSecret,
+            { expiresIn: "7d" },
+        );
     }
 
     verifyToken(token: string): { ename: string } | null {

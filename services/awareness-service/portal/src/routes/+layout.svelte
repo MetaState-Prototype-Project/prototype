@@ -1,9 +1,10 @@
 <script lang="ts">
     import "../app.css";
-    import { sessionToken, logout } from "$lib/session";
+    import { sessionToken, session, logout } from "$lib/session";
 
     let { children } = $props();
     let loggedIn = $derived($sessionToken !== null);
+    let isAdmin = $derived($session?.isAdmin ?? false);
 </script>
 
 <div class="min-h-screen">
@@ -16,7 +17,9 @@
             {#if loggedIn}
                 <a href="/dashboard" class="text-sm text-gray-600 hover:text-gray-900">Dashboard</a>
                 <a href="/apply" class="text-sm text-gray-600 hover:text-gray-900">Apply</a>
-                <a href="/admin" class="text-sm text-gray-600 hover:text-gray-900">Admin</a>
+                {#if isAdmin}
+                    <a href="/admin" class="text-sm text-gray-600 hover:text-gray-900">Admin</a>
+                {/if}
                 <button
                     class="text-sm text-gray-600 hover:text-gray-900"
                     onclick={logout}

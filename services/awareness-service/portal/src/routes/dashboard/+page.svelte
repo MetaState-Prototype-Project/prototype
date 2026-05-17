@@ -2,8 +2,12 @@
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import { get } from "svelte/store";
-    import { api } from "$lib/api";
+    import { api, API_BASE } from "$lib/api";
+    import { fetchSchemas, type OntologySchema } from "$lib/ontology";
     import { sessionToken } from "$lib/session";
+
+    /** Link straight to the interactive API reference, derived from API_BASE. */
+    const apiDocsUrl = `${API_BASE}/docs`;
 
     interface Consumer {
         id: string;
@@ -37,10 +41,40 @@
 
     // new subscription form
     let subTarget = $state("");
-    let subOntologies = $state("");
-    let subEvaults = $state("");
+    let schemas = $state<OntologySchema[]>([]);
+    let selectedOntologies = $state<string[]>([]);
+    let ontologyPick = $state("");
+    let evaultTags = $state<string[]>([]);
+    let evaultInput = $state("");
 
     const token = () => get(sessionToken);
+
+    function ontologyTitle(id: string): string {
+        return schemas.find((s) => s.id === id)?.title ?? id;
+    }
+
+    function addOntology() {
+        if (ontologyPick && !selectedOntologies.includes(ontologyPick)) {
+            selectedOntologies = [...selectedOntologies, ontologyPick];
+        }
+        ontologyPick = "";
+    }
+
+    function removeOntology(id: string) {
+        selectedOntologies = selectedOntologies.filter((o) => o !== id);
+    }
+
+    function addEvaultTag() {
+        const tag = evaultInput.trim();
+        if (tag && !evaultTags.includes(tag)) {
+            evaultTags = [...evaultTags, tag];
+        }
+        evaultInput = "";
+    }
+
+    function removeEvaultTag(tag: string) {
+        evaultTags = evaultTags.filter((t) => t !== tag);
+    }
 
     async function loadApproved() {
         const [subs, dels, keys] = await Promise.all([
@@ -105,17 +139,13 @@
                 token: token(),
                 body: {
                     targetUrl: subTarget || undefined,
-                    ontologyFilter: subOntologies
-                        .split(",")
-                        .map((o) => o.trim())
-                        .filter(Boolean),
-                    evaultFilter: subEvaults
-                        .split(",")
-                        .map((o) => o.trim())
-                        .filter(Boolean),
+                    ontologyFilter: selectedOntologies,
+                    evaultFilter: evaultTags,
                 },
             });
-            subTarget = subOntologies = subEvaults = "";
+            subTarget = "";
+            selectedOntologies = [];
+            evaultTags = [];
             await loadApproved();
         } catch (e) {
             error = e instanceof Error ? e.message : "failed to create subscription";
@@ -136,11 +166,25 @@
             return;
         }
         void load();
+        // Best-effort: the form still works if the ontology service is down.
+        fetchSchemas()
+            .then((s) => (schemas = s))
+            .catch(() => (schemas = []));
     });
 </script>
 
 <section>
-    <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
+    <div class="flex items-center justify-between">
+        <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <a
+            href={apiDocsUrl}
+            target="_blank"
+            rel="noopener"
+            class="rounded border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
+        >
+            API docs ↗
+        </a>
+    </div>
 
     {#if error}
         <p class="mt-4 rounded bg-red-50 px-4 py-2 text-sm text-red-700">{error}</p>
@@ -213,23 +257,106 @@
         <!-- Subscriptions -->
         <div class="mt-6 rounded-lg border border-gray-200 bg-white p-6">
             <h2 class="font-semibold text-gray-900">Webhook subscriptions</h2>
-            <div class="mt-3 grid gap-2 sm:grid-cols-3">
-                <input
-                    bind:value={subTarget}
-                    placeholder="Target URL (optional)"
-                    class="rounded border border-gray-300 px-3 py-2 text-sm"
-                />
-                <input
-                    bind:value={subOntologies}
-                    placeholder="Ontologies (comma, blank = all)"
-                    class="rounded border border-gray-300 px-3 py-2 text-sm"
-                />
-                <input
-                    bind:value={subEvaults}
-                    placeholder="eVaults (comma, blank = all)"
-                    class="rounded border border-gray-300 px-3 py-2 text-sm"
-                />
+
+            <div class="mt-3 space-y-3">
+                <label class="block">
+                    <span class="text-xs font-medium text-gray-600">
+                        Target URL (optional — defaults to your webhook base)
+                    </span>
+                    <input
+                        bind:value={subTarget}
+                        placeholder="https://my-platform.example/api/webhook"
+                        class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                    />
+                </label>
+
+                <!-- Ontology picker, fed by the ontology service -->
+                <div>
+                    <span class="text-xs font-medium text-gray-600">
+                        Ontologies (none = all)
+                    </span>
+                    <div class="mt-1 flex gap-2">
+                        <select
+                            bind:value={ontologyPick}
+                            class="flex-1 rounded border border-gray-300 px-3 py-2 text-sm"
+                        >
+                            <option value="">Select an ontology…</option>
+                            {#each schemas as schema (schema.id)}
+                                <option value={schema.id}>
+                                    {schema.title} ({schema.id})
+                                </option>
+                            {/each}
+                        </select>
+                        <button
+                            type="button"
+                            class="rounded border border-gray-300 px-3 py-2 text-sm"
+                            onclick={addOntology}
+                        >
+                            Add
+                        </button>
+                    </div>
+                    {#if schemas.length === 0}
+                        <p class="mt-1 text-xs text-gray-400">
+                            Ontology catalogue unavailable.
+                        </p>
+                    {/if}
+                    {#if selectedOntologies.length}
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            {#each selectedOntologies as id (id)}
+                                <span
+                                    class="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-xs text-indigo-700"
+                                >
+                                    {ontologyTitle(id)}
+                                    <button
+                                        type="button"
+                                        class="text-indigo-400 hover:text-indigo-700"
+                                        onclick={() => removeOntology(id)}
+                                    >
+                                        ✕
+                                    </button>
+                                </span>
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
+
+                <!-- eVault filter as a tag input -->
+                <div>
+                    <span class="text-xs font-medium text-gray-600">
+                        eVaults (none = all)
+                    </span>
+                    <input
+                        bind:value={evaultInput}
+                        onkeydown={(e) => {
+                            if (e.key === "Enter") {
+                                e.preventDefault();
+                                addEvaultTag();
+                            }
+                        }}
+                        placeholder="Type an eVault (w3id or public key) and press Enter"
+                        class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                    />
+                    {#if evaultTags.length}
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            {#each evaultTags as tag (tag)}
+                                <span
+                                    class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700"
+                                >
+                                    {tag}
+                                    <button
+                                        type="button"
+                                        class="text-gray-400 hover:text-gray-700"
+                                        onclick={() => removeEvaultTag(tag)}
+                                    >
+                                        ✕
+                                    </button>
+                                </span>
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
             </div>
+
             <button
                 class="mt-3 rounded bg-indigo-600 px-3 py-1.5 text-sm text-white"
                 onclick={createSubscription}
@@ -250,7 +377,9 @@
                         </div>
                         <p class="mt-1 text-gray-500">
                             ontologies: {sub.ontologyFilter.length
-                                ? sub.ontologyFilter.join(", ")
+                                ? sub.ontologyFilter
+                                      .map((o) => ontologyTitle(o))
+                                      .join(", ")
                                 : "all"} · eVaults: {sub.evaultFilter.length
                                 ? sub.evaultFilter.join(", ")
                                 : "all"} · {sub.active ? "active" : "inactive"}
