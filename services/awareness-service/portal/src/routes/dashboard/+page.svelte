@@ -175,40 +175,40 @@
 
 <section>
     <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <h1 class="text-2xl font-bold text-white">Dashboard</h1>
         <a
             href={apiDocsUrl}
             target="_blank"
             rel="noopener"
-            class="rounded border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
+            class="rounded border border-indigo-400/30 bg-indigo-500/10 px-3 py-1.5 text-sm font-medium text-indigo-300 hover:bg-indigo-500/20"
         >
             API docs ↗
         </a>
     </div>
 
     {#if error}
-        <p class="mt-4 rounded bg-red-50 px-4 py-2 text-sm text-red-700">{error}</p>
+        <p class="mt-4 rounded bg-red-500/10 px-4 py-2 text-sm text-red-300">{error}</p>
     {/if}
 
     {#if loading}
-        <p class="mt-4 text-gray-500">Loading…</p>
+        <p class="mt-4 text-gray-400">Loading…</p>
     {:else if !consumer}
-        <div class="mt-6 rounded-lg border border-gray-200 bg-white p-6">
-            <p class="text-gray-600">
+        <div class="mt-6 rounded-lg border border-white/10 bg-[#13161d] p-6">
+            <p class="text-gray-400">
                 You have not applied for access yet.
             </p>
             <a
                 href="/apply"
-                class="mt-3 inline-block rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white"
+                class="mt-3 inline-block rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
             >
                 Apply for access
             </a>
         </div>
     {:else if consumer.status !== "approved"}
-        <div class="mt-6 rounded-lg border border-gray-200 bg-white p-6">
-            <p class="text-gray-700">
+        <div class="mt-6 rounded-lg border border-white/10 bg-[#13161d] p-6">
+            <p class="text-gray-300">
                 Application status:
-                <strong class="capitalize">{applicationStatus ?? consumer.status}</strong>
+                <strong class="capitalize text-white">{applicationStatus ?? consumer.status}</strong>
             </p>
             <p class="mt-2 text-sm text-gray-500">
                 An admin must approve your application before you can poll
@@ -217,31 +217,31 @@
         </div>
     {:else}
         <!-- API keys -->
-        <div class="mt-6 rounded-lg border border-gray-200 bg-white p-6">
+        <div class="mt-6 rounded-lg border border-white/10 bg-[#13161d] p-6">
             <div class="flex items-center justify-between">
-                <h2 class="font-semibold text-gray-900">API keys</h2>
+                <h2 class="font-semibold text-white">API keys</h2>
                 <button
-                    class="rounded bg-indigo-600 px-3 py-1.5 text-sm text-white"
+                    class="rounded bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500"
                     onclick={issueKey}
                 >
                     Issue new key
                 </button>
             </div>
             {#if newKey}
-                <p class="mt-3 break-all rounded bg-green-50 px-3 py-2 text-sm text-green-800">
+                <p class="mt-3 break-all rounded bg-green-500/10 px-3 py-2 text-sm text-green-300">
                     Copy this key now — it is shown only once:
                     <code class="font-mono">{newKey}</code>
                 </p>
             {/if}
-            <ul class="mt-3 divide-y divide-gray-100">
+            <ul class="mt-3 divide-y divide-white/5">
                 {#each apiKeys as key (key.id)}
                     <li class="flex items-center justify-between py-2 text-sm">
-                        <span class="font-mono text-gray-700">{key.keyPrefix}…</span>
+                        <span class="font-mono text-gray-300">{key.keyPrefix}…</span>
                         {#if key.revoked}
-                            <span class="text-gray-400">revoked</span>
+                            <span class="text-gray-500">revoked</span>
                         {:else}
                             <button
-                                class="text-red-600 hover:underline"
+                                class="text-red-400 hover:underline"
                                 onclick={() => revokeKey(key.id)}
                             >
                                 Revoke
@@ -249,36 +249,36 @@
                         {/if}
                     </li>
                 {:else}
-                    <li class="py-2 text-sm text-gray-400">No keys yet.</li>
+                    <li class="py-2 text-sm text-gray-500">No keys yet.</li>
                 {/each}
             </ul>
         </div>
 
         <!-- Subscriptions -->
-        <div class="mt-6 rounded-lg border border-gray-200 bg-white p-6">
-            <h2 class="font-semibold text-gray-900">Webhook subscriptions</h2>
+        <div class="mt-6 rounded-lg border border-white/10 bg-[#13161d] p-6">
+            <h2 class="font-semibold text-white">Webhook subscriptions</h2>
 
             <div class="mt-3 space-y-3">
                 <label class="block">
-                    <span class="text-xs font-medium text-gray-600">
+                    <span class="text-xs font-medium text-gray-400">
                         Target URL (optional — defaults to your webhook base)
                     </span>
                     <input
                         bind:value={subTarget}
                         placeholder="https://my-platform.example/api/webhook"
-                        class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                        class="mt-1 w-full rounded border border-white/10 bg-[#1b1f29] px-3 py-2 text-sm text-gray-100 placeholder-gray-500"
                     />
                 </label>
 
                 <!-- Ontology picker, fed by the ontology service -->
                 <div>
-                    <span class="text-xs font-medium text-gray-600">
+                    <span class="text-xs font-medium text-gray-400">
                         Ontologies (none = all)
                     </span>
                     <div class="mt-1 flex gap-2">
                         <select
                             bind:value={ontologyPick}
-                            class="flex-1 rounded border border-gray-300 px-3 py-2 text-sm"
+                            class="flex-1 rounded border border-white/10 bg-[#1b1f29] px-3 py-2 text-sm text-gray-100"
                         >
                             <option value="">Select an ontology…</option>
                             {#each schemas as schema (schema.id)}
@@ -289,14 +289,14 @@
                         </select>
                         <button
                             type="button"
-                            class="rounded border border-gray-300 px-3 py-2 text-sm"
+                            class="rounded border border-white/10 bg-[#1b1f29] px-3 py-2 text-sm text-gray-200 hover:bg-[#232838]"
                             onclick={addOntology}
                         >
                             Add
                         </button>
                     </div>
                     {#if schemas.length === 0}
-                        <p class="mt-1 text-xs text-gray-400">
+                        <p class="mt-1 text-xs text-gray-500">
                             Ontology catalogue unavailable.
                         </p>
                     {/if}
@@ -304,12 +304,12 @@
                         <div class="mt-2 flex flex-wrap gap-2">
                             {#each selectedOntologies as id (id)}
                                 <span
-                                    class="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-xs text-indigo-700"
+                                    class="inline-flex items-center gap-1 rounded-full bg-indigo-500/15 px-2.5 py-1 text-xs text-indigo-300"
                                 >
                                     {ontologyTitle(id)}
                                     <button
                                         type="button"
-                                        class="text-indigo-400 hover:text-indigo-700"
+                                        class="text-indigo-400 hover:text-indigo-200"
                                         onclick={() => removeOntology(id)}
                                     >
                                         ✕
@@ -322,7 +322,7 @@
 
                 <!-- eVault filter as a tag input -->
                 <div>
-                    <span class="text-xs font-medium text-gray-600">
+                    <span class="text-xs font-medium text-gray-400">
                         eVaults (none = all)
                     </span>
                     <input
@@ -334,18 +334,18 @@
                             }
                         }}
                         placeholder="Type an eVault (w3id or public key) and press Enter"
-                        class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                        class="mt-1 w-full rounded border border-white/10 bg-[#1b1f29] px-3 py-2 text-sm text-gray-100 placeholder-gray-500"
                     />
                     {#if evaultTags.length}
                         <div class="mt-2 flex flex-wrap gap-2">
                             {#each evaultTags as tag (tag)}
                                 <span
-                                    class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700"
+                                    class="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1 text-xs text-gray-300"
                                 >
                                     {tag}
                                     <button
                                         type="button"
-                                        class="text-gray-400 hover:text-gray-700"
+                                        class="text-gray-500 hover:text-gray-200"
                                         onclick={() => removeEvaultTag(tag)}
                                     >
                                         ✕
@@ -358,18 +358,18 @@
             </div>
 
             <button
-                class="mt-3 rounded bg-indigo-600 px-3 py-1.5 text-sm text-white"
+                class="mt-3 rounded bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500"
                 onclick={createSubscription}
             >
                 Add subscription
             </button>
-            <ul class="mt-4 divide-y divide-gray-100">
+            <ul class="mt-4 divide-y divide-white/5">
                 {#each subscriptions as sub (sub.id)}
                     <li class="py-3 text-sm">
                         <div class="flex items-center justify-between">
-                            <span class="font-mono text-gray-700">{sub.targetUrl}</span>
+                            <span class="font-mono text-gray-300">{sub.targetUrl}</span>
                             <button
-                                class="text-red-600 hover:underline"
+                                class="text-red-400 hover:underline"
                                 onclick={() => deleteSubscription(sub.id)}
                             >
                                 Disable
@@ -386,21 +386,21 @@
                         </p>
                     </li>
                 {:else}
-                    <li class="py-2 text-sm text-gray-400">No subscriptions.</li>
+                    <li class="py-2 text-sm text-gray-500">No subscriptions.</li>
                 {/each}
             </ul>
         </div>
 
         <!-- Recent deliveries -->
-        <div class="mt-6 rounded-lg border border-gray-200 bg-white p-6">
-            <h2 class="font-semibold text-gray-900">Recent deliveries</h2>
-            <ul class="mt-3 divide-y divide-gray-100">
+        <div class="mt-6 rounded-lg border border-white/10 bg-[#13161d] p-6">
+            <h2 class="font-semibold text-white">Recent deliveries</h2>
+            <ul class="mt-3 divide-y divide-white/5">
                 {#each deliveries as d (d.id)}
                     <li class="flex items-center justify-between py-2 text-sm">
-                        <span class="font-mono text-gray-600">{d.packetId}</span>
+                        <span class="font-mono text-gray-400">{d.packetId}</span>
                         <span
-                            class:text-green-600={d.status === "delivered"}
-                            class:text-red-600={d.status === "failed"}
+                            class:text-green-400={d.status === "delivered"}
+                            class:text-red-400={d.status === "failed"}
                             class:text-gray-500={d.status !== "delivered" &&
                                 d.status !== "failed"}
                         >
@@ -408,7 +408,7 @@
                         </span>
                     </li>
                 {:else}
-                    <li class="py-2 text-sm text-gray-400">No deliveries yet.</li>
+                    <li class="py-2 text-sm text-gray-500">No deliveries yet.</li>
                 {/each}
             </ul>
         </div>

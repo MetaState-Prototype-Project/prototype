@@ -63,39 +63,39 @@
 </script>
 
 <section>
-    <h1 class="text-2xl font-bold text-gray-900">Dead-lettered deliveries</h1>
-    <p class="mt-2 text-sm text-gray-600">
+    <h1 class="text-2xl font-bold text-white">Dead-lettered deliveries</h1>
+    <p class="mt-2 text-sm text-gray-400">
         Deliveries that exhausted every retry attempt. Replay re-queues them.
     </p>
 
     {#if notAdmin}
-        <p class="mt-6 rounded bg-amber-50 px-4 py-3 text-sm text-amber-700">
+        <p class="mt-6 rounded bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
             Your eName is not in the admin allowlist.
         </p>
     {:else if error}
-        <p class="mt-4 rounded bg-red-50 px-4 py-2 text-sm text-red-700">{error}</p>
+        <p class="mt-4 rounded bg-red-500/10 px-4 py-2 text-sm text-red-300">{error}</p>
     {:else if loading}
-        <p class="mt-4 text-gray-500">Loading…</p>
+        <p class="mt-4 text-gray-400">Loading…</p>
     {:else}
         <ul class="mt-6 space-y-3">
             {#each deadLetters as dl (dl.id)}
-                <li class="rounded-lg border border-gray-200 bg-white p-4 text-sm">
-                    <div class="flex items-start justify-between">
+                <li class="rounded-lg border border-white/10 bg-[#13161d] p-4 text-sm">
+                    <div class="flex items-start justify-between gap-4">
                         <div>
-                            <p class="font-mono text-gray-700">{dl.targetUrl}</p>
+                            <p class="font-mono text-gray-200">{dl.targetUrl}</p>
                             <p class="text-gray-500">
                                 packet {dl.packetId} · {dl.totalAttempts} attempts ·
                                 status {dl.lastResponseStatus ?? "n/a"}
                             </p>
                             {#if dl.lastError}
-                                <p class="mt-1 text-red-600">{dl.lastError}</p>
+                                <p class="mt-1 text-red-400">{dl.lastError}</p>
                             {/if}
                         </div>
                         {#if dl.resolved}
-                            <span class="text-green-600">resolved</span>
+                            <span class="text-green-400">resolved</span>
                         {:else}
                             <button
-                                class="rounded bg-indigo-600 px-3 py-1.5 text-white"
+                                class="rounded bg-indigo-600 px-3 py-1.5 text-white hover:bg-indigo-500"
                                 onclick={() => replay(dl.id)}
                             >
                                 Replay
@@ -104,7 +104,7 @@
                     </div>
                 </li>
             {:else}
-                <li class="text-gray-400">No dead letters.</li>
+                <li class="text-gray-500">No dead letters.</li>
             {/each}
         </ul>
     {/if}

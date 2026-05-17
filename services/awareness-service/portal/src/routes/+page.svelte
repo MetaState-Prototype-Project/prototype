@@ -47,34 +47,35 @@
 </script>
 
 <section class="mx-auto max-w-xl text-center">
-    <h1 class="text-3xl font-bold text-gray-900">Awareness as a Service</h1>
-    <p class="mt-3 text-gray-600">
+    <h1 class="text-3xl font-bold text-white">Awareness as a Service</h1>
+    <p class="mt-3 text-gray-400">
         Query MetaEnvelope awareness packets and register webhook subscriptions
         scoped by ontology and eVault. Sign in with your W3DS identity to apply
         for access.
     </p>
 
     {#if error}
-        <p class="mt-4 rounded bg-red-50 px-4 py-2 text-sm text-red-700">{error}</p>
+        <p class="mt-4 rounded bg-red-500/10 px-4 py-2 text-sm text-red-300">{error}</p>
     {/if}
 
     {#if !uri}
         <button
-            class="mt-8 rounded-lg bg-indigo-600 px-6 py-3 font-medium text-white hover:bg-indigo-700"
+            class="mt-8 rounded-lg bg-indigo-600 px-6 py-3 font-medium text-white hover:bg-indigo-500"
             onclick={startLogin}
         >
             Sign in with W3DS
         </button>
     {:else}
         <div class="mt-8 flex flex-col items-center gap-4">
-            <p class="text-sm text-gray-600">
+            <p class="text-sm text-gray-400">
                 Scan with your eID wallet to sign in.
             </p>
-            <div class="rounded-lg bg-white p-4 shadow">
+            <!-- QR keeps a white plate for scanner contrast -->
+            <div class="rounded-lg bg-white p-4 shadow-lg">
                 <QrCode value={uri} size={220} />
             </div>
             {#if polling}
-                <p class="text-sm text-gray-400">Waiting for signature…</p>
+                <p class="text-sm text-gray-500">Waiting for signature…</p>
             {/if}
         </div>
     {/if}

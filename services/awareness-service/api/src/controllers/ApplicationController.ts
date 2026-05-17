@@ -41,15 +41,13 @@ export function applicationRouter(): Router {
                 .json({ error: "consumer is already approved" });
         }
 
-        const { name, contactEmail, justification, webhookBaseUrl } =
-            req.body ?? {};
-        const requestedOntologies = Array.isArray(
-            req.body?.requestedOntologies,
-        )
-            ? req.body.requestedOntologies.filter(
-                  (o: unknown): o is string => typeof o === "string",
-              )
-            : [];
+        // An application is just: name, website URL and description.
+        const { name, websiteUrl, description } = req.body ?? {};
+        if (!name || !websiteUrl || !description) {
+            return res.status(400).json({
+                error: "name, websiteUrl and description are required",
+            });
+        }
 
         if (!consumer) {
             consumer = consumerRepo.create({
@@ -57,9 +55,8 @@ export function applicationRouter(): Router {
                 status: "pending",
             });
         }
-        consumer.name = name ?? consumer.name;
-        consumer.contactEmail = contactEmail ?? consumer.contactEmail;
-        consumer.webhookBaseUrl = webhookBaseUrl ?? consumer.webhookBaseUrl;
+        consumer.name = name;
+        consumer.webhookBaseUrl = websiteUrl;
         consumer.status = "pending";
         await consumerRepo.save(consumer);
 
@@ -70,8 +67,8 @@ export function applicationRouter(): Router {
         if (!application) {
             application = appRepo.create({ consumerId: consumer.id });
         }
-        application.justification = justification ?? null;
-        application.requestedOntologies = requestedOntologies;
+        application.justification = description;
+        application.requestedOntologies = [];
         application.status = "pending";
         await appRepo.save(application);
 
