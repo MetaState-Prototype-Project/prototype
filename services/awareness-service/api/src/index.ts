@@ -1,7 +1,9 @@
 import "reflect-metadata";
+import { apiReference } from "@scalar/express-api-reference";
 import cors from "cors";
 import express from "express";
 import { config } from "./config";
+import { openApiDocument } from "./openapi";
 import { adminRouter } from "./controllers/AdminController";
 import { applicationRouter } from "./controllers/ApplicationController";
 import { authRouter } from "./controllers/AuthController";
@@ -24,6 +26,19 @@ async function start(): Promise<void> {
     app.get("/health", (_req, res) => {
         res.json({ status: "ok", service: "awareness-service" });
     });
+
+    // Raw OpenAPI document + interactive Scalar API reference at /docs.
+    app.get("/openapi.json", (_req, res) => {
+        res.json(openApiDocument);
+    });
+    app.use(
+        "/docs",
+        apiReference({
+            content: openApiDocument,
+            theme: "purple",
+            metaData: { title: "Awareness as a Service API" },
+        }),
+    );
 
     app.use(ingestRouter());
     app.use(queryRouter());

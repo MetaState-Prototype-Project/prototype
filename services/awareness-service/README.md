@@ -45,6 +45,17 @@ pnpm --filter awareness-portal dev
 Then set `AWARENESS_SERVICE_URL` and `AWARENESS_INGEST_SECRET` for evault-core
 so it forwards packets here.
 
+## API documentation
+
+The running API serves an interactive [Scalar](https://github.com/scalar/scalar)
+reference and a raw OpenAPI 3.1 document:
+
+- `GET /docs` — Scalar API reference UI
+- `GET /openapi.json` — OpenAPI 3.1 document
+
+A prose overview lives in the docs site under **Services → Awareness as a
+Service**.
+
 ## Backward compatibility
 
 On launch AaaS seeds a catch-all subscription for every platform currently in
