@@ -10,6 +10,8 @@ import {
     computeEnvelopeHashForDelete,
 } from "../db/envelope-hash";
 import { exampleQueries } from "./examples/examples";
+import { StorageService } from "../../services/StorageService";
+import { buildFileUri, FILE_SCHEMA_ID } from "../utils/w3ds-uri";
 import { typeDefs } from "./typedefs";
 import { VaultAccessGuard, type VaultContext } from "./vault-access-guard";
 import { MessageNotificationService } from "../../services/MessageNotificationService";
@@ -1143,6 +1145,162 @@ export class GraphQLServer {
                             ...result,
                             metaEnvelope: metaEnvelopeWithParsed,
                         };
+                    },
+                ),
+                // Upload a file to object storage and create a File meta-envelope
+                uploadFile: this.accessGuard.middleware(
+                    async (
+                        _: any,
+                        {
+                            input,
+                        }: {
+                            input: {
+                                filename: string;
+                                contentType: string;
+                                content: string;
+                                acl: string[];
+                            };
+                        },
+                        context: VaultContext,
+                    ) => {
+                        if (!context.eName) {
+                            return {
+                                errors: [
+                                    {
+                                        message: "X-ENAME header is required",
+                                        code: "MISSING_ENAME",
+                                    },
+                                ],
+                            };
+                        }
+
+                        if (!StorageService.isConfigured()) {
+                            return {
+                                errors: [
+                                    {
+                                        message:
+                                            "Object storage is not configured on this eVault",
+                                        code: "STORAGE_NOT_CONFIGURED",
+                                    },
+                                ],
+                            };
+                        }
+
+                        // Accept either raw base64 or a data: URI
+                        const base64 = input.content.includes(",")
+                            ? input.content.slice(
+                                  input.content.indexOf(",") + 1,
+                              )
+                            : input.content;
+
+                        // Strictly validate base64 before decoding — Buffer.from
+                        // silently drops invalid characters, so malformed input
+                        // must be rejected up-front. Padding ('=') is allowed
+                        // only as the last 1-2 characters.
+                        const isValidBase64 =
+                            base64.length > 0 &&
+                            base64.length % 4 === 0 &&
+                            /^[A-Za-z0-9+/]+={0,2}$/.test(base64);
+                        if (!isValidBase64) {
+                            return {
+                                errors: [
+                                    {
+                                        field: "content",
+                                        message: "File content is empty or not valid base64",
+                                        code: "INVALID_CONTENT",
+                                    },
+                                ],
+                            };
+                        }
+
+                        const buffer = Buffer.from(base64, "base64");
+
+                        const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50 MB
+                        if (buffer.length > MAX_FILE_BYTES) {
+                            return {
+                                errors: [
+                                    {
+                                        field: "content",
+                                        message: "File exceeds the 50 MB upload limit",
+                                        code: "FILE_TOO_LARGE",
+                                    },
+                                ],
+                            };
+                        }
+
+                        // Track the uploaded object so a failed DB write can be
+                        // compensated by deleting the now-orphaned blob.
+                        let uploadedKey: string | null = null;
+                        let storage: StorageService | null = null;
+                        try {
+                            const objectId = require("uuid").v4();
+                            const key = StorageService.buildKey(
+                                context.eName,
+                                input.filename,
+                                objectId,
+                            );
+                            storage = new StorageService();
+                            const publicUrl = await storage.uploadObject({
+                                buffer,
+                                contentType: input.contentType,
+                                key,
+                            });
+                            uploadedKey = key;
+
+                            const payload = {
+                                filename: input.filename,
+                                contentType: input.contentType,
+                                size: buffer.length,
+                                blobKey: key,
+                                publicUrl,
+                                uploadedAt: new Date().toISOString(),
+                            };
+
+                            const result = await this.db.storeMetaEnvelope(
+                                {
+                                    ontology: FILE_SCHEMA_ID,
+                                    payload,
+                                    acl: input.acl,
+                                },
+                                input.acl,
+                                context.eName,
+                            );
+
+                            return {
+                                uri: buildFileUri(
+                                    context.eName,
+                                    result.metaEnvelope.id,
+                                ),
+                                metaEnvelopeId: result.metaEnvelope.id,
+                                publicUrl,
+                            };
+                        } catch (error) {
+                            console.error("uploadFile failed:", error);
+                            // Compensating cleanup: if the blob was uploaded but
+                            // a later step (DB write) failed, delete the now
+                            // orphaned object so storage does not leak.
+                            if (uploadedKey && storage) {
+                                try {
+                                    await storage.deleteObject(uploadedKey);
+                                } catch (cleanupError) {
+                                    console.error(
+                                        "uploadFile cleanup (delete orphaned object) failed:",
+                                        cleanupError,
+                                    );
+                                }
+                            }
+                            return {
+                                errors: [
+                                    {
+                                        message:
+                                            error instanceof Error
+                                                ? error.message
+                                                : "Failed to upload file",
+                                        code: "UPLOAD_FAILED",
+                                    },
+                                ],
+                            };
+                        }
                     },
                 ),
                 updateMetaEnvelopeById: this.accessGuard.middleware(
