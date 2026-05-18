@@ -71,7 +71,7 @@
                 Scan with your eID wallet to sign in.
             </p>
             <!-- QR keeps a white plate for scanner contrast -->
-            <div class="rounded-lg bg-white p-4 shadow-lg">
+            <div class="flex items-center justify-center rounded-lg bg-white p-4 shadow-lg">
                 <QrCode value={uri} size={220} />
             </div>
             {#if polling}

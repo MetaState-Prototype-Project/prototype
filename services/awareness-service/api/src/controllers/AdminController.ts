@@ -75,9 +75,24 @@ export function adminRouter(): Router {
 
     router.get("/api/admin/dead-letters", async (req, res) => {
         const includeResolved = req.query.resolved === "true";
+        // Metadata only - the `payload` column holds the full webhook body and
+        // would bloat the list. Fetch it on replay if ever needed.
         const deadLetters = await AppDataSource.getRepository(
             DeadLetter,
         ).find({
+            select: [
+                "id",
+                "deliveryId",
+                "subscriptionId",
+                "packetId",
+                "consumerId",
+                "targetUrl",
+                "totalAttempts",
+                "lastError",
+                "lastResponseStatus",
+                "resolved",
+                "createdAt",
+            ],
             where: includeResolved ? {} : { resolved: false },
             order: { createdAt: "DESC" },
             take: 200,
