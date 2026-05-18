@@ -1,4 +1,5 @@
 import type { MappingDatabase } from "../db";
+import type { EVaultClient } from "../evault/evault";
 
 export interface IMapping {
 	/**
@@ -45,6 +46,11 @@ export interface IMappingConversionOptions {
 	data: Record<string, unknown>;
 	mapping: IMapping;
 	mappingStore: MappingDatabase;
+	/**
+	 * Optional eVault client. Required only when a mapping uses the `__file()`
+	 * directive — it is used to upload files and dereference `w3ds://file` URIs.
+	 */
+	evaultClient?: EVaultClient;
 }
 
 export interface IMapperResponse {

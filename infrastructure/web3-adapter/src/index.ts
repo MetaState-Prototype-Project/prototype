@@ -315,6 +315,7 @@ export class Web3Adapter {
 				data,
 				mapping: this.mapping[tableName],
 				mappingStore: this.mappingDb,
+				evaultClient: this.evaultClient,
 			});
 
 			this.evaultClient
@@ -344,6 +345,7 @@ export class Web3Adapter {
 			data,
 			mapping: this.mapping[tableName],
 			mappingStore: this.mappingDb,
+			evaultClient: this.evaultClient,
 		});
 
 		let globalId: string;
@@ -401,6 +403,7 @@ export class Web3Adapter {
 			data,
 			mapping,
 			mappingStore: this.mappingDb,
+			evaultClient: this.evaultClient,
 		});
 
 		return local;

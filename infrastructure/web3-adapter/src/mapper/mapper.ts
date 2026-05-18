@@ -1,7 +1,17 @@
+import { dereferenceFileUri, referenceFileValue } from "../w3ds/resolver";
+import { isFileUri } from "../w3ds/uri";
 import type {
 	IMapperResponse,
 	IMappingConversionOptions,
 } from "./mapper.types";
+
+/**
+ * Matches the `__file(<path>)` directive with an optional `,<alias>` suffix.
+ * `__file()` lets a mapped field carry a file: on `toGlobal` the value is
+ * uploaded and replaced with a `w3ds://file` URI; on `fromGlobal` that URI is
+ * dereferenced back to a public URL.
+ */
+const FILE_DIRECTIVE_RE = /^__file\((.+?)\)(?:,(.+))?$/;
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
 export function getValueByPath(obj: Record<string, any>, path: string): any {
@@ -124,6 +134,7 @@ export async function fromGlobal({
 	data,
 	mapping,
 	mappingStore,
+	evaultClient,
 }: IMappingConversionOptions): Promise<Omit<IMapperResponse, "ownerEvault">> {
 	const result: Record<string, unknown> = {};
 
@@ -133,6 +144,31 @@ export async function fromGlobal({
 		let value: string | number | undefined | (string | null)[] | null;
 		const targetKey: string = localKey;
 		let tableRef: string | null = null;
+
+		const fileMatch = globalPathRaw.match(FILE_DIRECTIVE_RE);
+		if (fileMatch) {
+			const [, localPath, alias] = fileMatch;
+			const uriValue = getValueByPath(data, alias ?? localPath);
+			if (isFileUri(uriValue) && evaultClient) {
+				try {
+					const dereferenced = await dereferenceFileUri(
+						uriValue,
+						evaultClient,
+					);
+					result[localKey] = dereferenced.publicUrl;
+				} catch (error) {
+					console.error(
+						`Failed to dereference file URI for "${localKey}":`,
+						error,
+					);
+					result[localKey] = uriValue;
+				}
+			} else {
+				// Not a w3ds URI, or no client — pass the value through.
+				result[localKey] = uriValue;
+			}
+			continue;
+		}
 
 		const internalFnMatch = globalPathRaw.match(/^__(\w+)\((.+)\)$/);
 		if (internalFnMatch) {
@@ -239,8 +275,12 @@ export async function toGlobal({
 	data,
 	mapping,
 	mappingStore,
+	evaultClient,
 }: IMappingConversionOptions): Promise<IMapperResponse> {
 	const result: Record<string, unknown> = {};
+
+	// Resolved up-front so the `__file()` directive can upload to the owner eVault.
+	const ownerEvault = await extractOwnerEvault(data, mapping.ownerEnamePath);
 
 	for (const [localKey, globalPathRaw] of Object.entries(
 		mapping.localToUniversalMap,
@@ -248,6 +288,24 @@ export async function toGlobal({
 		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 		let value: any;
 		let targetKey: string = globalPathRaw;
+
+		const fileMatch = globalPathRaw.match(FILE_DIRECTIVE_RE);
+		if (fileMatch) {
+			const [, localPath, alias] = fileMatch;
+			const fileTargetKey = alias ?? localPath;
+			const rawVal = getValueByPath(data, localPath);
+			if (evaultClient && ownerEvault) {
+				result[fileTargetKey] = await referenceFileValue(
+					rawVal,
+					ownerEvault,
+					evaultClient,
+				);
+			} else {
+				// No client/owner available — pass the value through unchanged.
+				result[fileTargetKey] = rawVal;
+			}
+			continue;
+		}
 
 		if (globalPathRaw.includes(",")) {
 			const [_, alias] = globalPathRaw.split(",");
@@ -347,7 +405,6 @@ export async function toGlobal({
 		}
 		result[targetKey] = value;
 	}
-	const ownerEvault = await extractOwnerEvault(data, mapping.ownerEnamePath);
 
 	return {
 		ownerEvault,
