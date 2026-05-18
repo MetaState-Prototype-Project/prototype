@@ -101,6 +101,8 @@ to the file's public URL.
 
 - The inner path (`avatar`) points to the field holding the file value.
 - An optional `,alias` sets the global field name (defaults to the inner path).
+- The value may be a single file or an **array** of files. Array paths such as
+  `__file(images[].src)` are supported and each item is referenced/dereferenced.
 - **`toGlobal`**: a `data:` URI value is uploaded and replaced with a
   `w3ds://file?id=@<ename>/<meta-envelope-id>` URI. Values that are already
   `w3ds://file` URIs, plain URLs, or empty are passed through unchanged.
