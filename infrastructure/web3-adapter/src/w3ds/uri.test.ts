@@ -9,21 +9,21 @@ import {
 describe("w3ds file URI", () => {
 	describe("buildFileUri", () => {
 		it("builds a canonical URI", () => {
-			expect(
-				buildFileUri({ ename: "@alice", metaEnvelopeId: "abc123" }),
-			).toBe("w3ds://file?id=@alice/abc123");
+			expect(buildFileUri({ ename: "@alice", metaEnvelopeId: "abc123" })).toBe(
+				"w3ds://file?id=@alice/abc123",
+			);
 		});
 
 		it("normalises a missing @ prefix on the ename", () => {
-			expect(
-				buildFileUri({ ename: "alice", metaEnvelopeId: "abc123" }),
-			).toBe("w3ds://file?id=@alice/abc123");
+			expect(buildFileUri({ ename: "alice", metaEnvelopeId: "abc123" })).toBe(
+				"w3ds://file?id=@alice/abc123",
+			);
 		});
 
 		it("throws when ename or metaEnvelopeId is missing", () => {
-			expect(() =>
-				buildFileUri({ ename: "", metaEnvelopeId: "abc" }),
-			).toThrow(InvalidW3dsUriError);
+			expect(() => buildFileUri({ ename: "", metaEnvelopeId: "abc" })).toThrow(
+				InvalidW3dsUriError,
+			);
 			expect(() =>
 				buildFileUri({ ename: "@alice", metaEnvelopeId: "" }),
 			).toThrow(InvalidW3dsUriError);
@@ -47,15 +47,15 @@ describe("w3ds file URI", () => {
 		});
 
 		it("rejects a non-w3ds scheme", () => {
-			expect(() =>
-				parseFileUri("https://file?id=@alice/abc"),
-			).toThrow(/expected scheme/);
+			expect(() => parseFileUri("https://file?id=@alice/abc")).toThrow(
+				/expected scheme/,
+			);
 		});
 
 		it("rejects a wrong host", () => {
-			expect(() =>
-				parseFileUri("w3ds://blob?id=@alice/abc"),
-			).toThrow(/expected host/);
+			expect(() => parseFileUri("w3ds://blob?id=@alice/abc")).toThrow(
+				/expected host/,
+			);
 		});
 
 		it("rejects a missing id parameter", () => {
@@ -65,9 +65,9 @@ describe("w3ds file URI", () => {
 		});
 
 		it("rejects an id without an ename", () => {
-			expect(() =>
-				parseFileUri("w3ds://file?id=alice/abc"),
-			).toThrow(/must be in the form/);
+			expect(() => parseFileUri("w3ds://file?id=alice/abc")).toThrow(
+				/must be in the form/,
+			);
 		});
 
 		it("rejects an id without a meta-envelope-id segment", () => {

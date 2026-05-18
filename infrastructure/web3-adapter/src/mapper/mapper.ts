@@ -174,9 +174,7 @@ export async function fromGlobal({
 			const uriValue = getValueByPath(data, alias ?? localPath);
 			if (Array.isArray(uriValue)) {
 				result[localKey] = await Promise.all(
-					uriValue.map((v) =>
-						dereferenceFileValue(v, evaultClient, localKey),
-					),
+					uriValue.map((v) => dereferenceFileValue(v, evaultClient, localKey)),
 				);
 			} else {
 				result[localKey] = await dereferenceFileValue(
@@ -315,9 +313,7 @@ export async function toGlobal({
 			if (evaultClient && ownerEvault) {
 				if (Array.isArray(rawVal)) {
 					result[fileTargetKey] = await Promise.all(
-						rawVal.map((v) =>
-							referenceFileValue(v, ownerEvault, evaultClient),
-						),
+						rawVal.map((v) => referenceFileValue(v, ownerEvault, evaultClient)),
 					);
 				} else {
 					result[fileTargetKey] = await referenceFileValue(

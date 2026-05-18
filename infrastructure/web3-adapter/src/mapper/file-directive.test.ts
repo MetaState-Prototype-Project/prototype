@@ -15,7 +15,8 @@ function mockClient(): EVaultClient {
 		uploadFile: vi.fn(async (_w3id: string, input: { filename: string }) => ({
 			uri: "w3ds://file?id=@owner/env-123",
 			metaEnvelopeId: "env-123",
-			publicUrl: "https://cdn.example.com/files/owner/env-123-" + input.filename,
+			publicUrl:
+				"https://cdn.example.com/files/owner/env-123-" + input.filename,
 		})),
 		fetchMetaEnvelope: vi.fn(async (id: string) => ({
 			id,
