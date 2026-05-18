@@ -1,3 +1,4 @@
+import type { EVaultClient } from "../evault/evault";
 import { dereferenceFileUri, referenceFileValue } from "../w3ds/resolver";
 import { isFileUri } from "../w3ds/uri";
 import type {
@@ -7,11 +8,33 @@ import type {
 
 /**
  * Matches the `__file(<path>)` directive with an optional `,<alias>` suffix.
- * `__file()` lets a mapped field carry a file: on `toGlobal` the value is
- * uploaded and replaced with a `w3ds://file` URI; on `fromGlobal` that URI is
- * dereferenced back to a public URL.
+ * `__file()` lets a mapped field carry a file (single value or array): on
+ * `toGlobal` each value is uploaded and replaced with a `w3ds://file` URI; on
+ * `fromGlobal` each URI is dereferenced back to a public URL.
  */
 const FILE_DIRECTIVE_RE = /^__file\((.+?)\)(?:,(.+))?$/;
+
+/**
+ * Dereferences a single file value: a `w3ds://file` URI becomes its public
+ * object-storage URL; any other value is passed through unchanged.
+ */
+async function dereferenceFileValue(
+	value: unknown,
+	evaultClient?: EVaultClient,
+	fieldKey?: string,
+): Promise<unknown> {
+	if (!isFileUri(value) || !evaultClient) return value;
+	try {
+		const dereferenced = await dereferenceFileUri(value, evaultClient);
+		return dereferenced.publicUrl;
+	} catch (error) {
+		console.error(
+			`Failed to dereference file URI for "${fieldKey ?? "?"}":`,
+			error,
+		);
+		return value;
+	}
+}
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
 export function getValueByPath(obj: Record<string, any>, path: string): any {
@@ -149,23 +172,18 @@ export async function fromGlobal({
 		if (fileMatch) {
 			const [, localPath, alias] = fileMatch;
 			const uriValue = getValueByPath(data, alias ?? localPath);
-			if (isFileUri(uriValue) && evaultClient) {
-				try {
-					const dereferenced = await dereferenceFileUri(
-						uriValue,
-						evaultClient,
-					);
-					result[localKey] = dereferenced.publicUrl;
-				} catch (error) {
-					console.error(
-						`Failed to dereference file URI for "${localKey}":`,
-						error,
-					);
-					result[localKey] = uriValue;
-				}
+			if (Array.isArray(uriValue)) {
+				result[localKey] = await Promise.all(
+					uriValue.map((v) =>
+						dereferenceFileValue(v, evaultClient, localKey),
+					),
+				);
 			} else {
-				// Not a w3ds URI, or no client — pass the value through.
-				result[localKey] = uriValue;
+				result[localKey] = await dereferenceFileValue(
+					uriValue,
+					evaultClient,
+					localKey,
+				);
 			}
 			continue;
 		}
@@ -295,11 +313,19 @@ export async function toGlobal({
 			const fileTargetKey = alias ?? localPath;
 			const rawVal = getValueByPath(data, localPath);
 			if (evaultClient && ownerEvault) {
-				result[fileTargetKey] = await referenceFileValue(
-					rawVal,
-					ownerEvault,
-					evaultClient,
-				);
+				if (Array.isArray(rawVal)) {
+					result[fileTargetKey] = await Promise.all(
+						rawVal.map((v) =>
+							referenceFileValue(v, ownerEvault, evaultClient),
+						),
+					);
+				} else {
+					result[fileTargetKey] = await referenceFileValue(
+						rawVal,
+						ownerEvault,
+						evaultClient,
+					);
+				}
 			} else {
 				// No client/owner available — pass the value through unchanged.
 				result[fileTargetKey] = rawVal;
