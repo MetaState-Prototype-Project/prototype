@@ -62,6 +62,48 @@ const UPDATE_META_ENVELOPE = `
   }
 `;
 
+const UPLOAD_FILE = `
+  mutation UploadFile($input: UploadFileInput!) {
+    uploadFile(input: $input) {
+      uri
+      metaEnvelopeId
+      publicUrl
+      errors {
+        field
+        message
+        code
+      }
+    }
+  }
+`;
+
+export interface UploadFileInput {
+	filename: string;
+	contentType: string;
+	/** Base64-encoded file content (raw base64 or a data: URI). */
+	content: string;
+	acl?: string[];
+}
+
+export interface UploadFileResult {
+	uri: string;
+	metaEnvelopeId: string;
+	publicUrl: string;
+}
+
+interface UploadFileResponse {
+	uploadFile: {
+		uri: string | null;
+		metaEnvelopeId: string | null;
+		publicUrl: string | null;
+		errors?: Array<{
+			field?: string | null;
+			message: string;
+			code?: string | null;
+		}> | null;
+	};
+}
+
 interface MetaEnvelopeResponse {
 	getMetaEnvelopeById: {
 		id: string;
@@ -551,6 +593,61 @@ export class EVaultClient {
 				}
 				throw new Error("Failed to store reference");
 			}
+		});
+	}
+
+	/**
+	 * Uploads a file to the owner eVault's object storage and returns the
+	 * resulting `w3ds://file` URI alongside the public object-storage URL.
+	 */
+	async uploadFile(
+		w3id: string,
+		input: UploadFileInput,
+	): Promise<UploadFileResult> {
+		return this.withRetry(async () => {
+			if (this.isDisposed) {
+				throw new Error("EVaultClient has been disposed");
+			}
+
+			const client = await this.ensureClient(w3id).catch((error) => {
+				throw new Error(
+					`Failed to establish client connection: ${error instanceof Error ? error.message : String(error)}`,
+				);
+			});
+
+			const response = await this.withTimeout(w3id, () =>
+				client.request<UploadFileResponse>(UPLOAD_FILE, {
+					input: {
+						filename: input.filename,
+						contentType: input.contentType,
+						content: input.content,
+						acl: input.acl ?? ["*"],
+					},
+				}),
+			).catch((error) => {
+				throw new Error(
+					`Failed to upload file: ${error instanceof Error ? error.message : String(error)}`,
+				);
+			});
+
+			const result = response?.uploadFile;
+			if (!result) {
+				throw new Error("Failed to upload file: Invalid response");
+			}
+			if (result.errors && result.errors.length > 0) {
+				throw new Error(
+					`Failed to upload file: ${result.errors.map((e) => e.message).join("; ")}`,
+				);
+			}
+			if (!result.uri || !result.metaEnvelopeId || !result.publicUrl) {
+				throw new Error("Failed to upload file: incomplete response");
+			}
+
+			return {
+				uri: result.uri,
+				metaEnvelopeId: result.metaEnvelopeId,
+				publicUrl: result.publicUrl,
+			};
 		});
 	}
 
