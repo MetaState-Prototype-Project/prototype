@@ -184,9 +184,7 @@ const handleNameComplete = async (enteredName: string) => {
         });
 
         if (provisionResult.duplicate) {
-            throw new Error(
-                "An eVault already exists for this identity.",
-            );
+            throw new Error("An eVault already exists for this identity.");
         }
         if (
             !provisionResult.success ||
@@ -258,9 +256,7 @@ const handleNameComplete = async (enteredName: string) => {
 
         const bdErrors = bdResult.createBindingDocument.errors;
         if (bdErrors?.length) {
-            throw new Error(
-                `Binding document error: ${bdErrors[0].message}`,
-            );
+            throw new Error(`Binding document error: ${bdErrors[0].message}`);
         }
 
         // Persist user + vault, then mark onboarding done.

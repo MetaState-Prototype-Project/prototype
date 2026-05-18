@@ -1,732 +1,700 @@
 <script lang="ts">
-    import { onDestroy, onMount, setContext } from "svelte";
-    import { cubicOut } from "svelte/easing";
-    import "../app.css";
-    import { goto, onNavigate, preloadCode } from "$app/navigation";
-    import { page } from "$app/state";
-    import { GlobalState } from "$lib/global/state";
+import { onDestroy, onMount, setContext } from "svelte";
+import { cubicOut } from "svelte/easing";
+import "../app.css";
+import { goto, onNavigate, preloadCode } from "$app/navigation";
+import { page } from "$app/state";
+import { GlobalState } from "$lib/global/state";
 
-    import { runtime } from "$lib/global/runtime.svelte";
-    import { swipedetect } from "$lib/utils";
-    import { type Status, checkStatus } from "@tauri-apps/plugin-biometric";
+import { runtime } from "$lib/global/runtime.svelte";
+import { swipedetect } from "$lib/utils";
+import { type Status, checkStatus } from "@tauri-apps/plugin-biometric";
 
-    const { children } = $props();
+const { children } = $props();
 
-    let globalState: GlobalState | undefined = $state(undefined);
-    let navigationStack: string[] = [];
-    // Direction of the next route transition. Set by onNavigate before the
-    // route content swaps, read by the slide transitions wrapping {@render children()}.
-    let routeDirection = $state<"forward" | "backward">("forward");
+let globalState: GlobalState | undefined = $state(undefined);
+let navigationStack: string[] = [];
+// Direction of the next route transition. Set by onNavigate before the
+// route content swaps, read by the slide transitions wrapping {@render children()}.
+let routeDirection = $state<"forward" | "backward">("forward");
 
-    // Asymmetric route transitions: only one element moves per direction.
-    //   Forward  → NEW slides in over OLD (OLD stays put).
-    //   Backward → OLD slides out to the right, revealing NEW (NEW stays put).
-    // The moving element gets a higher z-index so it sits on top of the
-    // static one during the animation.
-    function slideIn(
-        _node: HTMLElement,
-        { direction }: { direction: "forward" | "backward" },
-    ) {
-        if (direction === "backward") {
-            // NEW stays put — no animation, just instantaneous mount.
-            return { duration: 0 };
-        }
+// Asymmetric route transitions: only one element moves per direction.
+//   Forward  → NEW slides in over OLD (OLD stays put).
+//   Backward → OLD slides out to the right, revealing NEW (NEW stays put).
+// The moving element gets a higher z-index so it sits on top of the
+// static one during the animation.
+function slideIn(
+    _node: HTMLElement,
+    { direction }: { direction: "forward" | "backward" },
+) {
+    if (direction === "backward") {
+        // NEW stays put — no animation, just instantaneous mount.
+        return { duration: 0 };
+    }
+    return {
+        duration: 200,
+        easing: cubicOut,
+        css: (t: number) =>
+            `transform: translateX(${(1 - t) * 100}%); z-index: 70;`,
+    };
+}
+
+function slideOut(
+    _node: HTMLElement,
+    { direction }: { direction: "forward" | "backward" },
+) {
+    if (direction === "forward") {
+        // OLD stays put for the duration of the new page's slide-in.
         return {
             duration: 200,
-            easing: cubicOut,
-            css: (t: number) =>
-                `transform: translateX(${(1 - t) * 100}%); z-index: 70;`,
+            css: () => `transform: translateX(0);`,
         };
     }
+    // Backward — slide OLD off to the right.
+    return {
+        duration: 200,
+        easing: cubicOut,
+        css: (t: number) =>
+            `transform: translateX(${(1 - t) * 100}%); z-index: 70;`,
+    };
+}
+let globalDeepLinkHandler: ((event: Event) => void) | undefined;
+let mainWrapper: HTMLElement | undefined = $state(undefined);
+let isAppReady = $state(false);
+let pendingDeepLinks: string[] = $state([]);
 
-    function slideOut(
-        _node: HTMLElement,
-        { direction }: { direction: "forward" | "backward" },
-    ) {
-        if (direction === "forward") {
-            // OLD stays put for the duration of the new page's slide-in.
-            return {
-                duration: 200,
-                css: () => `transform: translateX(0);`,
-            };
-        }
-        // Backward — slide OLD off to the right.
-        return {
-            duration: 200,
-            easing: cubicOut,
-            css: (t: number) =>
-                `transform: translateX(${(1 - t) * 100}%); z-index: 70;`,
+setContext("globalState", () => globalState);
+setContext("setGlobalState", (value: GlobalState | undefined) => {
+    globalState = value;
+});
+
+onMount(async () => {
+    // Bundle preload for the routes the splash CTAs reach — keeps the
+    // first navigation snappy on cold start.
+    preloadCode("/onboarding").catch(() => {});
+    preloadCode("/recover").catch(() => {});
+
+    let status: Status | undefined = undefined;
+    try {
+        status = await checkStatus();
+    } catch (error) {
+        status = {
+            biometryType: 0,
+            isAvailable: false,
         };
     }
-    let globalDeepLinkHandler: ((event: Event) => void) | undefined;
-    let mainWrapper: HTMLElement | undefined = $state(undefined);
-    let isAppReady = $state(false);
-    let pendingDeepLinks: string[] = $state([]);
+    runtime.biometry = status.biometryType;
+    try {
+        globalState = await GlobalState.create();
+    } catch (error) {
+        console.error("Failed to initialize global state:", error);
+        // Consider adding fallback behavior or user notification
+    }
 
-    setContext("globalState", () => globalState);
-    setContext("setGlobalState", (value: GlobalState | undefined) => {
-        globalState = value;
-    });
+    // Handle deep links
+    try {
+        const { onOpenUrl, getCurrent } = await import(
+            "@tauri-apps/plugin-deep-link"
+        );
 
-    onMount(async () => {
-        // Bundle preload for the routes the splash CTAs reach — keeps the
-        // first navigation snappy on cold start.
-        preloadCode("/onboarding").catch(() => {});
-        preloadCode("/recover").catch(() => {});
-
-        let status: Status | undefined = undefined;
-        try {
-            status = await checkStatus();
-        } catch (error) {
-            status = {
-                biometryType: 0,
-                isAvailable: false,
-            };
-        }
-        runtime.biometry = status.biometryType;
-        try {
-            globalState = await GlobalState.create();
-        } catch (error) {
-            console.error("Failed to initialize global state:", error);
-            // Consider adding fallback behavior or user notification
-        }
-
-        // Handle deep links
-        try {
-            const { onOpenUrl, getCurrent } = await import(
-                "@tauri-apps/plugin-deep-link"
-            );
-
-            // Check if app was started via deep link
-            const initialUrls = await getCurrent();
-            if (initialUrls && initialUrls.length > 0) {
-                if (globalState) {
-                    handleDeepLink(initialUrls[0]);
-                } else {
-                    pendingDeepLinks = [...pendingDeepLinks, initialUrls[0]];
-                }
+        // Check if app was started via deep link
+        const initialUrls = await getCurrent();
+        if (initialUrls && initialUrls.length > 0) {
+            if (globalState) {
+                handleDeepLink(initialUrls[0]);
+            } else {
+                pendingDeepLinks = [...pendingDeepLinks, initialUrls[0]];
             }
+        }
 
-            // Listen for future deep links
-            await onOpenUrl((urls) => {
-                if (urls && urls.length > 0) {
-                    try {
-                        if (isAppReady && globalState) {
-                            handleDeepLink(urls[0]);
-                        } else {
-                            // Queue deep link if app isn't ready yet
-                            console.log(
-                                "App not ready, queueing deep link:",
-                                urls[0],
-                            );
-                            pendingDeepLinks = [...pendingDeepLinks, urls[0]];
-                        }
-                    } catch (error) {
-                        console.error(
-                            "Error handling deep link from onOpenUrl:",
-                            error,
-                        );
-                    }
-                }
-            });
-
-            // Set up global event listener for deep links that arrive when app is already open
-            // This ensures deep links work even if the scan-qr page isn't mounted yet
-            globalDeepLinkHandler = (event: Event) => {
+        // Listen for future deep links
+        await onOpenUrl((urls) => {
+            if (urls && urls.length > 0) {
                 try {
-                    const customEvent = event as CustomEvent;
-                    console.log(
-                        "Global deep link event received:",
-                        customEvent.detail,
-                    );
-
-                    if (!isAppReady || !globalState) {
-                        console.log(
-                            "App not ready, storing deep link data for later",
-                        );
-                        sessionStorage.setItem(
-                            "deepLinkData",
-                            JSON.stringify(customEvent.detail),
-                        );
-                        return;
-                    }
-
-                    // Check if we're already on the scan page
-                    if (window.location.pathname === "/scan-qr") {
-                        // We're already on the scan page, dispatch the event directly
-                        console.log(
-                            "Already on scan page, dispatching event directly",
-                        );
-                        const directEvent = new CustomEvent(
-                            "deepLinkReceived",
-                            {
-                                detail: customEvent.detail,
-                            },
-                        );
-                        window.dispatchEvent(directEvent);
+                    if (isAppReady && globalState) {
+                        handleDeepLink(urls[0]);
                     } else {
-                        // Store the deep link data and navigate to scan page
+                        // Queue deep link if app isn't ready yet
                         console.log(
-                            "Not on scan page, storing data and navigating",
+                            "App not ready, queueing deep link:",
+                            urls[0],
                         );
-                        sessionStorage.setItem(
-                            "deepLinkData",
-                            JSON.stringify(customEvent.detail),
-                        );
-                        goto("/scan-qr").catch((error) => {
-                            console.error(
-                                "Error navigating to scan-qr:",
-                                error,
-                            );
-                        });
+                        pendingDeepLinks = [...pendingDeepLinks, urls[0]];
                     }
                 } catch (error) {
-                    console.error("Error in globalDeepLinkHandler:", error);
+                    console.error(
+                        "Error handling deep link from onOpenUrl:",
+                        error,
+                    );
                 }
-            };
+            }
+        });
 
-            window.addEventListener("deepLinkReceived", globalDeepLinkHandler);
-        } catch (error) {
-            console.error("Failed to initialize deep link listener:", error);
-        }
-
-        // Helper function to check if user is on an authenticated route
-        function isAuthenticatedRoute(pathname: string): boolean {
-            // Authenticated routes are those under (app)/ which are protected by the auth guard
-            const authenticatedRoutes = ["/main", "/scan-qr", "/settings"];
-            return authenticatedRoutes.includes(pathname);
-        }
-
-        function handleDeepLink(urlString: string) {
-            console.log("Deep link received:", urlString);
-
+        // Set up global event listener for deep links that arrive when app is already open
+        // This ensures deep links work even if the scan-qr page isn't mounted yet
+        globalDeepLinkHandler = (event: Event) => {
             try {
-                const url = new URL(urlString);
-                const path = url.pathname;
-                const params = url.searchParams;
-
-                console.log("Deep link path:", path);
-                console.log("Deep link hostname:", url.hostname);
-                console.log("Deep link protocol:", url.protocol);
-                console.log("Deep link full URL object:", url);
+                const customEvent = event as CustomEvent;
                 console.log(
-                    "Deep link params:",
-                    Object.fromEntries(params.entries()),
+                    "Global deep link event received:",
+                    customEvent.detail,
                 );
 
-                // Check if we're already on the scan-qr page
-                const currentPath = window.location.pathname;
-                const isOnScanPage = currentPath === "/scan-qr";
-                const isOnAuthenticatedRoute =
-                    isAuthenticatedRoute(currentPath);
-                console.log(
-                    "Current path:",
-                    currentPath,
-                    "Is on scan page:",
-                    isOnScanPage,
-                    "Is on authenticated route:",
-                    isOnAuthenticatedRoute,
-                );
-
-                // For w3ds:// URLs, we need to check the hostname instead of pathname
-                // w3ds://auth becomes hostname: "auth", pathname: ""
-                const action = url.hostname || path;
-                console.log("Deep link action (hostname):", action);
-
-                // Example: w3ds://auth?session=123&platform=example&redirect=https://example.com
-                if (action === "auth") {
-                    // Handle authentication deep link
-                    const sessionId = params.get("session");
-                    const platform = params.get("platform");
-                    const redirect = params.get("redirect");
-
+                if (!isAppReady || !globalState) {
                     console.log(
-                        "Auth deep link - session:",
-                        sessionId,
-                        "platform:",
-                        platform,
-                        "redirect:",
-                        redirect,
+                        "App not ready, storing deep link data for later",
                     );
+                    sessionStorage.setItem(
+                        "deepLinkData",
+                        JSON.stringify(customEvent.detail),
+                    );
+                    return;
+                }
 
-                    if (sessionId && platform && redirect) {
-                        // Always store the deep link data first
-                        const deepLinkData = {
-                            type: "auth",
-                            session: sessionId,
-                            platform: platform,
-                            redirect: redirect,
-                        };
-
-                        // Check if user is authenticated by checking if they're on an authenticated route
-                        const checkAuth = async () => {
-                            // First check if user is on an authenticated route
-                            // If not, they need to login first regardless of vault existence
-                            if (!isOnAuthenticatedRoute) {
-                                console.log(
-                                    "User not on authenticated route, storing deep link and redirecting to login",
-                                );
-                                sessionStorage.setItem(
-                                    "pendingDeepLink",
-                                    JSON.stringify(deepLinkData),
-                                );
-                                goto("/login").catch((error) => {
-                                    console.error(
-                                        "Error navigating to login:",
-                                        error,
-                                    );
-                                });
-                                return;
-                            }
-
-                            try {
-                                // Wait for globalState to be ready if it's not yet
-                                if (!globalState) {
-                                    console.log(
-                                        "GlobalState not ready, waiting...",
-                                    );
-                                    // Wait a bit and retry, or just redirect to login
-                                    let retries = 0;
-                                    const maxRetries = 10;
-                                    while (
-                                        !globalState &&
-                                        retries < maxRetries
-                                    ) {
-                                        await new Promise((resolve) =>
-                                            setTimeout(resolve, 100),
-                                        );
-                                        retries++;
-                                    }
-
-                                    if (!globalState) {
-                                        console.log(
-                                            "GlobalState still not ready, storing deep link and redirecting to login",
-                                        );
-                                        sessionStorage.setItem(
-                                            "pendingDeepLink",
-                                            JSON.stringify(deepLinkData),
-                                        );
-                                        goto("/login").catch((error) => {
-                                            console.error(
-                                                "Error navigating to login:",
-                                                error,
-                                            );
-                                        });
-                                        return;
-                                    }
-                                }
-
-                                const vault =
-                                    await globalState.vaultController.vault;
-                                if (vault) {
-                                    // User is authenticated, dispatch event and navigate to scan page
-                                    console.log(
-                                        "User authenticated, dispatching deep link event and navigating to scan-qr",
-                                    );
-
-                                    // Dispatch a custom event that the scan page can listen to
-                                    const deepLinkEvent = new CustomEvent(
-                                        "deepLinkReceived",
-                                        {
-                                            detail: deepLinkData,
-                                        },
-                                    );
-                                    window.dispatchEvent(deepLinkEvent);
-
-                                    // Also store in sessionStorage as backup
-                                    sessionStorage.setItem(
-                                        "deepLinkData",
-                                        JSON.stringify(deepLinkData),
-                                    );
-
-                                    goto("/scan-qr").catch((error) => {
-                                        console.error(
-                                            "Error navigating to scan-qr:",
-                                            error,
-                                        );
-                                    });
-                                    return;
-                                }
-                            } catch (error) {
-                                console.log(
-                                    "User not authenticated, redirecting to login",
-                                    error,
-                                );
-                            }
-
-                            // User not authenticated, store deep link data and redirect to login
-                            console.log(
-                                "User not authenticated, storing deep link data and redirecting to login",
-                            );
-                            sessionStorage.setItem(
-                                "pendingDeepLink",
-                                JSON.stringify(deepLinkData),
-                            );
-                            goto("/login").catch((error) => {
-                                console.error(
-                                    "Error navigating to login:",
-                                    error,
-                                );
-                            });
-                        };
-
-                        checkAuth();
-                    } else {
-                        console.log("Missing required auth parameters");
-                    }
-                } else if (action === "sign") {
-                    // Handle signing deep link
-                    const sessionId = params.get("session");
-                    const data = params.get("data");
-                    const redirectUri = params.get("redirect_uri");
-
+                // Check if we're already on the scan page
+                if (window.location.pathname === "/scan-qr") {
+                    // We're already on the scan page, dispatch the event directly
                     console.log(
-                        "Sign deep link - session:",
-                        sessionId,
-                        "data:",
-                        data,
-                        "redirect_uri:",
-                        redirectUri,
+                        "Already on scan page, dispatching event directly",
                     );
-
-                    if (sessionId && data && redirectUri) {
-                        // Always store the deep link data first
-                        const deepLinkData = {
-                            type: "sign",
-                            session: sessionId,
-                            data: data,
-                            redirect_uri: redirectUri,
-                        };
-
-                        // Check if user is authenticated by checking if they're on an authenticated route
-                        const checkAuth = async () => {
-                            // First check if user is on an authenticated route
-                            // If not, they need to login first regardless of vault existence
-                            if (!isOnAuthenticatedRoute) {
-                                console.log(
-                                    "User not on authenticated route, storing deep link and redirecting to login",
-                                );
-                                sessionStorage.setItem(
-                                    "pendingDeepLink",
-                                    JSON.stringify(deepLinkData),
-                                );
-                                goto("/login").catch((error) => {
-                                    console.error(
-                                        "Error navigating to login:",
-                                        error,
-                                    );
-                                });
-                                return;
-                            }
-
-                            try {
-                                // Wait for globalState to be ready if it's not yet
-                                if (!globalState) {
-                                    console.log(
-                                        "GlobalState not ready, waiting...",
-                                    );
-                                    // Wait a bit and retry, or just redirect to login
-                                    let retries = 0;
-                                    const maxRetries = 10;
-                                    while (
-                                        !globalState &&
-                                        retries < maxRetries
-                                    ) {
-                                        await new Promise((resolve) =>
-                                            setTimeout(resolve, 100),
-                                        );
-                                        retries++;
-                                    }
-
-                                    if (!globalState) {
-                                        console.log(
-                                            "GlobalState still not ready, storing deep link and redirecting to login",
-                                        );
-                                        sessionStorage.setItem(
-                                            "pendingDeepLink",
-                                            JSON.stringify(deepLinkData),
-                                        );
-                                        goto("/login").catch((error) => {
-                                            console.error(
-                                                "Error navigating to login:",
-                                                error,
-                                            );
-                                        });
-                                        return;
-                                    }
-                                }
-
-                                const vault =
-                                    await globalState.vaultController.vault;
-                                if (vault) {
-                                    // User is authenticated, dispatch event and navigate to scan page
-                                    console.log(
-                                        "User authenticated, dispatching deep link event and navigating to scan-qr",
-                                    );
-
-                                    // Dispatch a custom event that the scan page can listen to
-                                    const deepLinkEvent = new CustomEvent(
-                                        "deepLinkReceived",
-                                        {
-                                            detail: deepLinkData,
-                                        },
-                                    );
-                                    window.dispatchEvent(deepLinkEvent);
-
-                                    // Also store in sessionStorage as backup
-                                    sessionStorage.setItem(
-                                        "deepLinkData",
-                                        JSON.stringify(deepLinkData),
-                                    );
-
-                                    goto("/scan-qr").catch((error) => {
-                                        console.error(
-                                            "Error navigating to scan-qr:",
-                                            error,
-                                        );
-                                    });
-                                    return;
-                                }
-                            } catch (error) {
-                                console.log(
-                                    "User not authenticated, redirecting to login",
-                                    error,
-                                );
-                            }
-
-                            // User not authenticated, store deep link data and redirect to login
-                            console.log(
-                                "User not authenticated, storing deep link data and redirecting to login",
-                            );
-                            sessionStorage.setItem(
-                                "pendingDeepLink",
-                                JSON.stringify(deepLinkData),
-                            );
-                            goto("/login").catch((error) => {
-                                console.error(
-                                    "Error navigating to login:",
-                                    error,
-                                );
-                            });
-                        };
-
-                        checkAuth();
-                    } else {
-                        console.log("Missing required signing parameters");
-                    }
-                } else if (action === "reveal") {
-                    // Handle reveal deep link
-                    const pollId = params.get("pollId");
-
-                    console.log("Reveal deep link - pollId:", pollId);
-
-                    if (pollId) {
-                        // Always store the deep link data first
-                        const deepLinkData = {
-                            type: "reveal",
-                            pollId: pollId,
-                        };
-
-                        // Check if user is authenticated by checking if they're on an authenticated route
-                        const checkAuth = async () => {
-                            // First check if user is on an authenticated route
-                            // If not, they need to login first regardless of vault existence
-                            if (!isOnAuthenticatedRoute) {
-                                console.log(
-                                    "User not on authenticated route, storing deep link and redirecting to login",
-                                );
-                                sessionStorage.setItem(
-                                    "pendingDeepLink",
-                                    JSON.stringify(deepLinkData),
-                                );
-                                goto("/login").catch((error) => {
-                                    console.error(
-                                        "Error navigating to login:",
-                                        error,
-                                    );
-                                });
-                                return;
-                            }
-
-                            try {
-                                // Wait for globalState to be ready if it's not yet
-                                if (!globalState) {
-                                    console.log(
-                                        "GlobalState not ready, waiting...",
-                                    );
-                                    // Wait a bit and retry, or just redirect to login
-                                    let retries = 0;
-                                    const maxRetries = 10;
-                                    while (
-                                        !globalState &&
-                                        retries < maxRetries
-                                    ) {
-                                        await new Promise((resolve) =>
-                                            setTimeout(resolve, 100),
-                                        );
-                                        retries++;
-                                    }
-
-                                    if (!globalState) {
-                                        console.log(
-                                            "GlobalState still not ready, storing deep link and redirecting to login",
-                                        );
-                                        sessionStorage.setItem(
-                                            "pendingDeepLink",
-                                            JSON.stringify(deepLinkData),
-                                        );
-                                        goto("/login").catch((error) => {
-                                            console.error(
-                                                "Error navigating to login:",
-                                                error,
-                                            );
-                                        });
-                                        return;
-                                    }
-                                }
-
-                                const vault =
-                                    await globalState.vaultController.vault;
-                                if (vault) {
-                                    // User is authenticated, dispatch event and navigate to scan page
-                                    console.log(
-                                        "User authenticated, dispatching deep link event and navigating to scan-qr for reveal",
-                                    );
-
-                                    // Dispatch a custom event that the scan page can listen to
-                                    const deepLinkEvent = new CustomEvent(
-                                        "deepLinkReceived",
-                                        {
-                                            detail: deepLinkData,
-                                        },
-                                    );
-                                    window.dispatchEvent(deepLinkEvent);
-
-                                    // Also store in sessionStorage as backup
-                                    sessionStorage.setItem(
-                                        "deepLinkData",
-                                        JSON.stringify(deepLinkData),
-                                    );
-
-                                    goto("/scan-qr").catch((error) => {
-                                        console.error(
-                                            "Error navigating to scan-qr:",
-                                            error,
-                                        );
-                                    });
-                                    return;
-                                }
-                            } catch (error) {
-                                console.log(
-                                    "User not authenticated, redirecting to login",
-                                    error,
-                                );
-                            }
-
-                            // User not authenticated, store deep link data and redirect to login
-                            console.log(
-                                "User not authenticated, storing reveal deep link data and redirecting to login",
-                            );
-                            sessionStorage.setItem(
-                                "pendingDeepLink",
-                                JSON.stringify(deepLinkData),
-                            );
-                            goto("/login").catch((error) => {
-                                console.error(
-                                    "Error navigating to login:",
-                                    error,
-                                );
-                            });
-                        };
-
-                        checkAuth();
-                    } else {
-                        console.log("Missing required reveal parameters");
-                    }
+                    const directEvent = new CustomEvent("deepLinkReceived", {
+                        detail: customEvent.detail,
+                    });
+                    window.dispatchEvent(directEvent);
                 } else {
-                    console.log("Unknown deep link path:", path);
+                    // Store the deep link data and navigate to scan page
+                    console.log(
+                        "Not on scan page, storing data and navigating",
+                    );
+                    sessionStorage.setItem(
+                        "deepLinkData",
+                        JSON.stringify(customEvent.detail),
+                    );
+                    goto("/scan-qr").catch((error) => {
+                        console.error("Error navigating to scan-qr:", error);
+                    });
                 }
             } catch (error) {
-                console.error("Failed to parse deep link URL:", error);
+                console.error("Error in globalDeepLinkHandler:", error);
             }
-        }
+        };
 
-        navigationStack.push(window.location.pathname);
-        isAppReady = true;
+        window.addEventListener("deepLinkReceived", globalDeepLinkHandler);
+    } catch (error) {
+        console.error("Failed to initialize deep link listener:", error);
+    }
 
-        // Process queued deep links
-        if (pendingDeepLinks.length > 0 && globalState) {
+    // Helper function to check if user is on an authenticated route
+    function isAuthenticatedRoute(pathname: string): boolean {
+        // Authenticated routes are those under (app)/ which are protected by the auth guard
+        const authenticatedRoutes = ["/main", "/scan-qr", "/settings"];
+        return authenticatedRoutes.includes(pathname);
+    }
+
+    function handleDeepLink(urlString: string) {
+        console.log("Deep link received:", urlString);
+
+        try {
+            const url = new URL(urlString);
+            const path = url.pathname;
+            const params = url.searchParams;
+
+            console.log("Deep link path:", path);
+            console.log("Deep link hostname:", url.hostname);
+            console.log("Deep link protocol:", url.protocol);
+            console.log("Deep link full URL object:", url);
             console.log(
-                "Processing",
-                pendingDeepLinks.length,
-                "queued deep links",
+                "Deep link params:",
+                Object.fromEntries(params.entries()),
             );
-            for (const deepLink of pendingDeepLinks) {
-                try {
-                    handleDeepLink(deepLink);
-                } catch (error) {
-                    console.error("Error processing queued deep link:", error);
+
+            // Check if we're already on the scan-qr page
+            const currentPath = window.location.pathname;
+            const isOnScanPage = currentPath === "/scan-qr";
+            const isOnAuthenticatedRoute = isAuthenticatedRoute(currentPath);
+            console.log(
+                "Current path:",
+                currentPath,
+                "Is on scan page:",
+                isOnScanPage,
+                "Is on authenticated route:",
+                isOnAuthenticatedRoute,
+            );
+
+            // For w3ds:// URLs, we need to check the hostname instead of pathname
+            // w3ds://auth becomes hostname: "auth", pathname: ""
+            const action = url.hostname || path;
+            console.log("Deep link action (hostname):", action);
+
+            // Example: w3ds://auth?session=123&platform=example&redirect=https://example.com
+            if (action === "auth") {
+                // Handle authentication deep link
+                const sessionId = params.get("session");
+                const platform = params.get("platform");
+                const redirect = params.get("redirect");
+
+                console.log(
+                    "Auth deep link - session:",
+                    sessionId,
+                    "platform:",
+                    platform,
+                    "redirect:",
+                    redirect,
+                );
+
+                if (sessionId && platform && redirect) {
+                    // Always store the deep link data first
+                    const deepLinkData = {
+                        type: "auth",
+                        session: sessionId,
+                        platform: platform,
+                        redirect: redirect,
+                    };
+
+                    // Check if user is authenticated by checking if they're on an authenticated route
+                    const checkAuth = async () => {
+                        // First check if user is on an authenticated route
+                        // If not, they need to login first regardless of vault existence
+                        if (!isOnAuthenticatedRoute) {
+                            console.log(
+                                "User not on authenticated route, storing deep link and redirecting to login",
+                            );
+                            sessionStorage.setItem(
+                                "pendingDeepLink",
+                                JSON.stringify(deepLinkData),
+                            );
+                            goto("/login").catch((error) => {
+                                console.error(
+                                    "Error navigating to login:",
+                                    error,
+                                );
+                            });
+                            return;
+                        }
+
+                        try {
+                            // Wait for globalState to be ready if it's not yet
+                            if (!globalState) {
+                                console.log(
+                                    "GlobalState not ready, waiting...",
+                                );
+                                // Wait a bit and retry, or just redirect to login
+                                let retries = 0;
+                                const maxRetries = 10;
+                                while (!globalState && retries < maxRetries) {
+                                    await new Promise((resolve) =>
+                                        setTimeout(resolve, 100),
+                                    );
+                                    retries++;
+                                }
+
+                                if (!globalState) {
+                                    console.log(
+                                        "GlobalState still not ready, storing deep link and redirecting to login",
+                                    );
+                                    sessionStorage.setItem(
+                                        "pendingDeepLink",
+                                        JSON.stringify(deepLinkData),
+                                    );
+                                    goto("/login").catch((error) => {
+                                        console.error(
+                                            "Error navigating to login:",
+                                            error,
+                                        );
+                                    });
+                                    return;
+                                }
+                            }
+
+                            const vault =
+                                await globalState.vaultController.vault;
+                            if (vault) {
+                                // User is authenticated, dispatch event and navigate to scan page
+                                console.log(
+                                    "User authenticated, dispatching deep link event and navigating to scan-qr",
+                                );
+
+                                // Dispatch a custom event that the scan page can listen to
+                                const deepLinkEvent = new CustomEvent(
+                                    "deepLinkReceived",
+                                    {
+                                        detail: deepLinkData,
+                                    },
+                                );
+                                window.dispatchEvent(deepLinkEvent);
+
+                                // Also store in sessionStorage as backup
+                                sessionStorage.setItem(
+                                    "deepLinkData",
+                                    JSON.stringify(deepLinkData),
+                                );
+
+                                goto("/scan-qr").catch((error) => {
+                                    console.error(
+                                        "Error navigating to scan-qr:",
+                                        error,
+                                    );
+                                });
+                                return;
+                            }
+                        } catch (error) {
+                            console.log(
+                                "User not authenticated, redirecting to login",
+                                error,
+                            );
+                        }
+
+                        // User not authenticated, store deep link data and redirect to login
+                        console.log(
+                            "User not authenticated, storing deep link data and redirecting to login",
+                        );
+                        sessionStorage.setItem(
+                            "pendingDeepLink",
+                            JSON.stringify(deepLinkData),
+                        );
+                        goto("/login").catch((error) => {
+                            console.error("Error navigating to login:", error);
+                        });
+                    };
+
+                    checkAuth();
+                } else {
+                    console.log("Missing required auth parameters");
                 }
+            } else if (action === "sign") {
+                // Handle signing deep link
+                const sessionId = params.get("session");
+                const data = params.get("data");
+                const redirectUri = params.get("redirect_uri");
+
+                console.log(
+                    "Sign deep link - session:",
+                    sessionId,
+                    "data:",
+                    data,
+                    "redirect_uri:",
+                    redirectUri,
+                );
+
+                if (sessionId && data && redirectUri) {
+                    // Always store the deep link data first
+                    const deepLinkData = {
+                        type: "sign",
+                        session: sessionId,
+                        data: data,
+                        redirect_uri: redirectUri,
+                    };
+
+                    // Check if user is authenticated by checking if they're on an authenticated route
+                    const checkAuth = async () => {
+                        // First check if user is on an authenticated route
+                        // If not, they need to login first regardless of vault existence
+                        if (!isOnAuthenticatedRoute) {
+                            console.log(
+                                "User not on authenticated route, storing deep link and redirecting to login",
+                            );
+                            sessionStorage.setItem(
+                                "pendingDeepLink",
+                                JSON.stringify(deepLinkData),
+                            );
+                            goto("/login").catch((error) => {
+                                console.error(
+                                    "Error navigating to login:",
+                                    error,
+                                );
+                            });
+                            return;
+                        }
+
+                        try {
+                            // Wait for globalState to be ready if it's not yet
+                            if (!globalState) {
+                                console.log(
+                                    "GlobalState not ready, waiting...",
+                                );
+                                // Wait a bit and retry, or just redirect to login
+                                let retries = 0;
+                                const maxRetries = 10;
+                                while (!globalState && retries < maxRetries) {
+                                    await new Promise((resolve) =>
+                                        setTimeout(resolve, 100),
+                                    );
+                                    retries++;
+                                }
+
+                                if (!globalState) {
+                                    console.log(
+                                        "GlobalState still not ready, storing deep link and redirecting to login",
+                                    );
+                                    sessionStorage.setItem(
+                                        "pendingDeepLink",
+                                        JSON.stringify(deepLinkData),
+                                    );
+                                    goto("/login").catch((error) => {
+                                        console.error(
+                                            "Error navigating to login:",
+                                            error,
+                                        );
+                                    });
+                                    return;
+                                }
+                            }
+
+                            const vault =
+                                await globalState.vaultController.vault;
+                            if (vault) {
+                                // User is authenticated, dispatch event and navigate to scan page
+                                console.log(
+                                    "User authenticated, dispatching deep link event and navigating to scan-qr",
+                                );
+
+                                // Dispatch a custom event that the scan page can listen to
+                                const deepLinkEvent = new CustomEvent(
+                                    "deepLinkReceived",
+                                    {
+                                        detail: deepLinkData,
+                                    },
+                                );
+                                window.dispatchEvent(deepLinkEvent);
+
+                                // Also store in sessionStorage as backup
+                                sessionStorage.setItem(
+                                    "deepLinkData",
+                                    JSON.stringify(deepLinkData),
+                                );
+
+                                goto("/scan-qr").catch((error) => {
+                                    console.error(
+                                        "Error navigating to scan-qr:",
+                                        error,
+                                    );
+                                });
+                                return;
+                            }
+                        } catch (error) {
+                            console.log(
+                                "User not authenticated, redirecting to login",
+                                error,
+                            );
+                        }
+
+                        // User not authenticated, store deep link data and redirect to login
+                        console.log(
+                            "User not authenticated, storing deep link data and redirecting to login",
+                        );
+                        sessionStorage.setItem(
+                            "pendingDeepLink",
+                            JSON.stringify(deepLinkData),
+                        );
+                        goto("/login").catch((error) => {
+                            console.error("Error navigating to login:", error);
+                        });
+                    };
+
+                    checkAuth();
+                } else {
+                    console.log("Missing required signing parameters");
+                }
+            } else if (action === "reveal") {
+                // Handle reveal deep link
+                const pollId = params.get("pollId");
+
+                console.log("Reveal deep link - pollId:", pollId);
+
+                if (pollId) {
+                    // Always store the deep link data first
+                    const deepLinkData = {
+                        type: "reveal",
+                        pollId: pollId,
+                    };
+
+                    // Check if user is authenticated by checking if they're on an authenticated route
+                    const checkAuth = async () => {
+                        // First check if user is on an authenticated route
+                        // If not, they need to login first regardless of vault existence
+                        if (!isOnAuthenticatedRoute) {
+                            console.log(
+                                "User not on authenticated route, storing deep link and redirecting to login",
+                            );
+                            sessionStorage.setItem(
+                                "pendingDeepLink",
+                                JSON.stringify(deepLinkData),
+                            );
+                            goto("/login").catch((error) => {
+                                console.error(
+                                    "Error navigating to login:",
+                                    error,
+                                );
+                            });
+                            return;
+                        }
+
+                        try {
+                            // Wait for globalState to be ready if it's not yet
+                            if (!globalState) {
+                                console.log(
+                                    "GlobalState not ready, waiting...",
+                                );
+                                // Wait a bit and retry, or just redirect to login
+                                let retries = 0;
+                                const maxRetries = 10;
+                                while (!globalState && retries < maxRetries) {
+                                    await new Promise((resolve) =>
+                                        setTimeout(resolve, 100),
+                                    );
+                                    retries++;
+                                }
+
+                                if (!globalState) {
+                                    console.log(
+                                        "GlobalState still not ready, storing deep link and redirecting to login",
+                                    );
+                                    sessionStorage.setItem(
+                                        "pendingDeepLink",
+                                        JSON.stringify(deepLinkData),
+                                    );
+                                    goto("/login").catch((error) => {
+                                        console.error(
+                                            "Error navigating to login:",
+                                            error,
+                                        );
+                                    });
+                                    return;
+                                }
+                            }
+
+                            const vault =
+                                await globalState.vaultController.vault;
+                            if (vault) {
+                                // User is authenticated, dispatch event and navigate to scan page
+                                console.log(
+                                    "User authenticated, dispatching deep link event and navigating to scan-qr for reveal",
+                                );
+
+                                // Dispatch a custom event that the scan page can listen to
+                                const deepLinkEvent = new CustomEvent(
+                                    "deepLinkReceived",
+                                    {
+                                        detail: deepLinkData,
+                                    },
+                                );
+                                window.dispatchEvent(deepLinkEvent);
+
+                                // Also store in sessionStorage as backup
+                                sessionStorage.setItem(
+                                    "deepLinkData",
+                                    JSON.stringify(deepLinkData),
+                                );
+
+                                goto("/scan-qr").catch((error) => {
+                                    console.error(
+                                        "Error navigating to scan-qr:",
+                                        error,
+                                    );
+                                });
+                                return;
+                            }
+                        } catch (error) {
+                            console.log(
+                                "User not authenticated, redirecting to login",
+                                error,
+                            );
+                        }
+
+                        // User not authenticated, store deep link data and redirect to login
+                        console.log(
+                            "User not authenticated, storing reveal deep link data and redirecting to login",
+                        );
+                        sessionStorage.setItem(
+                            "pendingDeepLink",
+                            JSON.stringify(deepLinkData),
+                        );
+                        goto("/login").catch((error) => {
+                            console.error("Error navigating to login:", error);
+                        });
+                    };
+
+                    checkAuth();
+                } else {
+                    console.log("Missing required reveal parameters");
+                }
+            } else {
+                console.log("Unknown deep link path:", path);
             }
-            pendingDeepLinks = [];
+        } catch (error) {
+            console.error("Failed to parse deep link URL:", error);
         }
-    });
+    }
 
-    // Cleanup global event listeners
-    onDestroy(() => {
-        if (typeof globalDeepLinkHandler !== "undefined") {
-            window.removeEventListener(
-                "deepLinkReceived",
-                globalDeepLinkHandler,
-            );
+    navigationStack.push(window.location.pathname);
+    isAppReady = true;
+
+    // Process queued deep links
+    if (pendingDeepLinks.length > 0 && globalState) {
+        console.log("Processing", pendingDeepLinks.length, "queued deep links");
+        for (const deepLink of pendingDeepLinks) {
+            try {
+                handleDeepLink(deepLink);
+            } catch (error) {
+                console.error("Error processing queued deep link:", error);
+            }
         }
-    });
+        pendingDeepLinks = [];
+    }
+});
 
-    const safeAreaTop = $derived.by(
-        () =>
-            Number.parseFloat(
-                getComputedStyle(document.documentElement).getPropertyValue(
-                    "--safe-top",
-                ),
-            ) || 0,
-    );
+// Cleanup global event listeners
+onDestroy(() => {
+    if (typeof globalDeepLinkHandler !== "undefined") {
+        window.removeEventListener("deepLinkReceived", globalDeepLinkHandler);
+    }
+});
 
-    onNavigate((navigation) => {
-        const from = navigation.from?.url.pathname;
-        const to = navigation.to?.url.pathname;
+const safeAreaTop = $derived.by(
+    () =>
+        Number.parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue(
+                "--safe-top",
+            ),
+        ) || 0,
+);
 
-        if (!from || !to || from === to) return;
+onNavigate((navigation) => {
+    const from = navigation.from?.url.pathname;
+    const to = navigation.to?.url.pathname;
 
-        // Mark routes that have their own mount-time refresh guard. A SvelteKit
-        // navigation (link/goto) fires this hook; a hard reload does not — so
-        // the guard's onMount sees the flag iff the user genuinely navigated
-        // in, and redirects to / otherwise. Any caller can goto("/onboarding")
-        // without thinking about it.
-        if (to === "/onboarding") {
-            sessionStorage.setItem("navigatingToOnboarding", "true");
-        }
+    if (!from || !to || from === to) return;
 
-        const fromIndex = navigationStack.lastIndexOf(from);
-        const toIndex = navigationStack.lastIndexOf(to);
+    // Mark routes that have their own mount-time refresh guard. A SvelteKit
+    // navigation (link/goto) fires this hook; a hard reload does not — so
+    // the guard's onMount sees the flag iff the user genuinely navigated
+    // in, and redirects to / otherwise. Any caller can goto("/onboarding")
+    // without thinking about it.
+    if (to === "/onboarding") {
+        sessionStorage.setItem("navigatingToOnboarding", "true");
+    }
 
-        if (toIndex !== -1 && toIndex < fromIndex) {
-            // Backward navigation — current page slides out to the right.
-            routeDirection = "backward";
-            navigationStack = navigationStack.slice(0, toIndex + 1);
-        } else {
-            // Forward navigation — new page slides in from the right.
-            routeDirection = "forward";
-            navigationStack.push(to);
-        }
-    });
+    const fromIndex = navigationStack.lastIndexOf(from);
+    const toIndex = navigationStack.lastIndexOf(to);
 
-    $effect(() => {
-        if (mainWrapper) {
-            swipedetect(mainWrapper, (dir: string) => {
-                if (dir === "right") window.history.back();
-            });
-        }
-    });
+    if (toIndex !== -1 && toIndex < fromIndex) {
+        // Backward navigation — current page slides out to the right.
+        routeDirection = "backward";
+        navigationStack = navigationStack.slice(0, toIndex + 1);
+    } else {
+        // Forward navigation — new page slides in from the right.
+        routeDirection = "forward";
+        navigationStack.push(to);
+    }
+});
+
+$effect(() => {
+    if (mainWrapper) {
+        swipedetect(mainWrapper, (dir: string) => {
+            if (dir === "right") window.history.back();
+        });
+    }
+});
 </script>
 
 <!-- Splash is now a regular route at /+page.svelte, so the layout just

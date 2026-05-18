@@ -1,19 +1,19 @@
 <script lang="ts">
-    import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
-    import { HugeiconsIcon } from "@hugeicons/svelte";
+import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
 
-    interface IStepHeaderProps {
-        /** Step title rendered as h3. */
-        title: string;
-        /** Current step number (1-indexed). */
-        step: number;
-        /** Total number of steps. */
-        total?: number;
-        /** Fired when the back chevron is tapped. */
-        onback?: () => void;
-    }
+interface IStepHeaderProps {
+    /** Step title rendered as h3. */
+    title: string;
+    /** Current step number (1-indexed). */
+    step: number;
+    /** Total number of steps. */
+    total?: number;
+    /** Fired when the back chevron is tapped. */
+    onback?: () => void;
+}
 
-    const { title, step, total = 3, onback }: IStepHeaderProps = $props();
+const { title, step, total = 3, onback }: IStepHeaderProps = $props();
 </script>
 
 <header class="flex flex-row items-center gap-4 pt-4">

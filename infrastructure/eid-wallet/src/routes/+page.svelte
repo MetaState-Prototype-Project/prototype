@@ -5,8 +5,7 @@ import SplashScreen from "$lib/fragments/SplashScreen/SplashScreen.svelte";
 import type { GlobalState } from "$lib/global";
 import { getContext, onMount } from "svelte";
 
-const getGlobalState =
-    getContext<() => GlobalState | undefined>("globalState");
+const getGlobalState = getContext<() => GlobalState | undefined>("globalState");
 
 // Read sync (before first paint) so backward-nav from /onboarding lands
 // directly in state C without flashing state A for a frame.

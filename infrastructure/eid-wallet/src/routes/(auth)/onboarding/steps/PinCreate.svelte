@@ -1,34 +1,34 @@
 <script lang="ts">
-    import { ButtonAction } from "$lib/ui";
-    import { onMount } from "svelte";
-    import StepHeader from "./StepHeader.svelte";
+import { ButtonAction } from "$lib/ui";
+import { onMount } from "svelte";
+import StepHeader from "./StepHeader.svelte";
 
-    interface IPinCreateProps {
-        /** Fired when the back chevron is tapped. */
-        onback?: () => void;
-        /** Fired with the entered 4-digit PIN once the user taps Next. */
-        oncomplete?: (pin: string) => void;
-    }
+interface IPinCreateProps {
+    /** Fired when the back chevron is tapped. */
+    onback?: () => void;
+    /** Fired with the entered 4-digit PIN once the user taps Next. */
+    oncomplete?: (pin: string) => void;
+}
 
-    const { onback, oncomplete }: IPinCreateProps = $props();
+const { onback, oncomplete }: IPinCreateProps = $props();
 
-    let pin = $state("");
-    let inputEl: HTMLInputElement | undefined = $state();
-    const canSubmit = $derived(pin.length === 4);
+let pin = $state("");
+let inputEl: HTMLInputElement | undefined = $state();
+const canSubmit = $derived(pin.length === 4);
 
-    onMount(() => {
-        inputEl?.focus();
-    });
+onMount(() => {
+    inputEl?.focus();
+});
 
-    const handleInput = (e: Event) => {
-        const raw = (e.target as HTMLInputElement).value;
-        pin = raw.replace(/\D/g, "").slice(0, 4);
-    };
+const handleInput = (e: Event) => {
+    const raw = (e.target as HTMLInputElement).value;
+    pin = raw.replace(/\D/g, "").slice(0, 4);
+};
 
-    const handleSubmit = () => {
-        if (!canSubmit) return;
-        oncomplete?.(pin);
-    };
+const handleSubmit = () => {
+    if (!canSubmit) return;
+    oncomplete?.(pin);
+};
 </script>
 
 <main

@@ -64,7 +64,7 @@ const handleSubmit = async () => {
         >
             {#each Array(4) as _, i (i)}
                 <div
-                    class="w-11 h-17 rounded-full bg-white flex items-center justify-center text-3xl font-semibold text-black-900"
+                    class="w-11 h-17 rounded-full bg-white flex items-center justify-center text-4xl font-extrabold text-black-900"
                     style="box-shadow: 0px 4px 19.9px 0px #00000024;"
                 >
                     {pin[i] ?? ""}

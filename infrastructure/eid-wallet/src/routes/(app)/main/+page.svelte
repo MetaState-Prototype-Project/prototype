@@ -5,7 +5,7 @@ import {
     PUBLIC_PROVISIONER_SHARED_SECRET,
     PUBLIC_PROVISIONER_URL,
 } from "$env/static/public";
-import { Hero, IdentityCard } from "$lib/fragments";
+import { IdentityCard } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
 import {
     getUnreadCount,
@@ -15,14 +15,21 @@ import { BottomSheet, Toast } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { capitalize } from "$lib/utils";
 import {
+    Agreement02Icon,
+    ArrowRight01Icon,
     ChatNotificationIcon,
+    Copy01Icon,
+    Edit02Icon,
+    IdentificationIcon,
+    InformationCircleIcon,
     LinkSquare02Icon,
     QrCodeIcon,
     Settings02Icon,
+    UserIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import axios from "axios";
-import { type Snippet, getContext, onMount } from "svelte";
+import { getContext, onMount } from "svelte";
 import { onDestroy } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
 import QrCode from "svelte-qrcode";
@@ -514,19 +521,46 @@ onDestroy(() => {
         </div>
     </div>
 {:else}
-    <div class="flex items-start">
-        <Hero title={greeting ?? "Hi!"}>
-            {#snippet subtitle()}
-                Welcome back to your eID Wallet
-            {/snippet}
-        </Hero>
+<div
+    class="px-5"
+    style="padding-top: max(12px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));"
+>
+    <!-- F21 redesign: greeting + name with edit affordance, chat / settings
+         on the right. The pencil is a stub for now — no edit flow yet. -->
+    <header class="flex items-start justify-between pt-2">
+        <div>
+            <h1 class="text-3xl font-light text-black-500 leading-tight">
+                {greeting ?? "Hi"}
+            </h1>
+            <div class="flex items-center gap-2 mt-1">
+                <h2 class="text-3xl font-bold text-black-900 leading-tight">
+                    {(userData?.name as string) ?? ""}
+                </h2>
+                <button
+                    type="button"
+                    aria-label="Edit name"
+                    class="text-black-500 active:opacity-60"
+                >
+                    <HugeiconsIcon
+                        icon={Edit02Icon}
+                        size={20}
+                        strokeWidth={2}
+                    />
+                </button>
+            </div>
+        </div>
 
-        <div class="flex items-center gap-2">
-            <Button.Nav href="/notifications" class="relative" aria-label={notificationCount > 0 ? `Notifications (${notificationCount} unread)` : "Notifications"}>
+        <div class="flex items-center gap-2 shrink-0">
+            <Button.Nav
+                href="/notifications"
+                class="relative"
+                aria-label={notificationCount > 0
+                    ? `Notifications (${notificationCount} unread)`
+                    : "Notifications"}
+            >
                 <HugeiconsIcon
-                    size={28}
+                    size={26}
                     strokeWidth={2}
-                    className="mt-1.5"
                     icon={ChatNotificationIcon}
                 />
                 {#if notificationCount > 0}
@@ -539,120 +573,344 @@ onDestroy(() => {
             </Button.Nav>
             <Button.Nav href="/settings" aria-label="Settings">
                 <HugeiconsIcon
-                    size={32}
+                    size={28}
                     strokeWidth={2}
-                    className="mt-1.5"
                     icon={Settings02Icon}
                 />
             </Button.Nav>
         </div>
-    </div>
+    </header>
 
-    {#snippet Section(title: string, children: Snippet)}
-        <section class="mt-5">
-            <h4>{title}</h4>
-            {@render children()}
-        </section>
-    {/snippet}
-
-    {#snippet eName()}
-        <IdentityCard
-            variant="eName"
-            userId={ename ?? "Loading..."}
-            copyBtn={copyEName}
-        />
-    {/snippet}
-    {#snippet ePassport()}
-        <IdentityCard
-            variant="ePassport"
-            viewBtn={() => goto("/ePassport")}
-            userData={userData as Record<string, string>}
-        />
-    {/snippet}
-
-    <main class="pb-12">
-        {@render Section("eName", eName)}
-
-        <!-- ePassport section: whole block navigates to /ePassport -->
-        <section class="mt-5">
-            <h4>ePassport</h4>
-            <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
-            <div
-                class="cursor-pointer relative"
-                onclick={() => goto("/ePassport")}
-                role="link"
-                tabindex="0"
-                onkeydown={(e) => {
-                    if (e.key === "Enter") goto("/ePassport");
-                }}
-            >
-                <div class="relative z-10">
-                    <IdentityCard
-                        variant="ePassport"
-                        userData={userData as Record<string, string>}
-                    />
-                </div>
-                {#if bindingDocsLoaded && (hasOnlySelfDocs || missingProvisionerDocs)}
+    <main class="mt-6 flex flex-col gap-3 pb-32">
+        <!-- ── Your eName ───────────────────────────────────────────────── -->
+        <section
+            class="bg-white rounded-2xl border border-black-100 p-4 shadow-sm"
+        >
+            <div class="flex items-center justify-between gap-3 mb-1">
+                <p class="text-sm text-black-500">Your eName</p>
+                <span
+                    class="bg-black-100 text-black-700 text-[10px] font-bold uppercase tracking-wide px-3 py-1 rounded-full"
+                >
+                    Unverified ID
+                </span>
+            </div>
+            <div class="flex items-start justify-between gap-3">
+                <p
+                    class="font-medium text-black-900 break-all flex-1 leading-snug"
+                >
+                    {ename ?? "Loading..."}
+                </p>
+                <div class="flex items-center gap-2 shrink-0 pt-0.5">
                     <button
-                        onclick={(e) => {
-                            e.stopPropagation();
-                            goto("/ePassport");
-                        }}
-                        class="relative z-0 w-full -mt-3 -translate-y-2.5 rounded-b-2xl px-4 pt-7.5 pb-3 flex items-center justify-center gap-2 text-sm font-medium shadow-md transition-colors
-                            {missingProvisionerDocs
-                            ? 'bg-emerald-400 text-emerald-900 active:bg-emerald-500'
-                            : 'bg-amber-400 text-amber-900 active:bg-amber-500'}"
+                        type="button"
+                        onclick={copyEName}
+                        aria-label="Copy eName"
+                        class="text-black-700 active:opacity-60"
                     >
-                        <span>{missingProvisionerDocs ? "↑" : "⚠"}</span>
-                        {missingProvisionerDocs
-                            ? "New – add binding docs for trust & recovery"
-                            : "Verify your identity – secure DigitalSelf & earn trust"}
+                        <HugeiconsIcon
+                            icon={Copy01Icon}
+                            size={20}
+                            strokeWidth={2}
+                        />
                     </button>
-                {/if}
+                    <button
+                        type="button"
+                        onclick={() => (shareQRdrawerOpen = true)}
+                        aria-label="Show QR code"
+                        class="text-black-700 active:opacity-60"
+                    >
+                        <HugeiconsIcon
+                            icon={QrCodeIcon}
+                            size={20}
+                            strokeWidth={2}
+                        />
+                    </button>
+                </div>
             </div>
         </section>
 
-        <Button.Nav
-            href="https://marketplace.w3ds.metastate.foundation/"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="rounded-3xl z-0 w-full border border-gray-300 h-48 text-black p-3 mt-8 flex flex-col justify-end cursor-pointer relative overflow-hidden  transition-shadow"
+        <!-- ── Binding Documents ────────────────────────────────────────── -->
+        <section
+            class="bg-white rounded-2xl border border-black-100 p-4 shadow-sm"
         >
-            <img
-                src="/marketplace.png"
-                alt="Marketplace"
-                class="absolute inset-0 z-0 w-full h-full object-cover object-bottom"
-            />
-            <!-- Gradient overlay that fades towards the bottom -->
-            <div
-                class="absolute inset-0 z-1 bg-linear-to-t from-white via-white/60 to-transparent"
-            ></div>
-
-            <span
-                class="text-2xl font-bold flex gap-2 relative z-10 drop-shadow-lg"
-                >Discover Post Platforms</span
-            >
-            <span
-                class="text-sm opacity-90 relative z-10 drop-shadow-md flex gap-1 items-center"
-                >Explore
-                <div class="flex items-center">
-                    <img
-                        src="/images/W3DSLogoBlack.svg"
-                        alt="W3DS Logo"
-                        class="h-4"
-                    />
-                    -enabled services
-                </div>
-                <span class="relative z-10">
+            <header class="flex items-center justify-between mb-3">
+                <h3 class="font-semibold text-black-900">Binding Documents</h3>
+                <button
+                    type="button"
+                    aria-label="About binding documents"
+                    class="text-black-500 active:opacity-60"
+                >
                     <HugeiconsIcon
-                        size={16}
-                        strokeWidth={1.5}
-                        icon={LinkSquare02Icon}
+                        icon={InformationCircleIcon}
+                        size={18}
+                        strokeWidth={2}
                     />
-                </span></span
+                </button>
+            </header>
+            <div class="flex flex-col gap-2">
+                <div
+                    class="flex items-center gap-3 bg-gray rounded-xl p-2.5"
+                >
+                    <div
+                        class="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-700 shrink-0"
+                    >
+                        <HugeiconsIcon
+                            icon={IdentificationIcon}
+                            size={20}
+                            strokeWidth={2}
+                        />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-semibold text-black-900 leading-tight">
+                            Legal ID
+                        </p>
+                        <p class="text-xs text-black-500 leading-tight">
+                            Any legal doc
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        class="bg-black-100 text-black-700 text-[10px] font-bold uppercase tracking-wide px-4 py-1.5 rounded-full active:opacity-70 shrink-0"
+                    >
+                        Add
+                    </button>
+                </div>
+
+                <div
+                    class="flex items-center gap-3 bg-gray rounded-xl p-2.5"
+                >
+                    <div
+                        class="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary shrink-0"
+                    >
+                        <HugeiconsIcon
+                            icon={UserIcon}
+                            size={20}
+                            strokeWidth={2}
+                        />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-semibold text-black-900 leading-tight">
+                            Personal
+                        </p>
+                        <p class="text-xs text-black-500 leading-tight">
+                            Idenity marks
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        class="bg-black-100 text-black-700 text-[10px] font-bold uppercase tracking-wide px-4 py-1.5 rounded-full active:opacity-70 shrink-0"
+                    >
+                        Add
+                    </button>
+                </div>
+
+                <div
+                    class="flex items-center gap-3 bg-gray rounded-xl p-2.5"
+                >
+                    <div
+                        class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 shrink-0"
+                    >
+                        <HugeiconsIcon
+                            icon={Agreement02Icon}
+                            size={20}
+                            strokeWidth={2}
+                        />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-semibold text-black-900 leading-tight">
+                            Social binding
+                        </p>
+                        <p class="text-xs text-primary leading-tight">
+                            New level of trust
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        class="bg-primary text-white text-[10px] font-bold uppercase tracking-wide px-4 py-1.5 rounded-full active:opacity-80 shrink-0"
+                    >
+                        Invite
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Your eVault ──────────────────────────────────────────────── -->
+        <section
+            class="bg-white rounded-2xl border border-black-100 p-4 shadow-sm flex items-start justify-between gap-3"
+        >
+            <div>
+                <p class="text-sm text-black-500">Your eVault</p>
+                <p class="text-2xl font-bold text-black-900 mt-0.5">
+                    80 Gb
+                    <span class="font-normal text-black-500">available</span>
+                </p>
+            </div>
+            <button
+                type="button"
+                aria-label="About eVault"
+                class="text-black-500 active:opacity-60 mt-0.5"
             >
-        </Button.Nav>
+                <HugeiconsIcon
+                    icon={InformationCircleIcon}
+                    size={18}
+                    strokeWidth={2}
+                />
+            </button>
+        </section>
+
+        <!-- ── Apps marketplace ─────────────────────────────────────────── -->
+        <section class="mt-2">
+            <a
+                href="https://marketplace.w3ds.metastate.foundation/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center gap-1 mb-3 text-black-900 active:opacity-70"
+            >
+                <h3 class="font-semibold">Apps marketplace</h3>
+                <HugeiconsIcon
+                    icon={ArrowRight01Icon}
+                    size={18}
+                    strokeWidth={2}
+                />
+            </a>
+            <div class="grid grid-cols-3 gap-3">
+                <div
+                    class="bg-blue-50 rounded-2xl p-3 flex flex-col items-start"
+                >
+                    <div
+                        class="w-10 h-10 rounded-xl bg-blue-500 text-white flex items-center justify-center font-extrabold text-lg mb-2"
+                    >
+                        B
+                    </div>
+                    <p class="font-semibold text-black-900 leading-tight">
+                        Blasby
+                    </p>
+                    <p class="text-xs text-black-500 leading-tight">Social</p>
+                </div>
+                <div
+                    class="bg-pink-50 rounded-2xl p-3 flex flex-col items-start"
+                >
+                    <div
+                        class="w-10 h-10 rounded-xl bg-pink-500 text-white flex items-center justify-center font-extrabold text-lg mb-2"
+                    >
+                        P
+                    </div>
+                    <p class="font-semibold text-black-900 leading-tight">
+                        Pictique
+                    </p>
+                    <p class="text-xs text-black-500 leading-tight">Social</p>
+                </div>
+                <div
+                    class="bg-red-50 rounded-2xl p-3 flex flex-col items-start"
+                >
+                    <div
+                        class="w-10 h-10 rounded-xl bg-red-500 text-white flex items-center justify-center font-extrabold text-lg mb-2"
+                    >
+                        E
+                    </div>
+                    <p class="font-semibold text-black-900 leading-tight">
+                        eVoting
+                    </p>
+                    <p class="text-xs text-black-500 leading-tight">
+                        Governance
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── ePassport section (legacy) ────────────────────────────────
+             Commented out for the F21 redesign. The card, its tap-target,
+             and the binding-doc ribbon stay here so we can re-integrate
+             once the new design has a confirmed place for them. Re-enable
+             by flipping the {#if false} guard. -->
+        {#if false}
+            <section class="mt-5">
+                <h4>ePassport</h4>
+                <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+                <div
+                    class="cursor-pointer relative"
+                    onclick={() => goto("/ePassport")}
+                    role="link"
+                    tabindex="0"
+                    onkeydown={(e) => {
+                        if (e.key === "Enter") goto("/ePassport");
+                    }}
+                >
+                    <div class="relative z-10">
+                        <IdentityCard
+                            variant="ePassport"
+                            userData={userData as Record<string, string>}
+                        />
+                    </div>
+                    {#if bindingDocsLoaded && (hasOnlySelfDocs || missingProvisionerDocs)}
+                        <button
+                            onclick={(e) => {
+                                e.stopPropagation();
+                                goto("/ePassport");
+                            }}
+                            class="relative z-0 w-full -mt-3 -translate-y-2.5 rounded-b-2xl px-4 pt-7.5 pb-3 flex items-center justify-center gap-2 text-sm font-medium shadow-md transition-colors
+                            {missingProvisionerDocs
+                                ? 'bg-emerald-400 text-emerald-900 active:bg-emerald-500'
+                                : 'bg-amber-400 text-amber-900 active:bg-amber-500'}"
+                        >
+                            <span>{missingProvisionerDocs ? "↑" : "⚠"}</span>
+                            {missingProvisionerDocs
+                                ? "New – add binding docs for trust & recovery"
+                                : "Verify your identity – secure DigitalSelf & earn trust"}
+                        </button>
+                    {/if}
+                </div>
+            </section>
+        {/if}
+
+        <!-- ── Marketplace banner (legacy) ───────────────────────────────
+             The external marketplace link is replaced by the Apps
+             marketplace tiles above. Keep this banner around for now in
+             case we want to promote post-platforms separately. -->
+        {#if false}
+            <Button.Nav
+                href="https://marketplace.w3ds.metastate.foundation/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="rounded-3xl z-0 w-full border border-gray-300 h-48 text-black p-3 mt-8 flex flex-col justify-end cursor-pointer relative overflow-hidden transition-shadow"
+            >
+                <img
+                    src="/marketplace.png"
+                    alt="Marketplace"
+                    class="absolute inset-0 z-0 w-full h-full object-cover object-bottom"
+                />
+                <div
+                    class="absolute inset-0 z-1 bg-linear-to-t from-white via-white/60 to-transparent"
+                ></div>
+                <span
+                    class="text-2xl font-bold flex gap-2 relative z-10 drop-shadow-lg"
+                >
+                    Discover Post Platforms
+                </span>
+                <span
+                    class="text-sm opacity-90 relative z-10 drop-shadow-md flex gap-1 items-center"
+                >
+                    Explore
+                    <div class="flex items-center">
+                        <img
+                            src="/images/W3DSLogoBlack.svg"
+                            alt="W3DS Logo"
+                            class="h-4"
+                        />
+                        -enabled services
+                    </div>
+                    <span class="relative z-10">
+                        <HugeiconsIcon
+                            size={16}
+                            strokeWidth={1.5}
+                            icon={LinkSquare02Icon}
+                        />
+                    </span>
+                </span>
+            </Button.Nav>
+        {/if}
     </main>
+</div>
 
     <BottomSheet
         title="Scan QR Code"
@@ -683,22 +941,24 @@ onDestroy(() => {
         <Button.Action
             variant="solid"
             size="md"
-            onclick={() => alert("Action button clicked!")}
-            class="mx-auto text-nowrap flex gap-8"
+            class="mx-auto text-nowrap flex gap-3 uppercase tracking-wide"
         >
+            Scan
             <HugeiconsIcon
-                size={32}
+                size={24}
                 strokeWidth={2}
-                className="mr-2"
                 icon={QrCodeIcon}
             />
-            Scan to Login
         </Button.Action>
     </Button.Nav>
 {/if}
 
 <!-- ── KYC upgrade overlay ───────────────────────────────────────────────────── -->
-{#if kycStep !== "idle"}
+<!-- Commented out for the F21 redesign — the inline KYC upgrade flow needs
+     a new entry point in the redesigned home. Re-enable by removing the
+     `false &&` guard below. The state machine, handlers, and bottom sheets
+     are all kept intact. -->
+{#if false && kycStep !== "idle"}
     <!-- Hardware check / hw-error / starting (loading) -->
     {#if kycStep === "checking-hw" || kycStep === "hw-error" || kycStep === "starting" || kycStep === "upgrading"}
         <div class="fixed inset-0 z-50 bg-white overflow-y-auto">
