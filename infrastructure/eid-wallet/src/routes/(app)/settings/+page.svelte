@@ -19,7 +19,7 @@ import { onDestroy } from "svelte";
 const getGlobalState = getContext<() => GlobalState>("globalState");
 const setGlobalState =
     getContext<(value: GlobalState) => void>("setGlobalState");
-let globalState = getGlobalState();
+let globalState = $derived(getGlobalState());
 
 let isDeleteConfirmationOpen = $state(false);
 let isFinalConfirmationOpen = $state(false);
@@ -42,10 +42,13 @@ function confirmDelete() {
 
 async function nukeWallet() {
     clearAllNotifications();
+    if (!globalState) {
+        console.error("Cannot nuke wallet: global state not ready");
+        return;
+    }
     const newGlobalState = await globalState.reset();
     setGlobalState(newGlobalState);
-    globalState = newGlobalState;
-    goto("/onboarding");
+    goto("/");
 }
 
 async function cancelDelete() {
