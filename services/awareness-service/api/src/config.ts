@@ -27,7 +27,7 @@ export const config = {
         .filter(Boolean),
     /** Secret used to sign portal session JWTs. */
     jwtSecret: process.env.AAAS_JWT_SECRET ?? "awareness-dev-secret",
-    maxAttempts: parseInt(process.env.AWARENESS_MAX_ATTEMPTS ?? "8", 10),
+    maxAttempts: parseInt(process.env.AWARENESS_MAX_ATTEMPTS ?? "3", 10),
     deliveryPollMs: parseInt(
         process.env.AWARENESS_DELIVERY_POLL_MS ?? "2000",
         10,
