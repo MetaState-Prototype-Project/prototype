@@ -209,6 +209,24 @@ export const openApiDocument = {
                                             type: "array",
                                             items: { $ref: "#/components/schemas/Packet" },
                                         },
+                                        count: {
+                                            type: "integer",
+                                            description: "Packets in this page",
+                                        },
+                                        total: {
+                                            type: "integer",
+                                            description:
+                                                "Total packets matching the filter",
+                                        },
+                                        pageSize: {
+                                            type: "integer",
+                                            description: "Effective limit",
+                                        },
+                                        totalPages: {
+                                            type: "integer",
+                                            description:
+                                                "ceil(total / pageSize)",
+                                        },
                                         hasMore: { type: "boolean" },
                                         nextCursor: { type: "string", nullable: true },
                                     },

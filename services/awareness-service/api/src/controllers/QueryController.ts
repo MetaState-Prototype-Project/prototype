@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { Brackets } from "typeorm";
+import { Brackets, type SelectQueryBuilder } from "typeorm";
 import { AppDataSource } from "../database/data-source";
 import { Packet } from "../database/entities/Packet";
 import { consumerAuth } from "../middleware/consumerAuth";
@@ -11,7 +11,8 @@ const MAX_LIMIT = 500;
 /**
  * GET /api/packets - polling query API. Approved consumers filter the awareness
  * packet history by ontology, eVault and time range, paged with an opaque
- * (receivedAt, id) cursor.
+ * (receivedAt, id) cursor. The response also reports the total match count and
+ * page count for the current filter.
  */
 export function queryRouter(): Router {
     const router = Router();
@@ -41,23 +42,35 @@ export function queryRouter(): Router {
                 .json({ error: "from/to must be ISO timestamps" });
         }
 
-        const qb = AppDataSource.getRepository(Packet)
-            .createQueryBuilder("p")
+        // Applies the ontology / eVault / time-range filters (everything
+        // except the pagination cursor) to a fresh query builder.
+        const withFilters = (): SelectQueryBuilder<Packet> => {
+            const qb = AppDataSource.getRepository(Packet).createQueryBuilder(
+                "p",
+            );
+            if (ontologies.length > 0) {
+                qb.andWhere("p.ontology IN (:...ontologies)", { ontologies });
+            }
+            if (evault) {
+                qb.andWhere(
+                    "(p.w3id = :evault OR p.evaultPublicKey = :evault)",
+                    { evault },
+                );
+            }
+            if (from) qb.andWhere("p.receivedAt >= :from", { from });
+            if (to) qb.andWhere("p.receivedAt <= :to", { to });
+            return qb;
+        };
+
+        // Total number of packets matching the filter (cursor-independent).
+        const total = await withFilters().getCount();
+
+        // The current page: filters + cursor, ordered, one extra row to detect
+        // whether more pages follow.
+        const qb = withFilters()
             .orderBy("p.receivedAt", "ASC")
             .addOrderBy("p.id", "ASC")
             .take(limit + 1);
-
-        if (ontologies.length > 0) {
-            qb.andWhere("p.ontology IN (:...ontologies)", { ontologies });
-        }
-        if (evault) {
-            qb.andWhere(
-                "(p.w3id = :evault OR p.evaultPublicKey = :evault)",
-                { evault },
-            );
-        }
-        if (from) qb.andWhere("p.receivedAt >= :from", { from });
-        if (to) qb.andWhere("p.receivedAt <= :to", { to });
 
         if (typeof req.query.cursor === "string" && req.query.cursor) {
             const cursor = decodeCursor(req.query.cursor);
@@ -83,6 +96,10 @@ export function queryRouter(): Router {
 
         return res.json({
             packets,
+            count: packets.length,
+            total,
+            pageSize: limit,
+            totalPages: Math.ceil(total / limit),
             hasMore,
             nextCursor:
                 hasMore && last
