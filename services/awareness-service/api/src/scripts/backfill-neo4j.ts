@@ -96,9 +96,17 @@ async function main(): Promise<void> {
                     });
                 });
 
-            if (packets.length > 0) {
-                await packetRepo.upsert(packets, ["id"]);
-                total += packets.length;
+            // The graph can hold several MetaEnvelope nodes with the same id
+            // (e.g. shared across eNames). Postgres rejects an upsert that
+            // touches the same conflict target twice in one statement, so
+            // collapse duplicates within the batch first (last write wins).
+            const deduped = Array.from(
+                new Map(packets.map((p) => [p.id, p])).values(),
+            );
+
+            if (deduped.length > 0) {
+                await packetRepo.upsert(deduped, ["id"]);
+                total += deduped.length;
             }
             console.log(`[backfill] processed ${total} packets...`);
             skip += BATCH;
