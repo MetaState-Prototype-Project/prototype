@@ -12,6 +12,24 @@ import type { AwarenessPayload } from "../types";
 const BATCH_SIZE = 50;
 
 /**
+ * True for transient "Postgres is not ready" errors - server restarting, in
+ * recovery, or unreachable. These resolve on their own once the DB is back.
+ */
+function isDbUnavailable(err: any): boolean {
+    const code = err?.code ?? err?.driverError?.code;
+    return (
+        code === "57P03" || // cannot connect now / in recovery
+        code === "57P01" || // admin shutdown
+        code === "08006" || // connection failure
+        code === "08001" || // unable to establish connection
+        code === "08003" || // connection does not exist
+        code === "ECONNREFUSED" ||
+        code === "ETIMEDOUT" ||
+        code === "ENOTFOUND"
+    );
+}
+
+/**
  * Background worker that drains the deliveries queue. Each tick atomically
  * claims a batch of due deliveries (FOR UPDATE SKIP LOCKED so concurrent ticks
  * never double-send), POSTs each to its subscription target, and either marks
@@ -21,6 +39,7 @@ const BATCH_SIZE = 50;
 export class DeliveryEngine {
     private timer?: NodeJS.Timeout;
     private running = false;
+    private dbDown = false;
 
     start(): void {
         this.timer = setInterval(() => {
@@ -43,8 +62,21 @@ export class DeliveryEngine {
             for (const delivery of claimed) {
                 await this.attemptDelivery(delivery);
             }
+            this.dbDown = false;
         } catch (err) {
-            console.error("[aaas] delivery tick failed:", err);
+            if (isDbUnavailable(err)) {
+                // Postgres is restarting / in recovery - transient. Log once
+                // per outage instead of dumping a stack trace every tick.
+                if (!this.dbDown) {
+                    this.dbDown = true;
+                    console.warn(
+                        "[aaas] database unavailable, pausing delivery until it recovers",
+                    );
+                }
+            } else {
+                this.dbDown = false;
+                console.error("[aaas] delivery tick failed:", err);
+            }
         } finally {
             this.running = false;
         }
