@@ -5,7 +5,7 @@
     "localToUniversalMap": {
         "text": "content",
         "createdBy": "user(createdBy),authorId",
-        "images": "images[].src,mediaUrls",
+        "images": "__file(images[].src),mediaUrls",
         "parent": "tweet(parent.id),parentPostId",
         "userLikes": "user(userLikes)[],likedBy",
         "createdAt": "__date(calc(createdAt._seconds * 1000)),createdAt",

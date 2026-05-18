@@ -7,7 +7,7 @@
         "senderId": "user(senderId),senderId",
         "text": "content",
         "type": "type",
-        "mediaUrl": "mediaUrl",
+        "mediaUrl": "__file(mediaUrl)",
         "createdAt": "__date(calc(createdAt._seconds * 1000)),createdAt",
         "updatedAt": "__date(calc(updatedAt._seconds * 1000)),updatedAt",
         "isArchived": "isArchived"

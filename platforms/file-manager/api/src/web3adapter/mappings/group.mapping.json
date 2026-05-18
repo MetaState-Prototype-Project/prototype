@@ -17,8 +17,8 @@
         "originalMatchParticipants": "originalMatchParticipants",
         "isPrivate": "isPrivate",
         "visibility": "visibility",
-        "avatarUrl": "avatarUrl",
-        "bannerUrl": "bannerUrl",
+        "avatarUrl": "__file(avatarUrl)",
+        "bannerUrl": "__file(bannerUrl)",
         "createdAt": "createdAt",
         "updatedAt": "updatedAt"
     },

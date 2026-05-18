@@ -7,7 +7,7 @@
     ],
     "localToUniversalMap": {
         "text": "content",
-        "images": "mediaUrls",
+        "images": "__file(images),mediaUrls",
         "hashtags": "tags",
         "createdAt": "createdAt",
         "parentPostId": "posts(post.id),parentPostId",
