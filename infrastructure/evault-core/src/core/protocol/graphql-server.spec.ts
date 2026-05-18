@@ -12,15 +12,17 @@ import {
 import { getSharedTestKeyPair } from "../../test-utils/shared-test-keys";
 
 // Store original axios functions before any spying happens
-const originalAxiosGet = axios.get;
 const originalAxiosPost = axios.post;
 
-describe("GraphQLServer Webhook Payload W3ID", () => {
+// evault-core forwards every awareness packet to AaaS at
+// AWARENESS_SERVICE_URL/ingest; point it somewhere the spy can intercept.
+process.env.AWARENESS_SERVICE_URL = "http://localhost:9999";
+
+describe("GraphQLServer Awareness Ingest Payload W3ID", () => {
     let server: E2ETestServer;
     let evault1: ProvisionedEVault;
     let evault2: ProvisionedEVault;
     const evaultW3ID = "evault-w3id-123";
-    let axiosGetSpy: any;
     let axiosPostSpy: any;
 
     beforeAll(async () => {
@@ -31,54 +33,32 @@ describe("GraphQLServer Webhook Payload W3ID", () => {
 
     afterAll(async () => {
         await teardownE2ETestServer(server);
-        // Restore original implementations
-        if (axiosGetSpy) {
-            axiosGetSpy.mockRestore();
-        }
         if (axiosPostSpy) {
             axiosPostSpy.mockRestore();
         }
     });
 
     beforeEach(() => {
-        // Restore any existing spies first
-        if (axiosGetSpy) {
-            axiosGetSpy.mockRestore();
-        }
         if (axiosPostSpy) {
             axiosPostSpy.mockRestore();
         }
-        
-        vi.clearAllMocks();
-        
-        // Mock axios.get for platforms endpoint only
-        axiosGetSpy = vi.spyOn(axios, "get").mockImplementation((...args: any[]) => {
-            const url = args[0];
-            if (typeof url === "string" && url.includes("/platforms")) {
-                return Promise.resolve({
-                    data: ["http://localhost:9999"], // Mock platform URL
-                }) as any;
-            }
-            // For other GET requests, call through to original with all arguments preserved
-            return (originalAxiosGet as any).apply(axios, args);
-        });
 
-        // Spy on axios.post to capture webhook payloads
+        vi.clearAllMocks();
+
+        // Spy on axios.post to capture the awareness ingest payload.
         axiosPostSpy = vi.spyOn(axios, "post").mockImplementation((url: string | any, data?: any, config?: any) => {
-            // If it's a webhook call, capture it and return success
-            // Note: axios.post(url, data, config) - data is the second parameter
-            if (typeof url === "string" && url.includes("/api/webhook")) {
-                // Log for debugging
-                console.log("Webhook intercepted:", { url, data });
-                return Promise.resolve({ status: 200, data: {} }) as any;
+            // If it's the AaaS ingest call, capture it and return success.
+            if (typeof url === "string" && url.includes("/ingest")) {
+                console.log("Ingest intercepted:", { url, data });
+                return Promise.resolve({ status: 200, data: { ok: true } }) as any;
             }
-            // For GraphQL and other requests, call through to original (stored before spying)
+            // For GraphQL and other requests, call through to original.
             return originalAxiosPost.call(axios, url, data, config);
         });
     });
 
-    describe("storeMetaEnvelope webhook payload", () => {
-        it("should include X-ENAME in webhook payload", async () => {
+    describe("storeMetaEnvelope ingest payload", () => {
+        it("should include X-ENAME in the ingest payload", async () => {
             const testData = { field: "value", test: "store-test" };
             const testOntology = "WebhookTestOntology";
 
@@ -104,33 +84,33 @@ describe("GraphQLServer Webhook Payload W3ID", () => {
                 "X-ENAME": evault1.w3id,
             });
 
-            // Wait for the setTimeout delay (3 seconds) in the actual code
-            await new Promise(resolve => setTimeout(resolve, 3500));
+            // notifyAwareness is fire-and-forget; give it a moment to run.
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
-            // Verify axios.post was called (webhook delivery)
+            // Verify axios.post was called (awareness ingest)
             expect(axios.post).toHaveBeenCalled();
-            
-            // Get the webhook payload from the axios.post call
-            const webhookCalls = (axios.post as any).mock.calls;
-            const webhookCall = webhookCalls.find((call: any[]) => 
-                typeof call[0] === "string" && call[0].includes("/api/webhook")
+
+            // Get the ingest payload from the axios.post call
+            const ingestCalls = (axios.post as any).mock.calls;
+            const ingestCall = ingestCalls.find((call: any[]) =>
+                typeof call[0] === "string" && call[0].includes("/ingest")
             );
 
-            expect(webhookCall).toBeDefined();
-            const webhookPayload = webhookCall[1]; // Second argument is the payload
+            expect(ingestCall).toBeDefined();
+            const ingestPayload = ingestCall[1]; // Second argument is the payload
 
-            console.log("Webhook payload:", JSON.stringify(webhookPayload, null, 2));
+            console.log("Ingest payload:", JSON.stringify(ingestPayload, null, 2));
             console.log("Expected w3id:", evault1.w3id);
 
-            // Verify the webhook payload contains the user's W3ID, not the eVault's W3ID
-            expect(webhookPayload).toBeDefined();
-            expect(webhookPayload.w3id).toBe(evault1.w3id);
-            expect(webhookPayload.w3id).not.toBe(evaultW3ID);
-            expect(webhookPayload.data).toEqual(testData);
-            expect(webhookPayload.schemaId).toBe(testOntology);
+            // Verify the payload contains the user's W3ID, not the eVault's W3ID
+            expect(ingestPayload).toBeDefined();
+            expect(ingestPayload.w3id).toBe(evault1.w3id);
+            expect(ingestPayload.w3id).not.toBe(evaultW3ID);
+            expect(ingestPayload.data).toEqual(testData);
+            expect(ingestPayload.schemaId).toBe(testOntology);
         });
 
-        it("should use different W3IDs for different users in webhook payloads", async () => {
+        it("should use different W3IDs for different users in ingest payloads", async () => {
             const testData1 = { user: "1", data: "test1" };
             const testData2 = { user: "2", data: "test2" };
             const testOntology = "MultiUserWebhookTest";
@@ -168,21 +148,21 @@ describe("GraphQLServer Webhook Payload W3ID", () => {
                 "X-ENAME": evault2.w3id,
             });
 
-            // Wait for setTimeout delays
-            await new Promise(resolve => setTimeout(resolve, 3500));
+            // Give the fire-and-forget ingest calls a moment to run.
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
-            // Get all webhook calls
-            const webhookCalls = (axios.post as any).mock.calls.filter((call: any[]) => 
-                typeof call[0] === "string" && call[0].includes("/api/webhook")
+            // Get all ingest calls
+            const ingestCalls = (axios.post as any).mock.calls.filter((call: any[]) =>
+                typeof call[0] === "string" && call[0].includes("/ingest")
             );
 
-            expect(webhookCalls.length).toBeGreaterThanOrEqual(2);
+            expect(ingestCalls.length).toBeGreaterThanOrEqual(2);
 
             // Find payloads by their data
-            const payload1 = webhookCalls.find((call: any[]) => 
+            const payload1 = ingestCalls.find((call: any[]) =>
                 call[1]?.data?.user === "1"
             )?.[1];
-            const payload2 = webhookCalls.find((call: any[]) => 
+            const payload2 = ingestCalls.find((call: any[]) =>
                 call[1]?.data?.user === "2"
             )?.[1];
 
@@ -194,8 +174,8 @@ describe("GraphQLServer Webhook Payload W3ID", () => {
         });
     });
 
-    describe("updateMetaEnvelopeById webhook payload", () => {
-        it("should include user's W3ID (eName) in webhook payload, not eVault's W3ID", async () => {
+    describe("updateMetaEnvelopeById ingest payload", () => {
+        it("should include user's W3ID (eName) in the ingest payload, not eVault's W3ID", async () => {
             const testData = { field: "updated-value", test: "update-test" };
             const testOntology = "UpdateWebhookTestOntology";
 
@@ -223,7 +203,7 @@ describe("GraphQLServer Webhook Payload W3ID", () => {
 
             const envelopeId = createResult.storeMetaEnvelope.metaEnvelope.id;
 
-            // Clear previous webhook calls
+            // Clear previous ingest calls
             (axios.post as any).mockClear();
 
             // Now update the envelope
@@ -238,8 +218,7 @@ describe("GraphQLServer Webhook Payload W3ID", () => {
                 }
             `;
 
-            // Create a valid Bearer token for authentication
-            // The platform field should be a valid URL for webhook delivery
+            // Create a valid Bearer token for authentication.
             const { privateKey } = await getSharedTestKeyPair();
             const testToken = await new jose.SignJWT({ platform: "http://localhost:3000" })
                 .setProtectedHeader({ alg: "ES256", kid: "entropy-key-1" })
@@ -259,28 +238,27 @@ describe("GraphQLServer Webhook Payload W3ID", () => {
                 "Authorization": `Bearer ${testToken}`,
             });
 
-            // Wait a bit for webhook delivery (update doesn't have setTimeout delay)
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // Give the fire-and-forget ingest call a moment to run.
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
-            // Verify axios.post was called (webhook delivery)
+            // Verify axios.post was called (awareness ingest)
             expect(axios.post).toHaveBeenCalled();
-            
-            // Get the webhook payload
-            const webhookCalls = (axios.post as any).mock.calls.filter((call: any[]) => 
-                typeof call[0] === "string" && call[0].includes("/api/webhook")
+
+            // Get the ingest payload
+            const ingestCalls = (axios.post as any).mock.calls.filter((call: any[]) =>
+                typeof call[0] === "string" && call[0].includes("/ingest")
             );
 
-            expect(webhookCalls.length).toBeGreaterThan(0);
-            const webhookPayload = webhookCalls[0][1];
+            expect(ingestCalls.length).toBeGreaterThan(0);
+            const ingestPayload = ingestCalls[0][1];
 
-            // Verify the webhook payload contains the user's W3ID, not the eVault's W3ID
-            expect(webhookPayload).toBeDefined();
-            expect(webhookPayload.w3id).toBe(evault1.w3id);
-            expect(webhookPayload.w3id).not.toBe(evaultW3ID);
-            expect(webhookPayload.id).toBe(envelopeId);
-            expect(webhookPayload.data).toEqual(testData);
-            expect(webhookPayload.schemaId).toBe(testOntology);
+            // Verify the payload contains the user's W3ID, not the eVault's W3ID
+            expect(ingestPayload).toBeDefined();
+            expect(ingestPayload.w3id).toBe(evault1.w3id);
+            expect(ingestPayload.w3id).not.toBe(evaultW3ID);
+            expect(ingestPayload.id).toBe(envelopeId);
+            expect(ingestPayload.data).toEqual(testData);
+            expect(ingestPayload.schemaId).toBe(testOntology);
         });
     });
 });
-
