@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import type { EVaultClient } from "../evault/evault";
 import type { MappingDatabase } from "../db";
-import type { IMapping } from "./mapper.types";
+import type { EVaultClient } from "../evault/evault";
 import { fromGlobal, toGlobal } from "./mapper";
+import type { IMapping } from "./mapper.types";
 
 // Minimal stubs — the `__file()` directive paths never touch the mapping store.
 const mappingStore = {} as MappingDatabase;
@@ -15,8 +15,7 @@ function mockClient(): EVaultClient {
 		uploadFile: vi.fn(async (_w3id: string, input: { filename: string }) => ({
 			uri: "w3ds://file?id=@owner/env-123",
 			metaEnvelopeId: "env-123",
-			publicUrl:
-				"https://cdn.example.com/files/owner/env-123-" + input.filename,
+			publicUrl: `https://cdn.example.com/files/owner/env-123-${input.filename}`,
 		})),
 		fetchMetaEnvelope: vi.fn(async (id: string) => ({
 			id,

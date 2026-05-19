@@ -94,8 +94,15 @@ Uploads inline file payloads to the owner eVault's object storage and replaces
 them with a stable `w3ds://file` URI. On the way back, the URI is dereferenced
 to the file's public URL.
 
+Same global field name as the local field:
+
 ```json
 "avatar": "__file(avatar)"
+```
+
+Different global field name (via a `,alias` suffix):
+
+```json
 "avatar": "__file(avatar),avatarUri"
 ```
 

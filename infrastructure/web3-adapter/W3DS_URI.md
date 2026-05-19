@@ -5,7 +5,7 @@ files within the MetaState ecosystem.
 
 ## Format
 
-```
+```text
 w3ds://file?id=@<user-ename>/<meta-envelope-id>
 ```
 
@@ -19,7 +19,7 @@ w3ds://file?id=@<user-ename>/<meta-envelope-id>
 
 Example:
 
-```
+```text
 w3ds://file?id=@alice/envelope-abc123
 ```
 
@@ -52,7 +52,7 @@ There are two dereferencers:
 
 ### HTTP — eVault core
 
-```
+```http
 GET /files/:metaEnvelopeId        (header: X-ENAME: @<user-ename>)
 ```
 

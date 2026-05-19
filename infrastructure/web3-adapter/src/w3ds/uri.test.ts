@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-	buildFileUri,
 	InvalidW3dsUriError,
+	buildFileUri,
 	isFileUri,
 	parseFileUri,
 } from "./uri";

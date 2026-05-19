@@ -6,7 +6,7 @@
  *   file's public object-storage URL plus its descriptive metadata.
  */
 import type { EVaultClient, UploadFileInput } from "../evault/evault";
-import { parseFileUri, W3DS_FILE_HOST, W3DS_SCHEME } from "./uri";
+import { W3DS_FILE_HOST, W3DS_SCHEME, parseFileUri } from "./uri";
 
 /** Minimal MIME → file extension map for naming uploaded files. */
 const MIME_EXTENSIONS: Record<string, string> = {
