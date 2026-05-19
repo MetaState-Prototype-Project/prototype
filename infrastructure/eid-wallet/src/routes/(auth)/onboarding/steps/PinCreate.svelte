@@ -23,7 +23,7 @@ const handleSubmit = () => {
 
 <main
     use:keyboardInset
-    class="min-h-dvh px-[5vw] flex flex-col bg-white"
+    class="h-dvh overflow-hidden px-[5vw] flex flex-col bg-white"
     style="padding-top: max(2svh, env(safe-area-inset-top)); padding-bottom: calc(max(16px, env(safe-area-inset-bottom)) + var(--kb-inset, 0px));"
 >
     <StepHeader title="Create PIN-code" step={1} {onback} />
