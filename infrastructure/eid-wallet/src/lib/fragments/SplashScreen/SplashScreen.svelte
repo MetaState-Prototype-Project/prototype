@@ -12,6 +12,13 @@ interface ISplashScreenProps {
     oncreate?: () => void;
     /** Fired when "Restore Digital Self" is tapped. */
     onrestore?: () => void;
+    /**
+     * Returning-user variant: when provided, the drawer renders a single
+     * "Continue" button instead of the Create / Restore pair. The tap on
+     * Continue carries the user gesture that Android WebView needs to
+     * auto-open the soft keyboard on the next page (/login or /register).
+     */
+    oncontinue?: () => void;
 }
 
 const {
@@ -19,6 +26,7 @@ const {
     showDrawer = false,
     oncreate,
     onrestore,
+    oncontinue,
 }: ISplashScreenProps = $props();
 </script>
 
@@ -70,42 +78,52 @@ const {
             class="absolute inset-x-0 bottom-0 bg-white rounded-t-3xl px-5 pt-5 flex flex-col gap-3"
             style="padding-bottom: max(20px, env(safe-area-inset-bottom));"
         >
-            <ButtonAction
-                variant="solid"
-                callback={oncreate}
-                class="w-full uppercase tracking-wide active:bg-primary-400"
-            >
-                Create Digital Self
-            </ButtonAction>
-            <ButtonAction
-                variant="soft"
-                callback={onrestore}
-                class="w-full uppercase tracking-wide text-black active:bg-primary-200"
-            >
-                Restore Digital Self
-            </ButtonAction>
-            <p
-                class="text-center font-medium text-md text-black-700/50 leading-normal"
-            >
-                By continuing you agree to our
-                <a
-                    href="https://metastate.foundation/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="text-primary"
+            {#if oncontinue}
+                <ButtonAction
+                    variant="solid"
+                    callback={oncontinue}
+                    class="w-full uppercase tracking-wide active:bg-primary-400"
                 >
-                    Terms &amp; Conditions
-                </a>
-                and
-                <a
-                    href="https://metastate.foundation/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="text-primary"
+                    Continue
+                </ButtonAction>
+            {:else}
+                <ButtonAction
+                    variant="solid"
+                    callback={oncreate}
+                    class="w-full uppercase tracking-wide active:bg-primary-400"
                 >
-                    Privacy Policy
-                </a>
-            </p>
+                    Create Digital Self
+                </ButtonAction>
+                <ButtonAction
+                    variant="soft"
+                    callback={onrestore}
+                    class="w-full uppercase tracking-wide text-black active:bg-primary-200"
+                >
+                    Restore Digital Self
+                </ButtonAction>
+                <p
+                    class="text-center font-medium text-md text-black-700/50 leading-normal"
+                >
+                    By continuing you agree to our
+                    <a
+                        href="https://metastate.foundation/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-primary"
+                    >
+                        Terms &amp; Conditions
+                    </a>
+                    and
+                    <a
+                        href="https://metastate.foundation/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-primary"
+                    >
+                        Privacy Policy
+                    </a>
+                </p>
+            {/if}
         </div>
     {/if}
 </div>

@@ -15,8 +15,13 @@ if (skipIntro) sessionStorage.removeItem("splashImmediate");
 
 // false = state A (logo "closed"); true = state B (tagline revealed).
 let splashOpen = $state(skipIntro);
-// true = state C (bottom drawer with CTAs revealed); only for new users.
+// true = state C (bottom drawer with CTAs revealed); shown for both new users
+// (Create / Restore CTAs) and returning users (single Continue CTA).
 let splashShowDrawer = $state(skipIntro);
+// When set, the drawer renders a single "Continue" button that navigates to
+// this route on tap. The tap is the user gesture Android needs to auto-open
+// the soft keyboard on /login.
+let returningUserTarget = $state<string | null>(null);
 
 async function handleCreateDigitalSelf() {
     // The mount-guard flag for /onboarding is set centrally by the layout's
@@ -27,6 +32,10 @@ async function handleCreateDigitalSelf() {
 
 async function handleRestoreDigitalSelf() {
     await goto("/recover");
+}
+
+async function handleContinue() {
+    if (returningUserTarget) await goto(returningUserTarget);
 }
 
 onMount(async () => {
@@ -63,15 +72,14 @@ onMount(async () => {
     }
 
     if (onboardingComplete && userExists) {
-        // Returning user — route them past the splash.
+        // Returning user — surface a single "Continue" CTA in the drawer
+        // instead of auto-redirecting. The tap carries the user gesture
+        // Android requires to auto-open the soft keyboard on /login.
         const pinHash = globalState
             ? await globalState.securityController.pinHash
             : null;
-        if (pinHash) {
-            await goto("/login");
-        } else {
-            await goto("/register");
-        }
+        returningUserTarget = pinHash ? "/login" : "/register";
+        splashShowDrawer = true;
         return;
     }
 
@@ -85,4 +93,5 @@ onMount(async () => {
     showDrawer={splashShowDrawer}
     oncreate={handleCreateDigitalSelf}
     onrestore={handleRestoreDigitalSelf}
+    oncontinue={returningUserTarget ? handleContinue : undefined}
 />
