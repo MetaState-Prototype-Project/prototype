@@ -1,4 +1,8 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+    DeleteObjectCommand,
+    PutObjectCommand,
+    S3Client,
+} from "@aws-sdk/client-s3";
 
 /**
  * Thrown when the DigitalOcean Spaces environment is not configured.
@@ -97,5 +101,15 @@ export class StorageService {
         );
 
         return `${this.cdnBaseUrl}/${key}`;
+    }
+
+    /**
+     * Deletes an object by key. Used to compensate for a failed upload flow
+     * (e.g. the blob uploaded but the meta-envelope write failed).
+     */
+    async deleteObject(key: string): Promise<void> {
+        await this.client.send(
+            new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
+        );
     }
 }

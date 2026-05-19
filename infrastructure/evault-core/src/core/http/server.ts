@@ -439,6 +439,25 @@ export async function registerHttpRoutes(
                     });
                 }
 
+                // Only ever redirect to http(s) — guard against a stored URL
+                // with an unsafe scheme (javascript:, data:, file:, …).
+                let parsedUrl: URL;
+                try {
+                    parsedUrl = new URL(publicUrl);
+                } catch {
+                    return reply
+                        .status(404)
+                        .send({ error: "File meta-envelope has an invalid public URL" });
+                }
+                if (
+                    parsedUrl.protocol !== "http:" &&
+                    parsedUrl.protocol !== "https:"
+                ) {
+                    return reply.status(400).send({
+                        error: "File public URL uses an unsupported scheme",
+                    });
+                }
+
                 return reply.redirect(publicUrl);
             } catch (error) {
                 console.error("Error dereferencing file:", error);

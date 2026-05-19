@@ -1192,9 +1192,16 @@ export class GraphQLServer {
                                   input.content.indexOf(",") + 1,
                               )
                             : input.content;
-                        const buffer = Buffer.from(base64, "base64");
 
-                        if (buffer.length === 0) {
+                        // Strictly validate base64 before decoding — Buffer.from
+                        // silently drops invalid characters, so malformed input
+                        // must be rejected up-front. Padding ('=') is allowed
+                        // only as the last 1-2 characters.
+                        const isValidBase64 =
+                            base64.length > 0 &&
+                            base64.length % 4 === 0 &&
+                            /^[A-Za-z0-9+/]+={0,2}$/.test(base64);
+                        if (!isValidBase64) {
                             return {
                                 errors: [
                                     {
@@ -1205,6 +1212,8 @@ export class GraphQLServer {
                                 ],
                             };
                         }
+
+                        const buffer = Buffer.from(base64, "base64");
 
                         const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50 MB
                         if (buffer.length > MAX_FILE_BYTES) {
@@ -1219,6 +1228,10 @@ export class GraphQLServer {
                             };
                         }
 
+                        // Track the uploaded object so a failed DB write can be
+                        // compensated by deleting the now-orphaned blob.
+                        let uploadedKey: string | null = null;
+                        let storage: StorageService | null = null;
                         try {
                             const objectId = require("uuid").v4();
                             const key = StorageService.buildKey(
@@ -1226,12 +1239,13 @@ export class GraphQLServer {
                                 input.filename,
                                 objectId,
                             );
-                            const storage = new StorageService();
+                            storage = new StorageService();
                             const publicUrl = await storage.uploadObject({
                                 buffer,
                                 contentType: input.contentType,
                                 key,
                             });
+                            uploadedKey = key;
 
                             const payload = {
                                 filename: input.filename,
@@ -1262,6 +1276,19 @@ export class GraphQLServer {
                             };
                         } catch (error) {
                             console.error("uploadFile failed:", error);
+                            // Compensating cleanup: if the blob was uploaded but
+                            // a later step (DB write) failed, delete the now
+                            // orphaned object so storage does not leak.
+                            if (uploadedKey && storage) {
+                                try {
+                                    await storage.deleteObject(uploadedKey);
+                                } catch (cleanupError) {
+                                    console.error(
+                                        "uploadFile cleanup (delete orphaned object) failed:",
+                                        cleanupError,
+                                    );
+                                }
+                            }
                             return {
                                 errors: [
                                     {

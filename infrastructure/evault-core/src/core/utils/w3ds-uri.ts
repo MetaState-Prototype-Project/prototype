@@ -11,6 +11,25 @@ export const FILE_SCHEMA_ID = "w3ds-file-v1";
  *   => "w3ds://file?id=@alice/abc123"
  */
 export function buildFileUri(eName: string, metaEnvelopeId: string): string {
+    if (!eName || !eName.trim()) {
+        throw new Error("buildFileUri: eName is required");
+    }
+    if (!metaEnvelopeId || !metaEnvelopeId.trim()) {
+        throw new Error("buildFileUri: metaEnvelopeId is required");
+    }
+
     const ename = eName.startsWith("@") ? eName : `@${eName}`;
+
+    // The `id` is parsed as `@<ename>/<meta-envelope-id>`; characters that
+    // would break that structure or the surrounding URI must be rejected.
+    if (/[\s/?#&]/.test(ename.slice(1))) {
+        throw new Error(`buildFileUri: eName "${eName}" contains illegal characters`);
+    }
+    if (/[\s?#&]/.test(metaEnvelopeId)) {
+        throw new Error(
+            `buildFileUri: metaEnvelopeId "${metaEnvelopeId}" contains illegal characters`,
+        );
+    }
+
     return `w3ds://file?id=${ename}/${metaEnvelopeId}`;
 }
