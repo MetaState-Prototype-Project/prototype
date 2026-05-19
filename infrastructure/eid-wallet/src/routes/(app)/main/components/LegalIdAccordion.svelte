@@ -10,6 +10,7 @@ import {
     IdentificationIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
+import { slide } from "svelte/transition";
 
 export interface LegalIdDoc {
     title: string;
@@ -89,17 +90,22 @@ function handleAddClick(e: MouseEvent) {
                 {subtitle}
             </p>
         </div>
-        <button
-            type="button"
-            onclick={handleAddClick}
-            class="bg-white text-black-700 text-[10px] font-bold uppercase tracking-wide px-4 py-1.5 rounded-full active:opacity-70 shrink-0"
-        >
-            Add
-        </button>
+        {#if !hasDoc}
+            <button
+                type="button"
+                onclick={handleAddClick}
+                class="bg-white text-black-700 text-[10px] font-bold uppercase tracking-wide px-4 py-1.5 rounded-full active:opacity-70 shrink-0"
+            >
+                Add
+            </button>
+        {/if}
     </div>
 
     {#if hasDoc && expanded && doc}
-        <article class="px-3 pb-3 pt-1 flex flex-col gap-3">
+        <article
+            transition:slide={{ duration: 200 }}
+            class="px-3 pb-3 pt-1 flex flex-col gap-3"
+        >
             <h3 class="text-xl font-bold text-black-900 leading-tight">
                 {doc.title}
             </h3>
