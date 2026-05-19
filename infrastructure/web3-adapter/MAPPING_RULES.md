@@ -117,7 +117,7 @@ Different global field name (via a `,alias` suffix):
   object-storage URL; other values pass through unchanged.
 
 Requires an `EVaultClient` to be supplied to the mapper — the `Web3Adapter`
-wires this automatically. See [`W3DS_URI.md`](./W3DS_URI.md) for the URI scheme.
+wires this automatically. See the **File URIs** doc (`docs/docs/W3DS Protocol/File-URIs.md`) for the `w3ds://file` URI scheme.
 
 ## Owner Path
 

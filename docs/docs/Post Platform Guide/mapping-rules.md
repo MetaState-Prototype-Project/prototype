@@ -92,6 +92,34 @@ Performs mathematical calculations using field values.
 - Can reference other fields in the same entity
 - Automatically resolves field values before calculation
 
+### File Referencing (`__file`)
+
+Uploads inline file payloads to the owner eVault's object storage and replaces
+them with a stable [`w3ds://file`](/docs/W3DS%20Protocol/File-URIs) URI. On the
+way back, the URI is dereferenced to the file's public URL.
+
+Same global field name as the local field:
+
+```json
+"avatar": "__file(avatar)"
+```
+
+Different global field name (via a `,alias` suffix):
+
+```json
+"avatar": "__file(avatar),avatarUri"
+```
+
+- The inner path (`avatar`) points to the field holding the file value.
+- An optional `,alias` sets the global field name (defaults to the inner path).
+- The value may be a single file or an **array** of files. Array paths such as
+  `__file(images[].src)` are supported and each item is referenced/dereferenced.
+- **`toGlobal`**: a `data:` URI value is uploaded and replaced with a
+  `w3ds://file?id=@<ename>/<meta-envelope-id>` URI. Values that are already
+  `w3ds://file` URIs, plain URLs, or empty are passed through unchanged.
+- **`fromGlobal`**: a `w3ds://file` URI is dereferenced to the file's public
+  object-storage URL; other values pass through unchanged.
+
 ## Owner Path
 
 The `ownerEnamePath` defines how to determine which [eVault](/docs/Infrastructure/eVault) owns the data (via the owner's [eName](/docs/W3DS%20Basics/W3ID)):

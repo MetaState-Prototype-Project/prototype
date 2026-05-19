@@ -41,7 +41,7 @@ Every piece of data has an "owner" — the [eName](/docs/W3DS%20Basics/W3ID) of 
 
 ### 3. Bidirectional mapping and ID mapping
 
-- **Field mapping**: `localToUniversalMap` defines how each local field maps to a global field (including relations and special functions like `__date`, `__calc`). The same map is used in both directions: `toGlobal` for outbound, `fromGlobal` for inbound.
+- **Field mapping**: `localToUniversalMap` defines how each local field maps to a global field (including relations and special functions like `__date`, `__calc`, `__file`). The same map is used in both directions: `toGlobal` for outbound, `fromGlobal` for inbound.
 - **ID mapping**: A separate store (e.g. SQLite `MappingDatabase`) holds `(globalId, localId)`. When syncing out, after a successful `storeMetaEnvelope` the adapter stores the new global ID against the local ID. When a webhook arrives, the adapter looks up the global ID to decide whether to create or update the local entity and then stores or updates the mapping. Without this, the same logical entity could be duplicated or never linked across platforms. When consuming our TypeScript implementation of the Web3 Adapter, this is already taken care of.
 
 ### 4. Change detection on the platform side
@@ -119,7 +119,7 @@ graph TB
 
 ### Mapping configuration (IMapping)
 
-Mapping configs define how local fields map to the global ontology. For the full syntax (direct fields, relations, arrays, `__date`, `__calc`, owner path), see the [Mapping Rules](/docs/Post%20Platform%20Guide/mapping-rules) or the repository at `infrastructure/web3-adapter/MAPPING_RULES.md`.
+Mapping configs define how local fields map to the global ontology. For the full syntax (direct fields, relations, arrays, `__date`, `__calc`, `__file`, owner path), see the [Mapping Rules](/docs/Post%20Platform%20Guide/mapping-rules) or the repository at `infrastructure/web3-adapter/MAPPING_RULES.md`. File fields use the `__file` directive backed by the [`w3ds://file` URI scheme](/docs/W3DS%20Protocol/File-URIs).
 
 Each mapping is a JSON file with:
 
