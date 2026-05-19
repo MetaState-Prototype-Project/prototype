@@ -1,6 +1,5 @@
 <script lang="ts">
-import { ButtonAction } from "$lib/ui";
-import { onMount } from "svelte";
+import { ButtonAction, PinDots } from "$lib/ui";
 import StepHeader from "./StepHeader.svelte";
 
 interface IPinCreateProps {
@@ -13,17 +12,7 @@ interface IPinCreateProps {
 const { onback, oncomplete }: IPinCreateProps = $props();
 
 let pin = $state("");
-let inputEl: HTMLInputElement | undefined = $state();
 const canSubmit = $derived(pin.length === 4);
-
-onMount(() => {
-    inputEl?.focus();
-});
-
-const handleInput = (e: Event) => {
-    const raw = (e.target as HTMLInputElement).value;
-    pin = raw.replace(/\D/g, "").slice(0, 4);
-};
 
 const handleSubmit = () => {
     if (!canSubmit) return;
@@ -38,34 +27,7 @@ const handleSubmit = () => {
     <StepHeader title="Create PIN-code" step={1} {onback} />
 
     <section class="flex-1 flex flex-col items-center justify-center">
-        <button
-            type="button"
-            class="flex gap-6 items-center cursor-text"
-            onclick={() => inputEl?.focus()}
-            aria-label="PIN input — 4 digits"
-        >
-            {#each Array(4) as _, i (i)}
-                <div
-                    class="w-11 h-17 rounded-full bg-white flex items-center justify-center text-4xl font-extrabold text-black-900 font-condensed"
-                    style="box-shadow: 0px 4px 19.9px 0px #00000024;"
-                >
-                    {pin[i] ?? ""}
-                </div>
-            {/each}
-        </button>
-
-        <input
-            bind:this={inputEl}
-            type="tel"
-            inputmode="numeric"
-            pattern="\d*"
-            maxlength="4"
-            autocomplete="one-time-code"
-            value={pin}
-            oninput={handleInput}
-            class="sr-only"
-            aria-hidden="true"
-        />
+        <PinDots bind:pin />
     </section>
 
     <footer class="w-full">
