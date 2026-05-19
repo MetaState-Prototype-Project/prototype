@@ -15,12 +15,11 @@ if (skipIntro) sessionStorage.removeItem("splashImmediate");
 
 // false = state A (logo "closed"); true = state B (tagline revealed).
 let splashOpen = $state(skipIntro);
-// true = state C (bottom drawer with CTAs revealed); shown for both new users
-// (Create / Restore CTAs) and returning users (single Continue CTA).
+// true = state C (bottom drawer revealed) — Create/Restore for new users,
+// single Continue for returning users.
 let splashShowDrawer = $state(skipIntro);
-// When set, the drawer renders a single "Continue" button that navigates to
-// this route on tap. The tap is the user gesture Android needs to auto-open
-// the soft keyboard on /login.
+// Set for returning users; the Continue tap navigates here and carries the
+// user gesture Android needs to auto-open the soft keyboard on /login.
 let returningUserTarget = $state<string | null>(null);
 
 async function handleCreateDigitalSelf() {
@@ -72,9 +71,8 @@ onMount(async () => {
     }
 
     if (onboardingComplete && userExists) {
-        // Returning user — surface a single "Continue" CTA in the drawer
-        // instead of auto-redirecting. The tap carries the user gesture
-        // Android requires to auto-open the soft keyboard on /login.
+        // Returning user — show a Continue CTA instead of auto-redirecting,
+        // so the tap can carry the gesture into /login's keyboard auto-open.
         const pinHash = globalState
             ? await globalState.securityController.pinHash
             : null;

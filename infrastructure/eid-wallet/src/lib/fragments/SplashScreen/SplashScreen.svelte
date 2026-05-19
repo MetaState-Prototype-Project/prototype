@@ -8,16 +8,10 @@ interface ISplashScreenProps {
     open?: boolean;
     /** true = state C (bottom drawer with CTAs revealed). */
     showDrawer?: boolean;
-    /** Fired when "Create Digital Self" is tapped. */
     oncreate?: () => void;
-    /** Fired when "Restore Digital Self" is tapped. */
     onrestore?: () => void;
-    /**
-     * Returning-user variant: when provided, the drawer renders a single
-     * "Continue" button instead of the Create / Restore pair. The tap on
-     * Continue carries the user gesture that Android WebView needs to
-     * auto-open the soft keyboard on the next page (/login or /register).
-     */
+    /** When provided, the drawer renders a single "Continue" button instead
+     *  of the Create / Restore pair (returning-user variant). */
     oncontinue?: () => void;
 }
 

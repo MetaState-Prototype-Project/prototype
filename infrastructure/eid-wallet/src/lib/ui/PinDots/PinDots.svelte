@@ -1,26 +1,9 @@
-<!--
-    Four rounded-circle digit slots backed by a single hidden numeric input.
-    Replaces the legacy InputPin (4 separate boxes with dot-mask) on the
-    redesigned auth screens. Parent binds the `pin` string and reacts to it
-    (e.g. on length === 4) — this component just handles input + display.
-
-    Known limitation: Android WebView will not open the soft keyboard from
-    programmatic `focus()` without a fresh user gesture (platform-level
-    restriction — manifest `stateAlwaysVisible`, HTML `autofocus`, and
-    `requestAnimationFrame(focus)` all bounce off it). The dots pulse while
-    empty to invite a tap; the keyboard opens reliably on first tap.
-    Auto-open would require a native Kotlin bridge calling
-    InputMethodManager.showSoftInput — see TODO in MEMORY.
--->
 <script lang="ts">
 import { onMount, tick } from "svelte";
 
 interface IPinDotsProps {
-    /** The current 4-digit PIN value. Bound, parent reacts on length === 4. */
     pin: string;
-    /** Focus the hidden input on mount. Defaults to true. */
     autofocus?: boolean;
-    /** Optional extra class on the outer wrapper. */
     class?: string;
 }
 
@@ -32,10 +15,8 @@ let {
 
 let inputEl: HTMLInputElement | undefined = $state();
 
-// Android WebView only opens the soft keyboard when an input is laid out
-// in the document (not `display: none` / off-screen) and is focused after
-// the page has actually painted. `tick()` flushes Svelte's render queue
-// and `requestAnimationFrame` waits for the browser's first paint.
+// Android WebView only attaches its IME input connection after first paint;
+// focus before that is a no-op for the soft keyboard.
 onMount(async () => {
     if (!autofocus) return;
     await tick();
@@ -73,12 +54,8 @@ const isEmpty = $derived(pin.length === 0);
     {/each}
 </button>
 
-<!--
-    Visually hidden but laid out — `sr-only` uses clip+absolute which makes
-    Android WebView treat the input as off-screen and refuse to open the
-    soft keyboard. Keeping it `opacity-0` with zero size keeps it focusable
-    while remaining invisible.
--->
+<!-- Laid out (not `sr-only`) so Android WebView treats the input as on-screen
+     and opens the soft keyboard when it gets focus. -->
 <!-- svelte-ignore a11y_autofocus -->
 <input
     bind:this={inputEl}

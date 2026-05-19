@@ -1,15 +1,4 @@
-/**
- * Svelte action that exposes the on-screen keyboard's height as a CSS custom
- * property `--kb-inset` on the node it's applied to. Tracks `visualViewport`
- * (the standards-based way to detect the soft keyboard on Android WebView /
- * iOS Safari) and updates the variable on every resize / scroll.
- *
- * Usage:
- *   <main use:keyboardInset style="padding-bottom: calc(16px + var(--kb-inset, 0px));">
- *
- * The inset is `window.innerHeight - visualViewport.height`, clamped to 0 so
- * a missing viewport (older browsers / desktop) leaves the variable at 0.
- */
+/** Exposes the soft keyboard's height as `--kb-inset` on the node. */
 export function keyboardInset(node: HTMLElement) {
     const vv = window.visualViewport;
 
