@@ -1,4 +1,5 @@
 <script lang="ts">
+import { PUBLIC_EID_WALLET_TOKEN } from "$env/static/public";
 import type { GlobalState } from "$lib/global";
 import {
     getUnreadCount,
@@ -15,11 +16,13 @@ import ENameCard from "./components/ENameCard.svelte";
 import EVaultCard from "./components/EVaultCard.svelte";
 import Greeting from "./components/Greeting.svelte";
 import Lasso from "./components/Lasso.svelte";
+import type { LegalIdDoc } from "./components/LegalIdAccordion.svelte";
 import ScanFAB from "./components/ScanFAB.svelte";
 import WelcomeTour, {
     TOUR_ORDER,
     type TourStep,
 } from "./components/WelcomeTour.svelte";
+import KycUpgradeOverlay from "./legacy/KycUpgradeOverlay.svelte";
 
 let userData: Record<string, unknown> | undefined = $state(undefined);
 let greeting: string | undefined = $state(undefined);
@@ -35,6 +38,134 @@ let statusInterval: ReturnType<typeof setInterval> | undefined =
     $state(undefined);
 let showToast = $state(false);
 let toastMessage = $state("");
+
+// ── Binding documents / KYC state ─────────────────────────────────────────────
+// `isFake` is true while the user only has a self-declared identity. The KYC
+// overlay flips it to false after a successful upgrade, but that in-memory
+// write path is unreliable — fall back on the presence of an id_document
+// binding doc as the authoritative signal.
+let isFake = $state<boolean | undefined>(undefined);
+let legalId = $state<LegalIdDoc | null>(null);
+let kycOpen = $state(false);
+const verified = $derived(isFake === false || legalId !== null);
+
+function openKycFlow() {
+    kycOpen = true;
+}
+
+function handleKycClose() {
+    kycOpen = false;
+}
+
+async function handleKycUpgraded() {
+    if (!globalState) return;
+    isFake = await globalState.userController.isFake;
+    await loadBindingDocuments();
+}
+
+// Pull the first id_document binding doc from the eVault and map it into the
+// LegalIdDoc shape the accordion expects. The doc's `data` may carry fields
+// directly or only a Didit `reference` — we fall back to userController.user
+// (populated by the KYC upgrade) when the binding doc is sparse.
+async function loadBindingDocuments(): Promise<void> {
+    if (!globalState) return;
+    const vault = await globalState.vaultController.vault;
+    if (!vault?.uri || !vault?.ename) return;
+
+    const enameHeader = vault.ename.startsWith("@")
+        ? vault.ename
+        : `@${vault.ename}`;
+    const gqlUrl = new URL("/graphql", vault.uri).toString();
+
+    try {
+        const res = await fetch(gqlUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-ENAME": enameHeader,
+                ...(PUBLIC_EID_WALLET_TOKEN
+                    ? { Authorization: `Bearer ${PUBLIC_EID_WALLET_TOKEN}` }
+                    : {}),
+            },
+            body: JSON.stringify({
+                query: `query {
+                    bindingDocuments(first: 50) {
+                        edges { node { parsed } }
+                    }
+                }`,
+            }),
+        });
+
+        const json = await res.json();
+        const edges: { node: { parsed: ParsedBindingDoc | null } }[] =
+            json?.data?.bindingDocuments?.edges ?? [];
+
+        const idDoc = edges
+            .map((e) => e.node.parsed)
+            .find((p): p is ParsedBindingDoc => p?.type === "id_document");
+
+        legalId = idDoc ? toLegalIdDoc(idDoc) : null;
+    } catch (err) {
+        console.warn("[main] Failed to load binding documents:", err);
+    }
+}
+
+interface ParsedBindingDoc {
+    type: string;
+    data: Record<string, unknown>;
+}
+
+function asString(v: unknown): string | undefined {
+    return typeof v === "string" && v.length > 0 ? v : undefined;
+}
+
+function formatDate(iso: string | undefined): string | undefined {
+    if (!iso) return undefined;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toDateString();
+}
+
+// TODO: enrich the Legal ID card with document type, country, DOB and document
+// number. The provisioner currently stores a sparse binding doc — only
+// { vendor, reference, name } — see `createBindingDocumentForUser` in
+// evault-core's ProvisioningService. Two options when revisiting:
+//   (a) ask evault to embed the full Didit fields in `data` at provisioning
+//       time (cleanest; binding doc self-contained).
+//   (b) here in the wallet, fetch GET /verification/v2/decision/{reference}
+//       on the provisioner when loading binding docs, and merge those fields
+//       in. Works without touching evault but adds a network call.
+// Until then, the accordion shows the verified name only.
+function toLegalIdDoc(doc: ParsedBindingDoc): LegalIdDoc {
+    const data = doc.data;
+    const docType = asString(data.document_type) ?? asString(data.documentType);
+    const country =
+        asString(data.issuing_country) ??
+        asString(data.issuing_state_name) ??
+        asString(data.issuing_state) ??
+        asString(data.country);
+    const title = [docType, country].filter(Boolean).join(" - ");
+
+    const name =
+        asString(data.name) ??
+        asString(data.full_name) ??
+        (userData ? asString(userData.name) : undefined);
+    const dob =
+        formatDate(
+            asString(data.date_of_birth) ?? asString(data.dateOfBirth),
+        ) ?? (userData ? asString(userData["Date of Birth"]) : undefined);
+    const documentNumber =
+        asString(data.document_number) ??
+        asString(data.documentNumber) ??
+        (userData ? asString(userData["Document Number"]) : undefined);
+
+    return {
+        title: title || "Legal ID",
+        name,
+        dateOfBirth: dob,
+        documentNumber,
+    };
+}
 
 // ── Welcome-tour state ────────────────────────────────────────────────────────
 // `null` once the tour has either been seen before or has just finished.
@@ -213,10 +344,13 @@ onMount(() => {
         profileCreationStatus = gs.vaultController.profileCreationStatus;
 
         const userInfo = await gs.userController.user;
-        const isFake = await gs.userController.isFake;
-        userData = { ...userInfo, isFake };
+        const fake = await gs.userController.isFake;
+        isFake = fake;
+        userData = { ...userInfo, isFake: fake };
         const vaultData = await gs.vaultController.vault;
         ename = vaultData?.ename;
+
+        await loadBindingDocuments();
 
         // Welcome-tour gate — local Tauri Store read, no network needed.
         const seen = await gs.hasSeenWelcomeTour;
@@ -295,7 +429,7 @@ onDestroy(() => {
                         delay: tourActive ? 250 : 0,
                     }}
                 >
-                    <ENameCard {ename} ontoast={handleToast} />
+                    <ENameCard {ename} {verified} ontoast={handleToast} />
                     <Lasso size="med" active={tourStep === "ename"} />
                 </div>
             {/if}
@@ -307,7 +441,10 @@ onDestroy(() => {
                     class:tour-card-passed={isCardPassed("binding-docs")}
                     in:fly|global={{ y: 30, duration: 300 }}
                 >
-                    <BindingDocuments />
+                    <BindingDocuments
+                        {legalId}
+                        onlegalid={openKycFlow}
+                    />
                     <Lasso size="xl" active={tourStep === "binding-docs"} />
                 </div>
             {/if}
@@ -363,6 +500,12 @@ onDestroy(() => {
 {#if showToast}
     <Toast message={toastMessage} onClose={handleToastClose} />
 {/if}
+
+<KycUpgradeOverlay
+    open={kycOpen}
+    onupgraded={handleKycUpgraded}
+    onclose={handleKycClose}
+/>
 
 <style>
 .tour-card {

@@ -16,7 +16,7 @@ import type { GlobalState } from "$lib/global";
 import * as Button from "$lib/ui/Button";
 import { capitalize } from "$lib/utils";
 import axios from "axios";
-import { getContext } from "svelte";
+import { getContext, untrack } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
 
 type KycStep =
@@ -24,6 +24,7 @@ type KycStep =
     | "checking-hw"
     | "hw-error"
     | "starting"
+    | "start-error"
     | "verifying"
     | "result"
     | "upgrading"
@@ -90,9 +91,17 @@ let diditResult = $state<"approved" | "declined" | "in_review" | null>(null);
 let diditRejectionReason = $state<string | null>(null);
 let duplicateEName = $state<string | null>(null);
 
+// Fire startKycUpgrade once per open=true edge. Reading `kycStep` inside
+// `untrack` prevents the effect from re-running when the flow internally
+// flips `kycStep` (e.g. catch → "start-error"), which would otherwise
+// spin the network call in a tight loop.
 $effect(() => {
-    if (open && kycStep === "idle") {
-        startKycUpgrade();
+    if (open) {
+        untrack(() => {
+            if (kycStep === "idle") {
+                startKycUpgrade();
+            }
+        });
     }
 });
 
@@ -111,7 +120,35 @@ async function startKycUpgrade() {
     kycError = null;
     kycStep = "checking-hw";
 
-    const hardwareAvailable = await globalState.keyService.probeHardware();
+    // Probe with a hard timeout — on some devices the first Keystore call
+    // can hang silently. Without this the overlay would sit on the spinner
+    // indefinitely with no way to recover.
+    console.log("[KYC] probeHardware: starting");
+    const probeStart = Date.now();
+    let hardwareAvailable: boolean;
+    try {
+        hardwareAvailable = await Promise.race([
+            globalState.keyService.probeHardware(),
+            new Promise<never>((_, reject) =>
+                setTimeout(
+                    () => reject(new Error("probeHardware timed out")),
+                    10_000,
+                ),
+            ),
+        ]);
+        console.log(
+            `[KYC] probeHardware: returned ${hardwareAvailable} in ${Date.now() - probeStart}ms`,
+        );
+    } catch (err) {
+        console.error("[KYC] probeHardware failed/timed out:", err);
+        kycError =
+            err instanceof Error && err.message === "probeHardware timed out"
+                ? "Hardware capability check timed out after 10s. Check adb logcat for crypto-hw plugin errors."
+                : `Hardware check failed: ${err instanceof Error ? err.message : String(err)}`;
+        kycStep = "start-error";
+        return;
+    }
+
     if (!hardwareAvailable) {
         kycStep = "hw-error";
         return;
@@ -157,10 +194,7 @@ async function startKycUpgrade() {
             err instanceof Error
                 ? err.message
                 : "Failed to start verification. Please try again.";
-        kycStep = "idle";
-        setTimeout(() => {
-            kycError = null;
-        }, 6000);
+        kycStep = "start-error";
     }
 }
 
@@ -322,7 +356,7 @@ async function handleUpgrade() {
 </script>
 
 {#if kycStep !== "idle"}
-    {#if kycStep === "checking-hw" || kycStep === "hw-error" || kycStep === "starting" || kycStep === "upgrading"}
+    {#if kycStep === "checking-hw" || kycStep === "hw-error" || kycStep === "starting" || kycStep === "start-error" || kycStep === "upgrading"}
         <div class="fixed inset-0 z-50 bg-white overflow-y-auto">
             <div
                 class="min-h-full flex flex-col p-6"
@@ -368,11 +402,35 @@ async function handleUpgrade() {
                             Hardware-backed identity verification is not
                             available on this device.
                         </p>
+                    {:else if kycStep === "start-error"}
+                        <h4 class="mt-2 mb-2 text-red-600 text-left">
+                            Couldn't start verification
+                        </h4>
+                        <p class="text-black-700 mb-4 wrap-break-word">
+                            {kycError ??
+                                "Failed to start verification. Please try again."}
+                        </p>
                     {/if}
                 </article>
 
                 {#if kycStep === "hw-error"}
                     <div class="flex-none pt-8 pb-12">
+                        <Button.Action
+                            variant="soft"
+                            class="w-full"
+                            callback={resetKyc}
+                        >
+                            Cancel
+                        </Button.Action>
+                    </div>
+                {:else if kycStep === "start-error"}
+                    <div class="flex-none pt-8 pb-12 flex flex-col gap-3">
+                        <Button.Action
+                            class="w-full"
+                            callback={startKycUpgrade}
+                        >
+                            Try Again
+                        </Button.Action>
                         <Button.Action
                             variant="soft"
                             class="w-full"

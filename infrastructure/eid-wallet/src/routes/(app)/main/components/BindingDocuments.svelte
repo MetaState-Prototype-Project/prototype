@@ -1,13 +1,15 @@
 <script lang="ts">
 import {
     Agreement02Icon,
-    IdentificationIcon,
     InformationCircleIcon,
     UserIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
+import LegalIdAccordion, { type LegalIdDoc } from "./LegalIdAccordion.svelte";
 
 interface IBindingDocumentsProps {
+    /** Verified id_document binding doc, mapped to the row shape. */
+    legalId?: LegalIdDoc | null;
     onlegalid?: () => void;
     onpersonal?: () => void;
     onsocialinvite?: () => void;
@@ -15,6 +17,7 @@ interface IBindingDocumentsProps {
 }
 
 const {
+    legalId,
     onlegalid,
     onpersonal,
     onsocialinvite,
@@ -39,32 +42,7 @@ const {
         </button>
     </header>
     <div class="flex flex-col gap-2">
-        <div class="flex items-center gap-3 bg-gray rounded-xl p-2.5">
-            <div
-                class="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-700 shrink-0"
-            >
-                <HugeiconsIcon
-                    icon={IdentificationIcon}
-                    size={20}
-                    strokeWidth={2}
-                />
-            </div>
-            <div class="flex-1 min-w-0">
-                <p class="font-semibold text-black-900 leading-tight">
-                    Legal ID
-                </p>
-                <p class="text-xs text-black-500 leading-tight">
-                    Any legal doc
-                </p>
-            </div>
-            <button
-                type="button"
-                onclick={onlegalid}
-                class="bg-black-100 text-black-700 text-[10px] font-bold uppercase tracking-wide px-4 py-1.5 rounded-full active:opacity-70 shrink-0"
-            >
-                Add
-            </button>
-        </div>
+        <LegalIdAccordion doc={legalId} onadd={onlegalid} />
 
         <div class="flex items-center gap-3 bg-gray rounded-xl p-2.5">
             <div

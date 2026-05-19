@@ -7,11 +7,15 @@ import QrCode from "svelte-qrcode";
 
 interface IENameCardProps {
     ename: string | undefined;
+    /** True once at least one id_document binding doc is signed off — flips
+     *  the chip from the gray "Unverified ID" to the green "Verified ID"
+     *  variant. */
+    verified?: boolean;
     /** Called with a message to surface as a toast (copy success/failure). */
     ontoast?: (message: string) => void;
 }
 
-const { ename, ontoast }: IENameCardProps = $props();
+const { ename, verified = false, ontoast }: IENameCardProps = $props();
 
 let shareQRdrawerOpen = $state(false);
 
@@ -35,11 +39,19 @@ function shareQR() {
 <section class="bg-white rounded-2xl border border-black-100 p-4 shadow-sm">
     <div class="flex items-center justify-between gap-3 mb-1">
         <p class="text-sm text-black-500">Your eName</p>
-        <span
-            class="bg-black-100 text-black-700 text-[10px] font-bold uppercase tracking-wide px-3 py-1 rounded-full"
-        >
-            Unverified ID
-        </span>
+        {#if verified}
+            <span
+                class="bg-lime-200 text-lime-900 text-[10px] font-bold uppercase tracking-wide px-3 py-1 rounded-full"
+            >
+                Verified ID
+            </span>
+        {:else}
+            <span
+                class="bg-black-100 text-black-700 text-[10px] font-bold uppercase tracking-wide px-3 py-1 rounded-full"
+            >
+                Unverified ID
+            </span>
+        {/if}
     </div>
     <div class="flex items-start justify-between gap-3">
         <p class="font-medium text-black-900 break-all flex-1 leading-snug">
