@@ -707,7 +707,7 @@ $effect(() => {
     {#if children}
         {#key page.url.pathname}
             <div
-                class="absolute inset-0"
+                class="absolute inset-0 bg-white"
                 in:slideIn={{ direction: routeDirection }}
                 out:slideOut={{ direction: routeDirection }}
             >

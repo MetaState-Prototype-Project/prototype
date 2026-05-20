@@ -4,34 +4,37 @@ import { cn } from "$lib/utils";
 import type { HTMLAttributes } from "svelte/elements";
 interface IHeroProps extends HTMLAttributes<HTMLElement> {
     title?: string;
+    /** Optional secondary line under the title (e.g. "App Version 1.0.2"). */
+    subtitle?: string;
     titleClasses?: string;
+    /** Back-chevron color — used by /scan-qr where the nav sits on a dark
+     *  camera surface. */
     iconColor?: string;
 }
-const {
-    title,
-    titleClasses,
-    iconColor = "black",
-    ...restProps
-}: IHeroProps = $props();
-const baseClasses = "w-full relative flex justify-center h-14 items-center";
+const { title, subtitle, titleClasses, iconColor, ...restProps }: IHeroProps =
+    $props();
+const baseClasses = "w-full relative flex justify-center items-center py-2";
 </script>
 
 <nav {...restProps} class={cn(baseClasses, restProps.class)}>
-    <button class="absolute left-2 p-4 bg-black-50 rounded-full"
+    <button class="absolute left-0 top-2 p-4 bg-black-50 rounded-full"
         onclick={() => window.history.back()}
     >
-        <ChevronIcon size={13} />
+        <ChevronIcon size={13} color={iconColor} />
     </button>
-    <!-- <Button.Icon 
-        icon={ArrowLeft01Icon}
-        iconSize="sm"
-        {iconColor}
-        class="absolute left-2 p-2.75 bg-black-50 rounded-full"
-        onclick={() => window.history.back()}
-    /> -->
-    <h4 class={cn(["text-2xl", titleClasses])}>
-        {title}
-    </h4>
+    <div class="flex flex-col items-center">
+        <h4 class={cn(["text-2xl leading-tight", titleClasses])}>
+            {title}
+        </h4>
+        <!-- Always rendered so the nav keeps a constant height. Pages
+             without a subtitle pass undefined and we render an nbsp to
+             reserve the line. Without this, navigating from a page with
+             a subtitle (e.g. /settings) to one without (e.g. /settings/pin)
+             would shift the content up. -->
+        <p class="text-black-500 leading-tight mt-0.5">
+            {subtitle ?? " "}
+        </p>
+    </div>
 </nav>
 
 <!-- 

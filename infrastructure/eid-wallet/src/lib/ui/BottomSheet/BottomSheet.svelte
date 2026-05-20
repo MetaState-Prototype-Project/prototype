@@ -2,6 +2,8 @@
 import { cn } from "$lib/utils";
 import type { Snippet } from "svelte";
 import type { HTMLAttributes } from "svelte/elements";
+import { cubicOut } from "svelte/easing";
+import { fade, fly } from "svelte/transition";
 
 interface BottomSheetProps extends HTMLAttributes<HTMLDivElement> {
     isOpen?: boolean;
@@ -41,6 +43,7 @@ $effect(() => {
         class="fixed inset-0 z-40 bg-black/40"
         aria-hidden="true"
         onclick={handleClose}
+        transition:fade={{ duration: 200 }}
     ></div>
     <div
         {...restProps}
@@ -55,6 +58,9 @@ $effect(() => {
         style={`${fullScreen
             ? "padding: max(1rem, env(safe-area-inset-top)) 1.5rem max(1.5rem, env(safe-area-inset-bottom));"
             : "padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));"} ${restProps.style ?? ""}`}
+        transition:fly={fullScreen
+            ? { y: 30, duration: 200, easing: cubicOut }
+            : { y: "100%", duration: 280, easing: cubicOut }}
     >
         {@render children?.()}
     </div>

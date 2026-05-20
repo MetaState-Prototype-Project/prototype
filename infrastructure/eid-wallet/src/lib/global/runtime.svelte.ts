@@ -3,6 +3,7 @@ import type { BiometryType } from "@tauri-apps/plugin-biometric";
 export const runtime = $state<{
     header: {
         title: string | undefined;
+        subtitle: string | undefined;
         backEnabled: boolean | undefined;
     };
     /**
@@ -15,6 +16,7 @@ export const runtime = $state<{
 }>({
     header: {
         title: undefined,
+        subtitle: undefined,
         backEnabled: undefined,
     },
     biometry: undefined,

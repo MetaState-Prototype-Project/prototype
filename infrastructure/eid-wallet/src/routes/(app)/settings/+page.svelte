@@ -5,45 +5,40 @@ import type { GlobalState } from "$lib/global";
 import { runtime } from "$lib/global/runtime.svelte";
 import { clearAllNotifications } from "$lib/stores/notifications";
 import { BottomSheet, ButtonAction } from "$lib/ui";
-import {
-    Key01Icon,
-    LanguageSquareIcon,
-    Link02Icon,
-    LockPasswordIcon,
-    PinCodeIcon,
-    Shield01Icon,
-} from "@hugeicons/core-free-icons";
+import { Delete02Icon, ShieldUserIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
 import { getContext } from "svelte";
-import { onDestroy } from "svelte";
 
 const getGlobalState = getContext<() => GlobalState>("globalState");
 const setGlobalState =
     getContext<(value: GlobalState) => void>("setGlobalState");
-let globalState = $derived(getGlobalState());
+const globalState = $derived(getGlobalState());
 
-let isDeleteConfirmationOpen = $state(false);
-let isFinalConfirmationOpen = $state(false);
+// The "App Version" subtitle is owned by /settings/+layout.svelte (captured
+// at layout init from page.url.pathname). Pushing it through runtime here
+// would re-render the OLD AppNav mid- or post-transition and flash.
+const isDev = import.meta.env.DEV;
 
-// Hidden eVault profile retry functionality
-let tapCount = $state(0);
-let lastTapTime = $state(0);
-let isRetrying = $state(false);
-let retryMessage = $state("");
-let timeoutId: ReturnType<typeof setTimeout> | null = null;
+let isLogoutDrawerOpen = $state(false);
+let isDeleteConfirmOpen = $state(false);
 
-function showDeleteConfirmation() {
-    isDeleteConfirmationOpen = true;
+function openLogout() {
+    isLogoutDrawerOpen = true;
 }
 
-function confirmDelete() {
-    isDeleteConfirmationOpen = false;
-    isFinalConfirmationOpen = true;
+function cancelLogout() {
+    isLogoutDrawerOpen = false;
 }
 
-async function nukeWallet() {
+// Local-only logout: wipes the wallet's local state via globalState.reset()
+// and bounces back to the root splash. Does NOT touch the eVault / provisioner
+// backend — re-login on this device requires re-verifying via the standard
+// recovery flow.
+async function performLogout() {
+    isLogoutDrawerOpen = false;
     clearAllNotifications();
     if (!globalState) {
-        console.error("Cannot nuke wallet: global state not ready");
+        console.error("Cannot logout: global state not ready");
         return;
     }
     const newGlobalState = await globalState.reset();
@@ -51,65 +46,20 @@ async function nukeWallet() {
     goto("/");
 }
 
-async function cancelDelete() {
-    isDeleteConfirmationOpen = false;
-    isFinalConfirmationOpen = false;
-    await goto("/main");
+// Dev-only delete. Same effect as logout under the hood since reset() doesn't
+// touch the backend; the separate confirmation just makes the dev intent
+// explicit while we're testing the splash → onboarding path.
+function openDeleteConfirm() {
+    isDeleteConfirmOpen = true;
 }
 
-// Cleanup on unmount
-onDestroy(() => {
-    if (timeoutId) clearTimeout(timeoutId);
-});
+function cancelDelete() {
+    isDeleteConfirmOpen = false;
+}
 
-async function handleVersionTap() {
-    const now = Date.now();
-
-    // Reset if more than 3s between taps
-    if (now - lastTapTime > 3000) {
-        tapCount = 0;
-    }
-
-    tapCount++;
-    lastTapTime = now;
-
-    // Show feedback after 5 taps
-    if (tapCount >= 5) {
-        retryMessage = `Taps: ${tapCount}/10`;
-    }
-
-    // Trigger hidden action at 10 taps
-    if (tapCount === 10) {
-        isRetrying = true;
-        retryMessage = "Retrying eVault profile setup...";
-
-        try {
-            await globalState.vaultController.retryProfileCreation();
-            retryMessage = "✅ eVault profile setup completed successfully!";
-
-            // Clear previous timeout if exists
-            if (timeoutId) clearTimeout(timeoutId);
-
-            timeoutId = setTimeout(() => {
-                tapCount = 0;
-                retryMessage = "";
-                isRetrying = false;
-            }, 3000);
-        } catch (error) {
-            console.error("Failed to retry eVault profile setup:", error);
-            retryMessage =
-                "❌ Failed to setup eVault profile. Check console for details.";
-
-            // Clear previous timeout if exists
-            if (timeoutId) clearTimeout(timeoutId);
-
-            timeoutId = setTimeout(() => {
-                tapCount = 0;
-                retryMessage = "";
-                isRetrying = false;
-            }, 5000);
-        }
-    }
+async function performDelete() {
+    isDeleteConfirmOpen = false;
+    await performLogout();
 }
 
 async function openPrivacy(e: Event) {
@@ -127,125 +77,118 @@ $effect(() => {
 });
 </script>
 
-<main class="h-[80svh] flex flex-col justify-between">
-    <!-- header part -->
-    <div>
-        <SettingsNavigationBtn
-            icon={LanguageSquareIcon}
-            label="Language"
-            href="/settings/language"
-        />
-        <SettingsNavigationBtn
-            icon={PinCodeIcon}
-            label="Pin"
-            href="/settings/pin"
-        />
-        <SettingsNavigationBtn
-            icon={LockPasswordIcon}
-            label="Recovery Passphrase"
-            href="/settings/passphrase"
-        />
-        <SettingsNavigationBtn
-            icon={Shield01Icon}
-            label="Privacy"
-            href="https://metastate.foundation/"
-            onclick={openPrivacy}
-        />
-    </div>
-    <div>
-        <ButtonAction class="mt-5 w-full" callback={showDeleteConfirmation}
-            >Delete Account</ButtonAction
-        >
+<main class="flex flex-col gap-6 mt-6">
+    <SettingsNavigationBtn
+        label="Language"
+        subtitle="English"
+        href="/settings/language"
+    >
+        {#snippet iconSlot()}
+            <span
+                class="block w-full h-full fi fis fi-gb rounded-full"
+                aria-hidden="true"
+            ></span>
+        {/snippet}
+    </SettingsNavigationBtn>
 
-        <!-- Hidden eVault profile retry - tap version 10 times -->
-        <div class="w-full py-2 text-center">
+    <SettingsNavigationBtn
+        icon={ShieldUserIcon}
+        label="Pin-Code"
+        subtitle="Tap to change"
+        href="/settings/pin"
+    />
+
+    <SettingsNavigationBtn
+        icon={Delete02Icon}
+        label="Privacy policy"
+        subtitle="External link"
+        href="https://metastate.foundation/"
+        onclick={openPrivacy}
+    />
+
+    <div class="mt-8">
+        <ButtonAction variant="soft" class="w-full text-black uppercase text-md" callback={openLogout}>
+            Logout
+        </ButtonAction>
+    </div>
+
+    {#if isDev}
+        <!-- Discreet dev-only entry to the local-wipe flow that used to be
+             surfaced as "Delete Account". Same effect as logout under the
+             hood since neither touches the backend. -->
+        <div class="mt-6 flex justify-end">
             <button
-                class="text-gray-500 hover:text-gray-700 transition-colors cursor-pointer select-none"
-                onclick={handleVersionTap}
-                disabled={isRetrying}
+                type="button"
+                onclick={openDeleteConfirm}
+                aria-label="Dev: delete account"
+                class="text-black-300 active:opacity-60 p-2"
             >
-                Version v0.7.1
+                <HugeiconsIcon
+                    icon={Delete02Icon}
+                    size={18}
+                    color="currentColor"
+                    strokeWidth={2}
+                />
             </button>
-
-            {#if retryMessage}
-                <div
-                    class="mt-2 text-sm {isRetrying
-                        ? 'text-blue-600'
-                        : retryMessage.includes('✅')
-                          ? 'text-green-600'
-                          : 'text-red-600'}"
-                >
-                    {retryMessage}
-                </div>
-            {/if}
         </div>
-    </div>
+    {/if}
 </main>
 
-<!-- First Confirmation Sheet -->
-{#if isDeleteConfirmationOpen}
-    <BottomSheet bind:isOpen={isDeleteConfirmationOpen}>
-        <div class="text-center">
-            <h3 class="text-lg font-bold text-danger-500 mb-1">
-                Delete Account
-            </h3>
-            <p class="text-black-700 text-sm mb-4">
-                Are you sure you want to delete your account? This action will:
-            </p>
-            <ul class="text-left text-black-700 text-sm mb-6 space-y-2">
-                <li>• Permanently delete all your personal data</li>
-                <li>• Remove your ePassport and eVault access</li>
-                <li>• Delete your eName and all associated credentials</li>
-                <li>• Make your data inaccessible within 24 hours</li>
-                <li>• This action cannot be undone</li>
-            </ul>
-            <div class="flex gap-3">
-                <ButtonAction
-                    variant="soft"
-                    class="flex-1"
-                    callback={cancelDelete}>Cancel</ButtonAction
-                >
-                <ButtonAction
-                    variant="danger"
-                    class="flex-1"
-                    callback={confirmDelete}>Continue</ButtonAction
-                >
-            </div>
-        </div>
-    </BottomSheet>
-{/if}
+<BottomSheet bind:isOpen={isLogoutDrawerOpen}>
+    <div class="flex items-start justify-between gap-3">
+        <h3 class="text-2xl font-semibold text-black-900">Logout</h3>
+        <button
+            type="button"
+            onclick={cancelLogout}
+            aria-label="Close"
+            class="w-11 h-11 rounded-full bg-black-50 flex items-center justify-center text-black-700 active:opacity-70 shrink-0"
+        >
+            <span aria-hidden="true" class="text-4xl leading-none">×</span>
+        </button>
+    </div>
+    <p class="text-black-500 leading-snug">
+        Attention: Logging out will unlink this device from your eVault. To
+        regain access, you will need to re-verify and confirm some of the
+        bindings you provided.
+    </p>
+    <div class="flex gap-3 mt-2">
+        <ButtonAction variant="soft" class="flex-1 text-black uppercase text-lg font-semibold" callback={cancelLogout}
+            >Cancel</ButtonAction
+        >
+        <ButtonAction variant="soft" class="flex-1 text-black uppercase text-lg font-semibold" callback={performLogout}
+            >Logout</ButtonAction
+        >
+    </div>
+</BottomSheet>
 
-<!-- Final Confirmation Sheet -->
-{#if isFinalConfirmationOpen}
-    <BottomSheet bind:isOpen={isFinalConfirmationOpen}>
-        <div class="text-center">
-            <h3 class="text-lg font-bold text-danger-500 mb-1">
-                Final Confirmation
+{#if isDev}
+    <BottomSheet bind:isOpen={isDeleteConfirmOpen}>
+        <div class="flex items-start justify-between gap-3">
+            <h3 class="text-2xl font-bold text-black-900">
+                Delete account (dev)
             </h3>
-            <p class="text-black-700 text-sm mb-4">
-                This is your final warning. Once you confirm:
-            </p>
-            <div class="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
-                <p class="text-red-800 text-sm font-medium">
-                    All your data will be permanently deleted and you will lose
-                    access to your ePassport, eVault, and eName forever.
-                </p>
-            </div>
-            <p class="text-black-700 text-sm mb-6">
-                Are you absolutely certain you want to proceed?
-            </p>
-            <div class="flex gap-3">
-                <ButtonAction
-                    variant="soft"
-                    class="flex-1"
-                    callback={cancelDelete}>Cancel</ButtonAction
-                >
-                <ButtonAction
-                    variant="danger"
-                    class="flex-1"
-                    callback={nukeWallet}>Delete</ButtonAction
-                >
-            </div>
+            <button
+                type="button"
+                onclick={cancelDelete}
+                aria-label="Close"
+                class="w-9 h-9 rounded-full bg-black-50 flex items-center justify-center text-black-700 active:opacity-70 shrink-0"
+            >
+                <span aria-hidden="true" class="text-lg leading-none">×</span>
+            </button>
+        </div>
+        <p class="text-black-500 leading-snug">
+            Wipes all local wallet state and returns to onboarding. The eVault
+            on the backend is left intact.
+        </p>
+        <div class="flex gap-3 mt-2">
+            <ButtonAction variant="soft" class="flex-1" callback={cancelDelete}
+                >Cancel</ButtonAction
+            >
+            <ButtonAction
+                variant="danger"
+                class="flex-1"
+                callback={performDelete}>Delete</ButtonAction
+            >
         </div>
     </BottomSheet>
 {/if}
