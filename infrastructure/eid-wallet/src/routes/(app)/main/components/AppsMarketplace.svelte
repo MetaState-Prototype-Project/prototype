@@ -91,10 +91,10 @@ const apps: IApp[] = [
             target="_blank"
             rel="noopener noreferrer"
             aria-label="See all apps"
-            class="snap-start shrink-0 w-24 bg-white rounded-2xl p-3 flex flex-col items-start shadow-[0px_4px_19.9px_0px_#00000024] active:opacity-70"
+            class="snap-start shrink-0 w-28 h-32 bg-card-alternative rounded-3xl px-3 py-4 flex flex-col items-start justify-between active:opacity-70"
         >
             <div
-                class="w-10 h-10 rounded-xl bg-white text-black-900 flex items-center justify-center mb-2 shadow-[0px_2px_6px_0px_#0000001a]"
+                class="w-10 h-10 rounded-xl bg-white text-black-900 flex items-center justify-center"
             >
                 <HugeiconsIcon
                     icon={ArrowRight01Icon}
@@ -102,7 +102,9 @@ const apps: IApp[] = [
                     strokeWidth={3}
                 />
             </div>
-            <p class="font-semibold text-black-900 leading-tight">All apps</p>
+            <p class="font-medium text-lg text-black-900 leading-tight">
+                All apps
+            </p>
         </a>
     </div>
 </section>

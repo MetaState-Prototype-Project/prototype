@@ -48,7 +48,7 @@ const handleSubmit = async () => {
             autocomplete="given-name"
             autocapitalize="words"
             maxlength="64"
-            class="w-full text-[40px] font-condensed font-bold text-black-900 placeholder:text-black-900 placeholder:opacity-20 bg-transparent outline-none"
+            class="w-full text-display font-condensed font-bold text-black-900 placeholder:text-black-900 placeholder:opacity-20 bg-transparent outline-none"
         />
 
         {#if error}

@@ -40,7 +40,7 @@ function handleAddClick(e: MouseEvent) {
 </script>
 
 <div
-    class="rounded-3xl overflow-hidden transition-colors duration-200 {hasDoc ? "bg-lime-200": "bg-card-alternative"}"
+    class="rounded-3xl overflow-hidden transition-colors duration-200 {hasDoc ? "bg-success-200": "bg-card-alternative"}"
 >
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
@@ -63,7 +63,7 @@ function handleAddClick(e: MouseEvent) {
             />
             {#if hasDoc}
                 <span
-                    class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-lime-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white"
+                    class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-success-500 text-white text-chip font-bold flex items-center justify-center border-2 border-white"
                     aria-hidden="true">✓</span
                 >
             {/if}
@@ -89,7 +89,7 @@ function handleAddClick(e: MouseEvent) {
             <button
                 type="button"
                 onclick={handleAddClick}
-                class="bg-white text-black-700 text-[13px] font-bold uppercase tracking-wide px-4 py-1.5 rounded-full active:opacity-70 shrink-0 h-11"
+                class="bg-white text-black-700 text-pill font-bold uppercase tracking-wide px-4 py-1.5 rounded-full active:opacity-70 shrink-0 h-11"
             >
                 Add
             </button>

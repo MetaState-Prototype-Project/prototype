@@ -66,9 +66,33 @@
 
     --color-card-alternative: #f2f5fa;
 
+    /* Success / verified-state palette — used by the verified-ID chip and
+       the Legal ID accordion. Mirrors the lime scale we were reaching for. */
+    --color-success: #84cc16;
+    --color-success-100: #ecfccb;
+    --color-success-200: #d9f99d;
+    --color-success-500: #84cc16;
+    --color-success-900: #365314;
+
     /* Typography */
     --font-sans: "Roboto Variable", sans-serif;
     --font-condensed: "Roboto Condensed Variable", sans-serif;
+
+    /* Display size — Greeting h1/h2 and the NameInput field. */
+    --text-display: 40px;
+    --text-display--line-height: 1;
+
+    /* Micro chip / badge label — verified/unverified pills, notification
+       count, the small checkmark on the Legal ID avatar. */
+    --text-chip: 10px;
+    --text-chip--line-height: 1.2;
+
+    /* Pill button label — ADD / INVITE / REPLACE buttons. */
+    --text-pill: 13px;
+    --text-pill--line-height: 1.2;
+
+    /* Standard elevation used across the main-page cards. */
+    --shadow-card: 0px 4px 19.9px 0px #00000024;
 }
 
 body {

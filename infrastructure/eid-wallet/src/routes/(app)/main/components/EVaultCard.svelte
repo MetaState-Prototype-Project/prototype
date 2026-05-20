@@ -12,7 +12,7 @@ const { available, oninfo }: IEVaultCardProps = $props();
 </script>
 
 <section
-    class="bg-white rounded-2xl p-4 shadow-[0px_4px_19.9px_0px_#00000024] flex items-start justify-between gap-3"
+    class="bg-white rounded-2xl p-4 shadow-card flex items-start justify-between gap-3"
 >
     <div>
         <p class="text-lg text-black-700 font-medium">Your eVault</p>

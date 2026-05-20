@@ -23,11 +23,11 @@ const {
 
 <header class="flex items-start justify-between pt-2">
     <div>
-        <h1 class="text-[40px] font-bold font-condensed text-black-300 leading-none">
+        <h1 class="text-display font-bold font-condensed text-black-300">
             {greeting}
         </h1>
         <div class="flex items-center gap-2">
-            <h2 class="text-[40px] font-bold font-condensed text-black leading-none">
+            <h2 class="text-display font-bold font-condensed text-black">
                 {name}
             </h2>
             {#if !tourActive}
@@ -55,7 +55,7 @@ const {
                 <MessageIcon size={24} />
                 {#if notificationCount > 0}
                     <span
-                        class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-4.5 h-4.5 flex items-center justify-center px-1"
+                        class="absolute -top-0.5 -right-0.5 bg-danger-500 text-white text-chip font-bold rounded-full min-w-4.5 h-4.5 flex items-center justify-center px-1"
                     >
                         {notificationCount > 99 ? "99+" : notificationCount}
                     </span>

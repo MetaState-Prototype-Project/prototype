@@ -38,19 +38,19 @@ function shareQR() {
 </script>
 
 <section
-    class="bg-white rounded-2xl p-4 shadow-[0px_4px_19.9px_0px_#00000024]"
+    class="bg-white rounded-2xl p-4 shadow-card"
 >
     <div class="flex items-center justify-between gap-3 mb-3">
         <h3 class="text-lg font-medium text-black-900">Your eName</h3>
         {#if verified}
             <span
-                class="bg-lime-200 text-lime-900 text-[10px] font-bold uppercase tracking-wide px-3 py-1 rounded-full"
+                class="bg-success-200 text-success-900 text-chip font-bold uppercase tracking-wide px-3 py-1 rounded-full"
             >
                 Verified ID
             </span>
         {:else}
             <span
-                class="bg-black-50 text-black-700 text-[13px] font-bold uppercase tracking-wide px-3 py-1 rounded-full"
+                class="bg-black-50 text-black-700 text-pill font-bold uppercase tracking-wide px-3 py-1 rounded-full"
             >
                 Unverified ID
             </span>

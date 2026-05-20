@@ -22,7 +22,7 @@ const {
 </script>
 
 <section
-    class="bg-white rounded-2xl p-4 shadow-[0px_4px_19.9px_0px_#00000024]"
+    class="bg-white rounded-2xl p-4 shadow-card"
 >
     <header class="flex items-center justify-between mb-3">
         <h3 class="font-medium text-black text-lg">Binding Documents</h3>
@@ -62,7 +62,7 @@ const {
             <button
                 type="button"
                 onclick={onpersonal}
-                class="bg-white text-black-700 h-11 text-[13px] font-bold uppercase tracking-wide px-4 py-1.5 rounded-full active:opacity-70 shrink-0"
+                class="bg-white text-black-700 h-11 text-pill font-bold uppercase tracking-wide px-4 py-1.5 rounded-full active:opacity-70 shrink-0"
             >
                 Add
             </button>
@@ -88,7 +88,7 @@ const {
             <button
                 type="button"
                 onclick={onsocialinvite}
-                class="bg-primary text-white h-11 text-[13px] font-medium uppercase tracking-wide px-4 py-1.5 rounded-full active:opacity-80 shrink-0"
+                class="bg-primary text-white h-11 text-pill font-medium uppercase tracking-wide px-4 py-1.5 rounded-full active:opacity-80 shrink-0"
             >
                 Invite
             </button>
