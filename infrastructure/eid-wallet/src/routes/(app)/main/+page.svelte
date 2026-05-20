@@ -24,6 +24,7 @@ import BindingDocuments from "./components/BindingDocuments.svelte";
 import ENameCard from "./components/ENameCard.svelte";
 import EVaultCard from "./components/EVaultCard.svelte";
 import Greeting from "./components/Greeting.svelte";
+import InfoDrawer from "./components/InfoDrawer.svelte";
 import Lasso from "./components/Lasso.svelte";
 import type { LegalIdDoc } from "./components/LegalIdAccordion.svelte";
 import ScanFAB from "./components/ScanFAB.svelte";
@@ -56,6 +57,8 @@ let toastMessage = $state("");
 let isFake = $state<boolean | undefined>(undefined);
 let legalId = $state<LegalIdDoc | null>(null);
 let kycOpen = $state(false);
+let eVaultInfoOpen = $state(false);
+let bindingDocsInfoOpen = $state(false);
 const verified = $derived(isFake === false || legalId !== null);
 
 function openKycFlow() {
@@ -469,6 +472,7 @@ onDestroy(() => {
                     <BindingDocuments
                         {legalId}
                         onlegalid={openKycFlow}
+                        oninfo={() => (bindingDocsInfoOpen = true)}
                     />
                     <Lasso size="xl" active={tourStep === "binding-docs"} />
                 </div>
@@ -483,7 +487,10 @@ onDestroy(() => {
                         ? { y: 30, duration: 300 }
                         : { duration: 0 }}
                 >
-                    <EVaultCard available="80 Gb" />
+                    <EVaultCard
+                        available="80 Gb"
+                        oninfo={() => (eVaultInfoOpen = true)}
+                    />
                     <Lasso size="med" active={tourStep === "evault"} />
                 </div>
             {/if}
@@ -535,6 +542,63 @@ onDestroy(() => {
     onupgraded={handleKycUpgraded}
     onclose={handleKycClose}
 />
+
+<InfoDrawer bind:isOpen={eVaultInfoOpen} title="What is eVault?">
+    {#snippet body()}
+        <div
+            class="bg-primary-100 rounded-2xl p-6 aspect-square w-full flex items-center justify-center shrink-0"
+        >
+            <img
+                src="/images/eVault-kid-drawing.png"
+                alt=""
+                class="w-full h-full object-contain"
+                aria-hidden="true"
+            />
+        </div>
+        <p>
+            eVault is your sovereign and secure storage. It holds all your
+            data: photos, documents, social media posts, messages to friends,
+            and more. Since your data is now stored by you, not platforms, you
+            can easily switch between services.
+        </p>
+        <p>
+            For example, if you don't like one messenger, simply switch to
+            another, and all your messages, chats, and friends will still be
+            there, because your data is stored with you, and the app only gets
+            temporary permission to access it.
+        </p>
+    {/snippet}
+</InfoDrawer>
+
+<InfoDrawer bind:isOpen={bindingDocsInfoOpen} title="Binding documents">
+    {#snippet body()}
+        <p>
+            Link binding documents to strengthen the connection between your
+            Digital and Real Selves. Upload verifiable artifacts to your eVault,
+            such as official documents, photos, or confirmations from friends
+            and family, so you can prove ownership of your eVault if needed.
+        </p>
+        <!-- Placeholder tile — swap in a real illustration when it ships. -->
+        <div
+            class="bg-primary-100 rounded-2xl aspect-square w-full shrink-0"
+            aria-hidden="true"
+        ></div>
+        <h4 class="text-black-900 font-bold text-base">Why it's important:</h4>
+        <p>
+            Unlike the usual Web 2.0 approach, where platforms make you create
+            an account and upload your data to them, in W3DS, you have your own
+            sovereign account — your Digital Self — and you control who can
+            access your data. With sovereignty comes responsibility.
+        </p>
+        <p>
+            By default, your Digital Self is tied to your Real Self via the eID
+            App, so if anything happens to your phone, you may lose control over
+            your data. However, if your personal artifacts — documents, photos,
+            and social confirmations — are stored in your eVault, you can prove
+            ownership of your Digital Self and regain control over your data.
+        </p>
+    {/snippet}
+</InfoDrawer>
 
 <style>
 .tour-card {
