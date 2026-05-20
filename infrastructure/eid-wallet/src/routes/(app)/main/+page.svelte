@@ -1,3 +1,12 @@
+<script module lang="ts">
+// Module-scope: persists across navigations within the same app session
+// because SvelteKit doesn't re-evaluate the module on client-side nav. The
+// entrance fly-in should only play on the very first /main mount; coming
+// back from /notifications, /settings, etc. should just snap into place.
+// MUST live in `<script module>` — a regular `<script>` runs per instance.
+let hasMountedBefore = false;
+</script>
+
 <script lang="ts">
 import { PUBLIC_EID_WALLET_TOKEN } from "$env/static/public";
 import type { GlobalState } from "$lib/global";
@@ -182,6 +191,16 @@ let tourOffset = $state(0);
 let pageReady = $state(false);
 const tourActive = $derived(tourStep !== null);
 const tourGreeting = $derived(tourActive ? "Hello" : (greeting ?? "Hi"));
+
+// Captured once on component init. Stays true for the lifetime of this
+// component instance; the module-scope flag flips immediately so any later
+// remount (i.e. coming back from another route) sees `false`.
+const isFirstMount = !hasMountedBefore;
+hasMountedBefore = true;
+// Cards animate in on the first /main visit and on each tour-driven reveal,
+// but stay still on subsequent re-entries. Sliding up every time the user
+// taps back into /main felt jittery.
+const animateCardEntrance = $derived(isFirstMount || tourActive);
 
 function stepIndex(step: TourStep | null): number {
     return step === null ? Number.POSITIVE_INFINITY : TOUR_ORDER.indexOf(step);
@@ -388,7 +407,7 @@ onDestroy(() => {
     </div>
 {:else if profileCreationStatus === "failed"}
     <div
-        class="flex flex-col items-center justify-center min-h-screen gap-6 px-4"
+        class="flex flex-col items-center justify-center min-h-screen gap-6"
     >
         <div class="text-center">
             <h3 class="text-xl font-semibold text-danger mb-2">
@@ -409,7 +428,7 @@ onDestroy(() => {
     </div>
 {:else}
     <div
-        class="relative px-5 transition-transform duration-500 ease-out will-change-transform"
+        class="relative transition-transform duration-500 ease-out will-change-transform"
         style="padding-top: max(12px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom)); transform: translateY(-{tourOffset}px);"
     >
         <Greeting
@@ -425,11 +444,13 @@ onDestroy(() => {
                     id="tour-target-ename"
                     class="relative tour-card"
                     class:tour-card-passed={isCardPassed("ename")}
-                    in:fly|global={{
-                        y: 30,
-                        duration: 300,
-                        delay: tourActive ? 250 : 0,
-                    }}
+                    in:fly|global={animateCardEntrance
+                        ? {
+                              y: 30,
+                              duration: 300,
+                              delay: tourActive ? 250 : 0,
+                          }
+                        : { duration: 0 }}
                 >
                     <ENameCard {ename} {verified} ontoast={handleToast} />
                     <Lasso size="med" active={tourStep === "ename"} />
@@ -441,7 +462,9 @@ onDestroy(() => {
                     id="tour-target-binding-docs"
                     class="relative tour-card"
                     class:tour-card-passed={isCardPassed("binding-docs")}
-                    in:fly|global={{ y: 30, duration: 300 }}
+                    in:fly|global={animateCardEntrance
+                        ? { y: 30, duration: 300 }
+                        : { duration: 0 }}
                 >
                     <BindingDocuments
                         {legalId}
@@ -456,7 +479,9 @@ onDestroy(() => {
                     id="tour-target-evault"
                     class="relative tour-card"
                     class:tour-card-passed={isCardPassed("evault")}
-                    in:fly|global={{ y: 30, duration: 300 }}
+                    in:fly|global={animateCardEntrance
+                        ? { y: 30, duration: 300 }
+                        : { duration: 0 }}
                 >
                     <EVaultCard available="80 Gb" />
                     <Lasso size="med" active={tourStep === "evault"} />
@@ -468,7 +493,9 @@ onDestroy(() => {
                     id="tour-target-apps"
                     class="relative tour-card"
                     class:tour-card-passed={isCardPassed("apps")}
-                    in:fly|global={{ y: 30, duration: 300 }}
+                    in:fly|global={animateCardEntrance
+                        ? { y: 30, duration: 300 }
+                        : { duration: 0 }}
                 >
                     <AppsMarketplace />
                     <Lasso size="lg" active={tourStep === "apps"} />
