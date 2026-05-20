@@ -55,8 +55,8 @@ const {
                 <p class="font-medium text-black text-lg leading-tight">
                     Personal
                 </p>
-                <p class="text-black-500 leading-tight">
-                    Idenity marks
+                <p class="text-black-700 opacity-50 leading-tight">
+                    Identity marks
                 </p>
             </div>
             <button
@@ -81,7 +81,7 @@ const {
                 <p class="font-medium text-black text-lg leading-tight">
                     Social binding
                 </p>
-                <p class="text-primary leading-tight">
+                <p class="text-primary font-medium leading-tight">
                     New level of trust
                 </p>
             </div>

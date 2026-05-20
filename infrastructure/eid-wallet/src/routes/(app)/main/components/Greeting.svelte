@@ -35,9 +35,9 @@ const {
                     type="button"
                     aria-label="Edit name"
                     onclick={onedit}
-                    class="text-black bg-black-100 p-2 rounded-full active:opacity-60"
+                    class="text-black bg-black-50 p-2 rounded-full active:opacity-60"
                 >
-                    <EditIcon size={20} />
+                    <EditIcon size={18} />
                 </button>
             {/if}
         </div>

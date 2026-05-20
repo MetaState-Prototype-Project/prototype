@@ -419,7 +419,7 @@ onDestroy(() => {
             {tourActive}
         />
 
-        <main class="mt-6 flex flex-col gap-3 pb-32">
+        <main class="mt-6 flex flex-col gap-4 pb-32">
             {#if pageReady && isCardRevealed("ename")}
                 <div
                     id="tour-target-ename"

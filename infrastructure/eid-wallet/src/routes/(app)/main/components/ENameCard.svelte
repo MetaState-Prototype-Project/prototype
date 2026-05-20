@@ -40,7 +40,7 @@ function shareQR() {
 <section
     class="bg-white rounded-2xl p-4 shadow-[0px_4px_19.9px_0px_#00000024]"
 >
-    <div class="flex items-center justify-between gap-3 mb-1.5">
+    <div class="flex items-center justify-between gap-3 mb-3">
         <h3 class="text-lg font-medium text-black-900">Your eName</h3>
         {#if verified}
             <span
