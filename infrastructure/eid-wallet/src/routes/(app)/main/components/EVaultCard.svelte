@@ -12,24 +12,24 @@ const { available, oninfo }: IEVaultCardProps = $props();
 </script>
 
 <section
-    class="bg-white rounded-2xl border border-black-100 p-4 shadow-sm flex items-start justify-between gap-3"
+    class="bg-white rounded-2xl p-4 shadow-[0px_4px_19.9px_0px_#00000024] flex items-start justify-between gap-3"
 >
     <div>
-        <p class="text-sm text-black-500">Your eVault</p>
-        <p class="text-2xl font-bold text-black-900 mt-0.5">
+        <p class="text-lg text-black-700 font-medium">Your eVault</p>
+        <p class="text-2xl font-medium text-black mt-0.5">
             {available}
-            <span class="font-normal text-black-500">available</span>
+            <span class="font-medium text-black opacity-50">available</span>
         </p>
     </div>
     <button
         type="button"
         aria-label="About eVault"
         onclick={oninfo}
-        class="text-black-500 active:opacity-60 mt-0.5"
+        class="text-black-300 active:opacity-60 mt-0.5"
     >
         <HugeiconsIcon
             icon={InformationCircleIcon}
-            size={18}
+            size={24}
             strokeWidth={2}
         />
     </button>

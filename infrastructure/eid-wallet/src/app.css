@@ -50,6 +50,7 @@
     --color-gray: #f5f5f5;
 
     --color-black: #1d2636;
+    --color-black-50: #ebeff5;
     --color-black-100: #dce0e8;
     --color-black-300: #b8c0cb;
     --color-black-500: #788292;
@@ -62,6 +63,8 @@
     --color-danger-300: #ff968e;
     --color-danger-400: #ff7b77;
     --color-danger-500: #ff5255;
+
+    --color-card-alternative: #f2f5fa;
 
     /* Typography */
     --font-sans: "Roboto Variable", sans-serif;

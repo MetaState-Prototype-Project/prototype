@@ -4,11 +4,7 @@
     row with an ADD button.
 -->
 <script lang="ts">
-import {
-    ArrowDown01Icon,
-    ArrowUp01Icon,
-    IdentificationIcon,
-} from "@hugeicons/core-free-icons";
+import { ArrowDown01Icon, ArrowUp01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import { slide } from "svelte/transition";
 
@@ -44,13 +40,11 @@ function handleAddClick(e: MouseEvent) {
 </script>
 
 <div
-    class="rounded-xl overflow-hidden transition-colors duration-200"
-    class:bg-gray={!hasDoc}
-    class:bg-lime-200={hasDoc}
+    class="rounded-3xl overflow-hidden transition-colors duration-200 {hasDoc ? "bg-lime-200": "bg-card-alternative"}"
 >
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
-        class="flex items-center gap-3 p-2.5"
+        class="flex items-center gap-3 px-3 py-4"
         class:cursor-pointer={hasDoc}
         onclick={toggle}
         role="button"
@@ -58,24 +52,25 @@ function handleAddClick(e: MouseEvent) {
         aria-expanded={expanded}
         aria-disabled={!hasDoc}
     >
-        <div
-            class="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-700 shrink-0 relative"
-        >
-            <HugeiconsIcon
-                icon={IdentificationIcon}
-                size={20}
-                strokeWidth={2}
+        <div class="relative shrink-0">
+            <img
+                src="/images/LegalID.png"
+                alt=""
+                width="40"
+                height="40"
+                class="block w-10 h-10 object-contain"
+                aria-hidden="true"
             />
             {#if hasDoc}
                 <span
-                    class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-lime-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-lime-200"
+                    class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-lime-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white"
                     aria-hidden="true">✓</span
                 >
             {/if}
         </div>
         <div class="flex-1 min-w-0">
             <div class="flex items-center gap-1">
-                <p class="font-semibold text-black-900 leading-tight">
+                <p class="font-medium text-lg text-black-900 leading-tight">
                     Legal ID
                 </p>
                 {#if hasDoc}
@@ -86,7 +81,7 @@ function handleAddClick(e: MouseEvent) {
                     />
                 {/if}
             </div>
-            <p class="text-xs text-black-500 leading-tight truncate">
+            <p class="text-black-500 leading-tight truncate">
                 {subtitle}
             </p>
         </div>
@@ -94,7 +89,7 @@ function handleAddClick(e: MouseEvent) {
             <button
                 type="button"
                 onclick={handleAddClick}
-                class="bg-white text-black-700 text-[10px] font-bold uppercase tracking-wide px-4 py-1.5 rounded-full active:opacity-70 shrink-0"
+                class="bg-white text-black-700 text-[13px] font-bold uppercase tracking-wide px-4 py-1.5 rounded-full active:opacity-70 shrink-0 h-11"
             >
                 Add
             </button>

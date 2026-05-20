@@ -1,8 +1,6 @@
 <script lang="ts">
 import * as Button from "$lib/ui/Button";
-import { GearIcon, MessageIcon } from "$lib/ui/icons";
-import { Edit02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/svelte";
+import { EditIcon, GearIcon, MessageIcon } from "$lib/ui/icons";
 
 interface IGreetingProps {
     greeting: string;
@@ -37,20 +35,16 @@ const {
                     type="button"
                     aria-label="Edit name"
                     onclick={onedit}
-                    class="text-black-500 active:opacity-60"
+                    class="text-black bg-black-100 p-2 rounded-full active:opacity-60"
                 >
-                    <HugeiconsIcon
-                        icon={Edit02Icon}
-                        size={20}
-                        strokeWidth={2}
-                    />
+                    <EditIcon size={20} />
                 </button>
             {/if}
         </div>
     </div>
 
     {#if !tourActive}
-        <div class="flex items-center gap-2 shrink-0">
+        <div class="flex items-center gap-4 shrink-0 mt-2">
             <Button.Nav
                 href="/notifications"
                 class="relative"

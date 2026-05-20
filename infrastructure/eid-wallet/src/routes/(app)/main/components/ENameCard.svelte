@@ -37,9 +37,11 @@ function shareQR() {
 }
 </script>
 
-<section class="bg-white rounded-2xl border border-black-100 p-4 shadow-sm">
-    <div class="flex items-center justify-between gap-3 mb-1">
-        <p class="text-sm text-black-500">Your eName</p>
+<section
+    class="bg-white rounded-2xl p-4 shadow-[0px_4px_19.9px_0px_#00000024]"
+>
+    <div class="flex items-center justify-between gap-3 mb-1.5">
+        <h3 class="text-lg font-medium text-black-900">Your eName</h3>
         {#if verified}
             <span
                 class="bg-lime-200 text-lime-900 text-[10px] font-bold uppercase tracking-wide px-3 py-1 rounded-full"
@@ -48,34 +50,31 @@ function shareQR() {
             </span>
         {:else}
             <span
-                class="bg-black-100 text-black-700 text-[10px] font-bold uppercase tracking-wide px-3 py-1 rounded-full"
+                class="bg-black-50 text-black-700 text-[13px] font-bold uppercase tracking-wide px-3 py-1 rounded-full"
             >
                 Unverified ID
             </span>
         {/if}
     </div>
-    <div class="flex items-start justify-between gap-3">
-        <p class="font-medium text-black-900 break-all flex-1 leading-snug">
-            {ename ?? "Loading..."}
-        </p>
-        <div class="flex items-center gap-2 shrink-0 pt-0.5">
-            <button
+    <div class="flex items-end justify-between gap-3">
+        <p class="text-black-700 opacity-50 font-medium break-all flex-1 min-w-0 leading-snug">
+            {ename ?? "Loading..."}<button
                 type="button"
                 onclick={copyEName}
                 aria-label="Copy eName"
-                class="text-black-700 active:opacity-60"
+                class="inline-flex align-middle active:opacity-60 ml-1.5"
             >
-                <HugeiconsIcon icon={Copy01Icon} size={20} strokeWidth={2} />
+                <HugeiconsIcon icon={Copy01Icon} size={16} strokeWidth={3} />
             </button>
-            <button
-                type="button"
-                onclick={() => (shareQRdrawerOpen = true)}
-                aria-label="Show QR code"
-                class="text-black-700 active:opacity-60"
-            >
-                <QRIcon size={20} />
-            </button>
-        </div>
+        </p>
+        <button
+            type="button"
+            onclick={() => (shareQRdrawerOpen = true)}
+            aria-label="Show QR code"
+            class="text-black-300 active:opacity-60 shrink-0"
+        >
+            <QRIcon size={20} />
+        </button>
     </div>
 </section>
 
