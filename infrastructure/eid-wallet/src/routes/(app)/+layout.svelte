@@ -109,6 +109,7 @@ $effect(() => {
 {/if} -->
 
 <div
+    class="px-4 pb-4"
     style="padding-top: max(2.5rem, calc(env(safe-area-inset-top) + 1rem));"
 >
     {@render children()}
