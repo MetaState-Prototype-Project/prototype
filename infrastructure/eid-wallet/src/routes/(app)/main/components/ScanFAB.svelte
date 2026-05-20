@@ -1,7 +1,6 @@
 <script lang="ts">
 import * as Button from "$lib/ui/Button";
-import { QrCodeIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/svelte";
+import { QRIcon } from "$lib/ui/icons";
 
 interface IScanFABProps {
     href?: string;
@@ -26,6 +25,6 @@ const { href = "/scan-qr", fixed = true }: IScanFABProps = $props();
         class="mx-auto text-nowrap flex gap-3 uppercase tracking-wide"
     >
         Scan
-        <HugeiconsIcon size={24} strokeWidth={2} icon={QrCodeIcon} />
+        <QRIcon size={24} class="ml-2.5" />
     </Button.Action>
 </Button.Nav>

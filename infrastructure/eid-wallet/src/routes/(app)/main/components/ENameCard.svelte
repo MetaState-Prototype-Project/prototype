@@ -1,7 +1,8 @@
 <script lang="ts">
 import { BottomSheet } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
-import { Copy01Icon, QrCodeIcon } from "@hugeicons/core-free-icons";
+import { QRIcon } from "$lib/ui/icons";
+import { Copy01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import QrCode from "svelte-qrcode";
 
@@ -72,7 +73,7 @@ function shareQR() {
                 aria-label="Show QR code"
                 class="text-black-700 active:opacity-60"
             >
-                <HugeiconsIcon icon={QrCodeIcon} size={20} strokeWidth={2} />
+                <QRIcon size={20} />
             </button>
         </div>
     </div>

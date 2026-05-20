@@ -1,5 +1,6 @@
 <script lang="ts">
 import * as Button from "$lib/ui/Button";
+import { GearIcon, MessageIcon } from "$lib/ui/icons";
 import { Edit02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 
@@ -57,13 +58,7 @@ const {
                     ? `Notifications (${notificationCount} unread)`
                     : "Notifications"}
             >
-                <img
-                    src="/images/message.svg"
-                    alt=""
-                    width="24"
-                    height="24"
-                    aria-hidden="true"
-                />
+                <MessageIcon size={24} />
                 {#if notificationCount > 0}
                     <span
                         class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-4.5 h-4.5 flex items-center justify-center px-1"
@@ -73,13 +68,7 @@ const {
                 {/if}
             </Button.Nav>
             <Button.Nav href="/settings" aria-label="Settings">
-                <img
-                    src="/images/gear.svg"
-                    alt=""
-                    width="24"
-                    height="24"
-                    aria-hidden="true"
-                />
+                <GearIcon size={24} />
             </Button.Nav>
         </div>
     {/if}
