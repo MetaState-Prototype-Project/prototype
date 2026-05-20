@@ -1,28 +1,31 @@
 <script lang="ts">
 import { runtime } from "$lib/global/runtime.svelte";
+import {
+    AVAILABLE_LANGUAGES,
+    getCurrentLanguage,
+    setCurrentLanguage,
+} from "$lib/stores/language";
 import { Selector } from "$lib/ui";
 
-let languages: { name: string; country: string }[] = [
-    { name: "English", country: "gb" },
-    { name: "Spanish", country: "es" },
-    { name: "German", country: "de" },
-    { name: "French", country: "fr" },
-];
-let selected = $state("English");
+let selected = $state(getCurrentLanguage().name);
 
 $effect(() => {
     runtime.header.title = "Language";
 });
+
+$effect(() => {
+    setCurrentLanguage(selected);
+});
 </script>
 
 <main>
-    {#each languages as lang, i}
+    {#each AVAILABLE_LANGUAGES as lang, i}
         <Selector
             id={`option-${i}`}
             name={lang.name}
             bind:selected
             value={lang.name}
-            disable={lang.name === "English" ? false : true}
+            disable={!lang.enabled}
         >
             {lang.name}
             {#snippet icon()}

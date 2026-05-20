@@ -3,11 +3,15 @@ import { goto } from "$app/navigation";
 import { SettingsNavigationBtn } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
 import { runtime } from "$lib/global/runtime.svelte";
+import {
+    getCurrentLanguage,
+    subscribe as subscribeLanguage,
+} from "$lib/stores/language";
 import { clearAllNotifications } from "$lib/stores/notifications";
 import { BottomSheet, ButtonAction } from "$lib/ui";
 import { Delete02Icon, ShieldUserIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
-import { getContext } from "svelte";
+import { getContext, onMount } from "svelte";
 
 const getGlobalState = getContext<() => GlobalState>("globalState");
 const setGlobalState =
@@ -18,6 +22,13 @@ const globalState = $derived(getGlobalState());
 // at layout init from page.url.pathname). Pushing it through runtime here
 // would re-render the OLD AppNav mid- or post-transition and flash.
 const isDev = import.meta.env.DEV;
+
+let currentLanguage = $state(getCurrentLanguage());
+onMount(() =>
+    subscribeLanguage(() => {
+        currentLanguage = getCurrentLanguage();
+    }),
+);
 
 let isLogoutDrawerOpen = $state(false);
 let isDeleteConfirmOpen = $state(false);
@@ -80,12 +91,12 @@ $effect(() => {
 <main class="flex flex-col gap-6 mt-6">
     <SettingsNavigationBtn
         label="Language"
-        subtitle="English"
+        subtitle={currentLanguage.name}
         href="/settings/language"
     >
         {#snippet iconSlot()}
             <span
-                class="block w-full h-full fi fis fi-gb rounded-full"
+                class="block w-full h-full fi fis fi-{currentLanguage.country} rounded-full"
                 aria-hidden="true"
             ></span>
         {/snippet}

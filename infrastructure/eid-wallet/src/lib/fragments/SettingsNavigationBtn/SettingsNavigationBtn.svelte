@@ -63,5 +63,5 @@ const TagName = $derived(href ? "a" : "button");
             <p class="text-black-500 leading-tight">{subtitle}</p>
         {/if}
     </div>
-    <ChevronIcon size={14} class="rotate-180 text-black shrink-0" />
+    <ChevronIcon size={14} class="rotate-180 text-black shrink-0 mr-2" />
 </svelte:element>
