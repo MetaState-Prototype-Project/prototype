@@ -243,12 +243,13 @@ async function handleTourNext(next: TourStep | null) {
     tourStep = next;
     await tick();
 
-    // Scan is special: we don't scroll the card stack further. Apps marketplace
-    // stays in place (now passed/faded) and the Scan FAB drops into the empty
-    // space below it.
+    // Scan is special: push the apps card up to the top gutter so the Scan
+    // FAB has clear room beneath it. Without this extra scroll the apps card
+    // sits right against the FAB and reads as overlap.
     if (next === "scan") {
         const apps = document.getElementById("tour-target-apps");
         if (!apps) return;
+        tourOffset = Math.max(0, apps.offsetTop - TOUR_TOP_GUTTER_PX);
         const appsBottomInViewport =
             apps.offsetTop + apps.offsetHeight - tourOffset;
         const panelTopInViewport =
@@ -415,6 +416,7 @@ onDestroy(() => {
             greeting={tourGreeting}
             name={(userData?.name as string) ?? ""}
             {notificationCount}
+            {tourActive}
         />
 
         <main class="mt-6 flex flex-col gap-3 pb-32">

@@ -19,34 +19,41 @@ export const TOUR_ORDER: TourStep[] = [
 ];
 
 interface ITourStepDef {
-    description: string;
+    /** One paragraph per array entry — rendered as separate <p> elements. */
+    description: string[];
     cta: string;
 }
 
 export const TOUR_STEPS: Record<TourStep, ITourStepDef> = {
     ename: {
-        description:
+        description: [
             "This is your eName — a unique, persistent identifier used globally in the digital world. It is permanently tied to your real self.",
+            "Write down your eName, it may be needed for recovery. To strengthen your control over eName, we'll bind it to you in the next step.",
+        ],
         cta: "Okay",
     },
     "binding-docs": {
-        description:
+        description: [
             "Bind your real and digital selves in different ways. This protects your identity and strengthens control over your data.",
-        cta: "Alright",
+        ],
+        cta: "Got it",
     },
     evault: {
-        description:
+        description: [
             "This is your eVault — your sovereign data storage. From now on, all platforms will read and write data about you from here, under your control.",
+        ],
         cta: "Alright",
     },
     apps: {
-        description:
+        description: [
             "Discover apps that work with your eVault — their number is growing fast!",
+        ],
         cta: "Next",
     },
     scan: {
-        description:
+        description: [
             "Log in to any W3DS service by scanning the QR code. No need to create new accounts — your Digital Self is your sovereign account for all platforms.",
+        ],
         cta: "Finish",
     },
 };
@@ -95,16 +102,22 @@ function handleClick() {
     style="padding-bottom: max(2.5rem, env(safe-area-inset-bottom));"
 >
     {#key step}
-        <p
-            class="text-primary text-base font-medium leading-relaxed text-left"
+        <div
+            class="flex flex-col gap-3"
             in:fade={{
                 duration: 250,
                 delay: step === "ename" ? 500 : 200,
             }}
             out:fade={{ duration: 150 }}
         >
-            {def.description}
-        </p>
+            {#each def.description as paragraph, i (i)}
+                <p
+                    class="text-primary text-lg font-medium leading-relaxed text-left"
+                >
+                    {paragraph}
+                </p>
+            {/each}
+        </div>
     {/key}
     <div
         class="pointer-events-auto"

@@ -37,16 +37,18 @@ const handleSubmit = async () => {
 >
     <StepHeader title="What's your name?" step={3} {onback} />
 
-    <section class="flex-1 flex flex-col items-center justify-center gap-4">
+    <section class="flex-1 flex flex-col justify-center">
+        <label for="name" class="text-black opacity-50 text-lg font-medium">Enter your name</label>
         <input
+            name="name"
             bind:this={inputEl}
             type="text"
             bind:value={name}
-            placeholder="Your name"
+            placeholder="Alex for example"
             autocomplete="given-name"
             autocapitalize="words"
             maxlength="64"
-            class="w-full text-3xl text-center font-medium text-black-900 placeholder:text-black-300 bg-transparent outline-none"
+            class="w-full text-[40px] font-condensed font-bold text-black-900 placeholder:text-black-900 placeholder:opacity-20 bg-transparent outline-none"
         />
 
         {#if error}
