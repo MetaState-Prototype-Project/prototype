@@ -11,11 +11,11 @@ export interface Language {
 
 export const AVAILABLE_LANGUAGES: Language[] = [
     { name: "English", country: "gb", enabled: true },
-    { name: "Spanish", country: "es", enabled: true },
-    { name: "German", country: "de", enabled: true },
-    { name: "French", country: "fr", enabled: true },
-    { name: "Luxembourgish", country: "lu", enabled: true },
-    { name: "Dutch", country: "nl", enabled: true },
+    { name: "Spanish", country: "es", enabled: false },
+    { name: "German", country: "de", enabled: false },
+    { name: "French", country: "fr", enabled: false },
+    { name: "Luxembourgish", country: "lu", enabled: false },
+    { name: "Dutch", country: "nl", enabled: false },
 ];
 
 const STORAGE_KEY = "eid_wallet_language";
