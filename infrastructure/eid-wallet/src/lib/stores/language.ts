@@ -14,6 +14,8 @@ export const AVAILABLE_LANGUAGES: Language[] = [
     { name: "Spanish", country: "es", enabled: true },
     { name: "German", country: "de", enabled: true },
     { name: "French", country: "fr", enabled: true },
+    { name: "Luxembourgish", country: "lu", enabled: true },
+    { name: "Dutch", country: "nl", enabled: true },
 ];
 
 const STORAGE_KEY = "eid_wallet_language";

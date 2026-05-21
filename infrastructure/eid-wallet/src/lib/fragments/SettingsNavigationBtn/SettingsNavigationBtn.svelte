@@ -58,7 +58,7 @@ const TagName = $derived(href ? "a" : "button");
         {/if}
     </div>
     <div class="flex-1 min-w-0">
-        <p class="font-semibold text-black-900 text-lg leading-tight">{label}</p>
+        <p class="font-medium text-black-700 text-lg leading-tight">{label}</p>
         {#if subtitle}
             <p class="text-black-500 leading-tight">{subtitle}</p>
         {/if}

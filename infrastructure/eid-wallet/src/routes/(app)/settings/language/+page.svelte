@@ -5,7 +5,8 @@ import {
     getCurrentLanguage,
     setCurrentLanguage,
 } from "$lib/stores/language";
-import { Selector } from "$lib/ui";
+import { Tick01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
 
 let selected = $state(getCurrentLanguage().name);
 
@@ -18,21 +19,48 @@ $effect(() => {
 });
 </script>
 
-<main>
-    {#each AVAILABLE_LANGUAGES as lang, i}
-        <Selector
-            id={`option-${i}`}
-            name={lang.name}
-            bind:selected
-            value={lang.name}
-            disable={!lang.enabled}
+<main class="flex flex-col gap-1 mt-4">
+    {#each AVAILABLE_LANGUAGES as lang (lang.name)}
+        <label
+            class="w-full flex items-center gap-3 py-3 active:opacity-70"
+            class:opacity-50={!lang.enabled}
+            class:pointer-events-none={!lang.enabled}
         >
-            {lang.name}
-            {#snippet icon()}
+            <input
+                type="radio"
+                name="language"
+                value={lang.name}
+                bind:group={selected}
+                disabled={!lang.enabled}
+                class="sr-only"
+            />
+            <div
+                class="w-12 h-12 text-[24px] rounded-xl bg-white flex items-center justify-center shrink-0 shadow-card"
+            >
+                <span
+                    class="rounded-full fi fis fi-{lang.country}"
+                    aria-hidden="true"
+                ></span>
+            </div>
+            <p class="font-semibold text-black-700 text-lg flex-1">
+                {lang.name}
+            </p>
+            {#if selected === lang.name}
                 <div
-                    class={`rounded-full fi fis fi-${lang.country} scale-150 mr-12 outline-8 outline-gray`}
+                    class="w-6 h-6 rounded-full bg-success-300 flex items-center justify-center shrink-0"
+                >
+                    <HugeiconsIcon
+                        icon={Tick01Icon}
+                        size={14}
+                        color="var(--color-black-900)"
+                        strokeWidth={3}
+                    />
+                </div>
+            {:else}
+                <div
+                    class="w-6 h-6 rounded-full border-2 border-black-100 shrink-0"
                 ></div>
-            {/snippet}
-        </Selector>
+            {/if}
+        </label>
     {/each}
 </main>

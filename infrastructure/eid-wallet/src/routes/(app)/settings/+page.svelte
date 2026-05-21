@@ -9,7 +9,8 @@ import {
 } from "$lib/stores/language";
 import { clearAllNotifications } from "$lib/stores/notifications";
 import { BottomSheet, ButtonAction } from "$lib/ui";
-import { Delete02Icon, ShieldUserIcon } from "@hugeicons/core-free-icons";
+import { PinIcon, PrivacyIcon } from "$lib/ui/icons";
+import { Delete02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import { getContext, onMount } from "svelte";
 
@@ -96,26 +97,32 @@ $effect(() => {
     >
         {#snippet iconSlot()}
             <span
-                class="block w-full h-full fi fis fi-{currentLanguage.country} rounded-full"
+                class="text-[24px] rounded-full fi fis fi-{currentLanguage.country}"
                 aria-hidden="true"
             ></span>
         {/snippet}
     </SettingsNavigationBtn>
 
     <SettingsNavigationBtn
-        icon={ShieldUserIcon}
         label="Pin-Code"
         subtitle="Tap to change"
         href="/settings/pin"
-    />
+    >
+        {#snippet iconSlot()}
+            <PinIcon size={24} color="var(--color-black-900)" />
+        {/snippet}
+    </SettingsNavigationBtn>
 
     <SettingsNavigationBtn
-        icon={Delete02Icon}
         label="Privacy policy"
         subtitle="External link"
         href="https://metastate.foundation/"
         onclick={openPrivacy}
-    />
+    >
+        {#snippet iconSlot()}
+            <PrivacyIcon size={24} color="var(--color-black-900)" />
+        {/snippet}
+    </SettingsNavigationBtn>
 
     <div class="mt-8">
         <ButtonAction variant="soft" class="w-full text-black uppercase text-md" callback={openLogout}>
