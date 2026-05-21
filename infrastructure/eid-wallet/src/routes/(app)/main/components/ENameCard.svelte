@@ -1,10 +1,7 @@
 <script lang="ts">
-import { BottomSheet } from "$lib/ui";
-import * as Button from "$lib/ui/Button";
 import { QRIcon } from "$lib/ui/icons";
 import { Copy01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
-import QrCode from "svelte-qrcode";
 
 interface IENameCardProps {
     ename: string | undefined;
@@ -14,11 +11,12 @@ interface IENameCardProps {
     verified?: boolean;
     /** Called with a message to surface as a toast (copy success/failure). */
     ontoast?: (message: string) => void;
+    /** QR icon tapped — opens the social-binding drawer. */
+    onshareqr?: () => void;
 }
 
-const { ename, verified = false, ontoast }: IENameCardProps = $props();
-
-let shareQRdrawerOpen = $state(false);
+const { ename, verified = false, ontoast, onshareqr }: IENameCardProps =
+    $props();
 
 async function copyEName() {
     if (!ename) return;
@@ -30,16 +28,9 @@ async function copyEName() {
         ontoast?.("Failed to copy eName");
     }
 }
-
-function shareQR() {
-    alert("QR Code shared!");
-    shareQRdrawerOpen = false;
-}
 </script>
 
-<section
-    class="bg-white rounded-2xl p-4 shadow-card"
->
+<section class="bg-white rounded-2xl p-4 shadow-card">
     <div class="flex items-center justify-between gap-3 mb-3">
         <h3 class="text-lg font-medium text-black-900">Your eName</h3>
         {#if verified}
@@ -57,7 +48,9 @@ function shareQR() {
         {/if}
     </div>
     <div class="flex items-end justify-between gap-3">
-        <p class="text-black-700 opacity-50 font-medium break-all flex-1 min-w-0 leading-snug">
+        <p
+            class="text-black-700 opacity-50 font-medium break-all flex-1 min-w-0 leading-snug"
+        >
             {ename ?? "Loading..."}<button
                 type="button"
                 onclick={copyEName}
@@ -69,7 +62,7 @@ function shareQR() {
         </p>
         <button
             type="button"
-            onclick={() => (shareQRdrawerOpen = true)}
+            onclick={onshareqr}
             aria-label="Show QR code"
             class="text-black-300 active:opacity-60 shrink-0"
         >
@@ -77,25 +70,3 @@ function shareQR() {
         </button>
     </div>
 </section>
-
-<BottomSheet
-    title="Scan QR Code"
-    bind:isOpen={shareQRdrawerOpen}
-    class="flex flex-col gap-4 items-center justify-center"
->
-    <div
-        class="flex justify-center relative items-center overflow-hidden h-full rounded-3xl p-8 pt-0"
-    >
-        <QrCode size={320} value={ename ?? ""} />
-    </div>
-
-    <h4 class="text-center mt-2">Share your eName</h4>
-    <p class="text-black-700 text-center">
-        Anyone scanning this can see your eName
-    </p>
-    <div class="flex justify-center items-center mt-4">
-        <Button.Action variant="solid" callback={shareQR} class="w-full">
-            Share
-        </Button.Action>
-    </div>
-</BottomSheet>

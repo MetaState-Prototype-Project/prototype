@@ -1,9 +1,3 @@
-<!--
-    Social binding row inside Binding Documents. Empty state is a neutral row
-    with an INVITE button (matches the existing pattern). Once the user has at
-    least one binding the row turns green, lists the first few contacts, and
-    can be tapped to expand into the preview + FULL LIST CTA.
--->
 <script lang="ts">
 import { ArrowDown01Icon, ArrowUp01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
@@ -17,11 +11,8 @@ export interface SocialBindingDisplay {
 }
 
 interface ISocialBindingAccordionProps {
-    /** Total count across all bindings — used for the chip ("X contacts").
-     *  May be larger than `previewBindings.length` when the parent only
-     *  resolved names for the first N. */
     totalCount: number;
-    /** Names to surface inline. Typically the first 5. */
+    /** Resolved names for the first N contacts shown inline. */
     previewBindings: SocialBindingDisplay[];
     oninvite?: () => void;
     onfulllist?: () => void;

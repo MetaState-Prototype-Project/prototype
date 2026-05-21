@@ -69,8 +69,7 @@ let eVaultInfoOpen = $state(false);
 let bindingDocsInfoOpen = $state(false);
 let socialDrawerOpen = $state(false);
 
-// Social bindings on the user's own vault. The full list is exposed via the
-// /social-bindings route; the accordion only renders the preview names.
+// Accordion shows N resolved names; total comes from the full count.
 const SOCIAL_PREVIEW_COUNT = 5;
 let socialBindingCount = $state(0);
 let socialBindingPreview = $state<SocialBindingDisplay[]>([]);
@@ -139,9 +138,6 @@ async function loadBindingDocuments(): Promise<void> {
     await loadSocialBindings();
 }
 
-// Pull all social_connection docs from the user's own vault and resolve the
-// counterparty names for the accordion preview (first N only — the full list
-// route fetches its own complete set).
 async function loadSocialBindings(): Promise<void> {
     if (!globalState) return;
     const vault = await globalState.vaultController.vault;
@@ -190,7 +186,6 @@ function openSocialDrawer() {
 }
 
 async function handleSocialBound() {
-    // A new mutual binding just landed on our vault — refresh the accordion.
     await loadSocialBindings();
 }
 
@@ -531,7 +526,12 @@ onDestroy(() => {
                           }
                         : { duration: 0 }}
                 >
-                    <ENameCard {ename} {verified} ontoast={handleToast} />
+                    <ENameCard
+                        {ename}
+                        {verified}
+                        ontoast={handleToast}
+                        onshareqr={openSocialDrawer}
+                    />
                     <Lasso size="med" active={tourStep === "ename"} />
                 </div>
             {/if}

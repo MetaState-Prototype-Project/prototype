@@ -439,29 +439,17 @@ export async function fetchUnsignedSocialDocs(
 // ---------------------------------------------------------------------------
 
 export interface SocialBindingSummary {
-    /** MetaEnvelope ID of the binding doc on the caller's own vault. */
     docId: string;
-    /** eName of the other party (the one that isn't the caller). */
     counterpartyEname: string;
-    /** ISO timestamp — latest signature on the doc (most accurate "completed at"). */
+    /** ISO timestamp of the most recent signature on the doc. */
     completedAt: string;
-    /** Free-text relation description from the doc's data, if present. */
     relationDescription: string;
-    /** True when both parties have signed. False for mirror copies on the
-     *  scanner side that only carry the scanner's signature. */
+    /** False for scanner-side mirror copies that only carry one signature. */
     mutuallySigned: boolean;
 }
 
-/**
- * List all social_connection binding documents on the caller's own vault.
- *
- * This includes:
- *  - Inbound bindings the caller signed (requester flow): both signatures.
- *  - Outbound mirror copies the scan flow wrote locally for the caller
- *    (scanner flow): only the caller's signature.
- *
- * Sorted newest first (by latest signature timestamp).
- */
+// All social_connection docs on the caller's own vault, newest first.
+// Includes scanner-side mirrors (single sig) alongside fully-bound docs.
 export async function fetchSocialBindings(
     ownGqlUrl: string,
     callerEname: string,
@@ -513,19 +501,9 @@ export async function fetchSocialBindings(
 // Scanner-side mirror write
 // ---------------------------------------------------------------------------
 
-/**
- * Write a self-signed mirror of a freshly-created social binding to the
- * caller's own vault. Called by the scanner immediately after writing the
- * primary doc to the requester's vault — without this, social bindings the
- * user initiated by scanning wouldn't appear in their own bindings list.
- *
- * The mirror is intentionally minimal:
- *  - subject = @self (the caller)
- *  - parties = [@self, @counterparty]
- *  - one signature (the caller's own, computed over the mirror's canonical
- *    form — NOT the requester's-vault doc's signature, since the canonical
- *    string differs by subject).
- */
+// Self-signed mirror on the scanner's own vault so scanner-initiated bindings
+// also show up in their list. Signature is over the mirror's canonical form
+// (subject differs from the primary doc, so it can't be reused).
 export async function createOwnSocialBindingMirror(
     ownGqlUrl: string,
     selfEname: string,

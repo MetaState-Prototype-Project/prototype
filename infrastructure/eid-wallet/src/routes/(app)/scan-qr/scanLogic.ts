@@ -761,10 +761,8 @@ export function createScanLogic({
                 relationDescription,
             );
 
-            // Mirror the binding onto the scanner's own vault so it shows
-            // up in their /social-bindings list. Failure here is non-fatal —
-            // the primary doc on the requester's vault is the source of truth
-            // for the requester's flow; the mirror is a local convenience.
+            // Mirror to own vault so the binding shows up in /social-bindings.
+            // Failure is non-fatal — the primary write is the source of truth.
             try {
                 const ownVaultUri = vault.uri;
                 if (ownVaultUri) {

@@ -1,5 +1,5 @@
 <script lang="ts">
-import { cn } from "$lib/utils";
+import { cn, portal } from "$lib/utils";
 import type { Snippet } from "svelte";
 import type { HTMLAttributes } from "svelte/elements";
 import { cubicOut } from "svelte/easing";
@@ -39,29 +39,32 @@ $effect(() => {
 </script>
 
 {#if isOpen}
-    <div
-        class="fixed inset-0 z-40 bg-black/40"
-        aria-hidden="true"
-        onclick={handleClose}
-        transition:fade={{ duration: 200 }}
-    ></div>
-    <div
-        {...restProps}
-        role="dialog"
-        aria-modal="true"
-        class={cn(
-            fullScreen
-                ? "fixed inset-0 z-50 bg-white shadow-xl flex flex-col gap-4 overflow-hidden"
-                : "fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4 max-h-[88svh] overflow-y-auto",
-            restProps.class,
-        )}
-        style={`${fullScreen
-            ? "padding: max(1rem, env(safe-area-inset-top)) 1.5rem max(1.5rem, env(safe-area-inset-bottom));"
-            : "padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));"} ${restProps.style ?? ""}`}
-        transition:fly={fullScreen
-            ? { y: 30, duration: 200, easing: cubicOut }
-            : { y: "100%", duration: 280, easing: cubicOut }}
-    >
-        {@render children?.()}
+    <!-- Portaled so `fixed` anchors to the viewport, not a transformed ancestor. -->
+    <div use:portal>
+        <div
+            class="fixed inset-0 z-40 bg-black/40"
+            aria-hidden="true"
+            onclick={handleClose}
+            transition:fade={{ duration: 200 }}
+        ></div>
+        <div
+            {...restProps}
+            role="dialog"
+            aria-modal="true"
+            class={cn(
+                fullScreen
+                    ? "fixed inset-0 z-50 bg-white shadow-xl flex flex-col gap-4 overflow-hidden"
+                    : "fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4 max-h-[88svh] overflow-y-auto",
+                restProps.class,
+            )}
+            style={`${fullScreen
+                ? "padding: max(1rem, env(safe-area-inset-top)) 1.5rem max(1.5rem, env(safe-area-inset-bottom));"
+                : "padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));"} ${restProps.style ?? ""}`}
+            transition:fly={fullScreen
+                ? { y: 30, duration: 200, easing: cubicOut }
+                : { y: "100%", duration: 280, easing: cubicOut }}
+        >
+            {@render children?.()}
+        </div>
     </div>
 {/if}
