@@ -6,6 +6,7 @@ interface IApp {
     name: string;
     category: string;
     logo: string;
+    url: string;
 }
 
 interface IAppsMarketplaceProps {
@@ -17,26 +18,35 @@ const {
 }: IAppsMarketplaceProps = $props();
 
 const apps: IApp[] = [
-    { name: "Blabsy", category: "Social", logo: "/images/Logo-Blabsy.svg" },
+    {
+        name: "Blabsy",
+        category: "Social",
+        logo: "/images/Logo-Blabsy.svg",
+        url: "https://blabsy.w3ds.metastate.foundation",
+    },
     {
         name: "Pictique",
         category: "Social",
         logo: "/images/Logo-Pictique.svg",
+        url: "https://pictique.w3ds.metastate.foundation",
     },
     {
         name: "eVoting",
         category: "Governance",
         logo: "/images/Logo-eVoting.svg",
+        url: "https://evoting.w3ds.metastate.foundation",
     },
     {
         name: "eCurrency",
         category: "Finance",
         logo: "/images/Logo-eCurrency.svg",
+        url: "https://ecurrency.w3ds.metastate.foundation",
     },
     {
         name: "Dreamsync",
         category: "Governance",
         logo: "/images/Logo-Dreamsync.svg",
+        url: "https://dreamsync.w3ds.metastate.foundation",
     },
 ];
 </script>
@@ -62,8 +72,11 @@ const apps: IApp[] = [
         class="apps-carousel -mx-5 px-5 flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-pl-5 scroll-pr-5"
     >
         {#each apps as app (app.name)}
-            <div
-                class="snap-start shrink-0 w-28 h-32 bg-card-alternative rounded-3xl px-3 py-4 flex flex-col items-start justify-between"
+            <a
+                href={app.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="snap-start shrink-0 w-28 h-32 bg-card-alternative rounded-3xl px-3 py-4 flex flex-col items-start justify-between active:opacity-70"
             >
                 <img
                     src={app.logo}
@@ -83,7 +96,7 @@ const apps: IApp[] = [
                         {app.category}
                     </p>
                 </div>
-            </div>
+            </a>
         {/each}
 
         <a
