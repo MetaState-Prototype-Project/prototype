@@ -74,7 +74,10 @@ async function submit() {
 
 function handleClose() {
     showSuccess = false;
-    goto("/settings");
+    // /settings/pin is only entered from /settings, so popping history
+    // gets us back without leaving an orphan entry that would let the
+    // user re-enter the (already-completed) flow with the nav back button.
+    window.history.back();
 }
 
 // Reset any stale error the moment the user starts typing again.
@@ -84,6 +87,22 @@ $effect(() => {
 
 $effect(() => {
     runtime.header.title = "Change PIN";
+    // Step-aware back: walk back through internal steps before leaving the page.
+    runtime.header.onback = () => {
+        error = null;
+        if (step === "repeat") {
+            repeatPin = "";
+            step = "new";
+        } else if (step === "new") {
+            newPin = "";
+            step = "current";
+        } else {
+            window.history.back();
+        }
+    };
+    return () => {
+        runtime.header.onback = undefined;
+    };
 });
 
 onMount(() => {

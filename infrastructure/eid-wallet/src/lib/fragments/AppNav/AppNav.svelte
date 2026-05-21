@@ -10,15 +10,28 @@ interface IHeroProps extends HTMLAttributes<HTMLElement> {
     /** Back-chevron color — used by /scan-qr where the nav sits on a dark
      *  camera surface. */
     iconColor?: string;
+    /** Optional override for the back chevron. Defaults to window.history.back(). */
+    onback?: () => void;
 }
-const { title, subtitle, titleClasses, iconColor, ...restProps }: IHeroProps =
-    $props();
+const {
+    title,
+    subtitle,
+    titleClasses,
+    iconColor,
+    onback,
+    ...restProps
+}: IHeroProps = $props();
+
+function handleBack() {
+    if (onback) onback();
+    else window.history.back();
+}
 const baseClasses = "w-full relative flex justify-center items-center py-2";
 </script>
 
 <nav {...restProps} class={cn(baseClasses, restProps.class)}>
     <button class="absolute left-0 top-2 p-4 bg-black-50 rounded-full"
-        onclick={() => window.history.back()}
+        onclick={handleBack}
     >
         <ChevronIcon size={13} color={iconColor} />
     </button>

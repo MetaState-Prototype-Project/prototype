@@ -33,6 +33,7 @@
 @theme {
     /* Custom theme */
     --color-primary: #8968ff;
+    --color-primary-50: #cec1ff66;
     --color-primary-100: #e7e1ff;
     --color-primary-200: #d0c3ff;
     --color-primary-300: #b8a4ff;

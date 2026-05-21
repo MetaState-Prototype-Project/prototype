@@ -22,6 +22,7 @@ const subtitleAtMount =
     <AppNav
         title={runtime.header.title ?? ""}
         subtitle={subtitleAtMount}
+        onback={runtime.header.onback}
     />
     {@render children?.()}
 </main>

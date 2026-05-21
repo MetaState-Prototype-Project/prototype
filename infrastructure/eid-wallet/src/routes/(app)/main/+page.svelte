@@ -632,7 +632,7 @@ onDestroy(() => {
 <InfoDrawer bind:isOpen={eVaultInfoOpen} title="What is eVault?">
     {#snippet body()}
         <div
-            class="bg-primary-100 rounded-2xl p-6 aspect-square w-full flex items-center justify-center shrink-0"
+            class="bg-primary-50/40 rounded-2xl w-full flex items-center justify-center shrink-0"
         >
             <img
                 src="/images/eVault-kid-drawing.png"
