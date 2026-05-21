@@ -8,6 +8,7 @@ let hasMountedBefore = false;
 </script>
 
 <script lang="ts">
+import { goto } from "$app/navigation";
 import { PUBLIC_EID_WALLET_TOKEN } from "$env/static/public";
 import type { GlobalState } from "$lib/global";
 import {
@@ -16,6 +17,11 @@ import {
 } from "$lib/stores/notifications";
 import { Toast } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
+import {
+    fetchNameFromVault,
+    fetchSocialBindings,
+    resolveVaultUri,
+} from "$lib/utils";
 import { getContext, onDestroy, onMount, tick } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
 import { fly } from "svelte/transition";
@@ -28,6 +34,8 @@ import InfoDrawer from "./components/InfoDrawer.svelte";
 import Lasso from "./components/Lasso.svelte";
 import type { LegalIdDoc } from "./components/LegalIdAccordion.svelte";
 import ScanFAB from "./components/ScanFAB.svelte";
+import SocialBindingDrawer from "./components/SocialBindingDrawer.svelte";
+import type { SocialBindingDisplay } from "./components/SocialBindingAccordion.svelte";
 import WelcomeTour, {
     TOUR_ORDER,
     type TourStep,
@@ -59,6 +67,13 @@ let legalId = $state<LegalIdDoc | null>(null);
 let kycOpen = $state(false);
 let eVaultInfoOpen = $state(false);
 let bindingDocsInfoOpen = $state(false);
+let socialDrawerOpen = $state(false);
+
+// Social bindings on the user's own vault. The full list is exposed via the
+// /social-bindings route; the accordion only renders the preview names.
+const SOCIAL_PREVIEW_COUNT = 5;
+let socialBindingCount = $state(0);
+let socialBindingPreview = $state<SocialBindingDisplay[]>([]);
 const verified = $derived(isFake === false || legalId !== null);
 
 function openKycFlow() {
@@ -120,6 +135,67 @@ async function loadBindingDocuments(): Promise<void> {
     } catch (err) {
         console.warn("[main] Failed to load binding documents:", err);
     }
+
+    await loadSocialBindings();
+}
+
+// Pull all social_connection docs from the user's own vault and resolve the
+// counterparty names for the accordion preview (first N only — the full list
+// route fetches its own complete set).
+async function loadSocialBindings(): Promise<void> {
+    if (!globalState) return;
+    const vault = await globalState.vaultController.vault;
+    if (!vault?.uri || !vault?.ename) return;
+    const callerEname = vault.ename.startsWith("@")
+        ? vault.ename
+        : `@${vault.ename}`;
+    const gqlUrl = new URL("/graphql", vault.uri).toString();
+
+    try {
+        const bindings = await fetchSocialBindings(gqlUrl, callerEname);
+        socialBindingCount = bindings.length;
+
+        const previewSlice = bindings.slice(0, SOCIAL_PREVIEW_COUNT);
+        const preview = await Promise.all(
+            previewSlice.map(async (b): Promise<SocialBindingDisplay> => {
+                try {
+                    const counterVaultUri = await resolveVaultUri(
+                        b.counterpartyEname,
+                    );
+                    const name = await fetchNameFromVault(
+                        counterVaultUri,
+                        b.counterpartyEname,
+                        b.counterpartyEname,
+                    );
+                    return {
+                        counterpartyEname: b.counterpartyEname,
+                        counterpartyName: name,
+                    };
+                } catch {
+                    return {
+                        counterpartyEname: b.counterpartyEname,
+                        counterpartyName: b.counterpartyEname,
+                    };
+                }
+            }),
+        );
+        socialBindingPreview = preview;
+    } catch (err) {
+        console.warn("[main] Failed to load social bindings:", err);
+    }
+}
+
+function openSocialDrawer() {
+    socialDrawerOpen = true;
+}
+
+async function handleSocialBound() {
+    // A new mutual binding just landed on our vault — refresh the accordion.
+    await loadSocialBindings();
+}
+
+function openSocialFullList() {
+    goto("/social-bindings");
 }
 
 interface ParsedBindingDoc {
@@ -471,7 +547,11 @@ onDestroy(() => {
                 >
                     <BindingDocuments
                         {legalId}
+                        socialBindingCount={socialBindingCount}
+                        socialBindingPreview={socialBindingPreview}
                         onlegalid={openKycFlow}
+                        onsocialinvite={openSocialDrawer}
+                        onsocialfulllist={openSocialFullList}
                         oninfo={() => (bindingDocsInfoOpen = true)}
                     />
                     <Lasso size="xl" active={tourStep === "binding-docs"} />
@@ -541,6 +621,12 @@ onDestroy(() => {
     open={kycOpen}
     onupgraded={handleKycUpgraded}
     onclose={handleKycClose}
+/>
+
+<SocialBindingDrawer
+    bind:isOpen={socialDrawerOpen}
+    {globalState}
+    onbound={handleSocialBound}
 />
 
 <InfoDrawer bind:isOpen={eVaultInfoOpen} title="What is eVault?">

@@ -15,6 +15,7 @@ import { authenticate } from "wallet-sdk";
 
 import type { GlobalState } from "$lib/global";
 import {
+    createOwnSocialBindingMirror,
     createSocialConnectionDoc,
     fetchNameFromVault,
     getCanonicalBindingDocString,
@@ -759,6 +760,49 @@ export function createScanLogic({
                 parties,
                 relationDescription,
             );
+
+            // Mirror the binding onto the scanner's own vault so it shows
+            // up in their /social-bindings list. Failure here is non-fatal —
+            // the primary doc on the requester's vault is the source of truth
+            // for the requester's flow; the mirror is a local convenience.
+            try {
+                const ownVaultUri = vault.uri;
+                if (ownVaultUri) {
+                    const ownGqlUrl = ownVaultUri.endsWith("/graphql")
+                        ? ownVaultUri
+                        : new URL("/graphql", ownVaultUri).toString();
+                    const mirrorDoc = {
+                        subject: signerEname,
+                        type: "social_connection",
+                        data: {
+                            kind: "social_connection",
+                            name: requesterName,
+                            parties: [signerEname, normalizedRequesterEname],
+                            relation_description: relationDescription,
+                        } as Record<string, unknown>,
+                    };
+                    const mirrorPayload = getCanonicalBindingDocString(mirrorDoc);
+                    const mirrorSig =
+                        await globalState.walletSdkAdapter.signPayload(
+                            "default",
+                            "signing",
+                            mirrorPayload,
+                        );
+                    await createOwnSocialBindingMirror(
+                        ownGqlUrl,
+                        signerEname,
+                        normalizedRequesterEname,
+                        requesterName,
+                        relationDescription,
+                        mirrorSig,
+                    );
+                }
+            } catch (mirrorErr) {
+                console.warn(
+                    "[SocialBinding] mirror write to own vault failed:",
+                    mirrorErr,
+                );
+            }
 
             socialBindingSuccess.set(true);
         } catch (err) {

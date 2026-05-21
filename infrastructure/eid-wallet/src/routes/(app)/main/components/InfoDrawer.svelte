@@ -37,9 +37,9 @@ function handleClose() {
             type="button"
             onclick={handleClose}
             aria-label="Close"
-            class="w-9 h-9 rounded-full bg-black-50 flex items-center justify-center text-black-700 active:opacity-70 shrink-0"
+            class="w-11.5 h-11.5 rounded-full bg-black-50 flex items-center justify-center text-black-700 active:opacity-70 shrink-0"
         >
-            <span aria-hidden="true" class="text-xl leading-none">×</span>
+            <span aria-hidden="true" class="text-3xl leading-none">×</span>
         </button>
     </div>
 

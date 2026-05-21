@@ -2,21 +2,32 @@
 import { InformationCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import LegalIdAccordion, { type LegalIdDoc } from "./LegalIdAccordion.svelte";
+import SocialBindingAccordion, {
+    type SocialBindingDisplay,
+} from "./SocialBindingAccordion.svelte";
 
 interface IBindingDocumentsProps {
     /** Verified id_document binding doc, mapped to the row shape. */
     legalId?: LegalIdDoc | null;
+    /** Total social_connection bindings on the caller's vault. */
+    socialBindingCount?: number;
+    /** First N counterparties with resolved names — shown in the accordion. */
+    socialBindingPreview?: SocialBindingDisplay[];
     onlegalid?: () => void;
     onpersonal?: () => void;
     onsocialinvite?: () => void;
+    onsocialfulllist?: () => void;
     oninfo?: () => void;
 }
 
 const {
     legalId,
+    socialBindingCount = 0,
+    socialBindingPreview = [],
     onlegalid,
     onpersonal,
     onsocialinvite,
+    onsocialfulllist,
     oninfo,
 }: IBindingDocumentsProps = $props();
 </script>
@@ -68,30 +79,11 @@ const {
             </button>
         </div>
 
-        <div class="flex items-center gap-3 bg-card-alternative rounded-3xl px-3 py-4">
-            <img
-                src="/images/SocialBinding.png"
-                alt=""
-                width="40"
-                height="40"
-                class="block w-10 h-10 object-contain shrink-0"
-                aria-hidden="true"
-            />
-            <div class="flex-1 min-w-0">
-                <p class="font-medium text-black text-lg leading-tight">
-                    Social binding
-                </p>
-                <p class="text-primary font-medium leading-tight">
-                    New level of trust
-                </p>
-            </div>
-            <button
-                type="button"
-                onclick={onsocialinvite}
-                class="bg-primary text-white h-11 text-pill font-medium uppercase tracking-wide px-4 py-1.5 rounded-full active:opacity-80 shrink-0"
-            >
-                Invite
-            </button>
-        </div>
+        <SocialBindingAccordion
+            totalCount={socialBindingCount}
+            previewBindings={socialBindingPreview}
+            oninvite={onsocialinvite}
+            onfulllist={onsocialfulllist}
+        />
     </div>
 </section>
