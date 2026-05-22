@@ -123,7 +123,7 @@ function handleClick() {
     </div>
     <div
         class="pointer-events-auto"
-        in:fly={{ y: 20, duration: 600, delay: 800 }}
+        in:fly|global={{ y: 20, duration: 600, delay: 800 }}
     >
         <Button.Action
             variant="solid"

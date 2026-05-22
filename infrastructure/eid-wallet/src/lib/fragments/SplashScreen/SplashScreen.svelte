@@ -1,5 +1,6 @@
 <script lang="ts">
 import { ButtonAction } from "$lib/ui";
+import { onMount } from "svelte";
 import { cubicOut } from "svelte/easing";
 import { fly } from "svelte/transition";
 
@@ -22,6 +23,29 @@ const {
     onrestore,
     oncontinue,
 }: ISplashScreenProps = $props();
+
+// Roboto Condensed ships with font-display: swap, so without this gate the
+// 110px "eID" renders in the system fallback first, then snaps to the real
+// face once the woff arrives — a very visible flicker on the splash.
+const LOGO_FONT_SPEC = "500 110px 'Roboto Condensed Variable'";
+let fontReady = $state(false);
+
+onMount(async () => {
+    if (typeof document === "undefined" || !document.fonts) {
+        fontReady = true;
+        return;
+    }
+    if (document.fonts.check(LOGO_FONT_SPEC)) {
+        fontReady = true;
+        return;
+    }
+    try {
+        await document.fonts.load(LOGO_FONT_SPEC);
+    } catch {
+        // Fall through — show the text rather than leave it invisible forever.
+    }
+    fontReady = true;
+});
 </script>
 
 <div
@@ -35,7 +59,8 @@ const {
     >
         <div class="flex flex-col items-center">
             <span
-                class="text-white font-condensed font-medium text-[110px] leading-[88%] tracking-[-0.02em] -my-1"
+                class="text-white font-condensed font-medium text-[110px] leading-[88%] tracking-[-0.02em] -my-1 transition-opacity duration-150"
+                class:opacity-0={!fontReady}
             >
                 eID
             </span>
