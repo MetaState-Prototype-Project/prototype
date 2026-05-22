@@ -601,6 +601,14 @@ onDestroy(() => {
     </div>
 
     {#if pageReady}
+        <!-- Bottom fade so cards scrolling underneath don't crowd the Scan
+             FAB. Sits below the FAB (z-20 < z-30) and above the cards. The
+             tour's own bottom panel covers this during the walkthrough. -->
+        <div
+            aria-hidden="true"
+            class="fixed bottom-0 left-0 right-0 h-32 z-20 pointer-events-none bg-linear-to-t from-white/80 to-transparent"
+        ></div>
+
         <!-- Single, always-mounted Scan button. `top` transitions between
              the in-tour centered position and the resting bottom-of-screen
              spot so the FAB moves smoothly instead of disappearing on the
