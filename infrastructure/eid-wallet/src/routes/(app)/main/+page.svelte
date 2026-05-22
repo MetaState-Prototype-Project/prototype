@@ -505,12 +505,20 @@ onDestroy(() => {
         class="relative transition-transform duration-500 ease-out will-change-transform"
         style="padding-top: max(12px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom)); transform: translateY(-{tourOffset}px);"
     >
-        <Greeting
-            greeting={tourGreeting}
-            name={(userData?.name as string) ?? ""}
-            {notificationCount}
-            {tourActive}
-        />
+        {#if pageReady}
+            <div
+                in:fly|global={animateCardEntrance
+                    ? { y: 30, duration: 600 }
+                    : { duration: 0 }}
+            >
+                <Greeting
+                    greeting={tourGreeting}
+                    name={(userData?.name as string) ?? ""}
+                    {notificationCount}
+                    {tourActive}
+                />
+            </div>
+        {/if}
 
         <main class="mt-6 flex flex-col gap-4 pb-32">
             {#if pageReady && isCardRevealed("ename")}
@@ -521,8 +529,8 @@ onDestroy(() => {
                     in:fly|global={animateCardEntrance
                         ? {
                               y: 30,
-                              duration: 300,
-                              delay: tourActive ? 250 : 0,
+                              duration: 600,
+                              delay: tourActive ? 400 : 0,
                           }
                         : { duration: 0 }}
                 >
@@ -542,7 +550,7 @@ onDestroy(() => {
                     class="relative tour-card"
                     class:tour-card-passed={isCardPassed("binding-docs")}
                     in:fly|global={animateCardEntrance
-                        ? { y: 30, duration: 300 }
+                        ? { y: 30, duration: 600 }
                         : { duration: 0 }}
                 >
                     <BindingDocuments
@@ -564,7 +572,7 @@ onDestroy(() => {
                     class="relative tour-card"
                     class:tour-card-passed={isCardPassed("evault")}
                     in:fly|global={animateCardEntrance
-                        ? { y: 30, duration: 300 }
+                        ? { y: 30, duration: 600 }
                         : { duration: 0 }}
                 >
                     <EVaultCard
@@ -581,7 +589,7 @@ onDestroy(() => {
                     class="relative tour-card"
                     class:tour-card-passed={isCardPassed("apps")}
                     in:fly|global={animateCardEntrance
-                        ? { y: 30, duration: 300 }
+                        ? { y: 30, duration: 600 }
                         : { duration: 0 }}
                 >
                     <AppsMarketplace />

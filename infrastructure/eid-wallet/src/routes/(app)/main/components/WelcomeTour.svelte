@@ -101,27 +101,29 @@ function handleClick() {
     class="fixed bottom-0 left-0 right-0 z-50 px-5 pt-12 pb-10 flex flex-col gap-6 bg-linear-to-t from-white from-30% via-white/95 to-transparent pointer-events-none"
     style="padding-bottom: max(2.5rem, env(safe-area-inset-bottom));"
 >
-    {#key step}
-        <div
-            class="flex flex-col gap-3"
-            in:fade={{
-                duration: 250,
-                delay: step === "ename" ? 500 : 200,
-            }}
-            out:fade={{ duration: 150 }}
-        >
-            {#each def.description as paragraph, i (i)}
-                <p
-                    class="text-primary text-lg font-medium leading-relaxed text-left"
-                >
-                    {paragraph}
-                </p>
-            {/each}
-        </div>
-    {/key}
+    <div class="grid items-end">
+        {#key step}
+            <div
+                class="flex flex-col gap-3 [grid-area:1/1]"
+                in:fade|global={{
+                    duration: 600,
+                    delay: step === "ename" ? 800 : 200,
+                }}
+                out:fade|global={{ duration: 150 }}
+            >
+                {#each def.description as paragraph, i (i)}
+                    <p
+                        class="text-primary text-lg font-medium leading-relaxed text-left"
+                    >
+                        {paragraph}
+                    </p>
+                {/each}
+            </div>
+        {/key}
+    </div>
     <div
         class="pointer-events-auto"
-        in:fly={{ y: 20, duration: 300, delay: 800 }}
+        in:fly={{ y: 20, duration: 600, delay: 800 }}
     >
         <Button.Action
             variant="solid"
