@@ -80,7 +80,11 @@ function close() {
             </label>
             <input
                 id="kn-answer"
-                type="text"
+                type="password"
+                autocomplete="new-password"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
                 bind:value={answer}
                 class="w-full bg-card-alternative rounded-full px-5 py-4 placeholder:text-black-300 outline-none focus:ring-2 focus:ring-primary"
             />

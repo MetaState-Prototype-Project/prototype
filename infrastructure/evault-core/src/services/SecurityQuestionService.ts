@@ -59,6 +59,13 @@ export class SecurityQuestionService {
                 lockedUntil: attempt.lockedUntil,
             };
         }
+        // Lock has expired (or never existed) — reset the stale counter so
+        // the user gets a fresh attempts window instead of relocking on the
+        // first wrong answer.
+        if (attempt.lockedUntil) {
+            attempt.lockedUntil = null;
+            attempt.failedCount = 0;
+        }
 
         const doc = await this.bindingDocumentService.getBindingDocument(
             metaEnvelopeId,

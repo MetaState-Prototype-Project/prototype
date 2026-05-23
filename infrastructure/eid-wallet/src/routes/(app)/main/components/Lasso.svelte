@@ -42,7 +42,7 @@ interface ILassoProps {
     /** ms of delay before the line starts drawing — lets the focused card
      *  finish settling first. Default 450ms. */
     drawDelay?: number;
-    /** ms duration of the draw animation. Default 800ms. */
+    /** ms duration of the draw animation. Default 500ms. */
     drawDuration?: number;
     /** Optional extra class on the SVG (positioning tweaks per step). */
     class?: string;

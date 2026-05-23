@@ -184,11 +184,23 @@ onMount(async () => {
         console.error("Failed to initialize deep link listener:", error);
     }
 
-    // Helper function to check if user is on an authenticated route
+    // Helper function to check if user is on an authenticated route.
+    // Routes under (app)/ are protected by the auth guard. Since SvelteKit
+    // route groups (parentheses) don't appear in the URL, enumerate the
+    // top-level segments here. Any new (app)/<segment>/ folder must be
+    // added below or its deep-links will redirect to /login.
     function isAuthenticatedRoute(pathname: string): boolean {
-        // Authenticated routes are those under (app)/ which are protected by the auth guard
-        const authenticatedRoutes = ["/main", "/scan-qr", "/settings"];
-        return authenticatedRoutes.includes(pathname);
+        const appRouteSegments = [
+            "main",
+            "scan-qr",
+            "settings",
+            "personal",
+            "notifications",
+            "social-bindings",
+            "ePassport",
+        ];
+        const firstSegment = pathname.split("/")[1] ?? "";
+        return appRouteSegments.includes(firstSegment);
     }
 
     function handleDeepLink(urlString: string) {

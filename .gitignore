@@ -50,3 +50,6 @@ evault-cache.json
 
 .pnpm-store
 .pnpm-store/
+
+# Per-developer Claude Code permission grants
+.claude/settings.local.json

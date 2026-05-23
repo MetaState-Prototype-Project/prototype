@@ -8,8 +8,8 @@ import {
     fetchSocialBindings,
     resolveVaultUri,
 } from "$lib/utils";
-import { Shadow } from "svelte-loading-spinners";
 import { getContext, onMount } from "svelte";
+import { Shadow } from "svelte-loading-spinners";
 
 interface BindingRow {
     docId: string;
@@ -123,9 +123,8 @@ const subtitle = $derived(
 {:else}
     <div class="flex flex-col">
         {#each bindings as binding (binding.docId)}
-            <button
-                type="button"
-                class="w-full flex items-center gap-3 py-3 active:opacity-70 text-left"
+            <div
+                class="w-full flex items-center gap-3 py-3 text-left"
             >
                 <div class="flex-1 min-w-0">
                     <p class="font-semibold text-black-900 leading-tight truncate">
@@ -139,7 +138,7 @@ const subtitle = $derived(
                     size={13}
                     class="rotate-180 text-black-500 shrink-0"
                 />
-            </button>
+            </div>
         {/each}
     </div>
 {/if}

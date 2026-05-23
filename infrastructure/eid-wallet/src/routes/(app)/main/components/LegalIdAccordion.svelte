@@ -33,6 +33,15 @@ function toggle() {
     expanded = !expanded;
 }
 
+function handleKeydown(e: KeyboardEvent) {
+    if (!hasDoc) return;
+    if (e.key === "Enter" || e.key === " ") {
+        // Space scrolls by default — suppress that for the role="button" div.
+        e.preventDefault();
+        toggle();
+    }
+}
+
 function handleAddClick(e: MouseEvent) {
     e.stopPropagation();
     onadd?.();
@@ -42,11 +51,11 @@ function handleAddClick(e: MouseEvent) {
 <div
     class="rounded-3xl overflow-hidden transition-colors duration-200 {hasDoc ? "bg-success-200": "bg-card-alternative"}"
 >
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
         class="flex items-center gap-3 px-3 py-4"
         class:cursor-pointer={hasDoc}
         onclick={toggle}
+        onkeydown={handleKeydown}
         role="button"
         tabindex={hasDoc ? 0 : -1}
         aria-expanded={expanded}

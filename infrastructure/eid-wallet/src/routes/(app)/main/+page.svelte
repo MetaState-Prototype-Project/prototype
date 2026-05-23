@@ -472,6 +472,10 @@ onMount(() => {
         }
         if (!gs) {
             console.error("[main] globalState never became available");
+            // Flip pageReady so the layout has something to render
+            // (cards still won't show because gs is null, but the page
+            // doesn't stay blank waiting for a state that never arrives).
+            pageReady = true;
             return;
         }
         globalState = gs;

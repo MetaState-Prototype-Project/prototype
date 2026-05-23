@@ -34,6 +34,14 @@ function toggle() {
     expanded = !expanded;
 }
 
+function handleKeydown(e: KeyboardEvent) {
+    if (!hasBindings) return;
+    if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggle();
+    }
+}
+
 function handleInviteClick(e: MouseEvent) {
     e.stopPropagation();
     oninvite?.();
@@ -53,11 +61,11 @@ const previewLine = $derived.by(() => {
         ? 'bg-success-200'
         : 'bg-card-alternative'}"
 >
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
         class="flex items-center gap-3 px-3 py-4"
         class:cursor-pointer={hasBindings}
         onclick={toggle}
+        onkeydown={handleKeydown}
         role="button"
         tabindex={hasBindings ? 0 : -1}
         aria-expanded={expanded}

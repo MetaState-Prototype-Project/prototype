@@ -549,6 +549,11 @@ export async function createOwnSocialBindingMirror(
                 .join("; "),
         );
     }
+    if (!result.createBindingDocument.metaEnvelopeId) {
+        throw new Error(
+            "createBindingDocument returned no metaEnvelopeId — missing envelope ID for social binding mirror",
+        );
+    }
 }
 
 /**

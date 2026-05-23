@@ -36,7 +36,9 @@ const photosFilled = $derived(binding.photos.length > 0);
 const parametersFilled = $derived(
     !!binding.parameters && binding.parameters.text.trim().length > 0,
 );
-const knowledgeFilled = $derived(!!binding.knowledge);
+const knowledgeFilled = $derived(
+    !!binding.knowledge && binding.knowledge.question.trim().length > 0,
+);
 
 let photoSheetOpen = $state(false);
 let editingPhoto = $state<PhotoMark | null>(null);

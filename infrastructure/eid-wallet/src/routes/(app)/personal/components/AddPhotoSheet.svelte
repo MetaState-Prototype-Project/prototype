@@ -96,9 +96,17 @@ async function chooseCamera() {
     // Wait for the <video> element to mount before binding the stream.
     queueMicrotask(async () => {
         try {
-            stream = await navigator.mediaDevices.getUserMedia({
+            const pending = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: "environment" },
             });
+            // The sheet may have been closed while getUserMedia was pending
+            // — if mode is no longer "capture" we'd otherwise leak the
+            // stream after stopStream() ran with stream still null.
+            if (!isOpen || mode !== "capture") {
+                for (const track of pending.getTracks()) track.stop();
+                return;
+            }
+            stream = pending;
             if (video) {
                 video.srcObject = stream;
                 await video.play();

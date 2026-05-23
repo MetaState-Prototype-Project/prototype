@@ -21,6 +21,8 @@ const {
     fill="none"
     class={classes}
     xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+    focusable="false"
 >
     <path
         d="M6.91401 12L1.41406 6.49995L6.91401 1"

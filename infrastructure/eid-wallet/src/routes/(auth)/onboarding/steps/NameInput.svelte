@@ -42,6 +42,7 @@ const handleSubmit = async () => {
     <section class="flex-1 flex flex-col justify-center">
         <label for="name" class="text-black opacity-50 text-lg font-medium">Enter your name</label>
         <input
+            id="name"
             name="name"
             bind:this={inputEl}
             type="text"

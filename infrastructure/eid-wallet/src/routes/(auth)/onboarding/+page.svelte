@@ -14,8 +14,8 @@ import { capitalize, getCanonicalBindingDocString } from "$lib/utils";
 import axios from "axios";
 import { GraphQLClient } from "graphql-request";
 import { getContext, onMount, tick } from "svelte";
-import { cubicOut } from "svelte/easing";
 import { Shadow } from "svelte-loading-spinners";
+import { cubicOut } from "svelte/easing";
 import { v4 as uuidv4 } from "uuid";
 import { provision } from "wallet-sdk";
 import NameInput from "./steps/NameInput.svelte";
@@ -199,7 +199,10 @@ const handleNameComplete = async (enteredName: string) => {
 
         // Resolve eVault GraphQL endpoint from registry.
         const resolveResp = await axios.get(
-            new URL(`resolve?w3id=${ename}`, PUBLIC_REGISTRY_URL).toString(),
+            new URL(
+                `resolve?w3id=${encodeURIComponent(ename)}`,
+                PUBLIC_REGISTRY_URL,
+            ).toString(),
         );
         const evaultUri = resolveResp.data.uri as string;
         const graphqlEndpoint = new URL("/graphql", evaultUri).toString();
@@ -613,7 +616,10 @@ const handleAnonymousSubmit = async () => {
 
         // Resolve eVault GraphQL endpoint from registry
         const resolveResp = await axios.get(
-            new URL(`resolve?w3id=${ename}`, PUBLIC_REGISTRY_URL).toString(),
+            new URL(
+                `resolve?w3id=${encodeURIComponent(ename)}`,
+                PUBLIC_REGISTRY_URL,
+            ).toString(),
         );
         const evaultUri = resolveResp.data.uri as string;
         const graphqlEndpoint = new URL("/graphql", evaultUri).toString();

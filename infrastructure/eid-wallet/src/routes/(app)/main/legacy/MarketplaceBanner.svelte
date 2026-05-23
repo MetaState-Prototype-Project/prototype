@@ -26,7 +26,7 @@ import { HugeiconsIcon } from "@hugeicons/svelte";
     <span class="text-2xl font-bold flex gap-2 relative z-10 drop-shadow-lg">
         Discover Post Platforms
     </span>
-    <span
+    <div
         class="text-sm opacity-90 relative z-10 drop-shadow-md flex gap-1 items-center"
     >
         Explore
@@ -45,5 +45,5 @@ import { HugeiconsIcon } from "@hugeicons/svelte";
                 icon={LinkSquare02Icon}
             />
         </span>
-    </span>
+    </div>
 </Button.Nav>

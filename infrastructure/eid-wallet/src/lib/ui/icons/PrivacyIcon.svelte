@@ -19,6 +19,8 @@ const {
     fill="none"
     class={classes}
     xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+    focusable="false"
 >
     <path
         opacity="0.8"

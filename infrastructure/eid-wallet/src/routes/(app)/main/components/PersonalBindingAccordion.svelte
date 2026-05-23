@@ -28,6 +28,14 @@ function toggle() {
     expanded = !expanded;
 }
 
+function handleKeydown(e: KeyboardEvent) {
+    if (!hasAny) return;
+    if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggle();
+    }
+}
+
 function handleAddClick(e: MouseEvent) {
     e.stopPropagation();
     onopen?.();
@@ -39,11 +47,11 @@ function handleAddClick(e: MouseEvent) {
         ? 'bg-success-200'
         : 'bg-card-alternative'}"
 >
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
         class="flex items-center gap-3 px-3 py-4"
         class:cursor-pointer={hasAny}
         onclick={toggle}
+        onkeydown={handleKeydown}
         role="button"
         tabindex={hasAny ? 0 : -1}
         aria-expanded={expanded}

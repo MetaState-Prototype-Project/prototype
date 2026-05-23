@@ -75,10 +75,15 @@ async function submit() {
 
 function handleClose() {
     showSuccess = false;
-    // /settings/pin is only entered from /settings, so popping history
-    // gets us back without leaving an orphan entry that would let the
-    // user re-enter the (already-completed) flow with the nav back button.
-    window.history.back();
+    // /settings/pin is normally entered from /settings, so popping history
+    // gets us back without leaving an orphan entry. If the user landed here
+    // directly (deep link, refresh), there's nothing to pop — fall back to
+    // /settings so they aren't stranded on the success card.
+    if (window.history.length > 1) {
+        window.history.back();
+    } else {
+        goto("/settings");
+    }
 }
 
 // Reset any stale error the moment the user starts typing again.

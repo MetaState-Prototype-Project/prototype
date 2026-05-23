@@ -1,8 +1,8 @@
 <script lang="ts">
 import { cn, portal } from "$lib/utils";
 import type { Snippet } from "svelte";
-import type { HTMLAttributes } from "svelte/elements";
 import { cubicOut } from "svelte/easing";
+import type { HTMLAttributes } from "svelte/elements";
 import { fade, fly } from "svelte/transition";
 
 interface BottomSheetProps extends HTMLAttributes<HTMLDivElement> {

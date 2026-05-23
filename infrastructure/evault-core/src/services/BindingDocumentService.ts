@@ -127,7 +127,15 @@ function validateBindingDocumentData(
             // The hash itself is opaque to this service — we don't try to
             // detect or enforce the Argon2id format here. Callers run the
             // hash through the shared util (see core/utils/security-answer).
-            if (typeof d.answerHash !== "string" || d.answerHash.length === 0) {
+            // Reject whitespace-only values so they don't sneak past the
+            // length check after trimming.
+            if (typeof d.answerHash !== "string") {
+                throw new ValidationError(
+                    "security_question data must have string field: answerHash",
+                );
+            }
+            const trimmedAnswerHash = d.answerHash.trim();
+            if (trimmedAnswerHash.length === 0) {
                 throw new ValidationError(
                     "security_question data must have non-empty string field: answerHash",
                 );
@@ -135,7 +143,7 @@ function validateBindingDocumentData(
             return {
                 kind: "security_question",
                 question: d.question,
-                answerHash: d.answerHash,
+                answerHash: trimmedAnswerHash,
             } as BindingDocumentSecurityQuestionData;
         }
         default: {

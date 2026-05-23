@@ -103,14 +103,20 @@ const resolvedIconSize = $derived(
             : iconSize,
 );
 
+// Numeric bgSize is a pixel value per the documented contract — Tailwind's
+// JIT can't see runtime-constructed `h-${n}` strings, so numbers must be
+// emitted as inline style instead of class names.
 const resolvedBgSize = $derived(
-    bgSize === undefined
-        ? "" // if bgSize is empty, there is no background
-        : typeof bgSize === "number"
-          ? `h-${bgSize} w-${bgSize}`
-          : bgSize in sizeVariant
-            ? sizeVariant[bgSize as keyof typeof sizeVariant]
-            : bgSize,
+    bgSize === undefined || typeof bgSize === "number"
+        ? ""
+        : bgSize in sizeVariant
+          ? sizeVariant[bgSize as keyof typeof sizeVariant]
+          : bgSize,
+);
+const bgSizeStyle = $derived(
+    typeof bgSize === "number"
+        ? `width: ${bgSize}px; height: ${bgSize}px;`
+        : "",
 );
 
 const classes = $derived({
@@ -128,6 +134,7 @@ const classes = $derived({
 <button
 	{...restProps}
 	class={cn([classes.common, classes.bgSize, classes.iconColor, classes.background, disabled && classes.disabled, restProps.class].join(' '))}
+	style={bgSizeStyle ? `${bgSizeStyle} ${restProps.style ?? ''}` : restProps.style}
 	{disabled}
 	onclick={callback ? handleClick : onclick}
 	{type}
