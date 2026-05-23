@@ -27,8 +27,10 @@ export async function hashAnswer(raw: string): Promise<string> {
 
 /**
  * Verifies a candidate against a stored Argon2id hash. The candidate is run
- * through the same normalisation pipeline. Returns false (rather than
- * throwing) on a malformed stored hash — the caller can't fix that anyway.
+ * through the same normalisation pipeline. Returns false on an obviously
+ * malformed stored hash (wrong prefix) — the caller can't fix that anyway —
+ * but lets unexpected runtime/native errors propagate so they aren't
+ * silently counted as failed attempts by the rate limiter.
  */
 export async function verifyAnswer(
     storedHash: string,
@@ -36,9 +38,6 @@ export async function verifyAnswer(
 ): Promise<boolean> {
     const normalised = normalizeAnswer(candidate);
     if (normalised.length === 0) return false;
-    try {
-        return await argon2.verify(storedHash, normalised);
-    } catch {
-        return false;
-    }
+    if (!/^\$argon2(id|i|d)\$/.test(storedHash)) return false;
+    return argon2.verify(storedHash, normalised);
 }
