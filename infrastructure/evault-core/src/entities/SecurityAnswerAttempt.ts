@@ -19,10 +19,10 @@ export class SecurityAnswerAttempt {
     @Column({ type: "integer", default: 0 })
     failedCount!: number;
 
-    @Column({ type: "timestamp", nullable: true })
+    @Column({ type: "timestamptz", nullable: true })
     lockedUntil!: Date | null;
 
-    @Column({ type: "timestamp", nullable: true })
+    @Column({ type: "timestamptz", nullable: true })
     lastAttemptAt!: Date | null;
 
     @CreateDateColumn()
