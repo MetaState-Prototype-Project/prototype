@@ -1,9 +1,5 @@
 <script lang="ts">
-import {
-    type PhotoMark,
-    addPhoto,
-    updatePhoto,
-} from "$lib/stores/personalBinding";
+import type { PhotoMark } from "$lib/stores/personalBinding";
 import { ButtonAction, CameraPermissionDialog } from "$lib/ui";
 import BottomSheet from "$lib/ui/BottomSheet/BottomSheet.svelte";
 import { createCameraPermissionManager } from "$lib/utils";
@@ -13,12 +9,24 @@ import { HugeiconsIcon } from "@hugeicons/svelte";
 interface IAddPhotoSheetProps {
     isOpen: boolean;
     /** When set, the sheet skips the source picker and lands on the preview
-     *  for editing the existing photo's name + description. */
+     *  for editing the existing photo's description. */
     editing?: PhotoMark | null;
+    /** Form payload — the page persists + closes. `editing` distinguishes
+     *  add vs edit; the form data shape is the same. */
+    onsave?: (data: {
+        dataUrl: string;
+        description: string;
+        source: "camera" | "gallery";
+    }) => void;
     onOpenChange?: (open: boolean) => void;
 }
 
-const { isOpen, editing = null, onOpenChange }: IAddPhotoSheetProps = $props();
+const {
+    isOpen,
+    editing = null,
+    onsave,
+    onOpenChange,
+}: IAddPhotoSheetProps = $props();
 
 // Mode within the sheet:
 //   pick     → "Take from" Camera/Gallery picker (partial bottom sheet)
@@ -29,7 +37,6 @@ let mode = $state<Mode>("pick");
 
 let pendingDataUrl = $state<string | null>(null);
 let pendingSource = $state<"camera" | "gallery">("camera");
-let name = $state("");
 let description = $state("");
 
 let video = $state<HTMLVideoElement | null>(null);
@@ -47,7 +54,6 @@ $effect(() => {
     if (editing) {
         pendingDataUrl = editing.dataUrl;
         pendingSource = editing.source;
-        name = editing.name;
         description = editing.description;
         mode = "preview";
     } else {
@@ -64,7 +70,6 @@ function resetState() {
     mode = "pick";
     pendingDataUrl = null;
     pendingSource = "camera";
-    name = "";
     description = "";
 }
 
@@ -147,17 +152,11 @@ async function handleOpenSettings() {
 
 function save() {
     if (!pendingDataUrl) return;
-    const payload = {
+    onsave?.({
         dataUrl: pendingDataUrl,
-        name: name.trim() || "Untitled photo",
         description: description.trim(),
         source: pendingSource,
-    };
-    if (editing) {
-        updatePhoto(editing.id, payload);
-    } else {
-        addPhoto(payload);
-    }
+    });
     close();
 }
 
@@ -275,22 +274,6 @@ const sheetTitle = $derived(editing ? "Edit photo mark" : "Add photo mark");
                         strokeWidth={2}
                     />
                 </button>
-            </div>
-
-            <div>
-                <label
-                    for="photo-name"
-                    class="block text-black-500 mb-2"
-                >
-                    Name
-                </label>
-                <input
-                    id="photo-name"
-                    type="text"
-                    bind:value={name}
-                    placeholder="e.g. Face photo, Left arm tattoo"
-                    class="w-full bg-card-alternative rounded-full px-5 py-4 placeholder:text-black-300 outline-none focus:ring-2 focus:ring-primary"
-                />
             </div>
 
             <div>

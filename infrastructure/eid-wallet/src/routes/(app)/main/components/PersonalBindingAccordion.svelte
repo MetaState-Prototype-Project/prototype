@@ -112,17 +112,17 @@ function handleAddClick(e: MouseEvent) {
                     </p>
                 </div>
             {/if}
-            {#if binding.parameters.trim().length > 0}
+            {#if binding.parameters && binding.parameters.text.trim().length > 0}
                 <div>
                     <p class="text-xs text-black-700 leading-tight">
                         Biography marks
                     </p>
                     <p class="font-semibold text-black-900 leading-snug">
-                        {binding.parameters}
+                        {binding.parameters.text}
                     </p>
                 </div>
             {/if}
-            {#if binding.knowledge?.question && binding.knowledge?.answer}
+            {#if binding.knowledge}
                 <div>
                     <p class="text-xs text-black-700 leading-tight">
                         Security question

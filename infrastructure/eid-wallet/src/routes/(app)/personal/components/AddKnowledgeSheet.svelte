@@ -1,5 +1,4 @@
 <script lang="ts">
-import { personalBinding, setKnowledge } from "$lib/stores/personalBinding";
 import { ButtonAction } from "$lib/ui";
 import BottomSheet from "$lib/ui/BottomSheet/BottomSheet.svelte";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
@@ -7,17 +6,25 @@ import { HugeiconsIcon } from "@hugeicons/svelte";
 
 interface IAddKnowledgeSheetProps {
     isOpen: boolean;
+    currentQuestion?: string;
+    onsave?: (data: { question: string; answer: string }) => void;
 }
 
-let { isOpen = $bindable() }: IAddKnowledgeSheetProps = $props();
+let {
+    isOpen = $bindable(),
+    currentQuestion = "",
+    onsave,
+}: IAddKnowledgeSheetProps = $props();
 
 let question = $state("");
 let answer = $state("");
 
+// On open: seed the question from the prop. Answer always starts blank —
+// we never round-trip the raw answer, so editing means re-entering it.
 $effect(() => {
     if (!isOpen) return;
-    question = $personalBinding.knowledge?.question ?? "";
-    answer = $personalBinding.knowledge?.answer ?? "";
+    question = currentQuestion;
+    answer = "";
 });
 
 const canSave = $derived(
@@ -26,7 +33,7 @@ const canSave = $derived(
 
 function save() {
     if (!canSave) return;
-    setKnowledge(question.trim(), answer.trim());
+    onsave?.({ question: question.trim(), answer: answer.trim() });
     isOpen = false;
 }
 

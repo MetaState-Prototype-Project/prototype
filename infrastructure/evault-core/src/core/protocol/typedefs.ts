@@ -174,6 +174,12 @@ export const typeDefs = /* GraphQL */ `
         errors: [UserError!]
     }
 
+    "Result of hashing a raw security answer."
+    type HashSecurityAnswerPayload {
+        hash: String
+        errors: [UserError!]
+    }
+
     "Result of a security-answer validation attempt."
     type ValidateSecurityAnswerPayload {
         success: Boolean!
@@ -321,6 +327,9 @@ export const typeDefs = /* GraphQL */ `
 
         "Validate a candidate answer against a stored security-question binding document. Applies the same normalisation pipeline used at write time and compares against the stored Argon2id hash. Failed attempts are tracked per-eName; the caller is rate-limited after a configurable threshold."
         validateSecurityAnswer(input: ValidateSecurityAnswerInput!): ValidateSecurityAnswerPayload!
+
+        "Normalises and hashes a raw security answer with Argon2id and returns the resulting hash. Lets the wallet build a signed binding document containing the hash without having to ship Argon2id WASM in the browser. The raw answer is never persisted."
+        hashSecurityAnswer(answer: String!): HashSecurityAnswerPayload!
 
         # --- LEGACY API (preserved for backward compatibility) ---
         storeMetaEnvelope(input: MetaEnvelopeInput!): StoreMetaEnvelopeResult!

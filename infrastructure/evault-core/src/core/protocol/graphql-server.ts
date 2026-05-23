@@ -4,6 +4,7 @@ import type { GraphQLSchema } from "graphql";
 import { createSchema, createYoga } from "graphql-yoga";
 import { getJWTHeader } from "w3id";
 import { BindingDocumentService, BINDING_DOCUMENT_ONTOLOGY } from "../../services/BindingDocumentService";
+import { hashAnswer } from "../utils/security-answer";
 import type { DbService } from "../db/db.service";
 import {
     computeEnvelopeHash,
@@ -1111,6 +1112,43 @@ export class GraphQLServer {
                                                 ? error.message
                                                 : "Failed to add signature",
                                         code: "ADD_SIGNATURE_FAILED",
+                                    },
+                                ],
+                            };
+                        }
+                    },
+                ),
+
+                hashSecurityAnswer: this.accessGuard.middleware(
+                    async (
+                        _: any,
+                        { answer }: { answer: string },
+                        context: VaultContext,
+                    ) => {
+                        if (!context.eName) {
+                            return {
+                                hash: null,
+                                errors: [
+                                    {
+                                        message: "X-ENAME header is required",
+                                        code: "MISSING_ENAME",
+                                    },
+                                ],
+                            };
+                        }
+                        try {
+                            const hash = await hashAnswer(answer);
+                            return { hash, errors: [] };
+                        } catch (error) {
+                            return {
+                                hash: null,
+                                errors: [
+                                    {
+                                        message:
+                                            error instanceof Error
+                                                ? error.message
+                                                : "Failed to hash answer",
+                                        code: "HASH_FAILED",
                                     },
                                 ],
                             };

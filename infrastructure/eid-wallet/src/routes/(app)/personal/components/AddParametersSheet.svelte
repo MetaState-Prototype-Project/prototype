@@ -1,5 +1,4 @@
 <script lang="ts">
-import { personalBinding, setParameters } from "$lib/stores/personalBinding";
 import { ButtonAction } from "$lib/ui";
 import BottomSheet from "$lib/ui/BottomSheet/BottomSheet.svelte";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
@@ -7,19 +6,26 @@ import { HugeiconsIcon } from "@hugeicons/svelte";
 
 interface IAddParametersSheetProps {
     isOpen: boolean;
+    currentText?: string;
+    /** Called with the new text. The page handles persisting + closing. */
+    onsave?: (text: string) => void;
 }
 
-let { isOpen = $bindable() }: IAddParametersSheetProps = $props();
+let {
+    isOpen = $bindable(),
+    currentText = "",
+    onsave,
+}: IAddParametersSheetProps = $props();
 
 let value = $state("");
 
-// Seed from the store every time the sheet opens (so editing shows current).
 $effect(() => {
-    if (isOpen) value = $personalBinding.parameters;
+    if (isOpen) value = currentText;
 });
 
 function save() {
-    setParameters(value);
+    if (!value.trim()) return;
+    onsave?.(value.trim());
     isOpen = false;
 }
 

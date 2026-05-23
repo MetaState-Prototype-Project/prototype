@@ -22,6 +22,8 @@ import {
     fetchSocialBindings,
     resolveVaultUri,
 } from "$lib/utils";
+import { replaceAll as replaceAllPersonal } from "$lib/stores/personalBinding";
+import { loadPersonalBindings } from "$lib/utils/personalBinding";
 import { getContext, onDestroy, onMount, tick } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
 import { fly } from "svelte/transition";
@@ -136,6 +138,45 @@ async function loadBindingDocuments(): Promise<void> {
     }
 
     await loadSocialBindings();
+}
+
+// Hydrate the personalBinding store from the caller's vault so the
+// /main accordion reflects the user's marks on a cold reload — without
+// this they only appear after a round trip through /personal.
+async function loadPersonalIntoStore(): Promise<void> {
+    if (!globalState) return;
+    const vault = await globalState.vaultController.vault;
+    if (!vault?.uri || !vault?.ename) return;
+    const callerEname = vault.ename.startsWith("@")
+        ? vault.ename
+        : `@${vault.ename}`;
+    const gqlUrl = new URL("/graphql", vault.uri).toString();
+    try {
+        const loaded = await loadPersonalBindings(gqlUrl, callerEname);
+        replaceAllPersonal({
+            photos: loaded.photographs.map((p, i) => ({
+                id: `${p.metaEnvelopeId}-${i}`,
+                metaEnvelopeId: p.metaEnvelopeId,
+                dataUrl: p.photoBlob,
+                description: p.description,
+                source: "camera" as const,
+            })),
+            parameters: loaded.parameters
+                ? {
+                      metaEnvelopeId: loaded.parameters.metaEnvelopeId,
+                      text: loaded.parameters.text,
+                  }
+                : null,
+            knowledge: loaded.securityQuestion
+                ? {
+                      metaEnvelopeId: loaded.securityQuestion.metaEnvelopeId,
+                      question: loaded.securityQuestion.question,
+                  }
+                : null,
+        });
+    } catch (err) {
+        console.warn("[main] Failed to load personal bindings:", err);
+    }
 }
 
 async function loadSocialBindings(): Promise<void> {
@@ -445,6 +486,7 @@ onMount(() => {
         ename = vaultData?.ename;
 
         await loadBindingDocuments();
+        await loadPersonalIntoStore();
 
         // Welcome-tour gate — local Tauri Store read, no network needed.
         const seen = await gs.hasSeenWelcomeTour;
