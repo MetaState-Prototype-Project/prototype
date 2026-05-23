@@ -558,6 +558,7 @@ onDestroy(() => {
                         socialBindingCount={socialBindingCount}
                         socialBindingPreview={socialBindingPreview}
                         onlegalid={openKycFlow}
+                        onpersonal={() => goto("/personal")}
                         onsocialinvite={openSocialDrawer}
                         onsocialfulllist={openSocialFullList}
                         oninfo={() => (bindingDocsInfoOpen = true)}
