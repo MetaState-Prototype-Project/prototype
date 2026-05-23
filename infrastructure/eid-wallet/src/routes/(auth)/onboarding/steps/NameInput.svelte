@@ -1,4 +1,5 @@
 <script lang="ts">
+import { keyboardInset } from "$lib/actions/keyboardInset";
 import { ButtonAction } from "$lib/ui";
 import { onMount } from "svelte";
 import StepHeader from "./StepHeader.svelte";
@@ -32,8 +33,9 @@ const handleSubmit = async () => {
 </script>
 
 <main
-    class="min-h-dvh px-[5vw] flex flex-col bg-white"
-    style="padding-top: max(2svh, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));"
+    use:keyboardInset
+    class="h-dvh overflow-hidden px-[5vw] flex flex-col bg-white"
+    style="padding-top: max(2svh, env(safe-area-inset-top)); padding-bottom: calc(max(16px, env(safe-area-inset-bottom)) + var(--kb-inset, 0px));"
 >
     <StepHeader title="What's your name?" step={3} {onback} />
 
@@ -52,7 +54,7 @@ const handleSubmit = async () => {
         />
 
         {#if error}
-            <p class="text-danger text-sm font-medium text-center" role="alert">
+            <p class="text-danger text-sm font-medium" role="alert">
                 {error}
             </p>
         {/if}
