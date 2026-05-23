@@ -47,7 +47,7 @@ function slideOut(
         // OLD stays put for the duration of the new page's slide-in.
         return {
             duration: 200,
-            css: () => `transform: translateX(0);`,
+            css: () => "transform: translateX(0);",
         };
     }
     // Backward — slide OLD off to the right.

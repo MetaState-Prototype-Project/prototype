@@ -84,7 +84,11 @@ async function poll() {
 
         try {
             const signerVaultUri = await resolveVaultUri(signer);
-            signerName = await fetchNameFromVault(signerVaultUri, signer, signer);
+            signerName = await fetchNameFromVault(
+                signerVaultUri,
+                signer,
+                signer,
+            );
         } catch {
             signerName = signer;
         }

@@ -512,7 +512,9 @@ export async function createOwnSocialBindingMirror(
     relationDescription: string,
     signatureHash: string,
 ): Promise<void> {
-    const normalizedSelf = selfEname.startsWith("@") ? selfEname : `@${selfEname}`;
+    const normalizedSelf = selfEname.startsWith("@")
+        ? selfEname
+        : `@${selfEname}`;
     const normalizedCounter = counterpartyEname.startsWith("@")
         ? counterpartyEname
         : `@${counterpartyEname}`;

@@ -13,9 +13,7 @@ const { children } = $props();
 // re-render mid- or post-transition, producing a visible flash.
 const VERSION = "0.7.1";
 const subtitleAtMount =
-    page.url.pathname === "/settings"
-        ? `App Version ${VERSION}`
-        : undefined;
+    page.url.pathname === "/settings" ? `App Version ${VERSION}` : undefined;
 </script>
 
 <main>

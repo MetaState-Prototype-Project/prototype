@@ -62,7 +62,8 @@ async function submit() {
     } catch (err) {
         console.error("Failed to update PIN:", err);
         // Most failures here are wrong-current-PIN — bounce back to step 1.
-        error = "Couldn't update your PIN. Check your current PIN and try again.";
+        error =
+            "Couldn't update your PIN. Check your current PIN and try again.";
         step = "current";
         currentPin = "";
         newPin = "";

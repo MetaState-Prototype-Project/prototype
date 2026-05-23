@@ -779,7 +779,8 @@ export function createScanLogic({
                             relation_description: relationDescription,
                         } as Record<string, unknown>,
                     };
-                    const mirrorPayload = getCanonicalBindingDocString(mirrorDoc);
+                    const mirrorPayload =
+                        getCanonicalBindingDocString(mirrorDoc);
                     const mirrorSig =
                         await globalState.walletSdkAdapter.signPayload(
                             "default",

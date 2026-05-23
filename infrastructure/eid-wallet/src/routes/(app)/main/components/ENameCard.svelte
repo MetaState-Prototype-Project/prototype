@@ -15,8 +15,12 @@ interface IENameCardProps {
     onshareqr?: () => void;
 }
 
-const { ename, verified = false, ontoast, onshareqr }: IENameCardProps =
-    $props();
+const {
+    ename,
+    verified = false,
+    ontoast,
+    onshareqr,
+}: IENameCardProps = $props();
 
 async function copyEName() {
     if (!ename) return;

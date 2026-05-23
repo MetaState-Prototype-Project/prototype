@@ -102,12 +102,9 @@ export function clearAllNotifications(): void {
 // relative-time formatter.
 export function seedDummyNotifications(): void {
     const now = Date.now();
-    const minutes = (n: number) =>
-        new Date(now - n * 60_000).toISOString();
-    const hours = (n: number) =>
-        new Date(now - n * 3_600_000).toISOString();
-    const days = (n: number) =>
-        new Date(now - n * 86_400_000).toISOString();
+    const minutes = (n: number) => new Date(now - n * 60_000).toISOString();
+    const hours = (n: number) => new Date(now - n * 3_600_000).toISOString();
+    const days = (n: number) => new Date(now - n * 86_400_000).toISOString();
 
     const dummies: StoredNotification[] = [
         {

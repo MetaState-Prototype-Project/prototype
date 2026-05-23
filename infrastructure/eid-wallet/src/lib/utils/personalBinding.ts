@@ -79,11 +79,14 @@ function normalizeEname(ename: string): string {
 function unwrapCreate(result: CreateBindingDocResult): string {
     if (result.createBindingDocument.errors?.length) {
         throw new Error(
-            result.createBindingDocument.errors.map((e) => e.message).join("; "),
+            result.createBindingDocument.errors
+                .map((e) => e.message)
+                .join("; "),
         );
     }
     const id = result.createBindingDocument.metaEnvelopeId;
-    if (!id) throw new Error("createBindingDocument returned no metaEnvelopeId");
+    if (!id)
+        throw new Error("createBindingDocument returned no metaEnvelopeId");
     return id;
 }
 
@@ -243,12 +246,9 @@ export async function deletePersonalBinding(
     ownerEname: string,
     metaEnvelopeId: string,
 ): Promise<void> {
-    await vaultGqlRequest(
-        gqlUrl,
-        ownerEname,
-        DELETE_META_ENVELOPE_MUTATION,
-        { id: metaEnvelopeId },
-    );
+    await vaultGqlRequest(gqlUrl, ownerEname, DELETE_META_ENVELOPE_MUTATION, {
+        id: metaEnvelopeId,
+    });
 }
 
 export interface LoadedPhotograph {
@@ -328,14 +328,14 @@ export async function loadPersonalBindings(
         photographs.push({
             metaEnvelopeId: edge.node.id,
             photoBlob: d.photoBlob,
-            description:
-                typeof d.description === "string" ? d.description : "",
+            description: typeof d.description === "string" ? d.description : "",
         });
     }
 
     const paramsEdge = pickLatestEdge(paramsResp.bindingDocuments?.edges ?? []);
-    const paramsData =
-        paramsEdge?.node.parsed?.data as Record<string, unknown> | undefined;
+    const paramsData = paramsEdge?.node.parsed?.data as
+        | Record<string, unknown>
+        | undefined;
     const parameters: LoadedPersonalParameters | null =
         paramsEdge && typeof paramsData?.text === "string"
             ? {

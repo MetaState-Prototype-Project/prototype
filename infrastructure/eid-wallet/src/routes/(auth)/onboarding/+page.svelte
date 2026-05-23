@@ -125,7 +125,7 @@ function slideOut(
     if (direction === "forward") {
         return {
             duration: 200,
-            css: () => `transform: translateX(0);`,
+            css: () => "transform: translateX(0);",
         };
     }
     return {
