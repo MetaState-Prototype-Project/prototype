@@ -108,9 +108,6 @@ class WitnessService {
 
     ensureWitnessedSessions(targetEName: string, sessionIds: string[]): WitnessSession[] {
         const normalizedTarget = this.normalizeEName(targetEName);
-        if (sessionIds.length === 0) {
-            throw new Error("At least one witness session is required");
-        }
 
         return sessionIds.map((sessionId) => {
             const session = this.getSession(sessionId);

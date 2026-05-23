@@ -18,13 +18,11 @@ export const POST: RequestHandler = async ({ request }) => {
                 { status: 400 },
             );
         }
-        if (!Array.isArray(witnessSessionIds)) {
-            return json({ error: "witnessSessionIds must be an array" }, { status: 400 });
-        }
 
+        const sessionIds = Array.isArray(witnessSessionIds) ? witnessSessionIds : [];
         const witnessed = witnessService.ensureWitnessedSessions(
             targetEName,
-            witnessSessionIds,
+            sessionIds,
         );
         await evaultService.setRecoveryPassphrase(targetEName, newPassphrase);
 

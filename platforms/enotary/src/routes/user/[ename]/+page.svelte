@@ -149,10 +149,6 @@
 
     async function generateAndResetPassphrase() {
         resetMessage = "";
-        if (witnessedSessionIds.length === 0) {
-            resetMessage = "At least one witness must be verified first.";
-            return;
-        }
 
         const generatedPassphrase = `${randomChars(6)}-${randomChars(6)}-${randomChars(6)}-${randomChars(6)}`;
         resetting = true;
@@ -343,13 +339,15 @@
 
         <section class="mt-6 rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
             <h2 class="text-lg font-semibold">Reset Passphrase</h2>
-            <p class="mt-2 text-sm text-slate-500">At least one witnessed session is required.</p>
+            <p class="mt-2 text-sm text-slate-500">
+                The notary can reset without witnesses; verified witnesses are recorded if present.
+            </p>
             <p class="mt-1 text-xs text-slate-500">
                 Witness sessions ready: {witnessedSessionIds.length}
             </p>
             <button
                 class="mt-4 rounded-md bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={resetting || witnessedSessionIds.length === 0}
+                disabled={resetting}
                 on:click={generateAndResetPassphrase}
             >
                 {resetting ? "Generating and setting..." : "Generate recovery passphrase"}
