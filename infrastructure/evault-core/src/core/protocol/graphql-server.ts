@@ -13,7 +13,9 @@ import { exampleQueries } from "./examples/examples";
 import { typeDefs } from "./typedefs";
 import { VaultAccessGuard, type VaultContext } from "./vault-access-guard";
 import { MessageNotificationService } from "../../services/MessageNotificationService";
+import { SecurityQuestionService } from "../../services/SecurityQuestionService";
 import { DeviceToken } from "../../entities/DeviceToken";
+import { SecurityAnswerAttempt } from "../../entities/SecurityAnswerAttempt";
 import { AppDataSource } from "../../config/database";
 
 export class GraphQLServer {
@@ -29,6 +31,7 @@ export class GraphQLServer {
     private evaultW3ID: string | null;
     private evaultInstance: any; // Reference to the eVault instance
     private messageNotificationService: MessageNotificationService | null = null;
+    private securityQuestionService: SecurityQuestionService | null = null;
 
     constructor(
         db: DbService,
@@ -59,6 +62,16 @@ export class GraphQLServer {
             );
         }
         return this.messageNotificationService;
+    }
+
+    private getSecurityQuestionService(): SecurityQuestionService {
+        if (!this.securityQuestionService) {
+            this.securityQuestionService = new SecurityQuestionService(
+                AppDataSource.getRepository(SecurityAnswerAttempt),
+                this.bindingDocumentService,
+            );
+        }
+        return this.securityQuestionService;
     }
 
     /**
@@ -230,6 +243,8 @@ export class GraphQLServer {
                             "photograph",
                             "social_connection",
                             "self",
+                            "personal_parameters",
+                            "security_question",
                         ] as const;
                         type ValidType =
                             (typeof VALID_BINDING_DOCUMENT_TYPES)[number];
@@ -889,6 +904,8 @@ export class GraphQLServer {
                             "photograph",
                             "social_connection",
                             "self",
+                            "personal_parameters",
+                            "security_question",
                         ] as const;
                         type ValidType =
                             (typeof VALID_BINDING_DOCUMENT_TYPES)[number];
@@ -1094,6 +1111,75 @@ export class GraphQLServer {
                                                 ? error.message
                                                 : "Failed to add signature",
                                         code: "ADD_SIGNATURE_FAILED",
+                                    },
+                                ],
+                            };
+                        }
+                    },
+                ),
+
+                validateSecurityAnswer: this.accessGuard.middleware(
+                    async (
+                        _: any,
+                        {
+                            input,
+                        }: {
+                            input: {
+                                metaEnvelopeId: string;
+                                candidate: string;
+                            };
+                        },
+                        context: VaultContext,
+                    ) => {
+                        if (!context.eName) {
+                            return {
+                                success: false,
+                                reason: null,
+                                lockedUntil: null,
+                                attemptsRemaining: null,
+                                errors: [
+                                    {
+                                        message: "X-ENAME header is required",
+                                        code: "MISSING_ENAME",
+                                    },
+                                ],
+                            };
+                        }
+
+                        try {
+                            const result = await this
+                                .getSecurityQuestionService()
+                                .validate(
+                                    context.eName,
+                                    input.metaEnvelopeId,
+                                    input.candidate,
+                                );
+                            return {
+                                success: result.success,
+                                reason: result.reason ?? null,
+                                lockedUntil:
+                                    result.lockedUntil?.toISOString() ?? null,
+                                attemptsRemaining:
+                                    result.attemptsRemaining ?? null,
+                                errors: [],
+                            };
+                        } catch (error) {
+                            console.error(
+                                "Error in validateSecurityAnswer:",
+                                error,
+                            );
+                            return {
+                                success: false,
+                                reason: null,
+                                lockedUntil: null,
+                                attemptsRemaining: null,
+                                errors: [
+                                    {
+                                        message:
+                                            error instanceof Error
+                                                ? error.message
+                                                : "Failed to validate security answer",
+                                        code: "VALIDATE_FAILED",
                                     },
                                 ],
                             };

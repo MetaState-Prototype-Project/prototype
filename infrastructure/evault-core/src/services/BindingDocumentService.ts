@@ -12,7 +12,9 @@ import type {
     BindingDocument,
     BindingDocumentData,
     BindingDocumentIdDocumentData,
+    BindingDocumentPersonalParametersData,
     BindingDocumentPhotographData,
+    BindingDocumentSecurityQuestionData,
     BindingDocumentSelfData,
     BindingDocumentSignature,
     BindingDocumentSocialConnectionData,
@@ -52,10 +54,19 @@ function validateBindingDocumentData(
         case "photograph": {
             if (typeof d.photoBlob !== "string") {
                 throw new ValidationError(
-                    'photograph data must have string field: photoBlob',
+                    "photograph data must have string field: photoBlob",
                 );
             }
-            return { photoBlob: d.photoBlob } as BindingDocumentPhotographData;
+            // description is optional and back-compat: older photos may not
+            // have it. Validate the type only when present.
+            if (d.description !== undefined && typeof d.description !== "string") {
+                throw new ValidationError(
+                    "photograph data field 'description' must be a string when provided",
+                );
+            }
+            const out: BindingDocumentPhotographData = { photoBlob: d.photoBlob };
+            if (typeof d.description === "string") out.description = d.description;
+            return out;
         }
         case "social_connection": {
             if (typeof d.name !== "string") {
@@ -91,10 +102,41 @@ function validateBindingDocumentData(
         case "self": {
             if (typeof d.name !== "string") {
                 throw new ValidationError(
-                    'self data must have string field: name',
+                    "self data must have string field: name",
                 );
             }
             return { kind: "self", name: d.name } as BindingDocumentSelfData;
+        }
+        case "personal_parameters": {
+            if (typeof d.text !== "string" || d.text.trim().length === 0) {
+                throw new ValidationError(
+                    "personal_parameters data must have non-empty string field: text",
+                );
+            }
+            return {
+                kind: "personal_parameters",
+                text: d.text,
+            } as BindingDocumentPersonalParametersData;
+        }
+        case "security_question": {
+            if (typeof d.question !== "string" || d.question.trim().length === 0) {
+                throw new ValidationError(
+                    "security_question data must have non-empty string field: question",
+                );
+            }
+            // The hash itself is opaque to this service — we don't try to
+            // detect or enforce the Argon2id format here. Callers run the
+            // hash through the shared util (see core/utils/security-answer).
+            if (typeof d.answerHash !== "string" || d.answerHash.length === 0) {
+                throw new ValidationError(
+                    "security_question data must have non-empty string field: answerHash",
+                );
+            }
+            return {
+                kind: "security_question",
+                question: d.question,
+                answerHash: d.answerHash,
+            } as BindingDocumentSecurityQuestionData;
         }
         default: {
             const _exhaustive: never = type;
@@ -292,7 +334,7 @@ export class BindingDocumentService {
             ));
         if (!hasLegacyHashSig && !hasValidUserSig) {
             throw new ValidationError(
-                `Invalid counterparty signature: expected SHA-256 hash or valid ECDSA signature`,
+                "Invalid counterparty signature: expected SHA-256 hash or valid ECDSA signature",
             );
         }
 

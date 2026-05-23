@@ -146,6 +146,8 @@ export const typeDefs = /* GraphQL */ `
         photograph
         social_connection
         self
+        personal_parameters
+        security_question
     }
 
     type BindingDocumentSignature {
@@ -170,6 +172,25 @@ export const typeDefs = /* GraphQL */ `
     type CreateBindingDocumentSignaturePayload {
         bindingDocument: BindingDocument
         errors: [UserError!]
+    }
+
+    "Result of a security-answer validation attempt."
+    type ValidateSecurityAnswerPayload {
+        success: Boolean!
+        "Why a failure occurred — useful for surfacing 'Locked until X' vs 'wrong answer'."
+        reason: String
+        "ISO-8601 timestamp until which further attempts are refused. Null when not locked."
+        lockedUntil: String
+        "How many more wrong answers the caller can submit before the lockout kicks in. Null on success or lock."
+        attemptsRemaining: Int
+        errors: [UserError!]
+    }
+
+    input ValidateSecurityAnswerInput {
+        "ID of the security_question binding document to validate against."
+        metaEnvelopeId: ID!
+        "The candidate answer. Will be normalised (trim/collapse/lowercase/strip punctuation) before hashing."
+        candidate: String!
     }
 
     # ============================================================================
@@ -297,6 +318,9 @@ export const typeDefs = /* GraphQL */ `
 
         "Add a signature to an existing binding document"
         createBindingDocumentSignature(input: CreateBindingDocumentSignatureInput!): CreateBindingDocumentSignaturePayload!
+
+        "Validate a candidate answer against a stored security-question binding document. Applies the same normalisation pipeline used at write time and compares against the stored Argon2id hash. Failed attempts are tracked per-eName; the caller is rate-limited after a configurable threshold."
+        validateSecurityAnswer(input: ValidateSecurityAnswerInput!): ValidateSecurityAnswerPayload!
 
         # --- LEGACY API (preserved for backward compatibility) ---
         storeMetaEnvelope(input: MetaEnvelopeInput!): StoreMetaEnvelopeResult!
