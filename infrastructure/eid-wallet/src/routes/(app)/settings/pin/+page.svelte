@@ -102,8 +102,10 @@ $effect(() => {
         } else if (step === "new") {
             newPin = "";
             step = "current";
-        } else {
+        } else if (window.history.length > 1) {
             window.history.back();
+        } else {
+            goto("/settings");
         }
     };
     return () => {
