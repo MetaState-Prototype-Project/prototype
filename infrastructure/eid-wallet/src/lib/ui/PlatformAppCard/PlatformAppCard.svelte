@@ -1,18 +1,50 @@
 <script lang="ts">
+    import { getPlatformKey } from "@metastate-foundation/platform-icons";
+    import blabsy from "@metastate-foundation/platform-icons/icons/blabsy.svg";
+    import charter from "@metastate-foundation/platform-icons/icons/charter.png";
+    import ecurrency from "@metastate-foundation/platform-icons/icons/ecurrency.png";
+    import eidW3ds from "@metastate-foundation/platform-icons/icons/eid-w3ds.png";
+    import emover from "@metastate-foundation/platform-icons/icons/emover.png";
+    import ereputation from "@metastate-foundation/platform-icons/icons/ereputation.png";
+    import esigner from "@metastate-foundation/platform-icons/icons/esigner.png";
+    import evoting from "@metastate-foundation/platform-icons/icons/evoting.png";
+    import fileManager from "@metastate-foundation/platform-icons/icons/file-manager.png";
+    import marketplace from "@metastate-foundation/platform-icons/icons/marketplace.ico";
+    import pictique from "@metastate-foundation/platform-icons/icons/pictique.svg";
+    import profileEditor from "@metastate-foundation/platform-icons/icons/profile-editor.png";
+    import w3ds from "@metastate-foundation/platform-icons/icons/w3dslogo.svg";
     /**
      * App card for platform-based scan drawers (auth, signing, reveal, logged in).
-     * Pulls the platform's icon from its own server so any future Metastate app
-     * works without code changes:
      *
-     *   1. https://{hostname}/apple-touch-icon.png  (180x180, brand bg baked in)
-     *   2. https://{hostname}/favicon.ico          (smaller, plainer)
-     *   3. Initial letter on a primary tint        (last resort)
+     * Icon resolution cascade:
+     *   1. `@metastate-foundation/platform-icons` — local bundled brand icons
+     *      keyed by subdomain (covers all Metastate platforms).
+     *   2. `https://{hostname}/apple-touch-icon.png` — third-party platforms
+     *      that ship a high-res touch icon.
+     *   3. `https://{hostname}/favicon.ico` — fallback for older platforms.
+     *   4. White initial letter on a primary-tinted square — last resort.
      *
-     * Layout: icon and card are stacked flex children — the icon sits on top of
-     * the card via `-mb-8` (pulls the card up so the icon's lower half overlaps
-     * the card's top). No absolute positioning, so no element extends outside
-     * the wrapper's box and nothing gets clipped by an ancestor's overflow.
+     * Layout: icon and card are stacked flex children — `-mb-8` on the icon
+     * pulls the card up so the icon's lower half overlaps the card's top.
      */
+    import { untrack } from "svelte";
+
+    const LOCAL_ICONS: Record<string, string> = {
+        blabsy,
+        charter,
+        ecurrency,
+        "eid-w3ds": eidW3ds,
+        emover,
+        ereputation,
+        esigner,
+        evoting,
+        "file-manager": fileManager,
+        marketplace,
+        pictique,
+        "profile-editor": profileEditor,
+        w3ds,
+    };
+
     interface IPlatformAppCardProps {
         hostname: string | null | undefined;
         platformName: string | null | undefined;
@@ -25,12 +57,23 @@
         class: classes = "",
     }: IPlatformAppCardProps = $props();
 
-    type Stage = "apple" | "favicon" | "fallback";
-    let stage = $state<Stage>("apple");
+    type Stage = "local" | "apple" | "favicon" | "fallback";
+
+    const localKey = $derived(getPlatformKey(hostname));
+    const localUrl = $derived(
+        localKey ? (LOCAL_ICONS[localKey] ?? null) : null,
+    );
+
+    // Start at the first stage that could produce a URL — skip "local" when we
+    // have no bundled icon, so the cascade doesn't wait on a load/error event
+    // that will never fire.
+    let stage = $state<Stage>(
+        untrack(() => (localUrl ? "local" : hostname ? "apple" : "fallback")),
+    );
 
     const iconUrl = $derived(
-        !hostname
-            ? null
+        stage === "local"
+            ? localUrl
             : stage === "apple"
               ? `https://${hostname}/apple-touch-icon.png`
               : stage === "favicon"
@@ -39,12 +82,13 @@
     );
 
     function handleError() {
-        if (stage === "apple") stage = "favicon";
+        if (stage === "local") stage = hostname ? "apple" : "fallback";
+        else if (stage === "apple") stage = "favicon";
         else if (stage === "favicon") stage = "fallback";
     }
 
-    // Some servers return 200 OK with an HTML page or a tiny placeholder
-    // for missing `/apple-touch-icon.png`, so `onerror` never fires. Treat
+    // Some servers return 200 OK with an HTML page or a tiny placeholder for
+    // missing `/apple-touch-icon.png`, so `onerror` never fires. Treat
     // suspiciously small loads as failures and advance the cascade.
     function handleLoad(e: Event) {
         const img = e.currentTarget as HTMLImageElement;
@@ -59,7 +103,7 @@
 
 <div class="flex flex-col items-center w-full {classes}">
     <div
-        class="relative z-10 w-16 h-16 rounded-2xl overflow-hidden bg-primary flex items-center justify-center shadow-md -mb-8"
+        class="relative z-10 w-16 h-16 rounded-2xl overflow-hidden bg-primary flex items-center justify-center -mb-8"
     >
         {#if iconUrl}
             <img
@@ -74,7 +118,7 @@
         {/if}
     </div>
     <div
-        class="bg-white rounded-3xl shadow-card pt-12 pb-6 mb-12 px-6 flex flex-col items-center gap-2 w-full"
+        class="bg-white rounded-3xl shadow-card pt-12 pb-6 px-6 flex flex-col items-center gap-2 w-full"
     >
         <h3 class="text-2xl font-bold text-black-900 capitalize text-center">
             {displayName}

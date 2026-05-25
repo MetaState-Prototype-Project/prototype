@@ -1,0 +1,27 @@
+{
+  "name": "@metastate-foundation/platform-icons",
+  "version": "0.1.0",
+  "description": "Shared brand icons for Metastate platforms (eVoting, Blabsy, etc.) keyed by subdomain.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "check-types": "tsc --noEmit"
+  },
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./icons/*": "./icons/*"
+  },
+  "files": [
+    "dist",
+    "icons"
+  ],
+  "devDependencies": {
+    "typescript": "~5.6.2"
+  }
+}

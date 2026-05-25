@@ -1,49 +1,49 @@
 <script lang="ts">
-    import { BottomSheet, PlatformAppCard } from "$lib/ui";
-    import * as Button from "$lib/ui/Button";
-    import { Cancel01Icon } from "@hugeicons/core-free-icons";
-    import { HugeiconsIcon } from "@hugeicons/svelte";
-    import { untrack } from "svelte";
+import { BottomSheet, PlatformAppCard } from "$lib/ui";
+import * as Button from "$lib/ui/Button";
+import { Cancel01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
+import { untrack } from "svelte";
 
-    interface IAuthDrawerProps {
-        isOpen: boolean;
-        platform: string | null | undefined;
-        hostname: string | null | undefined;
-        scannedContent: string | undefined;
-        isSigningRequest: boolean;
-        authError: string | null | undefined;
-        authLoading: boolean | undefined;
-        onConfirm: () => void;
-        onDecline: () => void;
-        onOpenChange: (value: boolean) => void;
+interface IAuthDrawerProps {
+    isOpen: boolean;
+    platform: string | null | undefined;
+    hostname: string | null | undefined;
+    scannedContent: string | undefined;
+    isSigningRequest: boolean;
+    authError: string | null | undefined;
+    authLoading: boolean | undefined;
+    onConfirm: () => void;
+    onDecline: () => void;
+    onOpenChange: (value: boolean) => void;
+}
+
+const {
+    isOpen,
+    platform,
+    hostname,
+    scannedContent,
+    isSigningRequest,
+    authError,
+    authLoading,
+    onConfirm,
+    onDecline,
+    onOpenChange,
+}: IAuthDrawerProps = $props();
+
+let internalOpen = $state(untrack(() => isOpen));
+let lastReportedOpen = $state(untrack(() => internalOpen));
+
+$effect(() => {
+    if (isOpen !== internalOpen) internalOpen = isOpen;
+});
+
+$effect(() => {
+    if (internalOpen !== lastReportedOpen) {
+        lastReportedOpen = internalOpen;
+        onOpenChange?.(internalOpen);
     }
-
-    const {
-        isOpen,
-        platform,
-        hostname,
-        scannedContent,
-        isSigningRequest,
-        authError,
-        authLoading,
-        onConfirm,
-        onDecline,
-        onOpenChange,
-    }: IAuthDrawerProps = $props();
-
-    let internalOpen = $state(untrack(() => isOpen));
-    let lastReportedOpen = $state(untrack(() => internalOpen));
-
-    $effect(() => {
-        if (isOpen !== internalOpen) internalOpen = isOpen;
-    });
-
-    $effect(() => {
-        if (internalOpen !== lastReportedOpen) {
-            lastReportedOpen = internalOpen;
-            onOpenChange?.(internalOpen);
-        }
-    });
+});
 </script>
 
 {#if internalOpen}
