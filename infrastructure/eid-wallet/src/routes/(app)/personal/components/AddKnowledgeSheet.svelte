@@ -80,8 +80,8 @@ function close() {
             </label>
             <input
                 id="kn-answer"
-                type="password"
-                autocomplete="new-password"
+                type="text"
+                autocomplete="off"
                 autocorrect="off"
                 autocapitalize="off"
                 spellcheck="false"
