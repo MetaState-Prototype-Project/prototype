@@ -1,34 +1,51 @@
 <script lang="ts">
-import { BottomSheet } from "$lib/ui";
+import { BottomSheet, ContactCard } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
-import { UserGroup02Icon } from "@hugeicons/core-free-icons";
+import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
+import { untrack } from "svelte";
 
-export let isOpen: boolean;
-export let requesterEname: string | null;
-export let requesterName: string | null;
-export let loading: boolean;
-export let error: string | null;
-export let success: boolean;
-export let relationDescription: string;
-export let onConfirm: () => void;
-export let onDecline: () => void;
-export let onOpenChange: (value: boolean) => void;
-export let onDescriptionChange: (value: string) => void;
-
-let internalOpen = isOpen;
-let lastReportedOpen = internalOpen;
-
-$: if (isOpen !== internalOpen) {
-    internalOpen = isOpen;
+interface ISocialBindingDrawerProps {
+    isOpen: boolean;
+    requesterEname: string | null;
+    requesterName: string | null;
+    loading: boolean;
+    error: string | null;
+    success: boolean;
+    relationDescription: string;
+    onConfirm: () => void;
+    onDecline: () => void;
+    onOpenChange: (value: boolean) => void;
+    onDescriptionChange: (value: string) => void;
 }
 
-$: if (internalOpen !== lastReportedOpen) {
-    lastReportedOpen = internalOpen;
-    onOpenChange?.(internalOpen);
-}
+const {
+    isOpen,
+    requesterEname,
+    requesterName,
+    loading,
+    error,
+    success,
+    relationDescription,
+    onConfirm,
+    onDecline,
+    onOpenChange,
+    onDescriptionChange,
+}: ISocialBindingDrawerProps = $props();
 
-$: displayName = requesterName ?? requesterEname ?? "Unknown";
+let internalOpen = $state(untrack(() => isOpen));
+let lastReportedOpen = $state(untrack(() => internalOpen));
+
+$effect(() => {
+    if (isOpen !== internalOpen) internalOpen = isOpen;
+});
+
+$effect(() => {
+    if (internalOpen !== lastReportedOpen) {
+        lastReportedOpen = internalOpen;
+        onOpenChange?.(internalOpen);
+    }
+});
 </script>
 
 {#if internalOpen}
@@ -42,90 +59,56 @@ $: displayName = requesterName ?? requesterEname ?? "Unknown";
         class="gap-5"
     >
         <div class="flex h-full w-full flex-col">
-            <div class="min-h-0 flex flex-1 flex-col items-start overflow-y-auto pt-2">
-                <div
-                    class="flex justify-center mb-4 relative items-center overflow-hidden {success
-                        ? 'bg-green-100'
-                        : 'bg-gray-50'} rounded-xl p-4 h-[72px] w-[72px]"
-                >
-                    <div
-                        class="{success
-                            ? 'bg-green-500'
-                            : 'bg-white'} h-4 w-[200px] -rotate-45 absolute top-1"
-                    ></div>
-                    <div
-                        class="{success
-                            ? 'bg-green-500'
-                            : 'bg-white'} h-4 w-[200px] -rotate-45 absolute bottom-1"
-                    ></div>
-                    <HugeiconsIcon
-                        size={40}
-                        className="z-10"
-                        icon={UserGroup02Icon}
-                        strokeWidth={1.5}
-                        color={success
-                            ? "var(--color-success)"
-                            : "var(--color-primary)"}
-                    />
+            {#if !success}
+                <div class="flex justify-end pt-2">
+                    <button
+                        type="button"
+                        onclick={onDecline}
+                        disabled={loading}
+                        aria-label="Close"
+                        class="w-9 h-9 rounded-full bg-gray-100 text-black-700 flex items-center justify-center active:opacity-80 disabled:opacity-40"
+                    >
+                        <HugeiconsIcon
+                            icon={Cancel01Icon}
+                            size={18}
+                            strokeWidth={2}
+                        />
+                    </button>
+                </div>
+            {/if}
+
+            <div
+                class="min-h-0 flex flex-1 flex-col items-center pt-4 gap-6"
+            >
+                <div class="flex flex-col items-center gap-2 px-4">
+                    <h4
+                        id="social-binding-title"
+                        class="text-2xl font-bold text-center leading-tight {success
+                            ? 'text-green-800'
+                            : 'text-black-900'}"
+                    >
+                        {success
+                            ? "Binding signed!"
+                            : "You have scanned a\nsocial binding QR code"}
+                    </h4>
+                    <p class="text-sm leading-relaxed text-black-500 text-center">
+                        {#if success}
+                            You've signed the social identity binding. The
+                            counterparty will counter-sign to complete the
+                            mutual binding.
+                        {:else}
+                            Please review the identity below before proceeding.
+                        {/if}
+                    </p>
                 </div>
 
-                <h4
-                    id="social-binding-title"
-                    class="text-lg font-bold {success ? 'text-green-800' : ''}"
-                >
-                    {success ? "Binding Signed!" : "Social Identity Binding"}
-                </h4>
-
-                <p class="mt-1 text-sm leading-relaxed text-black-700">
-                    {#if success}
-                        You've signed the social identity binding for <strong>{displayName}</strong>.
-                        They will counter-sign to complete the mutual binding.
-                    {:else}
-                        Please review the identity below before proceeding.
-                    {/if}
-                </p>
+                <ContactCard
+                    eName={requesterEname}
+                    name={requesterName}
+                />
 
                 {#if !success}
-                    <div
-                        class="w-full mt-6 border border-gray-100 rounded-2xl overflow-hidden bg-gray-50"
-                    >
-                        <table class="w-full border-collapse">
-                            <tbody class="divide-y divide-gray-200">
-                                <tr>
-                                    <td class="align-top py-3 px-4">
-                                        <div
-                                            class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
-                                        >
-                                            Name
-                                        </div>
-                                        <div
-                                            class="text-sm text-black-700 font-medium mt-1 block"
-                                        >
-                                            {displayName}
-                                        </div>
-                                    </td>
-                                </tr>
-                                {#if requesterEname}
-                                    <tr>
-                                        <td class="align-top py-3 px-4">
-                                            <div
-                                                class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
-                                            >
-                                                eID
-                                            </div>
-                                            <div
-                                                class="text-sm text-black-700 font-medium break-all mt-1 block"
-                                            >
-                                                {requesterEname}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                {/if}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="w-full mt-4">
+                    <div class="w-full">
                         <label
                             for="relation-description"
                             class="text-xs font-semibold text-black-500 uppercase tracking-wider block mb-1"
@@ -138,13 +121,14 @@ $: displayName = requesterName ?? requesterEname ?? "Unknown";
                             rows="3"
                             placeholder="Describe how you know this person..."
                             value={relationDescription}
-                            oninput={(e) => onDescriptionChange(e.currentTarget.value)}
+                            oninput={(e) =>
+                                onDescriptionChange(e.currentTarget.value)}
                         ></textarea>
                     </div>
 
                     {#if error}
                         <div
-                            class="bg-red-50 border border-red-200 rounded-lg p-4 mt-4 w-full text-sm text-red-700"
+                            class="bg-red-50 border border-red-200 rounded-2xl p-4 w-full text-sm text-red-700"
                         >
                             {error}
                         </div>
@@ -169,7 +153,7 @@ $: displayName = requesterName ?? requesterEname ?? "Unknown";
                             >
                         {:else}
                             <Button.Action
-                                variant="danger-soft"
+                                variant="soft"
                                 class="w-full"
                                 callback={onDecline}>Decline</Button.Action
                             >

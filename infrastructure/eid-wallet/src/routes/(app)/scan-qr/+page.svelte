@@ -225,6 +225,7 @@ function handleSocialBindingOpenChange(value: boolean) {
 <LoggedInDrawer
     isOpen={$loggedInDrawerOpen}
     platform={$platform}
+    hostname={$hostname}
     redirect={$redirect}
     onConfirm={handleLoggedInDrawerConfirm}
     onOpenChange={handleLoggedInDrawerOpenChange}
@@ -240,6 +241,8 @@ function handleSocialBindingOpenChange(value: boolean) {
     isSubmittingBlindVote={$isSubmittingBlindVote}
     loading={$loading}
     signingError={$signingError}
+    platform={$platform}
+    hostname={$hostname}
     onDecline={handleSigningDrawerDecline}
     onSign={handleSignVote}
     onBlindVoteOptionChange={handleBlindVoteOptionChange}
@@ -255,6 +258,8 @@ function handleSocialBindingOpenChange(value: boolean) {
     revealPollId={$revealPollId}
     revealError={$revealError}
     isRevealingVote={$isRevealingVote}
+    platform={$platform}
+    hostname={$hostname}
     onCancel={handleRevealDrawerCancel}
     onReveal={handleRevealVote}
     onOpenChange={handleRevealDrawerOpenChange}

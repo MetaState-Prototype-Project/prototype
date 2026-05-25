@@ -6,3 +6,5 @@ export { default as ButtonAction } from "./Button/ButtonAction.svelte";
 export { default as Selector } from "./Selector/Selector.svelte";
 export { default as Toast } from "./Toast/Toast.svelte";
 export { default as CameraPermissionDialog } from "./CameraPermissionDialog/CameraPermissionDialog.svelte";
+export { default as PlatformAppCard } from "./PlatformAppCard/PlatformAppCard.svelte";
+export { default as ContactCard } from "./ContactCard/ContactCard.svelte";
