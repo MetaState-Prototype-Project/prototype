@@ -166,7 +166,7 @@ const handleNameComplete = async (enteredName: string) => {
 
     try {
         globalState.userController.isFake = true;
-        await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
+        await globalState.keyService.ensureKey();
 
         const provisionResult = await provision(globalState.walletSdkAdapter, {
             registryUrl: PUBLIC_REGISTRY_URL,
@@ -211,11 +211,7 @@ const handleNameComplete = async (enteredName: string) => {
             type: "self",
             data: bindingData,
         });
-        const signature = await globalState.walletSdkAdapter.signPayload(
-            KEY_ID,
-            "signing",
-            payload,
-        );
+        const signature = await globalState.keyService.sign(payload);
 
         const gqlClient = new GraphQLClient(graphqlEndpoint, {
             headers: {
@@ -259,7 +255,7 @@ const handleNameComplete = async (enteredName: string) => {
 
         // Persist user + vault, then mark onboarding done.
         globalState.userController.user = { name: enteredName };
-        globalState.vaultController.vault = { uri, ename };
+        await globalState.vaultController.setVaultAndPersist({ uri, ename });
         globalState.isOnboardingComplete = true;
 
         // TODO(next): step = "welcome" once the Welcome screen is built.
@@ -338,7 +334,7 @@ const handleKycNext = async () => {
     duplicateExistingW3id = null;
     duplicateDocumentNumber = null;
     try {
-        await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
+        await globalState.keyService.ensureKey();
 
         const { data } = await axios.post(
             new URL("/verification/v2", PUBLIC_PROVISIONER_URL).toString(),
@@ -534,10 +530,10 @@ const handleProvision = async () => {
             );
         }
 
-        globalState.vaultController.vault = {
+        await globalState.vaultController.setVaultAndPersist({
             uri: result.uri,
             ename: result.w3id,
-        };
+        });
         goto("/register");
     } catch (err) {
         console.error("Provisioning failed:", err);
@@ -568,7 +564,7 @@ const handleAnonymousSubmit = async () => {
 
     try {
         globalState.userController.isFake = true;
-        await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
+        await globalState.keyService.ensureKey();
 
         const provisionResult = await provision(globalState.walletSdkAdapter, {
             registryUrl: PUBLIC_REGISTRY_URL,
@@ -619,11 +615,7 @@ const handleAnonymousSubmit = async () => {
             type: "self",
             data: bindingData,
         });
-        const signature = await globalState.walletSdkAdapter.signPayload(
-            KEY_ID,
-            "signing",
-            payload,
-        );
+        const signature = await globalState.keyService.sign(payload);
 
         const gqlClient = new GraphQLClient(graphqlEndpoint, {
             headers: {

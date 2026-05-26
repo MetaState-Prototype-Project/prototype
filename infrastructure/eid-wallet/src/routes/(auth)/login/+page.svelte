@@ -39,34 +39,42 @@ async function clearPin() {
 }
 
 async function continueAfterSuccessfulAuth(gs: GlobalState) {
+    // Fire-and-forget post-login chores. These hit the network with no client
+    // timeout, so awaiting them here can strand the user on the "Logging you
+    // in…" spinner indefinitely. The app pages will retry as needed.
     try {
         const vault = await gs.vaultController.vault;
         if (vault?.ename) {
-            const healthCheck = await gs.vaultController.checkHealth(
-                vault.ename,
-            );
-            if (!healthCheck.healthy) {
-                console.warn("eVault health check failed:", healthCheck.error);
-                // Non-blocking — continue to the app.
-            }
-
-            try {
-                await gs.vaultController.syncPublicKey(vault.ename);
-            } catch (error) {
-                console.error("Error syncing public key:", error);
-            }
-
-            try {
-                await gs.notificationService.registerDevice(vault.ename);
-            } catch (error) {
-                console.error(
-                    "Error registering device for notifications:",
-                    error,
+            const ename = vault.ename;
+            void gs.vaultController
+                .checkHealth(ename)
+                .then((health) => {
+                    if (!health.healthy) {
+                        console.warn(
+                            "eVault health check failed:",
+                            health.error,
+                        );
+                    }
+                })
+                .catch((error) =>
+                    console.error("eVault health check error:", error),
                 );
-            }
+            void gs.vaultController
+                .syncPublicKey(ename)
+                .catch((error) =>
+                    console.error("Error syncing public key:", error),
+                );
+            void gs.notificationService
+                .registerDevice(ename)
+                .catch((error) =>
+                    console.error(
+                        "Error registering device for notifications:",
+                        error,
+                    ),
+                );
         }
     } catch (error) {
-        console.error("Error during eVault health check:", error);
+        console.error("Error reading vault during login:", error);
     }
 
     const pendingDeepLink = sessionStorage.getItem("pendingDeepLink");

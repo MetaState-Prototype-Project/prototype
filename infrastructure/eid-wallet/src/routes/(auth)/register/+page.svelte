@@ -85,11 +85,12 @@ const finishOnboarding = async () => {
         globalState.userController.isFake = false;
         globalState.userController.user = recovery.user;
         globalState.userController.document = recovery.document;
-        // vault is NOT set here — deferred to e-passport handleFinish
-        // pendingRecovery is cleared there too
+        // vault is NOT set here — deferred to e-passport handleFinish.
     }
-
-    globalState.isOnboardingComplete = true;
+    // isOnboardingComplete is set in e-passport/handleFinish AFTER the review
+    // + ePassport screens. Setting it now makes the auth guard treat the user
+    // as logged in and bounces them from /review straight to /login, never
+    // letting them see "Here's your eName" or finish the flow.
     goto("/review");
 };
 

@@ -33,9 +33,20 @@ onMount(async () => {
             return;
         }
 
-        const vault = await globalState.vaultController.vault;
+        // Brief retry — store reads can race the just-completed write from
+        // the previous route (onboarding / e-passport / login).
+        let vault = await globalState.vaultController.vault;
+        let vaultRetries = 0;
+        while (!vault && vaultRetries < 10) {
+            await new Promise((r) => setTimeout(r, 100));
+            vault = await globalState.vaultController.vault;
+            vaultRetries++;
+        }
         if (!vault) {
-            console.log("User not authenticated, redirecting to login");
+            console.log(
+                "[APP GUARD] vault missing after retry, redirecting to login | path:",
+                page.url.pathname,
+            );
             await goto("/login");
             return;
         }

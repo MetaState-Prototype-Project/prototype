@@ -17,15 +17,31 @@ const handleFinish = async () => {
     if (recovery) {
         localStorage.setItem(RECOVERY_SKIP_PROFILE_SETUP_KEY, "true");
         // Recovery can happen on a fresh device, so make sure a key exists
-        // and is synced immediately before entering the app.
-        await globalState.walletSdkAdapter.ensureKey("default", "onboarding");
-        globalState.vaultController.vault = {
+        // before navigating into the app. If this throws we surface it rather
+        // than silently navigating into a broken state.
+        try {
+            await globalState.keyService.ensureKey();
+        } catch (error) {
+            console.error(
+                "[e-passport] ensureKey failed during recovery:",
+                error,
+            );
+            return;
+        }
+        // setVaultAndPersist awaits the store write — the plain `vault =`
+        // setter races the (app) auth guard, which reads vault from the
+        // store on the next route and bounces back to /login if the write
+        // hasn't landed yet. Background chores stay fire-and-forget inside.
+        await globalState.vaultController.setVaultAndPersist({
             uri: recovery.uri,
             ename: recovery.ename,
-        };
-        await globalState.vaultController.syncPublicKey(recovery.ename);
+        });
         pendingRecovery.set(null);
     }
+    // Mark onboarding complete for BOTH recovery and normal-onboarding flows.
+    // Setting it earlier (in register) makes the auth guard at /review and
+    // /e-passport treat the user as logged in and bounce them to /login.
+    globalState.isOnboardingComplete = true;
     await goto("/main");
 };
 

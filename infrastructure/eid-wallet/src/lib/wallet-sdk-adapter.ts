@@ -1,30 +1,25 @@
 import type { KeyService } from "$lib/global/controllers/key";
-import type { KeyServiceContext } from "$lib/global/controllers/key";
 import type { CryptoAdapter } from "wallet-sdk";
 
 /**
- * Adapts KeyService to wallet-sdk CryptoAdapter (BYOC).
+ * Adapts KeyService to the wallet-sdk CryptoAdapter shape.
+ *
+ * The wallet-sdk interface takes (keyId, context) because it is a general-purpose
+ * SDK; eid-wallet only ever has one key, so we ignore both arguments and delegate
+ * to the single-key KeyService.
  */
 export function createKeyServiceCryptoAdapter(
     keyService: KeyService,
 ): CryptoAdapter {
     return {
-        async getPublicKey(keyId: string, context: string) {
-            return keyService.getPublicKey(keyId, context as KeyServiceContext);
+        async getPublicKey() {
+            return keyService.getPublicKey();
         },
-        async signPayload(keyId: string, context: string, payload: string) {
-            return keyService.signPayload(
-                keyId,
-                context as KeyServiceContext,
-                payload,
-            );
+        async signPayload(_keyId, _context, payload) {
+            return keyService.sign(payload);
         },
-        async ensureKey(keyId: string, context: string) {
-            const { created } = await keyService.ensureKey(
-                keyId,
-                context as KeyServiceContext,
-            );
-            return { created };
+        async ensureKey() {
+            return keyService.ensureKey();
         },
     };
 }

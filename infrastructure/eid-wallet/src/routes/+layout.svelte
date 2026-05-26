@@ -8,7 +8,11 @@ import { GlobalState } from "$lib/global/state";
 
 import { runtime } from "$lib/global/runtime.svelte";
 import { swipedetect } from "$lib/utils";
+import { installTerminalConsoleBridge } from "$lib/utils/terminalConsole";
 import { type Status, checkStatus } from "@tauri-apps/plugin-biometric";
+
+// Mirror console.* to the Tauri host stdout so logs land in `pnpm tauri dev`.
+installTerminalConsoleBridge();
 
 const { children } = $props();
 

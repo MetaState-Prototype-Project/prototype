@@ -118,11 +118,7 @@ async function confirm() {
             type: pendingDocParsed.type,
             data: pendingDocParsed.data,
         });
-        const sig = await globalState.walletSdkAdapter.signPayload(
-            "default",
-            "signing",
-            canonical,
-        );
+        const sig = await globalState.keyService.sign(canonical);
         await addCounterpartySignature(
             gqlUrl,
             callerEname,

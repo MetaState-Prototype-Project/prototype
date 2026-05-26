@@ -6,127 +6,93 @@ import {
     verifySignature as hwVerifySignature,
 } from "@auvo/tauri-plugin-crypto-hw-api";
 import type { KeyManager } from "./types";
-import { KeyManagerError, KeyManagerErrorCodes } from "./types";
+import {
+    KeyManagerError,
+    KeyManagerErrorCodes,
+    WALLET_KEY_ALIAS,
+} from "./types";
 
 /**
- * Hardware key manager implementation using Tauri crypto hardware API
+ * Hardware-backed key manager. Uses Android Keystore / iOS Secure Enclave / TPM
+ * via the Tauri crypto-hw plugin. Errors propagate to the caller; there is no
+ * silent fallback to software at this layer.
  */
 export class HardwareKeyManager implements KeyManager {
     getType(): "hardware" | "software" {
         return "hardware";
     }
 
-    async exists(keyId: string): Promise<boolean> {
+    async exists(): Promise<boolean> {
         try {
-            return await hwExists(keyId);
+            return await hwExists(WALLET_KEY_ALIAS);
         } catch (error) {
-            console.error("Hardware key exists check failed:", error);
             throw new KeyManagerError(
-                "Failed to check if hardware key exists",
+                `Hardware key exists check failed: ${stringifyError(error)}`,
                 KeyManagerErrorCodes.HARDWARE_UNAVAILABLE,
-                keyId,
             );
         }
     }
 
-    async generate(keyId: string): Promise<string | undefined> {
+    async generate(): Promise<void> {
         try {
-            const result = await hwGenerate(keyId);
-            console.log(`Hardware key generated for ${keyId}:`, result);
-            return result;
+            await hwGenerate(WALLET_KEY_ALIAS);
         } catch (error) {
-            console.error("Hardware key generation failed:", error);
             throw new KeyManagerError(
-                "Failed to generate hardware key",
+                `Hardware key generation failed: ${stringifyError(error)}`,
                 KeyManagerErrorCodes.KEY_GENERATION_FAILED,
-                keyId,
             );
         }
     }
 
-    async getPublicKey(keyId: string): Promise<string | undefined> {
+    async getPublicKey(): Promise<string> {
         try {
-            const publicKey = await hwGetPublicKey(keyId);
-            console.log(
-                `Hardware public key retrieved for ${keyId}:`,
-                publicKey,
-            );
-            return publicKey;
-        } catch (error) {
-            console.error("Hardware public key retrieval failed:", error);
-            throw new KeyManagerError(
-                "Failed to get hardware public key",
-                KeyManagerErrorCodes.KEY_NOT_FOUND,
-                keyId,
-            );
-        }
-    }
-
-    async signPayload(keyId: string, payload: string): Promise<string> {
-        try {
-            console.log("=".repeat(70));
-            console.log("🔐 [HardwareKeyManager] signPayload called");
-            console.log("=".repeat(70));
-            console.log(`Key ID: ${keyId}`);
-            console.log(`Payload: "${payload}"`);
-            console.log(`Payload length: ${payload.length} bytes`);
-            const payloadHex = Array.from(new TextEncoder().encode(payload))
-                .map((b) => b.toString(16).padStart(2, "0"))
-                .join("");
-            console.log(`Payload (hex): ${payloadHex}`);
-
-            // Get and log the public key
-            try {
-                const publicKey = await this.getPublicKey(keyId);
-                if (publicKey) {
-                    console.log(`Public key: ${publicKey.substring(0, 60)}...`);
-                    console.log(`Public key (full): ${publicKey}`);
-                } else {
-                    console.log("⚠️  Public key not available");
-                }
-            } catch (error) {
-                console.log(
-                    `⚠️  Failed to get public key: ${error instanceof Error ? error.message : String(error)}`,
+            const pk = await hwGetPublicKey(WALLET_KEY_ALIAS);
+            if (!pk) {
+                throw new KeyManagerError(
+                    "Hardware key not found",
+                    KeyManagerErrorCodes.KEY_NOT_FOUND,
                 );
             }
-
-            console.log("Signing with hardware key...");
-            const signature = await hwSignPayload(keyId, payload);
-            console.log(`✅ Hardware signature created for ${keyId}`);
-            console.log(`Signature: ${signature.substring(0, 50)}...`);
-            console.log(`Signature (full): ${signature}`);
-            console.log(`Signature length: ${signature.length} chars`);
-            console.log("=".repeat(70));
-            return signature;
+            return pk;
         } catch (error) {
-            console.error("❌ Hardware signing failed:", error);
+            if (error instanceof KeyManagerError) throw error;
             throw new KeyManagerError(
-                "Failed to sign payload with hardware key",
+                `Hardware public key retrieval failed: ${stringifyError(error)}`,
+                KeyManagerErrorCodes.KEY_NOT_FOUND,
+            );
+        }
+    }
+
+    async signPayload(payload: string): Promise<string> {
+        try {
+            return await hwSignPayload(WALLET_KEY_ALIAS, payload);
+        } catch (error) {
+            throw new KeyManagerError(
+                `Hardware signing failed: ${stringifyError(error)}`,
                 KeyManagerErrorCodes.SIGNING_FAILED,
-                keyId,
             );
         }
     }
 
     async verifySignature(
-        keyId: string,
         payload: string,
         signature: string,
     ): Promise<boolean> {
         try {
-            const isValid = await hwVerifySignature(keyId, payload, signature);
-            console.log(
-                `Hardware signature verification for ${keyId}:`,
-                isValid,
+            return await hwVerifySignature(
+                WALLET_KEY_ALIAS,
+                payload,
+                signature,
             );
-            return isValid;
         } catch (error) {
-            console.error("Hardware signature verification failed:", error);
             throw new KeyManagerError(
-                "Failed to verify signature with hardware key",
+                `Hardware signature verification failed: ${stringifyError(error)}`,
                 KeyManagerErrorCodes.VERIFICATION_FAILED,
-                keyId,
             );
         }
     }
+}
+
+function stringifyError(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
 }

@@ -744,11 +744,7 @@ export function createScanLogic({
                 } as Record<string, unknown>,
             };
             const payload = getCanonicalBindingDocString(doc);
-            const sig = await globalState.walletSdkAdapter.signPayload(
-                "default",
-                "signing",
-                payload,
-            );
+            const sig = await globalState.keyService.sign(payload);
 
             await createSocialConnectionDoc(
                 requesterGqlUrl,
@@ -782,11 +778,7 @@ export function createScanLogic({
                     const mirrorPayload =
                         getCanonicalBindingDocString(mirrorDoc);
                     const mirrorSig =
-                        await globalState.walletSdkAdapter.signPayload(
-                            "default",
-                            "signing",
-                            mirrorPayload,
-                        );
+                        await globalState.keyService.sign(mirrorPayload);
                     await createOwnSocialBindingMirror(
                         ownGqlUrl,
                         signerEname,
@@ -1015,8 +1007,7 @@ export function createScanLogic({
                 throw new Error("No vault available for blind voting");
             }
 
-            // Same default key via wallet-sdk adapter (no separate signing context)
-            await globalState.walletSdkAdapter.ensureKey("default", "signing");
+            await globalState.keyService.ensureKey();
 
             const voterPublicKey = vault.ename;
             if (!voterPublicKey) {

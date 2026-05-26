@@ -75,6 +75,20 @@ async fn get_platform() -> Result<String, String> {
     return Ok("unknown".to_string());
 }
 
+/// Forwards a frontend log line to the Tauri host process stdout/stderr so
+/// devs can see console output in the terminal that ran `tauri dev`, without
+/// needing the WebView devtools to be attachable.
+#[tauri::command]
+fn log_to_terminal(level: String, message: String) {
+    match level.as_str() {
+        "error" => eprintln!("[FE error] {}", message),
+        "warn" => eprintln!("[FE warn]  {}", message),
+        "info" => println!("[FE info]  {}", message),
+        "debug" => println!("[FE debug] {}", message),
+        _ => println!("[FE log]   {}", message),
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -97,7 +111,8 @@ pub fn run() {
             hash,
             verify,
             get_device_id,
-            get_platform
+            get_platform,
+            log_to_terminal
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
