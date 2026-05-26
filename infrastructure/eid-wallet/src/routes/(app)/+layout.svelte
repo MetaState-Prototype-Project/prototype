@@ -94,10 +94,19 @@ onDestroy(() => {
     notificationListener?.unregister();
 });
 
+// Wait for the route slide-in to finish (200ms in the root layout) before
+// making the wrapper transparent — otherwise the camera-feed transparency
+// kicks in mid-slide and /main shows through the incoming /scan-qr page.
 $effect(() => {
     const isScanPage = currentRoute === "scan-qr";
-    if (isScanPage) return document.body.classList.add("custom-global-style");
-    return document.body.classList.remove("custom-global-style");
+    if (isScanPage) {
+        const t = setTimeout(
+            () => document.body.classList.add("custom-global-style"),
+            220,
+        );
+        return () => clearTimeout(t);
+    }
+    document.body.classList.remove("custom-global-style");
 });
 </script>
 

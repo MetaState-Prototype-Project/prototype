@@ -167,7 +167,7 @@ function handleSocialBindingOpenChange(value: boolean) {
 }
 </script>
 
-<AppNav title="Scan QR Code" titleClasses="text-white" iconColor="white" />
+<AppNav title="Scan QR Code" titleClasses="text-white" />
 
 <div
     class="flex flex-col justify-center items-center min-h-[calc(100vh-200px)] pb-20"
