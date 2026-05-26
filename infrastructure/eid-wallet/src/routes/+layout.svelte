@@ -2,7 +2,7 @@
 import { onDestroy, onMount, setContext } from "svelte";
 import { cubicOut } from "svelte/easing";
 import "../app.css";
-import { goto, onNavigate, preloadCode } from "$app/navigation";
+import { beforeNavigate, goto, onNavigate, preloadCode } from "$app/navigation";
 import { page } from "$app/state";
 import { GlobalState } from "$lib/global/state";
 
@@ -702,6 +702,37 @@ onNavigate((navigation) => {
         routeDirection = "forward";
         navigationStack.push(to);
     }
+});
+
+// Pre-app auth routes — system/browser back must NOT land here once the user
+// has reached an (app) route, otherwise pressing Android back from /main
+// surfaces /login or /onboarding and the user can re-trigger flows they
+// already finished. Forward navigations are unaffected. beforeNavigate must
+// run synchronously, so we use the navigation stack as the "is signed in"
+// proxy: if the user has ever landed on an (app) route in this session, any
+// back-nav to an auth screen is blocked.
+const AUTH_PATHS = new Set(["/", "/login", "/onboarding", "/recover"]);
+const APP_PATH_PREFIXES = [
+    "/main",
+    "/scan-qr",
+    "/personal",
+    "/social-bindings",
+    "/ePassport",
+    "/settings",
+    "/notifications",
+    "/open-message",
+];
+const isAppPath = (p: string) =>
+    APP_PATH_PREFIXES.some(
+        (prefix) => p === prefix || p.startsWith(`${prefix}/`),
+    );
+
+beforeNavigate((navigation) => {
+    if (navigation.type !== "popstate") return;
+    const to = navigation.to?.url.pathname;
+    if (!to || !AUTH_PATHS.has(to)) return;
+    if (!navigationStack.some(isAppPath)) return;
+    navigation.cancel();
 });
 
 $effect(() => {

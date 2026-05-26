@@ -42,7 +42,7 @@ $effect(() => {
     <!-- Portaled so `fixed` anchors to the viewport, not a transformed ancestor. -->
     <div use:portal>
         <div
-            class="fixed inset-0 z-40 bg-black/40"
+            class="fixed inset-0 z-40 bg-black/30 backdrop-blur-md"
             aria-hidden="true"
             onclick={handleClose}
             transition:fade={{ duration: 200 }}

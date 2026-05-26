@@ -4,7 +4,7 @@ import { keyboardInset } from "$lib/actions/keyboardInset";
 import type { GlobalState } from "$lib/global";
 import { runtime } from "$lib/global/runtime.svelte";
 import { BottomSheet, ButtonAction, PinDots } from "$lib/ui";
-import { CircleLock01Icon } from "@hugeicons/core-free-icons";
+import { CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import { getContext, onMount } from "svelte";
 
@@ -156,21 +156,41 @@ onMount(() => {
 </main>
 
 <BottomSheet bind:isOpen={showSuccess} dismissible={false}>
-    <div
-        class="relative bg-gray w-18 h-18 rounded-3xl flex justify-center items-center mb-[2.3svh]"
-    >
-        <span class="relative z-1">
-            <HugeiconsIcon
-                icon={CircleLock01Icon}
-                color="var(--color-primary)"
+    <div class="flex flex-col items-center text-center gap-6 pt-2 pb-2">
+        <div
+            class="relative bg-gray w-24 h-24 rounded-3xl flex justify-center items-center"
+        >
+            <span class="relative z-1">
+                <HugeiconsIcon
+                    icon={CheckmarkCircle02Icon}
+                    size={44}
+                    color="var(--color-primary)"
+                />
+            </span>
+            <img
+                class="absolute top-0 inset-s-0"
+                src="/images/Line.svg"
+                alt=""
+                aria-hidden="true"
             />
-        </span>
-        <img class="absolute top-0 inset-s-0" src="/images/Line.svg" alt="" />
-        <img class="absolute top-0 inset-s-0" src="/images/Line2.svg" alt="" />
+            <img
+                class="absolute top-0 inset-s-0"
+                src="/images/Line2.svg"
+                alt=""
+                aria-hidden="true"
+            />
+        </div>
+        <div class="max-w-xs">
+            <h4 class="text-xl font-bold mb-2">PIN code changed</h4>
+            <p class="text-black-700 text-sm">
+                Your new PIN is now active. Use it the next time you sign in.
+            </p>
+        </div>
+        <ButtonAction
+            class="w-full uppercase tracking-wide"
+            callback={handleClose}
+        >
+            Done
+        </ButtonAction>
     </div>
-    <h4>PIN code changed!</h4>
-    <p class="text-black-700 mt-[0.5svh] mb-[2.3svh]">
-        Your PIN has been changed.
-    </p>
-    <ButtonAction class="w-full" callback={handleClose}>Close</ButtonAction>
 </BottomSheet>

@@ -311,7 +311,11 @@ async function recoverVault() {
             document,
         });
 
-        await goto("/register");
+        // Recovery joins the onboarding step machine: it skips the name step
+        // (recovery already has the name) and the final action after the
+        // biometrics step persists the recovered vault instead of provisioning
+        // a new one.
+        await goto("/onboarding", { replaceState: true });
     } catch (err) {
         console.error("[RECOVERY] store failed:", err);
         errorMessage = "Failed to restore your eVault. Please try again.";

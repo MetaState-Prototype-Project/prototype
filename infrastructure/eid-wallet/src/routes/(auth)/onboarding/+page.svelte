@@ -8,6 +8,7 @@ import {
 } from "$env/static/public";
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
+import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction } from "$lib/ui";
 import { capitalize, getCanonicalBindingDocString } from "$lib/utils";
 import axios from "axios";
@@ -15,8 +16,10 @@ import { GraphQLClient } from "graphql-request";
 import { getContext, onMount, tick } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
 import { cubicOut } from "svelte/easing";
+import { get } from "svelte/store";
 import { v4 as uuidv4 } from "uuid";
 import { provision } from "wallet-sdk";
+import BiometricsSetup from "./steps/BiometricsSetup.svelte";
 import NameInput from "./steps/NameInput.svelte";
 import PinCreate from "./steps/PinCreate.svelte";
 import PinRepeat from "./steps/PinRepeat.svelte";
@@ -27,6 +30,7 @@ const KEY_ID = "default";
 type Step =
     | "pin-create"
     | "pin-repeat"
+    | "biometrics"
     | "name"
     | "home"
     | "new-evault"
@@ -35,6 +39,8 @@ type Step =
     | "verif-result"
     | "anonymous-form"
     | "loading";
+
+const RECOVERY_SKIP_PROFILE_SETUP_KEY = "recoverySkipProfileSetup";
 
 interface DiditWarning {
     short_description?: string;
@@ -75,10 +81,16 @@ let step = $state<Step>("pin-create");
 let error = $state<string | null>(null);
 let loading = $state(false);
 
-// New-onboarding flow state (PIN create -> repeat -> name -> new-evault)
+// New-onboarding flow state (PIN create -> repeat -> biometrics -> name)
 let pinFirstAttempt = $state("");
 let chosenName = $state("");
 let nameError = $state<string | null>(null);
+
+// Recovery mode is set in onMount if pendingRecovery is populated. In recovery
+// we skip the name step (recovery already provides a user) and the final action
+// after biometrics is "persist the recovered vault" instead of "provision new".
+let isRecovery = $state(false);
+let recoveryError = $state<string | null>(null);
 
 const handlePinCreateBack = () => {
     // Skip the splash A→B intro on the way back — the route slide is the
@@ -150,12 +162,69 @@ const handlePinRepeatComplete = async (confirmedPin: string) => {
         pinFirstAttempt,
         confirmedPin,
     );
+    goToStep("biometrics", "forward");
+};
+
+const handleBiometricsBack = () => {
+    goToStep("pin-repeat", "backward");
+};
+
+const handleBiometricsEnable = async () => {
+    try {
+        globalState.securityController.biometricSupport = true;
+    } catch (err) {
+        console.warn("[onboarding] biometric enable failed:", err);
+    }
+    await advancePastBiometrics();
+};
+
+const handleBiometricsSkip = async () => {
+    await advancePastBiometrics();
+};
+
+/**
+ * After biometrics, branch on recovery vs new onboarding:
+ *  - Recovery: persist the recovered vault and land on /main (the WelcomeTour
+ *    on /main does the animated identity reveal that used to live in
+ *    /review + /e-passport).
+ *  - New onboarding: continue to the name step → anonymous provisioning.
+ */
+const advancePastBiometrics = async () => {
+    if (isRecovery) {
+        await completeRecovery();
+        return;
+    }
     goToStep("name", "forward");
+};
+
+const completeRecovery = async () => {
+    const recovery = get(pendingRecovery);
+    if (!recovery) {
+        recoveryError = "Recovery data lost. Please start recovery again.";
+        return;
+    }
+    step = "loading";
+    try {
+        localStorage.setItem(RECOVERY_SKIP_PROFILE_SETUP_KEY, "true");
+        await globalState.keyService.ensureKey();
+        await globalState.vaultController.setVaultAndPersist({
+            uri: recovery.uri,
+            ename: recovery.ename,
+        });
+        pendingRecovery.set(null);
+        globalState.isOnboardingComplete = true;
+        await goto("/main", { replaceState: true });
+    } catch (err) {
+        console.error("[onboarding] recovery completion failed:", err);
+        recoveryError =
+            "Couldn't restore your eVault. Check your connection and try again.";
+        step = "biometrics";
+    }
 };
 
 const handleNameBack = () => {
     nameError = null;
-    goToStep("pin-repeat", "backward");
+    goToStep("biometrics", "backward");
 };
 
 const handleNameComplete = async (enteredName: string) => {
@@ -258,9 +327,9 @@ const handleNameComplete = async (enteredName: string) => {
         await globalState.vaultController.setVaultAndPersist({ uri, ename });
         globalState.isOnboardingComplete = true;
 
-        // TODO(next): step = "welcome" once the Welcome screen is built.
-        // For now we land directly on /main.
-        await goto("/main");
+        // Land on /main; the WelcomeTour there draws the animated lines
+        // around the identity card (replaces the old /review + /e-passport).
+        await goto("/main", { replaceState: true });
     } catch (err) {
         console.error("Failed to provision eVault:", err);
         nameError =
@@ -534,7 +603,8 @@ const handleProvision = async () => {
             uri: result.uri,
             ename: result.w3id,
         });
-        goto("/register");
+        globalState.isOnboardingComplete = true;
+        await goto("/main", { replaceState: true });
     } catch (err) {
         console.error("Provisioning failed:", err);
         error =
@@ -671,8 +741,9 @@ const handleAnonymousSubmit = async () => {
             "Verified On": new Date().toDateString(),
         };
 
-        globalState.vaultController.vault = { uri, ename };
-        goto("/register");
+        await globalState.vaultController.setVaultAndPersist({ uri, ename });
+        globalState.isOnboardingComplete = true;
+        await goto("/main", { replaceState: true });
     } catch (err) {
         console.error("Anonymous provisioning failed:", err);
         error =
@@ -752,6 +823,18 @@ onMount(async () => {
         }
     }
 
+    // Recovery enters this route via /recover after writing pendingRecovery.
+    // The user-controller fields (name, document) are populated up-front so
+    // the rest of the flow can read them like a normal onboarded user. We
+    // skip the "name" step because recovery already supplies it.
+    const recovery = get(pendingRecovery);
+    if (recovery) {
+        isRecovery = true;
+        globalState.userController.isFake = false;
+        globalState.userController.user = recovery.user;
+        globalState.userController.document = recovery.document;
+    }
+
     // Detect upgrade mode from query param
     if (upgradeRequested) {
         upgradeMode = true;
@@ -762,7 +845,7 @@ onMount(async () => {
 });
 </script>
 
-{#if step === "pin-create" || step === "pin-repeat" || step === "name"}
+{#if step === "pin-create" || step === "pin-repeat" || step === "biometrics" || step === "name"}
     <div class="relative overflow-hidden min-h-dvh">
         {#key step}
             <div
@@ -781,6 +864,12 @@ onMount(async () => {
                         onback={handlePinRepeatBack}
                         oncomplete={handlePinRepeatComplete}
                     />
+                {:else if step === "biometrics"}
+                    <BiometricsSetup
+                        onback={handleBiometricsBack}
+                        onenable={handleBiometricsEnable}
+                        onskip={handleBiometricsSkip}
+                    />
                 {:else if step === "name"}
                     <NameInput
                         onback={handleNameBack}
@@ -790,6 +879,14 @@ onMount(async () => {
                 {/if}
             </div>
         {/key}
+        {#if recoveryError}
+            <p
+                class="absolute inset-x-0 bottom-24 text-center text-danger text-sm font-medium px-4"
+                role="alert"
+            >
+                {recoveryError}
+            </p>
+        {/if}
     </div>
 {:else}
 <main
