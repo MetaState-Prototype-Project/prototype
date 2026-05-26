@@ -101,7 +101,7 @@ const displayName = $derived(platformName ?? "Unknown app");
 
 <div class="flex flex-col items-center w-full {classes}">
     <div
-        class="relative z-10 w-16 h-16 rounded-2xl overflow-hidden bg-primary flex items-center justify-center -mb-8"
+        class="relative z-10 w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center -mb-8"
     >
         {#if iconUrl}
             <img

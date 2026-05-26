@@ -53,8 +53,8 @@ $effect(() => {
             aria-modal="true"
             class={cn(
                 fullScreen
-                    ? "fixed inset-0 z-50 bg-white shadow-xl flex flex-col gap-4 overflow-clip [overflow-clip-margin:1.5rem]"
-                    : "fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4 max-h-[88svh] overflow-y-auto",
+                    ? "fixed inset-0 z-50 bg-white shadow-xl flex flex-col gap-4"
+                    : "fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4 max-h-[88svh]",
                 restProps.class,
             )}
             style={`${
