@@ -4,6 +4,16 @@
 @import "@fontsource-variable/roboto-condensed";
 
 @layer base {
+    /* Kill the Android WebView overscroll glow/bounce when scrolling past
+     * a container's edge. Applied at the root so it cascades into every
+     * scroll container; individual elements can opt back in with
+     * `overscroll-behavior: auto` if they need pull-to-refresh later. */
+    html,
+    body {
+        overscroll-behavior: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+
     /* Typography */
     h1 {
         @apply text-[90px]/[1.5] text-black font-semibold;

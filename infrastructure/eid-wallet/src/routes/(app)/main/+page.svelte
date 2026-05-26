@@ -15,8 +15,11 @@ import {
     getUnreadCount,
     subscribe as subscribeNotifications,
 } from "$lib/stores/notifications";
-import { Toast } from "$lib/ui";
+import NotificationService from "$lib/services/NotificationService";
+import { BottomSheet, ButtonAction, Toast } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
+import { isPermissionGranted } from "@choochmeque/tauri-plugin-notifications-api";
+import { openAppSettings } from "@tauri-apps/plugin-barcode-scanner";
 import {
     fetchNameFromVault,
     fetchSocialBindings,
@@ -54,6 +57,9 @@ const RECOVERY_SKIP_PROFILE_SETUP_KEY = "recoverySkipProfileSetup";
 
 let notificationCount = $state(0);
 let unsubNotifications: (() => void) | undefined;
+let showNotifPrompt = $state(false);
+let notifBusy = $state(false);
+const NOTIF_PROMPT_KEY = "notifPromptShown";
 let statusInterval: ReturnType<typeof setInterval> | undefined =
     $state(undefined);
 let showToast = $state(false);
@@ -365,6 +371,60 @@ $effect(() => {
     }
 });
 
+async function maybeShowNotifPrompt(welcomeTourSeen: boolean) {
+    if (localStorage.getItem(NOTIF_PROMPT_KEY) === "true") return;
+    try {
+        if (await isPermissionGranted()) {
+            // Already granted (e.g. previous install) — silently mark as
+            // shown so we don't ask again.
+            localStorage.setItem(NOTIF_PROMPT_KEY, "true");
+            return;
+        }
+    } catch {
+        return;
+    }
+    // Defer behind the welcome tour: if it's about to play, let it finish
+    // first so the sheet doesn't stack on top of the spotlight.
+    if (!welcomeTourSeen) return;
+    showNotifPrompt = true;
+}
+
+async function handleNotifAllow() {
+    if (!globalState || notifBusy) return;
+    notifBusy = true;
+    try {
+        const vault = await globalState.vaultController.vault;
+        const ename = vault?.ename;
+        const svc = NotificationService.getInstance();
+        if (ename) {
+            await svc.registerDevice(ename);
+        } else {
+            await svc.requestPermissions();
+        }
+        // If the user had already denied previously, requestPermission silently
+        // returns "denied" without showing UI on both iOS and Android. Jump to
+        // the app's system settings so they have a one-tap path to allow it.
+        try {
+            if (!(await isPermissionGranted())) {
+                await openAppSettings();
+            }
+        } catch (err) {
+            console.warn("[main] openAppSettings failed:", err);
+        }
+    } catch (err) {
+        console.warn("[main] notification permission flow failed:", err);
+    } finally {
+        notifBusy = false;
+        localStorage.setItem(NOTIF_PROMPT_KEY, "true");
+        showNotifPrompt = false;
+    }
+}
+
+function handleNotifSkip() {
+    localStorage.setItem(NOTIF_PROMPT_KEY, "true");
+    showNotifPrompt = false;
+}
+
 async function handleTourNext(next: TourStep | null) {
     if (next === null) {
         // Finishing — slide content back to its natural position, persist the
@@ -372,6 +432,9 @@ async function handleTourNext(next: TourStep | null) {
         tourOffset = 0;
         if (globalState) globalState.hasSeenWelcomeTour = true;
         tourStep = null;
+        // The notif prompt was deferred while the tour ran — surface it now
+        // that the user has dismissed it.
+        void maybeShowNotifPrompt(true);
         return;
     }
     tourStep = next;
@@ -498,6 +561,11 @@ onMount(() => {
             tourStep = "ename";
         }
         pageReady = true;
+
+        // One-shot notifications prompt. Don't pile it on top of the welcome
+        // tour — defer to when the user has dismissed it. For returning users
+        // (tour already seen) it fires right away.
+        await maybeShowNotifPrompt(seen);
     })();
 
     const checkStatus = () => {
@@ -623,7 +691,7 @@ onDestroy(() => {
                         : { duration: 0 }}
                 >
                     <EVaultCard
-                        available="80 Gb"
+                        available="5 GB"
                         oninfo={() => (eVaultInfoOpen = true)}
                     />
                     <Lasso size="med" active={tourStep === "evault"} />
@@ -748,6 +816,38 @@ onDestroy(() => {
         </p>
     {/snippet}
 </InfoDrawer>
+
+<!-- One-shot notifications prompt — first /main visit only. Persisted via
+     localStorage so it never re-appears on this device. -->
+<BottomSheet bind:isOpen={showNotifPrompt} dismissible={false}>
+    <header class="flex flex-col items-center text-center gap-1">
+        <h2 class="text-2xl font-bold text-black-900">Stay in the loop</h2>
+        <p class="text-sm text-black-500 max-w-xs">
+            Get notified about new messages, signing requests, and activity on
+            your eVault.
+        </p>
+    </header>
+
+    <div class="flex flex-col gap-3 pt-2">
+        <ButtonAction
+            class="w-full uppercase tracking-wide"
+            disabled={notifBusy}
+            isLoading={notifBusy}
+            callback={handleNotifAllow}
+            blockingClick
+        >
+            Allow notifications
+        </ButtonAction>
+        <ButtonAction
+            variant="soft"
+            class="w-full uppercase tracking-wide"
+            disabled={notifBusy}
+            callback={handleNotifSkip}
+        >
+            Not now
+        </ButtonAction>
+    </div>
+</BottomSheet>
 
 <style>
 .tour-card {

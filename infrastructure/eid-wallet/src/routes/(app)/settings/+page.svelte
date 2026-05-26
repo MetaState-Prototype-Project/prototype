@@ -10,8 +10,14 @@ import {
 import { clearAllNotifications } from "$lib/stores/notifications";
 import { BottomSheet, ButtonAction } from "$lib/ui";
 import { PinIcon, PrivacyIcon } from "$lib/ui/icons";
-import { Delete02Icon } from "@hugeicons/core-free-icons";
+import { isPermissionGranted } from "@choochmeque/tauri-plugin-notifications-api";
+import {
+    Delete02Icon,
+    FaceIdIcon,
+    Notification02Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
+import { checkStatus } from "@tauri-apps/plugin-biometric";
 import { getContext, onMount } from "svelte";
 
 const getGlobalState = getContext<() => GlobalState>("globalState");
@@ -25,11 +31,45 @@ const globalState = $derived(getGlobalState());
 const isDev = import.meta.env.DEV;
 
 let currentLanguage = $state(getCurrentLanguage());
+let biometricsSubtitle = $state("Tap to configure");
+let notificationsSubtitle = $state("Tap to configure");
 onMount(() =>
     subscribeLanguage(() => {
         currentLanguage = getCurrentLanguage();
     }),
 );
+
+// Reflect current biometric state in the row subtitle so the user doesn't
+// have to open the page to see whether it's on.
+$effect(() => {
+    if (!globalState) return;
+    (async () => {
+        try {
+            const status = await checkStatus();
+            if (!status.isAvailable) {
+                biometricsSubtitle = "Unavailable on this device";
+                return;
+            }
+            const enabled =
+                await globalState.securityController.biometricSupport;
+            biometricsSubtitle = enabled ? "On" : "Off";
+        } catch {
+            biometricsSubtitle = "Tap to configure";
+        }
+    })();
+});
+
+// Same subtitle treatment for notifications — surface the OS-level state.
+$effect(() => {
+    (async () => {
+        try {
+            const granted = await isPermissionGranted();
+            notificationsSubtitle = granted ? "On" : "Off";
+        } catch {
+            notificationsSubtitle = "Tap to configure";
+        }
+    })();
+});
 
 let isLogoutDrawerOpen = $state(false);
 let isDeleteConfirmOpen = $state(false);
@@ -78,9 +118,9 @@ async function openPrivacy(e: Event) {
     e.preventDefault();
     try {
         const { openUrl } = await import("@tauri-apps/plugin-opener");
-        await openUrl("https://metastate.foundation/");
+        await openUrl("https://metastate.foundation/privacy");
     } catch {
-        window.location.href = "https://metastate.foundation/";
+        window.location.href = "https://metastate.foundation/privacy";
     }
 }
 
@@ -114,9 +154,23 @@ $effect(() => {
     </SettingsNavigationBtn>
 
     <SettingsNavigationBtn
+        label="Biometric login"
+        subtitle={biometricsSubtitle}
+        href="/settings/biometrics"
+        icon={FaceIdIcon}
+    />
+
+    <SettingsNavigationBtn
+        label="Notifications"
+        subtitle={notificationsSubtitle}
+        href="/settings/notifications"
+        icon={Notification02Icon}
+    />
+
+    <SettingsNavigationBtn
         label="Privacy policy"
         subtitle="External link"
-        href="https://metastate.foundation/"
+        href="https://metastate.foundation/privacy"
         onclick={openPrivacy}
     >
         {#snippet iconSlot()}

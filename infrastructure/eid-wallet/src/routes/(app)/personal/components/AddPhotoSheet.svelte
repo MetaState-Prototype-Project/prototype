@@ -234,7 +234,7 @@ const sheetTitle = $derived(editing ? "Edit photo mark" : "Add photo mark");
                     id="photo-description-pre"
                     type="text"
                     bind:value={description}
-                    placeholder="Some text here"
+                    placeholder="Describe this photo"
                     class="w-full bg-card-alternative rounded-full px-5 py-4 placeholder:text-black-300 outline-none focus:ring-2 focus:ring-primary"
                 />
             </div>
@@ -295,7 +295,7 @@ const sheetTitle = $derived(editing ? "Edit photo mark" : "Add photo mark");
                     id="photo-description"
                     type="text"
                     bind:value={description}
-                    placeholder="Some text here"
+                    placeholder="Describe this photo"
                     class="w-full bg-card-alternative rounded-full px-5 py-4 placeholder:text-black-300 outline-none focus:ring-2 focus:ring-primary"
                 />
             </div>

@@ -1,6 +1,7 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
 import {
+    PUBLIC_EID_WALLET_TOKEN,
     PUBLIC_PROVISIONER_URL,
     PUBLIC_REGISTRY_URL,
 } from "$env/static/public";
@@ -8,10 +9,13 @@ import { keyboardInset } from "$lib/actions/keyboardInset";
 import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction } from "$lib/ui";
 import BottomSheet from "$lib/ui/BottomSheet/BottomSheet.svelte";
+import LoadingSheet from "$lib/ui/LoadingSheet/LoadingSheet.svelte";
 import { capitalize } from "$lib/utils";
+import { PERSONAL_BINDING_BY_TYPE_QUERY } from "$lib/utils/personalBinding";
 import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import axios from "axios";
+import { GraphQLClient } from "graphql-request";
 import { onMount } from "svelte";
 
 /**
@@ -22,19 +26,22 @@ import { onMount } from "svelte";
  *      Existing provisioner endpoints (/recovery/start-session, /recovery/face-search)
  *      are still wired up here.
  *   2. Unverified — type your eName, then answer the security question you
- *      set when you created the eVault. The matching backend endpoints are
- *      not in place yet (see incoming PR), so the unverified path is mocked
- *      below: any eName/answer succeeds and we route to /register with a
- *      synthetic recovery payload.
+ *      set during the personal-binding flow. We resolve the eName to its
+ *      eVault URI via the registry, fetch the security_question binding doc,
+ *      and call the eVault's validateSecurityAnswer mutation. The mutation
+ *      tracks failed attempts per-eName and locks the caller out after a
+ *      configurable threshold.
  */
 
 type Step =
     | "home"
-    | "verified-loading"
     | "verified-didit"
-    | "verified-searching"
     | "unverified-ename"
     | "unverified-answer";
+
+/** Loading overlay phases — rendered as a LoadingSheet on top of whatever
+ *  step is active, so the underlying screen stays visible (and blurred). */
+type LoadingPhase = "starting-session" | "finding-evault" | null;
 
 type ErrorReason = "liveness_failed" | "no_match" | "generic";
 
@@ -46,6 +53,27 @@ interface DiditCompleteResult {
 }
 
 let step = $state<Step>("home");
+let loadingPhase = $state<LoadingPhase>(null);
+
+const loadingTitle = $derived(
+    loadingPhase === "starting-session"
+        ? "Preparing verification"
+        : loadingPhase === "finding-evault"
+          ? "Finding your eVault"
+          : "",
+);
+const loadingSubtitle = $derived(
+    loadingPhase === "starting-session"
+        ? "Setting up your recovery session."
+        : loadingPhase === "finding-evault"
+          ? "Looking for an eVault linked to your identity."
+          : "",
+);
+
+function cancelLoading() {
+    loadingPhase = null;
+    step = "home";
+}
 
 // Verified-path state
 let errorMessage = $state<string | null>(null);
@@ -67,9 +95,13 @@ let answerInput = $state("");
 let answerError = $state<string | null>(null);
 let answerLoading = $state(false);
 
-// Question text is normally fetched from the eVault by eName. The unverified
-// backend isn't wired yet, so we display a mock question for the demo.
-let securityQuestion = $state<string>("Mother child surname");
+// Question text + envelope id are pulled from the target eVault during
+// handleSubmitEname. The envelope id is the metaEnvelopeId of the
+// security_question binding document — required to validate the answer.
+let securityQuestion = $state<string>("");
+let recoveryEnvelopeId = $state<string | null>(null);
+let recoveredVaultUri = $state<string | null>(null);
+let lockedUntilLabel = $state<string | null>(null);
 
 let showRecoveryImpossibleSheet = $state(false);
 let showNotarySheet = $state(false);
@@ -103,7 +135,7 @@ function handleChooseUnverified() {
 // ── Verified path ─────────────────────────────────────────────────────
 
 async function startVerifiedRecovery() {
-    step = "verified-loading";
+    loadingPhase = "starting-session";
     errorMessage = null;
     recoveredW3id = null;
     recoveredUri = null;
@@ -121,6 +153,7 @@ async function startVerifiedRecovery() {
             throw new Error("Backend did not return a verificationUrl");
         }
 
+        loadingPhase = null;
         step = "verified-didit";
         await new Promise((r) => setTimeout(r, 50));
 
@@ -141,6 +174,7 @@ async function startVerifiedRecovery() {
                 ? err.message
                 : "Something went wrong. Please try again.";
         errorReason = "generic";
+        loadingPhase = null;
         step = "home";
         showErrorSheet = true;
     }
@@ -161,7 +195,8 @@ async function handleDiditComplete(result: DiditCompleteResult) {
         return;
     }
 
-    step = "verified-searching";
+    step = "home";
+    loadingPhase = "finding-evault";
 
     try {
         const { data } = await axios.post(
@@ -179,6 +214,7 @@ async function handleDiditComplete(result: DiditCompleteResult) {
                     "We couldn't find an eVault linked to your identity. Make sure you completed identity verification when you first set up your eVault.";
                 errorReason = "no_match";
             }
+            loadingPhase = null;
             step = "home";
             showErrorSheet = true;
             return;
@@ -187,6 +223,7 @@ async function handleDiditComplete(result: DiditCompleteResult) {
         recoveredW3id = data.w3id;
         recoveredUri = data.uri ?? null;
         recoveredIdVerif = data.idVerif ?? null;
+        loadingPhase = null;
         step = "home";
         showFoundSheet = true;
     } catch (err: unknown) {
@@ -194,12 +231,51 @@ async function handleDiditComplete(result: DiditCompleteResult) {
         errorMessage =
             "Something went wrong during the search. Please try again.";
         errorReason = "generic";
+        loadingPhase = null;
         step = "home";
         showErrorSheet = true;
     }
 }
 
 // ── Unverified path ────────────────────────────────────────────────────
+
+function normalizeEname(ename: string): string {
+    return ename.startsWith("@") ? ename : `@${ename}`;
+}
+
+function makeRecoveryClient(uri: string, ename: string): GraphQLClient {
+    const endpoint = new URL("/graphql", uri).toString();
+    // The eVault's bindingDocuments query + validateSecurityAnswer mutation
+    // both require the shared bearer token (per the access guard). The
+    // X-ENAME header tells the resolver which identity to look up.
+    const headers: Record<string, string> = {
+        "X-ENAME": normalizeEname(ename),
+    };
+    if (PUBLIC_EID_WALLET_TOKEN) {
+        headers.Authorization = `Bearer ${PUBLIC_EID_WALLET_TOKEN}`;
+    }
+    return new GraphQLClient(endpoint, { headers });
+}
+
+interface SecurityQuestionEdge {
+    node: {
+        id: string;
+        parsed: {
+            data?: {
+                kind?: string;
+                question?: string;
+                answerHash?: string;
+            };
+            signatures?: Array<{ timestamp?: string }>;
+        };
+    };
+}
+
+interface SecurityQuestionResponse {
+    bindingDocuments: {
+        edges: SecurityQuestionEdge[];
+    };
+}
 
 async function handleSubmitEname() {
     const ename = enameInput.trim();
@@ -211,20 +287,103 @@ async function handleSubmitEname() {
     enameError = null;
     enameLoading = true;
     try {
-        // Backend not wired yet — mock the question lookup. When wired up,
-        // this is where we'd resolve eName → eVault and fetch the public
-        // security_question binding document.
-        await new Promise((r) => setTimeout(r, 350));
-        securityQuestion = "Mother child surname";
+        let uri: string;
+        try {
+            uri = await resolveEvaultBase(ename);
+        } catch (err) {
+            console.warn("[RECOVERY/unverified] eName resolve failed:", err);
+            enameError = "We couldn't find that eName. Check it and try again.";
+            return;
+        }
+
+        const client = makeRecoveryClient(uri, ename);
+
+        let resp: SecurityQuestionResponse;
+        try {
+            resp = await client.request<SecurityQuestionResponse>(
+                PERSONAL_BINDING_BY_TYPE_QUERY,
+                { type: "security_question" },
+            );
+        } catch (err) {
+            console.error(
+                "[RECOVERY/unverified] security_question fetch failed:",
+                err,
+            );
+            enameError =
+                "Couldn't reach that eVault. Check your connection and try again.";
+            return;
+        }
+
+        const edges = resp.bindingDocuments?.edges ?? [];
+        if (edges.length === 0) {
+            enameError =
+                "This eVault has no recovery question set. Recovery isn't possible without ID verification.";
+            return;
+        }
+
+        // Most-recent wins: every edit creates a new doc, and the older ones
+        // are orphans we shouldn't validate against.
+        const latest = [...edges].sort((a, b) => {
+            const at = a.node.parsed.signatures?.[0]?.timestamp ?? "";
+            const bt = b.node.parsed.signatures?.[0]?.timestamp ?? "";
+            return bt.localeCompare(at);
+        })[0];
+
+        const question = latest?.node.parsed.data?.question ?? "";
+        if (!question || !latest?.node.id) {
+            enameError =
+                "This eVault's recovery question is missing or malformed.";
+            return;
+        }
+
+        securityQuestion = question;
+        recoveryEnvelopeId = latest.node.id;
+        recoveredVaultUri = uri;
         answerInput = "";
         answerError = null;
+        lockedUntilLabel = null;
         step = "unverified-answer";
     } catch (err: unknown) {
         console.error("[RECOVERY/unverified] eName lookup error:", err);
-        enameError =
-            "We couldn't find an eVault for this eName. Check it and try again.";
+        enameError = "Something went wrong. Please try again.";
     } finally {
         enameLoading = false;
+    }
+}
+
+const VALIDATE_SECURITY_ANSWER_MUTATION = `
+    mutation ValidateAnswer($input: ValidateSecurityAnswerInput!) {
+        validateSecurityAnswer(input: $input) {
+            success
+            reason
+            lockedUntil
+            attemptsRemaining
+            errors { message code }
+        }
+    }
+`;
+
+interface ValidateAnswerResponse {
+    validateSecurityAnswer: {
+        success: boolean;
+        reason: string | null;
+        lockedUntil: string | null;
+        attemptsRemaining: number | null;
+        errors: Array<{ message: string; code: string }> | null;
+    };
+}
+
+function formatLockedUntil(iso: string): string {
+    try {
+        const d = new Date(iso);
+        return d.toLocaleString(undefined, {
+            hour: "numeric",
+            minute: "2-digit",
+            day: "numeric",
+            month: "short",
+        });
+    } catch {
+        return iso;
     }
 }
 
@@ -234,26 +393,56 @@ async function handleSubmitAnswer() {
         answerError = "Please enter your answer.";
         return;
     }
+    if (!recoveryEnvelopeId || !recoveredVaultUri) {
+        answerError = "Please re-enter your eName and try again.";
+        step = "unverified-ename";
+        return;
+    }
 
     answerError = null;
     answerLoading = true;
     try {
-        // Mock: any non-empty answer is accepted. When the backend lands,
-        // this is where we'd POST the answer for the eVault to verify
-        // against its stored Argon2id hash.
-        await new Promise((r) => setTimeout(r, 350));
-
         const ename = enameInput.trim();
-        recoveredW3id = ename;
-        // Try to resolve the eVault URI in case the eName is real; fall back
-        // to a placeholder so the demo still routes through to register.
-        try {
-            recoveredUri = await resolveEvaultBase(ename);
-        } catch {
-            recoveredUri = "";
+        const client = makeRecoveryClient(recoveredVaultUri, ename);
+        const resp = await client.request<ValidateAnswerResponse>(
+            VALIDATE_SECURITY_ANSWER_MUTATION,
+            {
+                input: {
+                    metaEnvelopeId: recoveryEnvelopeId,
+                    candidate: answer,
+                },
+            },
+        );
+        const result = resp.validateSecurityAnswer;
+
+        if (result.errors?.length) {
+            console.error(
+                "[RECOVERY/unverified] validate returned errors:",
+                result.errors,
+            );
+            answerError = "Couldn't verify your answer. Please try again.";
+            return;
         }
-        recoveredIdVerif = null;
-        showFoundSheet = true;
+
+        if (result.success) {
+            recoveredW3id = ename;
+            recoveredUri = recoveredVaultUri;
+            recoveredIdVerif = null; // unverified path → no ID data
+            showFoundSheet = true;
+            return;
+        }
+
+        if (result.lockedUntil) {
+            lockedUntilLabel = formatLockedUntil(result.lockedUntil);
+            answerError = `Too many wrong answers. Try again after ${lockedUntilLabel}.`;
+            return;
+        }
+
+        const left = result.attemptsRemaining;
+        answerError =
+            typeof left === "number"
+                ? `That answer doesn't match. ${left} ${left === 1 ? "try" : "tries"} left.`
+                : "That answer doesn't match.";
     } catch (err: unknown) {
         console.error("[RECOVERY/unverified] answer verify error:", err);
         answerError = "Couldn't verify your answer. Please try again.";
@@ -599,29 +788,6 @@ onMount(() => {
             </ButtonAction>
         </footer>
     </main>
-{:else if step === "verified-loading" || step === "verified-searching"}
-    <main
-        class="flex min-h-dvh flex-col items-center justify-center bg-white px-6 gap-4"
-        style="padding-top: max(5.2svh, env(safe-area-inset-top)); padding-bottom: max(2rem, env(safe-area-inset-bottom));"
-    >
-        <div
-            class="h-14 w-14 animate-spin rounded-full border-4 border-gray-200 border-t-primary-500"
-        ></div>
-        <p class="font-semibold text-black-900 text-center">
-            {#if step === "verified-loading"}
-                Preparing verification…
-            {:else}
-                Finding your eVault…
-            {/if}
-        </p>
-        <p class="text-sm text-black-700 text-center">
-            {#if step === "verified-loading"}
-                Setting up your recovery session.
-            {:else}
-                Looking for an eVault linked to your identity.
-            {/if}
-        </p>
-    </main>
 {:else if step === "verified-didit"}
     <div
         class="fixed inset-0 z-50 bg-white flex flex-col"
@@ -640,6 +806,14 @@ onMount(() => {
         <div id="recovery-didit-container" class="flex-1 w-full"></div>
     </div>
 {/if}
+
+<!-- ── Loading overlay (preparing / finding) ──────────────────────────── -->
+<LoadingSheet
+    isOpen={loadingPhase !== null}
+    title={loadingTitle}
+    subtitle={loadingSubtitle}
+    oncancel={cancelLoading}
+/>
 
 <!-- ── eVault Found bottom sheet ──────────────────────────────────────── -->
 <BottomSheet bind:isOpen={showFoundSheet} dismissible={false}>

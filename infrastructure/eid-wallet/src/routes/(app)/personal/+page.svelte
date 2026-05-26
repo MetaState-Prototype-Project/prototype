@@ -455,7 +455,7 @@ async function handleKnowledgeSave(data: {
         )}
         {@render markCard(
             "Personal parameters",
-            "Personal details: date and place of birth, height, eye color and etc",
+            "Personal details: date and place of birth, height, eye colour, and other identifying traits",
             parametersFilled,
             parametersBody,
         )}

@@ -690,15 +690,23 @@ onNavigate((navigation) => {
         sessionStorage.setItem("navigatingToOnboarding", "true");
     }
 
-    const fromIndex = navigationStack.lastIndexOf(from);
-    const toIndex = navigationStack.lastIndexOf(to);
+    // Direction comes from the navigation TYPE, not stack indices. Indexing
+    // into the stack gave wrong answers when the user navigated forward to a
+    // route they'd visited before in the same session: the old entry was still
+    // in the stack with a lower index, so `toIndex < fromIndex` triggered a
+    // backward slide on what was actually a forward link tap.
+    const isBack =
+        navigation.type === "popstate" &&
+        typeof navigation.delta === "number" &&
+        navigation.delta < 0;
 
-    if (toIndex !== -1 && toIndex < fromIndex) {
-        // Backward navigation — current page slides out to the right.
+    if (isBack) {
         routeDirection = "backward";
-        navigationStack = navigationStack.slice(0, toIndex + 1);
+        const toIndex = navigationStack.lastIndexOf(to);
+        if (toIndex !== -1) {
+            navigationStack = navigationStack.slice(0, toIndex + 1);
+        }
     } else {
-        // Forward navigation — new page slides in from the right.
         routeDirection = "forward";
         navigationStack.push(to);
     }

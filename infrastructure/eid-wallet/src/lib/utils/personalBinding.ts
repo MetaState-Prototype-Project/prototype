@@ -53,7 +53,7 @@ const VALIDATE_SECURITY_ANSWER_MUTATION = `
 // Three typed queries instead of one bag-of-everything so we don't pull
 // id_document / self / social_connection over the wire and we don't hit the
 // 200-doc ceiling once users accumulate many photos.
-const PERSONAL_BINDING_BY_TYPE_QUERY = `
+export const PERSONAL_BINDING_BY_TYPE_QUERY = `
     query LoadPersonalByType($type: BindingDocumentType!) {
         bindingDocuments(type: $type, first: 100) {
             edges {

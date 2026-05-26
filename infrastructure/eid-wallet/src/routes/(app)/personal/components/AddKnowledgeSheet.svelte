@@ -69,7 +69,7 @@ function close() {
                 id="kn-question"
                 type="text"
                 bind:value={question}
-                placeholder="Date of first kiss, 6 digits, no separation"
+                placeholder="e.g. Name of the street you grew up on"
                 class="w-full bg-card-alternative rounded-full px-5 py-4 placeholder:text-black-300 outline-none focus:ring-2 focus:ring-primary"
             />
         </div>

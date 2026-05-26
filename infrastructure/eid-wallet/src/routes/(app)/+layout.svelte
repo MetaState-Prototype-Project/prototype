@@ -76,21 +76,13 @@ onMount(async () => {
             console.error("Failed to set up notification listener:", error);
         }
 
-        // Check for pending notifications and navigate to the message's open page
+        // Pull any pending notifications down so they appear in the in-app
+        // panel, but DON'T auto-navigate to /open-message. Hijacking the user
+        // away from whatever page they were on the moment a message arrives
+        // (or the app is reopened) is jarring — they can tap the notification
+        // in the panel when they're ready.
         try {
-            const notificationService = globalState.notificationService;
-            const notifData =
-                await notificationService.checkAndShowNotifications();
-            if (notifData?.globalChatId) {
-                const params = new URLSearchParams({
-                    chatId: notifData.globalChatId,
-                    ...(notifData.title && { title: notifData.title }),
-                    ...(notifData.body && { body: notifData.body }),
-                });
-                await goto(
-                    `/open-message/${encodeURIComponent(notifData.globalMessageId || notifData.globalChatId)}?${params.toString()}`,
-                );
-            }
+            await globalState.notificationService.checkAndShowNotifications();
         } catch (error) {
             console.error("Failed to check notifications:", error);
         }
