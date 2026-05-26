@@ -434,6 +434,128 @@ export async function fetchUnsignedSocialDocs(
     });
 }
 
+// ---------------------------------------------------------------------------
+// Listing completed social bindings
+// ---------------------------------------------------------------------------
+
+export interface SocialBindingSummary {
+    docId: string;
+    counterpartyEname: string;
+    /** ISO timestamp of the most recent signature on the doc. */
+    completedAt: string;
+    relationDescription: string;
+    /** False for scanner-side mirror copies that only carry one signature. */
+    mutuallySigned: boolean;
+}
+
+// All social_connection docs on the caller's own vault, newest first.
+// Includes scanner-side mirrors (single sig) alongside fully-bound docs.
+export async function fetchSocialBindings(
+    ownGqlUrl: string,
+    callerEname: string,
+): Promise<SocialBindingSummary[]> {
+    const normalized = callerEname.startsWith("@")
+        ? callerEname
+        : `@${callerEname}`;
+
+    const data = await vaultGqlRequest<{
+        bindingDocuments: { edges: BindingDocEdge[] };
+    }>(ownGqlUrl, callerEname, SOCIAL_BINDING_DOCS_QUERY);
+
+    const out: SocialBindingSummary[] = [];
+    for (const edge of data.bindingDocuments?.edges ?? []) {
+        const parsed = edge.node.parsed;
+        if (!parsed || parsed.type !== "social_connection") continue;
+
+        const parties = Array.isArray(parsed.data?.parties)
+            ? (parsed.data.parties as string[])
+            : [];
+        const counterparty = parties.find((p) => p !== normalized);
+        if (!counterparty) continue;
+
+        const sigs = Array.isArray(parsed.signatures) ? parsed.signatures : [];
+        if (sigs.length === 0) continue;
+
+        const completedAt = sigs
+            .map((s) => s.timestamp)
+            .sort()
+            .reverse()[0];
+
+        out.push({
+            docId: edge.node.id,
+            counterpartyEname: counterparty,
+            completedAt,
+            relationDescription:
+                typeof parsed.data?.relation_description === "string"
+                    ? (parsed.data.relation_description as string)
+                    : "",
+            mutuallySigned: sigs.length >= 2,
+        });
+    }
+
+    out.sort((a, b) => b.completedAt.localeCompare(a.completedAt));
+    return out;
+}
+
+// ---------------------------------------------------------------------------
+// Scanner-side mirror write
+// ---------------------------------------------------------------------------
+
+// Self-signed mirror on the scanner's own vault so scanner-initiated bindings
+// also show up in their list. Signature is over the mirror's canonical form
+// (subject differs from the primary doc, so it can't be reused).
+export async function createOwnSocialBindingMirror(
+    ownGqlUrl: string,
+    selfEname: string,
+    counterpartyEname: string,
+    counterpartyName: string,
+    relationDescription: string,
+    signatureHash: string,
+): Promise<void> {
+    const normalizedSelf = selfEname.startsWith("@")
+        ? selfEname
+        : `@${selfEname}`;
+    const normalizedCounter = counterpartyEname.startsWith("@")
+        ? counterpartyEname
+        : `@${counterpartyEname}`;
+
+    const result = await vaultGqlRequest<CreateBindingDocResult>(
+        ownGqlUrl,
+        selfEname,
+        CREATE_BINDING_DOC_MUTATION,
+        {
+            input: {
+                subject: normalizedSelf,
+                type: "social_connection",
+                data: {
+                    kind: "social_connection",
+                    name: counterpartyName,
+                    parties: [normalizedSelf, normalizedCounter],
+                    relation_description: relationDescription,
+                },
+                ownerSignature: {
+                    signer: normalizedSelf,
+                    signature: signatureHash,
+                    timestamp: new Date().toISOString(),
+                },
+            },
+        },
+    );
+
+    if (result.createBindingDocument.errors?.length) {
+        throw new Error(
+            result.createBindingDocument.errors
+                .map((e) => e.message)
+                .join("; "),
+        );
+    }
+    if (!result.createBindingDocument.metaEnvelopeId) {
+        throw new Error(
+            "createBindingDocument returned no metaEnvelopeId — missing envelope ID for social binding mirror",
+        );
+    }
+}
+
 /**
  * Fetch an unsigned social_connection doc from a foreign vault where
  * subject === targetSubject and the caller hasn't yet signed.

@@ -8,31 +8,33 @@ import {
 } from "$env/static/public";
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
-import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction } from "$lib/ui";
 import { capitalize, getCanonicalBindingDocString } from "$lib/utils";
 import axios from "axios";
 import { GraphQLClient } from "graphql-request";
-import { getContext, onMount } from "svelte";
+import { getContext, onMount, tick } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
+import { cubicOut } from "svelte/easing";
 import { v4 as uuidv4 } from "uuid";
 import { provision } from "wallet-sdk";
+import NameInput from "./steps/NameInput.svelte";
+import PinCreate from "./steps/PinCreate.svelte";
+import PinRepeat from "./steps/PinRepeat.svelte";
 
 const ANONYMOUS_VERIFICATION_CODE = "d66b7138-538a-465f-a6ce-f6985854c3f4";
 const KEY_ID = "default";
 
 type Step =
+    | "pin-create"
+    | "pin-repeat"
+    | "name"
     | "home"
     | "new-evault"
-    | "already-have"
     | "kyc-panel"
     | "didit-verification"
     | "verif-result"
     | "anonymous-form"
-    | "loading"
-    | "ename-recovery"
-    | "ename-passphrase-check"
-    | "ename-passphrase";
+    | "loading";
 
 interface DiditWarning {
     short_description?: string;
@@ -69,21 +71,211 @@ interface DiditCompleteResult {
     };
 }
 
-let step = $state<Step>("home");
+let step = $state<Step>("pin-create");
 let error = $state<string | null>(null);
 let loading = $state(false);
+
+// New-onboarding flow state (PIN create -> repeat -> name -> new-evault)
+let pinFirstAttempt = $state("");
+let chosenName = $state("");
+let nameError = $state<string | null>(null);
+
+const handlePinCreateBack = () => {
+    // Skip the splash A→B intro on the way back — the route slide is the
+    // visible transition, replaying the logo animation on top would clash.
+    sessionStorage.setItem("splashImmediate", "true");
+    goto("/");
+};
+
+// Tracks which way the next step swap should slide.
+let stepDirection = $state<"forward" | "backward">("forward");
+
+const goToStep = (nextStep: Step, direction: "forward" | "backward") => {
+    stepDirection = direction;
+    step = nextStep;
+};
+
+// Asymmetric step transitions: only the active element moves.
+//   Forward  → NEW slides in over OLD (OLD stays put).
+//   Backward → OLD slides out to the right, revealing NEW (NEW stays put).
+function slideIn(
+    _node: HTMLElement,
+    { direction }: { direction: "forward" | "backward" },
+) {
+    if (direction === "backward") {
+        return { duration: 0 };
+    }
+    return {
+        duration: 200,
+        easing: cubicOut,
+        css: (t: number) =>
+            `transform: translateX(${(1 - t) * 100}%); z-index: 70;`,
+    };
+}
+
+function slideOut(
+    _node: HTMLElement,
+    { direction }: { direction: "forward" | "backward" },
+) {
+    if (direction === "forward") {
+        return {
+            duration: 200,
+            css: () => "transform: translateX(0);",
+        };
+    }
+    return {
+        duration: 200,
+        easing: cubicOut,
+        css: (t: number) =>
+            `transform: translateX(${(1 - t) * 100}%); z-index: 70;`,
+    };
+}
+
+const handlePinCreateComplete = (enteredPin: string) => {
+    pinFirstAttempt = enteredPin;
+    goToStep("pin-repeat", "forward");
+};
+
+const handlePinRepeatBack = () => {
+    pinFirstAttempt = "";
+    goToStep("pin-create", "backward");
+};
+
+const handlePinRepeatComplete = async (confirmedPin: string) => {
+    // Persist the PIN now — local hash via Rust, no network. Both attempts are
+    // already validated as matching by PinRepeat, but setOnboardingPin double-
+    // checks. If hashing/storing fails, propagate to PinRepeat so the user
+    // sees an error instead of silently advancing.
+    await globalState.securityController.setOnboardingPin(
+        pinFirstAttempt,
+        confirmedPin,
+    );
+    goToStep("name", "forward");
+};
+
+const handleNameBack = () => {
+    nameError = null;
+    goToStep("pin-repeat", "backward");
+};
+
+const handleNameComplete = async (enteredName: string) => {
+    chosenName = enteredName;
+    nameError = null;
+    // Drop straight into the legacy loading screen — Shadow spinner + status.
+    step = "loading";
+
+    try {
+        globalState.userController.isFake = true;
+        await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
+
+        const provisionResult = await provision(globalState.walletSdkAdapter, {
+            registryUrl: PUBLIC_REGISTRY_URL,
+            provisionerUrl: PUBLIC_PROVISIONER_URL,
+            namespace: uuidv4(),
+            verificationId: ANONYMOUS_VERIFICATION_CODE,
+            keyId: KEY_ID,
+            context: "onboarding",
+            isPreVerification: true,
+        });
+
+        if (provisionResult.duplicate) {
+            throw new Error("An eVault already exists for this identity.");
+        }
+        if (
+            !provisionResult.success ||
+            !provisionResult.w3id ||
+            !provisionResult.uri
+        ) {
+            throw new Error("Provisioning failed — incomplete response.");
+        }
+
+        const ename = provisionResult.w3id;
+        const uri = provisionResult.uri;
+
+        // Resolve eVault GraphQL endpoint from registry.
+        const resolveResp = await axios.get(
+            new URL(
+                `resolve?w3id=${encodeURIComponent(ename)}`,
+                PUBLIC_REGISTRY_URL,
+            ).toString(),
+        );
+        const evaultUri = resolveResp.data.uri as string;
+        const graphqlEndpoint = new URL("/graphql", evaultUri).toString();
+
+        // Sign the self-declaration binding document.
+        const timestamp = new Date().toISOString();
+        const subject = ename.startsWith("@") ? ename : `@${ename}`;
+        const bindingData = { kind: "self", name: enteredName };
+        const payload = getCanonicalBindingDocString({
+            subject,
+            type: "self",
+            data: bindingData,
+        });
+        const signature = await globalState.walletSdkAdapter.signPayload(
+            KEY_ID,
+            "signing",
+            payload,
+        );
+
+        const gqlClient = new GraphQLClient(graphqlEndpoint, {
+            headers: {
+                "X-ENAME": ename,
+                ...(PUBLIC_EID_WALLET_TOKEN
+                    ? { Authorization: `Bearer ${PUBLIC_EID_WALLET_TOKEN}` }
+                    : {}),
+            },
+        });
+
+        const bdResult = await gqlClient.request<{
+            createBindingDocument: {
+                metaEnvelopeId: string | null;
+                errors: { message: string; code: string }[] | null;
+            };
+        }>(
+            `mutation CreateBindingDocument($input: CreateBindingDocumentInput!) {
+                createBindingDocument(input: $input) {
+                    metaEnvelopeId
+                    errors { message code }
+                }
+            }`,
+            {
+                input: {
+                    subject,
+                    type: "self",
+                    data: bindingData,
+                    ownerSignature: {
+                        signer: subject,
+                        signature,
+                        timestamp,
+                    },
+                },
+            },
+        );
+
+        const bdErrors = bdResult.createBindingDocument.errors;
+        if (bdErrors?.length) {
+            throw new Error(`Binding document error: ${bdErrors[0].message}`);
+        }
+
+        // Persist user + vault, then mark onboarding done.
+        globalState.userController.user = { name: enteredName };
+        globalState.vaultController.vault = { uri, ename };
+        globalState.isOnboardingComplete = true;
+
+        // TODO(next): step = "welcome" once the Welcome screen is built.
+        // For now we land directly on /main.
+        await goto("/main");
+    } catch (err) {
+        console.error("Failed to provision eVault:", err);
+        nameError =
+            "Couldn't create your eVault. Check your connection and try again.";
+        step = "name";
+    }
+};
 
 // KYC panel sub-state
 let checkingHardware = $state(false);
 let showHardwareError = $state(false);
-
-// eName + passphrase recovery state
-let enameInput = $state("");
-let enamePassphraseInput = $state("");
-let enameError = $state<string | null>(null);
-let enameLoading = $state(false);
-let showEnameDeadEndDrawer = $state(false);
-let showNotaryDrawer = $state(false);
 
 // Didit verification state
 let diditLocalId = $state<string | null>(null);
@@ -411,7 +603,10 @@ const handleAnonymousSubmit = async () => {
 
         // Resolve eVault GraphQL endpoint from registry
         const resolveResp = await axios.get(
-            new URL(`resolve?w3id=${ename}`, PUBLIC_REGISTRY_URL).toString(),
+            new URL(
+                `resolve?w3id=${encodeURIComponent(ename)}`,
+                PUBLIC_REGISTRY_URL,
+            ).toString(),
         );
         const evaultUri = resolveResp.data.uri as string;
         const graphqlEndpoint = new URL("/graphql", evaultUri).toString();
@@ -546,194 +741,27 @@ const handleUpgrade = async () => {
     }
 };
 
-// ── eName + passphrase recovery ───────────────────────────────────────────────
-
-// bindingDocuments returns MetaEnvelopeConnection; the BindingDocument shape
-// lives inside the `parsed` JSON field as { subject, type, data, signatures }.
-interface BindingDocParsed {
-    type: string;
-    data: Record<string, string>;
-    subject: string;
-}
-
-interface BindingDocsResult {
-    bindingDocuments: {
-        edges: Array<{ node: { parsed: BindingDocParsed } }>;
-    };
-}
-
-const BINDING_DOCS_QUERY = `
-    query {
-        bindingDocuments(first: 20) {
-            edges {
-                node {
-                    parsed
-                }
-            }
-        }
-    }
-`;
-
-const handleEnamePassphraseRecovery = async () => {
-    enameError = null;
-
-    const ename = enameInput.trim();
-    if (!ename) {
-        enameError = "Please enter your eName.";
-        return;
-    }
-    if (!enamePassphraseInput) {
-        enameError = "Please enter your recovery passphrase.";
-        return;
-    }
-
-    enameLoading = true;
-    step = "loading";
-
-    try {
-        // 1. Resolve eName → eVault base URI
-        const resolveRes = await axios.get(
-            new URL(
-                `resolve?w3id=${encodeURIComponent(ename)}`,
-                PUBLIC_REGISTRY_URL,
-            ).toString(),
-        );
-        const evaultBase: string = resolveRes.data.uri;
-        if (!evaultBase)
-            throw new Error("Could not resolve eName to an eVault.");
-
-        // 2. Compare passphrase (IP rate-limited endpoint on the eVault)
-        let cmpRes: { data: { match: boolean; hasPassphrase: boolean } };
-        try {
-            cmpRes = await axios.post(
-                new URL("/passphrase/compare", evaultBase).toString(),
-                { eName: ename, passphrase: enamePassphraseInput },
-            );
-        } catch (err: unknown) {
-            if (axios.isAxiosError(err) && err.response?.status === 429) {
-                const retryAfter =
-                    err.response.data?.retryAfterSeconds ?? "a while";
-                enameError = `Too many attempts. Please wait ${retryAfter} seconds before trying again.`;
-            } else {
-                enameError = "Failed to verify passphrase. Please try again.";
-            }
-            step = "ename-passphrase";
-            return;
-        }
-
-        if (!cmpRes.data.hasPassphrase) {
-            step = "ename-passphrase";
-            showNotaryDrawer = true;
-            return;
-        }
-        if (!cmpRes.data.match) {
-            enameError = "Incorrect passphrase. Please try again.";
-            step = "ename-passphrase";
-            return;
-        }
-
-        // 3. Fetch binding documents from eVault GraphQL
-        const gqlEndpoint = new URL("/graphql", evaultBase).toString();
-        const gqlClient = new GraphQLClient(gqlEndpoint, {
-            headers: {
-                "X-ENAME": ename,
-                ...(PUBLIC_EID_WALLET_TOKEN
-                    ? { Authorization: `Bearer ${PUBLIC_EID_WALLET_TOKEN}` }
-                    : {}),
-            },
-        });
-        const bdRes =
-            await gqlClient.request<BindingDocsResult>(BINDING_DOCS_QUERY);
-        const parsedDocs = bdRes.bindingDocuments.edges.map(
-            (e) => e.node.parsed,
-        );
-
-        const selfDoc = parsedDocs.find((n) => n.type === "self");
-        const idDoc = parsedDocs.find((n) => n.type === "id_document");
-
-        // 4a. ID-verified path: re-fetch the original Didit decision via provisioner
-        if (idDoc?.data?.reference) {
-            const { data: decision } = await axios.get(
-                new URL(
-                    `/verification/v2/decision/${idDoc.data.reference}`,
-                    PUBLIC_PROVISIONER_URL,
-                ).toString(),
-                {
-                    headers: {
-                        "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET,
-                    },
-                },
-            );
-
-            const iv = decision?.id_verifications?.[0];
-            const fullName =
-                iv?.full_name ??
-                [iv?.first_name, iv?.last_name].filter(Boolean).join(" ") ??
-                idDoc.data.name ??
-                "";
-            const dob = iv?.date_of_birth ?? "";
-            const docType = iv?.document_type ?? "";
-            const docNumber = iv?.document_number ?? "";
-            const country = iv?.issuing_state_name ?? iv?.issuing_state ?? "";
-            const expiryDate = iv?.expiration_date ?? "";
-            const issueDate = iv?.date_of_issue ?? "";
-
-            // Exact same shape as recoverVault() in /recover/+page.svelte
-            const user: Record<string, string> = {
-                name: capitalize(fullName),
-                "Date of Birth": dob ? new Date(dob).toDateString() : "",
-                "ID submitted":
-                    [docType, country].filter(Boolean).join(" - ") ||
-                    "Verified",
-                "Document Number": docNumber,
-            };
-            const document: Record<string, string> = {
-                "Valid From": issueDate
-                    ? new Date(issueDate).toDateString()
-                    : "",
-                "Valid Until": expiryDate
-                    ? new Date(expiryDate).toDateString()
-                    : "",
-                "Verified On": new Date().toDateString(),
-            };
-
-            pendingRecovery.set({ uri: evaultBase, ename, user, document });
-            goto("/register");
-            return;
-        }
-
-        // 4b. Self-declaration-only path (anonymous eVault)
-        const name = selfDoc?.data?.name ?? ename;
-        const user: Record<string, string> = {
-            name: capitalize(name),
-            "Date of Birth": "",
-            "ID submitted": "Anonymous — Self Declaration",
-            "Document Number": "",
-        };
-        const document: Record<string, string> = {
-            "Valid From": "",
-            "Valid Until": "",
-            "Verified On": new Date().toDateString(),
-        };
-
-        pendingRecovery.set({ uri: evaultBase, ename, user, document });
-        goto("/register");
-    } catch (err: unknown) {
-        console.error("[RECOVERY/ename-passphrase] error:", err);
-        enameError =
-            err instanceof Error
-                ? err.message
-                : "We couldn’t verify your eName/passphrase or load your eVault data. Check your details and connection, then try again.";
-        step = "ename-passphrase";
-    } finally {
-        enameLoading = false;
-    }
-};
-
 onMount(async () => {
-    // Detect upgrade mode from query param
+    // Refresh guard: if the user landed here without going through the splash
+    // CTA (i.e. a hard reload or external nav), bounce back to /. Step state
+    // is in-memory only, so resuming mid-flow on refresh would drop them on
+    // pin-create regardless of how far they got — better to restart cleanly.
+    // The flag is set by splash's "Create Digital Self" handler and cleared
+    // here on first read.
     const url = new URL(window.location.href);
-    if (url.searchParams.get("upgrade") === "1") {
+    const upgradeRequested = url.searchParams.get("upgrade") === "1";
+    if (!upgradeRequested) {
+        const fromSplash =
+            sessionStorage.getItem("navigatingToOnboarding") === "true";
+        sessionStorage.removeItem("navigatingToOnboarding");
+        if (!fromSplash) {
+            await goto("/");
+            return;
+        }
+    }
+
+    // Detect upgrade mode from query param
+    if (upgradeRequested) {
         upgradeMode = true;
         step = "kyc-panel";
         // Trigger hardware check immediately
@@ -742,6 +770,36 @@ onMount(async () => {
 });
 </script>
 
+{#if step === "pin-create" || step === "pin-repeat" || step === "name"}
+    <div class="relative overflow-hidden min-h-dvh">
+        {#key step}
+            <div
+                class="absolute inset-0"
+                in:slideIn={{ direction: stepDirection }}
+                out:slideOut={{ direction: stepDirection }}
+            >
+                {#if step === "pin-create"}
+                    <PinCreate
+                        onback={handlePinCreateBack}
+                        oncomplete={handlePinCreateComplete}
+                    />
+                {:else if step === "pin-repeat"}
+                    <PinRepeat
+                        firstAttempt={pinFirstAttempt}
+                        onback={handlePinRepeatBack}
+                        oncomplete={handlePinRepeatComplete}
+                    />
+                {:else if step === "name"}
+                    <NameInput
+                        onback={handleNameBack}
+                        oncomplete={handleNameComplete}
+                        error={nameError}
+                    />
+                {/if}
+            </div>
+        {/key}
+    </div>
+{:else}
 <main
     class="min-h-svh px-[5vw] flex flex-col justify-between"
     style="padding-top: max(4svh, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));"
@@ -787,9 +845,7 @@ onMount(async () => {
                 <ButtonAction
                     variant="soft"
                     class="w-full"
-                    callback={() => {
-                        step = "already-have";
-                    }}
+                    callback={() => goto("/recover")}
                 >
                     Restore my Digital Self
                 </ButtonAction>
@@ -812,55 +868,6 @@ onMount(async () => {
                 >
             </p>
         </section>
-
-        <!-- ── Screen: already have ────────────────────────────────────────── -->
-    {:else if step === "already-have"}
-        <section class="grow flex flex-col justify-center gap-6">
-            <div>
-                <h4 class="text-xl font-bold mb-1">Already have an eVault?</h4>
-                <p class="text-black-700 text-sm">
-                    Were you identity-verified when you set up your eVault?
-                </p>
-            </div>
-            <div class="flex flex-col gap-3">
-                <button
-                    onclick={() => goto("/recover")}
-                    class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
-                >
-                    <p class="font-semibold text-base mb-1">
-                        Yes, I verified my ID
-                    </p>
-                    <p class="text-sm text-black-500">
-                        We'll use your verified identity to find and confirm
-                        your previous eVault.
-                    </p>
-                </button>
-                <button
-                    onclick={() => {
-                        step = "ename-recovery";
-                        enameError = null;
-                    }}
-                    class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
-                >
-                    <p class="font-semibold text-base mb-1">
-                        No, I didn't verify my ID
-                    </p>
-                    <p class="text-sm text-black-500">
-                        Recover using your eName and recovery passphrase, or get
-                        help from a W3DS Notary.
-                    </p>
-                </button>
-            </div>
-        </section>
-        <ButtonAction
-            variant="soft"
-            class="w-full mt-4"
-            callback={() => {
-                step = "home";
-            }}
-        >
-            Back
-        </ButtonAction>
 
         <!-- ── Screen 2: new-evault ───────────────────────────────────────────── -->
     {:else if step === "new-evault"}
@@ -990,186 +997,6 @@ onMount(async () => {
                 callback={() => {
                     step = "new-evault";
                     error = null;
-                }}
-            >
-                Back
-            </ButtonAction>
-        </div>
-
-        <!-- ── Screen: eName recovery — do you remember your eName? ─────────── -->
-    {:else if step === "ename-recovery"}
-        <section class="grow flex flex-col justify-center gap-6">
-            <div>
-                <h4 class="text-xl font-bold mb-1">Recover with eName</h4>
-                <p class="text-black-700 text-sm">
-                    Do you remember your eName?
-                </p>
-            </div>
-            <div class="flex flex-col gap-3">
-                <button
-                    onclick={() => {
-                        step = "ename-passphrase-check";
-                        enameError = null;
-                    }}
-                    class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
-                >
-                    <p class="font-semibold text-base mb-1">
-                        Yes, I remember my eName
-                    </p>
-                    <p class="text-sm text-black-500">
-                        Continue to verify with your recovery passphrase.
-                    </p>
-                </button>
-                <button
-                    onclick={() => {
-                        showEnameDeadEndDrawer = true;
-                    }}
-                    class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
-                >
-                    <p class="font-semibold text-base mb-1">
-                        No, I don't remember my eName
-                    </p>
-                    <p class="text-sm text-black-500">
-                        Without your eName or ID verification, recovery is not
-                        possible.
-                    </p>
-                </button>
-            </div>
-        </section>
-        <ButtonAction
-            variant="soft"
-            class="w-full mt-4"
-            callback={() => {
-                step = "already-have";
-            }}
-        >
-            Back
-        </ButtonAction>
-
-        <!-- ── Screen: passphrase check — do you remember your passphrase? ──── -->
-    {:else if step === "ename-passphrase-check"}
-        <section class="grow flex flex-col justify-center gap-6">
-            <div>
-                <h4 class="text-xl font-bold mb-1">Recovery Passphrase</h4>
-                <p class="text-black-700 text-sm">
-                    Do you remember your recovery passphrase?
-                </p>
-            </div>
-            <div class="flex flex-col gap-3">
-                <button
-                    onclick={() => {
-                        step = "ename-passphrase";
-                        enameError = null;
-                    }}
-                    class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
-                >
-                    <p class="font-semibold text-base mb-1">
-                        Yes, I remember my passphrase
-                    </p>
-                    <p class="text-sm text-black-500">
-                        Enter your eName and passphrase to restore your eVault.
-                    </p>
-                </button>
-                <button
-                    onclick={() => {
-                        showNotaryDrawer = true;
-                    }}
-                    class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
-                >
-                    <p class="font-semibold text-base mb-1">
-                        I don't remember my passphrase
-                    </p>
-                    <p class="text-sm text-black-500">
-                        You can visit a Registered W3DS Notary who can verify
-                        your identity and help recover your eVault using trusted
-                        witnesses or other proofs of ownership.
-                    </p>
-                </button>
-            </div>
-        </section>
-        <ButtonAction
-            variant="soft"
-            class="w-full mt-4"
-            callback={() => {
-                step = "ename-recovery";
-            }}
-        >
-            Back
-        </ButtonAction>
-
-        <!-- ── Screen: eName + passphrase form ───────────────────────────────── -->
-    {:else if step === "ename-passphrase"}
-        <section class="grow flex flex-col justify-start gap-4 pt-2">
-            <div>
-                <h4 class="text-xl font-bold mb-1">
-                    Enter your eName &amp; Passphrase
-                </h4>
-                <p class="text-black-700 text-sm">
-                    Your recovery passphrase was set in the eVault Settings.
-                    Both your eName and passphrase must match.
-                </p>
-            </div>
-
-            {#if enameError}
-                <div
-                    class="bg-[#ff3300] rounded-md p-2 w-full text-center text-white text-sm"
-                >
-                    {enameError}
-                </div>
-            {/if}
-
-            <div class="flex flex-col gap-1">
-                <label
-                    class="text-black-700 font-medium text-sm"
-                    for="enameInput"
-                >
-                    Your eName <span class="text-danger">*</span>
-                </label>
-                <input
-                    id="enameInput"
-                    type="text"
-                    bind:value={enameInput}
-                    autocomplete="username"
-                    class="border border-gray-200 w-full rounded-md font-medium my-1 p-3 bg-gray-50 focus:bg-white transition-colors"
-                    placeholder="e.g. @4f2a9c1b-…"
-                />
-            </div>
-
-            <div class="flex flex-col gap-1">
-                <label
-                    class="text-black-700 font-medium text-sm"
-                    for="enamePassphraseInput"
-                >
-                    Recovery Passphrase <span class="text-danger">*</span>
-                </label>
-                <input
-                    id="enamePassphraseInput"
-                    type="password"
-                    bind:value={enamePassphraseInput}
-                    autocomplete="current-password"
-                    class="border border-gray-200 w-full rounded-md font-medium my-1 p-3 bg-gray-50 focus:bg-white transition-colors"
-                    placeholder="Enter your recovery passphrase"
-                />
-            </div>
-        </section>
-
-        <div class="mt-auto flex flex-col gap-3 pt-4">
-            <ButtonAction
-                variant={enameInput.trim() && enamePassphraseInput
-                    ? "solid"
-                    : "soft"}
-                disabled={!enameInput.trim() || !enamePassphraseInput}
-                class="w-full"
-                callback={handleEnamePassphraseRecovery}
-            >
-                Recover eVault
-            </ButtonAction>
-            <ButtonAction
-                variant="soft"
-                class="w-full"
-                callback={() => {
-                    step = "ename-passphrase-check";
-                    enameError = null;
                 }}
             >
                 Back
@@ -1472,87 +1299,4 @@ onMount(async () => {
     </div>
 {/if}
 
-<!-- ── eName dead-end — no eName remembered ──────────────────────────────── -->
-{#if showEnameDeadEndDrawer}
-    <div class="fixed inset-0 z-40 bg-black/40" aria-hidden="true"></div>
-    <div
-        class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4"
-        style="padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));"
-    >
-        <div class="flex items-center gap-3">
-            <div
-                class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-lg font-bold"
-            >
-                ✗
-            </div>
-            <h3 class="text-lg font-bold">Recovery Not Possible</h3>
-        </div>
-        <p class="text-black-700 text-sm leading-relaxed">
-            Without your eName and without ID verification, there is no way to
-            recover your eVault. Your eName is your unique identifier — it
-            cannot be looked up without a verified identity.
-        </p>
-        <p class="text-black-700 text-sm leading-relaxed">
-            You will need to create a new eVault instead.
-        </p>
-        <div class="flex flex-col gap-3 pt-2">
-            <ButtonAction
-                class="w-full"
-                callback={() => {
-                    showEnameDeadEndDrawer = false;
-                    step = "new-evault";
-                }}
-            >
-                Create a new eVault
-            </ButtonAction>
-            <ButtonAction
-                variant="soft"
-                class="w-full"
-                callback={() => {
-                    showEnameDeadEndDrawer = false;
-                }}
-            >
-                Back
-            </ButtonAction>
-        </div>
-    </div>
-{/if}
-
-<!-- ── Notary required — forgot passphrase or no passphrase set ──────────── -->
-{#if showNotaryDrawer}
-    <div class="fixed inset-0 z-40 bg-black/40" aria-hidden="true"></div>
-    <div
-        class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4"
-        style="padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));"
-    >
-        <div class="flex items-center gap-3">
-            <div
-                class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-lg font-bold"
-            >
-                !
-            </div>
-            <h3 class="text-lg font-bold">Visit a W3DS Notary</h3>
-        </div>
-        <p class="text-black-700 text-sm leading-relaxed">
-            Without your recovery passphrase, your eVault cannot be restored
-            automatically.
-        </p>
-        <p class="text-black-700 text-sm leading-relaxed">
-            You can visit a <strong>Registered W3DS Notary</strong> in person. They
-            can verify your identity using trusted witnesses, government-issued documents,
-            or other proofs of ownership and authorise recovery of your eVault on
-            your behalf.
-        </p>
-        <div class="flex flex-col gap-3 pt-2">
-            <ButtonAction
-                variant="soft"
-                class="w-full"
-                callback={() => {
-                    showNotaryDrawer = false;
-                }}
-            >
-                Back
-            </ButtonAction>
-        </div>
-    </div>
 {/if}

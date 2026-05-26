@@ -1,26 +1,39 @@
 <script lang="ts">
-import { BottomSheet } from "$lib/ui";
+import { BottomSheet, PlatformAppCard } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
-import { QrCodeIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/svelte";
+import { untrack } from "svelte";
 
-export let isOpen: boolean;
-export let platform: string | null | undefined;
-export let redirect: string | null | undefined;
-export let onConfirm: () => void;
-export let onOpenChange: (value: boolean) => void;
-
-let internalOpen = isOpen;
-let lastReportedOpen = internalOpen;
-
-$: if (isOpen !== internalOpen) {
-    internalOpen = isOpen;
+interface ILoggedInDrawerProps {
+    isOpen: boolean;
+    platform: string | null | undefined;
+    hostname: string | null | undefined;
+    redirect: string | null | undefined;
+    onConfirm: () => void;
+    onOpenChange: (value: boolean) => void;
 }
 
-$: if (internalOpen !== lastReportedOpen) {
-    lastReportedOpen = internalOpen;
-    onOpenChange?.(internalOpen);
-}
+const {
+    isOpen,
+    platform,
+    hostname,
+    redirect,
+    onConfirm,
+    onOpenChange,
+}: ILoggedInDrawerProps = $props();
+
+let internalOpen = $state(untrack(() => isOpen));
+let lastReportedOpen = $state(untrack(() => internalOpen));
+
+$effect(() => {
+    if (isOpen !== internalOpen) internalOpen = isOpen;
+});
+
+$effect(() => {
+    if (internalOpen !== lastReportedOpen) {
+        lastReportedOpen = internalOpen;
+        onOpenChange?.(internalOpen);
+    }
+});
 </script>
 
 {#if internalOpen}
@@ -34,41 +47,32 @@ $: if (internalOpen !== lastReportedOpen) {
         class="loggedin-drawer gap-5"
     >
         <div class="flex h-full w-full flex-col">
-            <div class="min-h-0 flex flex-1 flex-col items-start overflow-y-auto pt-2">
-                <div
-                    class="flex justify-center mb-4 relative items-center overflow-hidden bg-gray rounded-xl p-4 h-[72px] w-[72px]"
-                >
-                    <div
-                        class="bg-white h-4 w-[200px] -rotate-45 absolute top-1"
-                    ></div>
-                    <div
-                        class="bg-white h-4 w-[200px] -rotate-45 absolute bottom-1"
-                    ></div>
-                    <HugeiconsIcon
-                        size={40}
-                        className="z-10"
-                        icon={QrCodeIcon}
-                        strokeWidth={1.5}
-                        color="var(--color-primary)"
-                    />
+            <div
+                class="min-h-0 flex flex-1 flex-col items-center pt-8 gap-8"
+            >
+                <div class="flex flex-col items-center gap-2 px-4">
+                    <h4
+                        id="loggedin-title"
+                        class="text-2xl font-bold text-black-900 text-center leading-tight"
+                    >
+                        You're logged in!
+                    </h4>
+                    <p class="text-sm leading-relaxed text-black-500 text-center">
+                        You're now connected to {platform ?? "the platform"}
+                    </p>
                 </div>
 
-                <h4 id="loggedin-title" class="text-lg font-bold">
-                    You're logged in!
-                </h4>
-                <p class="text-sm leading-relaxed text-black-700">
-                    You're now connected to {platform ?? "the platform"}
-                </p>
-                <div class="flex flex-col items-start py-6 w-full">
-                    {#if redirect && platform}
-                        <div class="text-start">
-                            <p class="text-sm text-black-500">
-                                You may return to <strong>{platform}</strong> and
-                                continue there
-                            </p>
-                        </div>
-                    {/if}
-                </div>
+                <PlatformAppCard
+                    {hostname}
+                    platformName={platform ?? hostname}
+                />
+
+                {#if redirect && platform}
+                    <p class="text-sm text-black-500 text-center px-4">
+                        You may return to <strong>{platform}</strong> and continue
+                        there
+                    </p>
+                {/if}
             </div>
 
             <div class="shrink-0 flex w-full flex-col gap-3 pb-2 pt-6">

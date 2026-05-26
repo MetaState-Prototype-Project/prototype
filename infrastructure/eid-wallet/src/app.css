@@ -1,12 +1,7 @@
 @import "tailwindcss";
 @import "flag-icons/css/flag-icons.min.css";
-
-@font-face {
-    font-family: "Archivo";
-    src: url("/fonts/Archivo-VariableFont_wdth,wght.ttf") format("truetype");
-    font-weight: 100 900;
-    font-style: normal;
-}
+@import "@fontsource-variable/roboto";
+@import "@fontsource-variable/roboto-condensed";
 
 @layer base {
     /* Typography */
@@ -15,34 +10,35 @@
     }
 
     h2 {
-        @apply text-6xl/[1.5] text-black font-semibold;
+        @apply text-6xl/normal text-black font-semibold;
     }
 
     h3 {
-        @apply text-3xl/[1.5] text-black font-semibold;
+        @apply text-3xl/normal text-black font-semibold;
     }
 
     h4 {
-        @apply text-xl/[1.5] text-black font-semibold;
+        @apply text-xl/normal text-black font-semibold;
     }
 
     p {
-        @apply text-base/[1.5] text-black font-normal;
+        @apply text-base/normal text-black font-normal;
     }
 
     .small {
-        @apply text-xs/[1.5] text-black font-normal;
+        @apply text-xs/normal text-black font-normal;
     }
 }
 
 @theme {
     /* Custom theme */
-    --color-primary: #8e52ff;
-    --color-primary-100: #e8dcff;
-    --color-primary-200: #d2baff;
-    --color-primary-300: #bb97ff;
-    --color-primary-400: #a575ff;
-    --color-primary-500: #8e52ff;
+    --color-primary: #8968ff;
+    --color-primary-50: #cec1ff66;
+    --color-primary-100: #e7e1ff;
+    --color-primary-200: #d0c3ff;
+    --color-primary-300: #b8a4ff;
+    --color-primary-400: #a186ff;
+    --color-primary-500: #8968ff;
 
     --color-secondary: #73efd5;
     --color-secondary-100: #e3fcf7;
@@ -54,12 +50,13 @@
     --color-white: #ffffff;
     --color-gray: #f5f5f5;
 
-    --color-black: #1f1f1f;
-    --color-black-100: #d2d2d2;
-    --color-black-300: #a5a5a5;
-    --color-black-500: #797979;
-    --color-black-700: #4c4c4c;
-    --color-black-900: #1f1f1f;
+    --color-black: #1d2636;
+    --color-black-50: #ebeff5;
+    --color-black-100: #dce0e8;
+    --color-black-300: #b8c0cb;
+    --color-black-500: #788292;
+    --color-black-700: #364052;
+    --color-black-900: #1d2636;
 
     --color-danger: #ff5255;
     --color-danger-100: #ffdcdd;
@@ -67,28 +64,49 @@
     --color-danger-300: #ff968e;
     --color-danger-400: #ff7b77;
     --color-danger-500: #ff5255;
+
+    --color-card-alternative: #f2f5fa;
+
+    /* Success / verified-state palette — used by the verified-ID chip and
+       the Legal ID accordion. Mirrors the lime scale we were reaching for. */
+    --color-success: #84cc16;
+    --color-success-100: #ecfccb;
+    --color-success-200: #d9f99d;
+    --color-success-300: #c0f77c;
+    --color-success-500: #84cc16;
+    --color-success-900: #365314;
+
+    /* Typography */
+    --font-sans: "Roboto Variable", sans-serif;
+    --font-condensed: "Roboto Condensed Variable", sans-serif;
+
+    /* Display size — Greeting h1/h2 and the NameInput field. */
+    --text-display: 40px;
+    --text-display--line-height: 1;
+
+    /* Micro chip / badge label — verified/unverified pills, notification
+       count, the small checkmark on the Legal ID avatar. */
+    --text-chip: 10px;
+    --text-chip--line-height: 1.2;
+
+    /* Pill button label — ADD / INVITE / REPLACE buttons. */
+    --text-pill: 13px;
+    --text-pill--line-height: 1.2;
+
+    /* Standard elevation used across the main-page cards. */
+    --shadow-card: 0px 4px 19.9px 0px #00000024;
 }
 
 body {
-    font-family: "Archivo", sans-serif;
-    /* padding-top: env(safe-area-inset-top); */
-    /* padding-bottom: env(safe-area-inset-bottom); */
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
-    background-color: var(--color-primary);
 }
 
 /* Ensure background remains correct during transitions */
 :root[data-transition]::view-transition-group(root),
 :root[data-transition]::view-transition-old(root),
 :root[data-transition]::view-transition-new(root) {
-    background-color: white !important; /* Default to white */
-}
-
-.dark:root[data-transition]::view-transition-group(root),
-.dark:root[data-transition]::view-transition-old(root),
-.dark:root[data-transition]::view-transition-new(root) {
-    background-color: #0b0d13 !important; /* Use dark background in dark mode */
+    background-color: white !important;
 }
 
 /* Prevent flickering */
@@ -155,18 +173,24 @@ body {
     }
 }
 
-:root[data-transition]::view-transition-old(root) {
-    animation: 400ms ease-out both fade-out;
+/* Forward (data-transition="left"): the NEW page slides in from the right,
+   covering the OLD which stays put. */
+:root[data-transition="left"]::view-transition-old(root) {
+    animation: none;
 }
-
-:root[data-transition="right"]::view-transition-new(root) {
+:root[data-transition="left"]::view-transition-new(root) {
     animation: 200ms cubic-bezier(0.4, 0, 0.2, 1) both slide-from-right;
     position: relative;
     z-index: 1;
 }
 
-:root[data-transition="left"]::view-transition-new(root) {
-    animation: 200ms cubic-bezier(0.4, 0, 0.2, 1) both slide-from-left;
+/* Backward (data-transition="right"): the OLD page slides out to the right,
+   revealing the NEW page underneath which stays put. */
+:root[data-transition="right"]::view-transition-new(root) {
+    animation: none;
+}
+:root[data-transition="right"]::view-transition-old(root) {
+    animation: 200ms cubic-bezier(0.4, 0, 0.2, 1) both slide-to-right;
     position: relative;
     z-index: 1;
 }

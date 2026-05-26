@@ -14,8 +14,16 @@ let globalState: GlobalState | undefined = $state(undefined);
 let notificationListener: PluginListener | undefined;
 
 onMount(async () => {
-    // Get global state
-    globalState = getContext<() => GlobalState>("globalState")();
+    // Get global state — poll briefly since root layout's init is async and
+    // can land after this guard mounts on a hard reload.
+    const getGlobalState = getContext<() => GlobalState>("globalState");
+    globalState = getGlobalState();
+    let retries = 0;
+    while (!globalState && retries < 50) {
+        await new Promise((r) => setTimeout(r, 100));
+        globalState = getGlobalState();
+        retries++;
+    }
 
     // Authentication guard for all app routes
     try {
@@ -86,10 +94,24 @@ onDestroy(() => {
     notificationListener?.unregister();
 });
 
+// Wait for the route slide-in to finish (200ms in the root layout) before
+// making the wrapper transparent — otherwise the camera-feed transparency
+// kicks in mid-slide and /main shows through the incoming /scan-qr page.
 $effect(() => {
     const isScanPage = currentRoute === "scan-qr";
-    if (isScanPage) return document.body.classList.add("custom-global-style");
-    return document.body.classList.remove("custom-global-style");
+    if (isScanPage) {
+        const t = setTimeout(
+            () => document.body.classList.add("custom-global-style"),
+            220,
+        );
+        return () => {
+            clearTimeout(t);
+            // Remove the class on unmount or when leaving /scan-qr so it
+            // never leaks past the route's lifetime.
+            document.body.classList.remove("custom-global-style");
+        };
+    }
+    document.body.classList.remove("custom-global-style");
 });
 </script>
 
@@ -101,15 +123,23 @@ $effect(() => {
 {/if} -->
 
 <div
-    class="p-6"
+    data-route-wrapper
+    class="px-4 pb-4 bg-white"
     style="padding-top: max(2.5rem, calc(env(safe-area-inset-top) + 1rem));"
 >
     {@render children()}
 </div>
 
 <style>
-    :global(body.custom-global-style, body.custom-global-style *:not(button)) {
-        background-color: #00000000;
-        overflow-y: hidden;
+    /* On /scan-qr the body goes transparent so the Tauri camera feed shows
+       through. Only the route wrappers (data-route-wrapper) need to follow —
+       targeting *every* descendant also clobbered drawer backgrounds and
+       caused overflow-y:hidden to clip every shadow in the tree. */
+    :global(body.custom-global-style) {
+        background-color: transparent;
+        overflow: hidden;
+    }
+    :global(body.custom-global-style [data-route-wrapper]) {
+        background-color: transparent !important;
     }
 </style>

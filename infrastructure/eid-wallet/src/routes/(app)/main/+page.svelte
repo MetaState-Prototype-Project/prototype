@@ -1,31 +1,48 @@
+<script module lang="ts">
+// Module-scope: persists across navigations within the same app session
+// because SvelteKit doesn't re-evaluate the module on client-side nav. The
+// entrance fly-in should only play on the very first /main mount; coming
+// back from /notifications, /settings, etc. should just snap into place.
+// MUST live in `<script module>` — a regular `<script>` runs per instance.
+let hasMountedBefore = false;
+</script>
+
 <script lang="ts">
 import { goto } from "$app/navigation";
-import {
-    PUBLIC_EID_WALLET_TOKEN,
-    PUBLIC_PROVISIONER_SHARED_SECRET,
-    PUBLIC_PROVISIONER_URL,
-} from "$env/static/public";
-import { Hero, IdentityCard } from "$lib/fragments";
+import { PUBLIC_EID_WALLET_TOKEN } from "$env/static/public";
 import type { GlobalState } from "$lib/global";
 import {
     getUnreadCount,
     subscribe as subscribeNotifications,
 } from "$lib/stores/notifications";
-import { BottomSheet, Toast } from "$lib/ui";
+import { Toast } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
-import { capitalize } from "$lib/utils";
 import {
-    ChatNotificationIcon,
-    LinkSquare02Icon,
-    QrCodeIcon,
-    Settings02Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/svelte";
-import axios from "axios";
-import { type Snippet, getContext, onMount } from "svelte";
-import { onDestroy } from "svelte";
+    fetchNameFromVault,
+    fetchSocialBindings,
+    resolveVaultUri,
+} from "$lib/utils";
+import { replaceAll as replaceAllPersonal } from "$lib/stores/personalBinding";
+import { loadPersonalBindings } from "$lib/utils/personalBinding";
+import { getContext, onDestroy, onMount, tick } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
-import QrCode from "svelte-qrcode";
+import { fly } from "svelte/transition";
+import AppsMarketplace from "./components/AppsMarketplace.svelte";
+import BindingDocuments from "./components/BindingDocuments.svelte";
+import ENameCard from "./components/ENameCard.svelte";
+import EVaultCard from "./components/EVaultCard.svelte";
+import Greeting from "./components/Greeting.svelte";
+import InfoDrawer from "./components/InfoDrawer.svelte";
+import Lasso from "./components/Lasso.svelte";
+import type { LegalIdDoc } from "./components/LegalIdAccordion.svelte";
+import ScanFAB from "./components/ScanFAB.svelte";
+import SocialBindingDrawer from "./components/SocialBindingDrawer.svelte";
+import type { SocialBindingDisplay } from "./components/SocialBindingAccordion.svelte";
+import WelcomeTour, {
+    TOUR_ORDER,
+    type TourStep,
+} from "./components/WelcomeTour.svelte";
+import KycUpgradeOverlay from "./legacy/KycUpgradeOverlay.svelte";
 
 let userData: Record<string, unknown> | undefined = $state(undefined);
 let greeting: string | undefined = $state(undefined);
@@ -35,117 +52,53 @@ let profileCreationStatus: "idle" | "loading" | "success" | "failed" =
 let skipProfileSetupGate = $state(false);
 const RECOVERY_SKIP_PROFILE_SETUP_KEY = "recoverySkipProfileSetup";
 
-let hasOnlySelfDocs = $state(false);
-let missingProvisionerDocs = $state(false);
-let bindingDocsLoaded = $state(false);
-
-// ── Inline KYC upgrade state ──────────────────────────────────────────────────
-type KycStep =
-    | "idle"
-    | "checking-hw"
-    | "hw-error"
-    | "starting"
-    | "verifying"
-    | "result"
-    | "upgrading"
-    | "duplicate";
-
-interface DiditWarning {
-    short_description?: string;
-}
-
-interface DiditIdVerification {
-    warnings?: DiditWarning[];
-    full_name?: string;
-    first_name?: string;
-    last_name?: string;
-    date_of_birth?: string;
-    document_type?: string;
-    document_number?: string;
-    issuing_state_name?: string;
-    issuing_state?: string;
-    expiration_date?: string;
-    date_of_issue?: string;
-}
-
-interface DiditDecision {
-    status?: string;
-    reviews?: Array<{ comment?: string }>;
-    id_verifications?: DiditIdVerification[];
-    session_id?: string;
-    session?: {
-        sessionId?: string;
-    };
-}
-
-interface DiditCompleteResult {
-    type?: string;
-    session?: {
-        sessionId?: string;
-    };
-}
-
-interface UpgradeErrorBody {
-    duplicate?: boolean;
-    existingW3id?: string | null;
-    message?: string;
-}
-
-let kycStep = $state<KycStep>("idle");
-let kycError = $state<string | null>(null);
-let diditActualSessionId = $state<string | null>(null);
-let diditDecision = $state<DiditDecision | null>(null);
-let diditResult = $state<"approved" | "declined" | "in_review" | null>(null);
-let diditRejectionReason = $state<string | null>(null);
-let duplicateEName = $state<string | null>(null);
-// ─────────────────────────────────────────────────────────────────────────────
-
 let notificationCount = $state(0);
 let unsubNotifications: (() => void) | undefined;
-let shareQRdrawerOpen = $state(false);
 let statusInterval: ReturnType<typeof setInterval> | undefined =
     $state(undefined);
 let showToast = $state(false);
 let toastMessage = $state("");
 
-function shareQR() {
-    alert("QR Code shared!");
-    shareQRdrawerOpen = false;
+// ── Binding documents / KYC state ─────────────────────────────────────────────
+// `isFake` is true while the user only has a self-declared identity. The KYC
+// overlay flips it to false after a successful upgrade, but that in-memory
+// write path is unreliable — fall back on the presence of an id_document
+// binding doc as the authoritative signal.
+let isFake = $state<boolean | undefined>(undefined);
+let legalId = $state<LegalIdDoc | null>(null);
+let kycOpen = $state(false);
+let eVaultInfoOpen = $state(false);
+let bindingDocsInfoOpen = $state(false);
+let socialDrawerOpen = $state(false);
+
+// Accordion shows N resolved names; total comes from the full count.
+const SOCIAL_PREVIEW_COUNT = 5;
+let socialBindingCount = $state(0);
+let socialBindingPreview = $state<SocialBindingDisplay[]>([]);
+const verified = $derived(isFake === false || legalId !== null);
+
+function openKycFlow() {
+    kycOpen = true;
 }
 
-async function copyEName() {
-    if (!ename) return;
-    try {
-        await navigator.clipboard.writeText(ename);
-        toastMessage = "eName copied to clipboard!";
-        showToast = true;
-    } catch (error) {
-        console.error("Failed to copy eName:", error);
-        toastMessage = "Failed to copy eName";
-        showToast = true;
-    }
+function handleKycClose() {
+    kycOpen = false;
 }
 
-function handleToastClose() {
-    showToast = false;
+async function handleKycUpgraded() {
+    if (!globalState) return;
+    isFake = await globalState.userController.isFake;
+    await loadBindingDocuments();
 }
 
-async function retryProfileCreation() {
-    try {
-        await globalState.vaultController.retryProfileCreation();
-    } catch (error) {
-        console.error("Retry failed:", error);
-    }
-}
-
-const globalState = getContext<() => GlobalState>("globalState")();
-
+// Pull the first id_document binding doc from the eVault and map it into the
+// LegalIdDoc shape the accordion expects. The doc's `data` may carry fields
+// directly or only a Didit `reference` — we fall back to userController.user
+// (populated by the KYC upgrade) when the binding doc is sparse.
 async function loadBindingDocuments(): Promise<void> {
+    if (!globalState) return;
     const vault = await globalState.vaultController.vault;
-    if (!vault?.uri || !vault?.ename) {
-        bindingDocsLoaded = true;
-        return;
-    }
+    if (!vault?.uri || !vault?.ename) return;
 
     const enameHeader = vault.ename.startsWith("@")
         ? vault.ename
@@ -172,263 +125,321 @@ async function loadBindingDocuments(): Promise<void> {
         });
 
         const json = await res.json();
-        const edges: { node: { parsed: { type: string } | null } }[] =
+        const edges: { node: { parsed: ParsedBindingDoc | null } }[] =
             json?.data?.bindingDocuments?.edges ?? [];
 
-        const isFake = await globalState.userController.isFake;
-        const types = edges.map((e) => e.node.parsed?.type ?? "");
+        const idDoc = edges
+            .map((e) => e.node.parsed)
+            .find((p): p is ParsedBindingDoc => p?.type === "id_document");
 
-        hasOnlySelfDocs =
-            !!isFake &&
-            (edges.length === 0 || types.every((t) => t === "self"));
-
-        // Verified identity locally (isFake=false) but provisioner binding docs missing
-        missingProvisionerDocs =
-            !isFake &&
-            !types.includes("id_document") &&
-            !types.includes("photograph");
+        legalId = idDoc ? toLegalIdDoc(idDoc) : null;
     } catch (err) {
         console.warn("[main] Failed to load binding documents:", err);
-    } finally {
-        bindingDocsLoaded = true;
-    }
-}
-
-// ── KYC upgrade functions ─────────────────────────────────────────────────────
-
-function resetKyc() {
-    kycStep = "idle";
-    kycError = null;
-    diditActualSessionId = null;
-    diditDecision = null;
-    diditResult = null;
-    diditRejectionReason = null;
-    duplicateEName = null;
-}
-
-async function startKycUpgrade() {
-    kycError = null;
-    kycStep = "checking-hw";
-
-    const hardwareAvailable = await globalState.keyService.probeHardware();
-    if (!hardwareAvailable) {
-        kycStep = "hw-error";
-        return;
     }
 
-    kycStep = "starting";
+    await loadSocialBindings();
+}
+
+// Hydrate the personalBinding store from the caller's vault so the
+// /main accordion reflects the user's marks on a cold reload — without
+// this they only appear after a round trip through /personal.
+async function loadPersonalIntoStore(): Promise<void> {
+    if (!globalState) return;
+    const vault = await globalState.vaultController.vault;
+    if (!vault?.uri || !vault?.ename) return;
+    const callerEname = vault.ename.startsWith("@")
+        ? vault.ename
+        : `@${vault.ename}`;
+    const gqlUrl = new URL("/graphql", vault.uri).toString();
     try {
-        await globalState.walletSdkAdapter.ensureKey("default", "onboarding");
-
-        const { data } = await axios.post(
-            new URL("/verification/v2", PUBLIC_PROVISIONER_URL).toString(),
-            {},
-            {
-                headers: {
-                    "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET,
-                },
-            },
-        );
-
-        if (!data.verificationUrl) {
-            throw new Error(
-                `Backend did not return a verificationUrl. Response: ${JSON.stringify(data)}`,
-            );
-        }
-
-        kycStep = "verifying";
-
-        await new Promise((r) => setTimeout(r, 50));
-
-        const { DiditSdk } = await import("@didit-protocol/sdk-web");
-        const sdk = DiditSdk.shared;
-        sdk.onComplete = handleDiditComplete;
-        await sdk.startVerification({
-            url: data.verificationUrl,
-            configuration: {
-                embedded: true,
-                embeddedContainerId: "didit-container-home",
-            },
+        const loaded = await loadPersonalBindings(gqlUrl, callerEname);
+        replaceAllPersonal({
+            photos: loaded.photographs.map((p, i) => ({
+                id: `${p.metaEnvelopeId}-${i}`,
+                metaEnvelopeId: p.metaEnvelopeId,
+                dataUrl: p.photoBlob,
+                description: p.description,
+                source: "camera" as const,
+            })),
+            parameters: loaded.parameters
+                ? {
+                      metaEnvelopeId: loaded.parameters.metaEnvelopeId,
+                      text: loaded.parameters.text,
+                  }
+                : null,
+            knowledge: loaded.securityQuestion
+                ? {
+                      metaEnvelopeId: loaded.securityQuestion.metaEnvelopeId,
+                      question: loaded.securityQuestion.question,
+                  }
+                : null,
         });
     } catch (err) {
-        console.error("[KYC] Failed to start:", err);
-        kycError =
-            err instanceof Error
-                ? err.message
-                : "Failed to start verification. Please try again.";
-        kycStep = "idle";
-        setTimeout(() => {
-            kycError = null;
-        }, 6000);
+        console.warn("[main] Failed to load personal bindings:", err);
     }
 }
 
-const handleDiditComplete = async (result: DiditCompleteResult) => {
-    console.log("[KYC] onComplete:", result);
-
-    if (result.type === "cancelled") {
-        resetKyc();
-        return;
-    }
-
-    if (!result.session?.sessionId) {
-        kycError = "Verification did not return a session ID.";
-        resetKyc();
-        return;
-    }
-
-    diditActualSessionId = result.session.sessionId;
-    kycStep = "starting"; // reuse "starting" as a loading state while fetching decision
-
-    try {
-        const { data: decision } = await axios.get<DiditDecision>(
-            new URL(
-                `/verification/v2/decision/${result.session.sessionId}`,
-                PUBLIC_PROVISIONER_URL,
-            ).toString(),
-            {
-                headers: {
-                    "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET,
-                },
-            },
-        );
-
-        diditDecision = decision;
-        const rawStatus: string = decision.status ?? "";
-        diditResult = rawStatus.toLowerCase().replace(" ", "_") as
-            | "approved"
-            | "declined"
-            | "in_review";
-
-        if (diditResult !== "approved") {
-            diditRejectionReason =
-                decision.reviews?.[0]?.comment ??
-                decision.id_verifications?.[0]?.warnings?.[0]
-                    ?.short_description ??
-                "Verification could not be completed.";
-        }
-
-        kycStep = "result";
-    } catch (err) {
-        console.error("[KYC] Failed to fetch decision:", err);
-        kycError = "Failed to retrieve verification result. Please try again.";
-        resetKyc();
-        setTimeout(() => {
-            kycError = null;
-        }, 6000);
-    }
-};
-
-async function handleUpgrade() {
-    if (!diditDecision) return;
+async function loadSocialBindings(): Promise<void> {
+    if (!globalState) return;
     const vault = await globalState.vaultController.vault;
-    const w3id = vault?.ename;
-    if (!w3id) {
-        kycError = "No active eVault found for upgrade.";
-        return;
-    }
+    if (!vault?.uri || !vault?.ename) return;
+    const callerEname = vault.ename.startsWith("@")
+        ? vault.ename
+        : `@${vault.ename}`;
+    const gqlUrl = new URL("/graphql", vault.uri).toString();
 
-    const sessionId =
-        diditActualSessionId ??
-        diditDecision.session_id ??
-        diditDecision.session?.sessionId;
-    if (!sessionId) {
-        kycError = "Missing session ID from verification result.";
-        return;
-    }
-
-    kycStep = "upgrading";
     try {
-        const { data } = await axios.post(
-            new URL(
-                "/verification/v2/upgrade",
-                PUBLIC_PROVISIONER_URL,
-            ).toString(),
-            { diditSessionId: sessionId, w3id },
-            {
-                headers: {
-                    "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET,
-                },
-            },
+        const bindings = await fetchSocialBindings(gqlUrl, callerEname);
+        socialBindingCount = bindings.length;
+
+        const previewSlice = bindings.slice(0, SOCIAL_PREVIEW_COUNT);
+        const preview = await Promise.all(
+            previewSlice.map(async (b): Promise<SocialBindingDisplay> => {
+                try {
+                    const counterVaultUri = await resolveVaultUri(
+                        b.counterpartyEname,
+                    );
+                    const name = await fetchNameFromVault(
+                        counterVaultUri,
+                        b.counterpartyEname,
+                        b.counterpartyEname,
+                    );
+                    return {
+                        counterpartyEname: b.counterpartyEname,
+                        counterpartyName: name,
+                    };
+                } catch {
+                    return {
+                        counterpartyEname: b.counterpartyEname,
+                        counterpartyName: b.counterpartyEname,
+                    };
+                }
+            }),
         );
-        if (!data.success) {
-            if (data.duplicate) {
-                duplicateEName = data.existingW3id ?? null;
-                kycStep = "duplicate";
-            } else {
-                kycError = data.message ?? "Upgrade failed";
-                kycStep = "result";
-            }
-            return;
-        }
-        // Update local ePassport data from the verified Didit decision
-        const idVerif = diditDecision?.id_verifications?.[0];
-        if (idVerif) {
-            const fullName = (
-                idVerif.full_name ??
-                `${idVerif.first_name ?? ""} ${idVerif.last_name ?? ""}`
-            ).trim();
-            const dob: string = idVerif.date_of_birth ?? "";
-            const docType: string = idVerif.document_type ?? "";
-            const docNumber: string = idVerif.document_number ?? "";
-            const country: string =
-                idVerif.issuing_state_name ?? idVerif.issuing_state ?? "";
-            const expiryDate: string = idVerif.expiration_date ?? "";
-            const issueDate: string = idVerif.date_of_issue ?? "";
-
-            globalState.userController.user = {
-                name: capitalize(fullName),
-                "Date of Birth": dob ? new Date(dob).toDateString() : "",
-                "ID submitted":
-                    [docType, country].filter(Boolean).join(" - ") ||
-                    "Verified",
-                "Document Number": docNumber,
-            };
-            globalState.userController.document = {
-                "Valid From": issueDate
-                    ? new Date(issueDate).toDateString()
-                    : "",
-                "Valid Until": expiryDate
-                    ? new Date(expiryDate).toDateString()
-                    : "",
-                "Verified On": new Date().toDateString(),
-            };
-            globalState.userController.isFake = false;
-
-            // Refresh local userData so the card re-renders immediately
-            const userInfo = await globalState.userController.user;
-            userData = { ...userInfo, isFake: false };
-        }
-
-        resetKyc();
-        // Refresh binding docs so ribbon disappears
-        bindingDocsLoaded = false;
-        hasOnlySelfDocs = false;
-        missingProvisionerDocs = false;
-        await loadBindingDocuments();
-    } catch (err: unknown) {
-        console.error("[KYC] Upgrade failed:", err);
-        const body: UpgradeErrorBody | undefined = axios.isAxiosError(err)
-            ? (err.response?.data as UpgradeErrorBody | undefined)
-            : undefined;
-        if (body?.duplicate) {
-            duplicateEName = body.existingW3id ?? null;
-            kycStep = "duplicate";
-        } else {
-            kycError =
-                body?.message ??
-                (err instanceof Error
-                    ? err.message
-                    : "Upgrade failed. Please try again.");
-            kycStep = "result";
-            setTimeout(() => {
-                kycError = null;
-            }, 6000);
-        }
+        socialBindingPreview = preview;
+    } catch (err) {
+        console.warn("[main] Failed to load social bindings:", err);
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+function openSocialDrawer() {
+    socialDrawerOpen = true;
+}
+
+async function handleSocialBound() {
+    await loadSocialBindings();
+}
+
+function openSocialFullList() {
+    goto("/social-bindings");
+}
+
+interface ParsedBindingDoc {
+    type: string;
+    data: Record<string, unknown>;
+}
+
+function asString(v: unknown): string | undefined {
+    return typeof v === "string" && v.length > 0 ? v : undefined;
+}
+
+function formatDate(iso: string | undefined): string | undefined {
+    if (!iso) return undefined;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toDateString();
+}
+
+// TODO: enrich the Legal ID card with document type, country, DOB and document
+// number. The provisioner currently stores a sparse binding doc — only
+// { vendor, reference, name } — see `createBindingDocumentForUser` in
+// evault-core's ProvisioningService. Two options when revisiting:
+//   (a) ask evault to embed the full Didit fields in `data` at provisioning
+//       time (cleanest; binding doc self-contained).
+//   (b) here in the wallet, fetch GET /verification/v2/decision/{reference}
+//       on the provisioner when loading binding docs, and merge those fields
+//       in. Works without touching evault but adds a network call.
+// Until then, the accordion shows the verified name only.
+function toLegalIdDoc(doc: ParsedBindingDoc): LegalIdDoc {
+    const data = doc.data;
+    const docType = asString(data.document_type) ?? asString(data.documentType);
+    const country =
+        asString(data.issuing_country) ??
+        asString(data.issuing_state_name) ??
+        asString(data.issuing_state) ??
+        asString(data.country);
+    const title = [docType, country].filter(Boolean).join(" - ");
+
+    const name =
+        asString(data.name) ??
+        asString(data.full_name) ??
+        (userData ? asString(userData.name) : undefined);
+    const dob =
+        formatDate(
+            asString(data.date_of_birth) ?? asString(data.dateOfBirth),
+        ) ?? (userData ? asString(userData["Date of Birth"]) : undefined);
+    const documentNumber =
+        asString(data.document_number) ??
+        asString(data.documentNumber) ??
+        (userData ? asString(userData["Document Number"]) : undefined);
+
+    return {
+        title: title || "Legal ID",
+        name,
+        dateOfBirth: dob,
+        documentNumber,
+    };
+}
+
+// ── Welcome-tour state ────────────────────────────────────────────────────────
+// `null` once the tour has either been seen before or has just finished.
+// Setting a value mounts the WelcomeTour panel and switches the page into
+// guided mode (locked scroll, hidden later cards, etc.).
+let tourStep = $state<TourStep | null>(null);
+// Vertical offset (in px) applied to the page content wrapper via CSS
+// translateY while the tour runs. We can't use scrollTo because the root
+// layout wraps children in `absolute inset-0` inside `min-h-screen`, which
+// makes the body unscrollable.
+let tourOffset = $state(0);
+// Cards don't mount until pageReady is true — avoids a flash of the full
+// layout before the tour-seen flag resolves on first visit.
+let pageReady = $state(false);
+const tourActive = $derived(tourStep !== null);
+const tourGreeting = $derived(tourActive ? "Hello" : (greeting ?? "Hi"));
+
+// Captured once on component init. Stays true for the lifetime of this
+// component instance; the module-scope flag flips immediately so any later
+// remount (i.e. coming back from another route) sees `false`.
+const isFirstMount = !hasMountedBefore;
+hasMountedBefore = true;
+// Cards animate in on the first /main visit and on each tour-driven reveal,
+// but stay still on subsequent re-entries. Sliding up every time the user
+// taps back into /main felt jittery.
+const animateCardEntrance = $derived(isFirstMount || tourActive);
+
+function stepIndex(step: TourStep | null): number {
+    return step === null ? Number.POSITIVE_INFINITY : TOUR_ORDER.indexOf(step);
+}
+
+function isCardRevealed(card: TourStep): boolean {
+    // When the tour isn't active, all cards are visible normally.
+    if (!tourActive) return true;
+    return stepIndex(card) <= stepIndex(tourStep);
+}
+
+function isCardPassed(card: TourStep): boolean {
+    if (!tourActive) return false;
+    return stepIndex(card) < stepIndex(tourStep);
+}
+
+// Fraction of the viewport that the bottom tour panel covers — used when
+// centering the focused card in the remaining space above it.
+const TOUR_PANEL_VH_FRACTION = 0.38;
+// Minimum space above the focused card so the previous card stays visible.
+const TOUR_TOP_GUTTER_PX = 80;
+// Minimum gap kept between the focused card's bottom and the panel.
+const TOUR_BOTTOM_GUTTER_PX = 20;
+
+// Approximate ScanFAB height (button + padding). Used to compute its
+// in-tour centered Y and its resting position near the viewport bottom.
+const SCAN_FAB_HEIGHT_PX = 56;
+// Vertical inset of the Scan FAB from the viewport bottom in its default
+// resting state (matches the `bottom-12` in ScanFAB's fixed class).
+const SCAN_FAB_BOTTOM_INSET_PX = 48;
+
+// Computed Y position (in px from viewport top) for the Scan FAB. Always
+// fixed-positioned — top transitions smoothly between the in-tour spot and
+// the resting bottom position so the FAB moves rather than disappearing.
+let scanFABTop = $state(0);
+const scanFABVisible = $derived(tourStep === null || tourStep === "scan");
+
+// The scan-step value of scanFABTop is set imperatively inside
+// handleTourNext (it depends on where Apps marketplace ended up after the
+// apps step). This effect only handles the non-scan states — pre-tour,
+// during earlier steps, and after FINISH.
+$effect(() => {
+    if (typeof window === "undefined") return;
+    if (tourStep !== "scan") {
+        scanFABTop =
+            window.innerHeight - SCAN_FAB_HEIGHT_PX - SCAN_FAB_BOTTOM_INSET_PX;
+    }
+});
+
+async function handleTourNext(next: TourStep | null) {
+    if (next === null) {
+        // Finishing — slide content back to its natural position, persist the
+        // flag, then null out the step so the tour panel dismounts.
+        tourOffset = 0;
+        if (globalState) globalState.hasSeenWelcomeTour = true;
+        tourStep = null;
+        return;
+    }
+    tourStep = next;
+    await tick();
+
+    // Scan is special: push the apps card up to the top gutter so the Scan
+    // FAB has clear room beneath it. Without this extra scroll the apps card
+    // sits right against the FAB and reads as overlap.
+    if (next === "scan") {
+        const apps = document.getElementById("tour-target-apps");
+        if (!apps) return;
+        tourOffset = Math.max(0, apps.offsetTop - TOUR_TOP_GUTTER_PX);
+        const appsBottomInViewport =
+            apps.offsetTop + apps.offsetHeight - tourOffset;
+        const panelTopInViewport =
+            window.innerHeight * (1 - TOUR_PANEL_VH_FRACTION);
+        const slotCenter = (appsBottomInViewport + panelTopInViewport) / 2;
+        scanFABTop = Math.max(
+            appsBottomInViewport + 16,
+            slotCenter - SCAN_FAB_HEIGHT_PX / 2,
+        );
+        return;
+    }
+
+    const card = document.getElementById(`tour-target-${next}`);
+    if (!card) return;
+
+    // Center the focused card vertically in the area above the bottom panel.
+    // The space above the card stays large enough for the previous card to
+    // peek through (faded); everything before that translates off-screen.
+    const viewportH = window.innerHeight;
+    const cardAreaH = viewportH * (1 - TOUR_PANEL_VH_FRACTION);
+    const cardH = card.offsetHeight;
+    const centeredTop = (cardAreaH - cardH) / 2;
+    const clampedTop = Math.min(
+        cardAreaH - cardH - TOUR_BOTTOM_GUTTER_PX,
+        Math.max(TOUR_TOP_GUTTER_PX, centeredTop),
+    );
+    // offsetTop on the wrapped card is relative to its offsetParent — the
+    // translate container — so the math works regardless of where in the
+    // outer layout we live.
+    tourOffset = Math.max(0, card.offsetTop - clampedTop);
+}
+
+function handleToast(message: string) {
+    toastMessage = message;
+    showToast = true;
+}
+
+function handleToastClose() {
+    showToast = false;
+}
+
+async function retryProfileCreation() {
+    if (!globalState) return;
+    try {
+        await globalState.vaultController.retryProfileCreation();
+    } catch (error) {
+        console.error("Retry failed:", error);
+    }
+}
+
+// Root +layout.svelte builds globalState in its own onMount, which runs
+// AFTER child onMounts. On hard refresh that means the context's current
+// value here is `undefined` — so we capture the getter and poll for it,
+// mirroring what (app)/+layout.svelte already does.
+const getGlobalState = getContext<() => GlobalState | undefined>("globalState");
+let globalState: GlobalState | undefined = $state(undefined);
 
 onMount(() => {
     notificationCount = getUnreadCount();
@@ -443,29 +454,6 @@ onMount(() => {
         localStorage.removeItem(RECOVERY_SKIP_PROFILE_SETUP_KEY);
     }
 
-    // Load initial data
-    (async () => {
-        const userInfo = await globalState.userController.user;
-        const isFake = await globalState.userController.isFake;
-        userData = { ...userInfo, isFake };
-        const vaultData = await globalState.vaultController.vault;
-        ename = vaultData?.ename;
-        await loadBindingDocuments();
-    })();
-
-    // Get initial profile creation status
-    profileCreationStatus = globalState.vaultController.profileCreationStatus;
-    console.log("status current", profileCreationStatus);
-
-    // Set up a watcher for profile creation status changes
-    const checkStatus = () => {
-        profileCreationStatus =
-            globalState.vaultController.profileCreationStatus;
-    };
-
-    // Check status periodically
-    statusInterval = setInterval(checkStatus, 1000);
-
     const currentHour = new Date().getHours();
     greeting =
         currentHour > 17
@@ -473,6 +461,51 @@ onMount(() => {
             : currentHour > 12
               ? "Good Afternoon"
               : "Good Morning";
+
+    (async () => {
+        let gs = getGlobalState();
+        let retries = 0;
+        while (!gs && retries < 50) {
+            await new Promise((r) => setTimeout(r, 100));
+            gs = getGlobalState();
+            retries++;
+        }
+        if (!gs) {
+            console.error("[main] globalState never became available");
+            // Flip pageReady so the layout has something to render
+            // (cards still won't show because gs is null, but the page
+            // doesn't stay blank waiting for a state that never arrives).
+            pageReady = true;
+            return;
+        }
+        globalState = gs;
+
+        profileCreationStatus = gs.vaultController.profileCreationStatus;
+
+        const userInfo = await gs.userController.user;
+        const fake = await gs.userController.isFake;
+        isFake = fake;
+        userData = { ...userInfo, isFake: fake };
+        const vaultData = await gs.vaultController.vault;
+        ename = vaultData?.ename;
+
+        await loadBindingDocuments();
+        await loadPersonalIntoStore();
+
+        // Welcome-tour gate — local Tauri Store read, no network needed.
+        const seen = await gs.hasSeenWelcomeTour;
+        if (!seen) {
+            tourStep = "ename";
+        }
+        pageReady = true;
+    })();
+
+    const checkStatus = () => {
+        if (!globalState) return;
+        profileCreationStatus =
+            globalState.vaultController.profileCreationStatus;
+    };
+    statusInterval = setInterval(checkStatus, 1000);
 });
 
 onDestroy(() => {
@@ -494,7 +527,7 @@ onDestroy(() => {
     </div>
 {:else if profileCreationStatus === "failed"}
     <div
-        class="flex flex-col items-center justify-center min-h-screen gap-6 px-4"
+        class="flex flex-col items-center justify-center min-h-screen gap-6"
     >
         <div class="text-center">
             <h3 class="text-xl font-semibold text-danger mb-2">
@@ -514,407 +547,213 @@ onDestroy(() => {
         </div>
     </div>
 {:else}
-    <div class="flex items-start">
-        <Hero title={greeting ?? "Hi!"}>
-            {#snippet subtitle()}
-                Welcome back to your eID Wallet
-            {/snippet}
-        </Hero>
+    <div
+        class="relative transition-transform duration-500 ease-out will-change-transform"
+        style="padding-top: max(12px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom)); transform: translateY(-{tourOffset}px);"
+    >
+        {#if pageReady}
+            <div
+                in:fly|global={animateCardEntrance
+                    ? { y: 30, duration: 600 }
+                    : { duration: 0 }}
+            >
+                <Greeting
+                    greeting={tourGreeting}
+                    name={(userData?.name as string) ?? ""}
+                    {notificationCount}
+                    {tourActive}
+                />
+            </div>
+        {/if}
 
-        <div class="flex items-center gap-2">
-            <Button.Nav href="/notifications" class="relative" aria-label={notificationCount > 0 ? `Notifications (${notificationCount} unread)` : "Notifications"}>
-                <HugeiconsIcon
-                    size={28}
-                    strokeWidth={2}
-                    className="mt-1.5"
-                    icon={ChatNotificationIcon}
-                />
-                {#if notificationCount > 0}
-                    <span
-                        class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1"
-                    >
-                        {notificationCount > 99 ? "99+" : notificationCount}
-                    </span>
-                {/if}
-            </Button.Nav>
-            <Button.Nav href="/settings" aria-label="Settings">
-                <HugeiconsIcon
-                    size={32}
-                    strokeWidth={2}
-                    className="mt-1.5"
-                    icon={Settings02Icon}
-                />
-            </Button.Nav>
-        </div>
+        <main class="mt-6 flex flex-col gap-4 pb-32">
+            {#if pageReady && isCardRevealed("ename")}
+                <div
+                    id="tour-target-ename"
+                    class="relative tour-card"
+                    class:tour-card-passed={isCardPassed("ename")}
+                    in:fly|global={animateCardEntrance
+                        ? {
+                              y: 30,
+                              duration: 600,
+                              delay: tourActive ? 400 : 0,
+                          }
+                        : { duration: 0 }}
+                >
+                    <ENameCard
+                        {ename}
+                        {verified}
+                        ontoast={handleToast}
+                        onshareqr={openSocialDrawer}
+                    />
+                    <Lasso size="med" active={tourStep === "ename"} />
+                </div>
+            {/if}
+
+            {#if pageReady && isCardRevealed("binding-docs")}
+                <div
+                    id="tour-target-binding-docs"
+                    class="relative tour-card"
+                    class:tour-card-passed={isCardPassed("binding-docs")}
+                    in:fly|global={animateCardEntrance
+                        ? { y: 30, duration: 600 }
+                        : { duration: 0 }}
+                >
+                    <BindingDocuments
+                        {legalId}
+                        socialBindingCount={socialBindingCount}
+                        socialBindingPreview={socialBindingPreview}
+                        onlegalid={openKycFlow}
+                        onpersonal={() => goto("/personal")}
+                        onsocialinvite={openSocialDrawer}
+                        onsocialfulllist={openSocialFullList}
+                        oninfo={() => (bindingDocsInfoOpen = true)}
+                    />
+                    <Lasso size="xl" active={tourStep === "binding-docs"} />
+                </div>
+            {/if}
+
+            {#if pageReady && isCardRevealed("evault")}
+                <div
+                    id="tour-target-evault"
+                    class="relative tour-card"
+                    class:tour-card-passed={isCardPassed("evault")}
+                    in:fly|global={animateCardEntrance
+                        ? { y: 30, duration: 600 }
+                        : { duration: 0 }}
+                >
+                    <EVaultCard
+                        available="80 Gb"
+                        oninfo={() => (eVaultInfoOpen = true)}
+                    />
+                    <Lasso size="med" active={tourStep === "evault"} />
+                </div>
+            {/if}
+
+            {#if pageReady && isCardRevealed("apps")}
+                <div
+                    id="tour-target-apps"
+                    class="relative tour-card"
+                    class:tour-card-passed={isCardPassed("apps")}
+                    in:fly|global={animateCardEntrance
+                        ? { y: 30, duration: 600 }
+                        : { duration: 0 }}
+                >
+                    <AppsMarketplace />
+                    <Lasso size="lg" active={tourStep === "apps"} />
+                </div>
+            {/if}
+
+        </main>
     </div>
 
-    {#snippet Section(title: string, children: Snippet)}
-        <section class="mt-5">
-            <h4>{title}</h4>
-            {@render children()}
-        </section>
-    {/snippet}
-
-    {#snippet eName()}
-        <IdentityCard
-            variant="eName"
-            userId={ename ?? "Loading..."}
-            copyBtn={copyEName}
-        />
-    {/snippet}
-    {#snippet ePassport()}
-        <IdentityCard
-            variant="ePassport"
-            viewBtn={() => goto("/ePassport")}
-            userData={userData as Record<string, string>}
-        />
-    {/snippet}
-
-    <main class="pb-12">
-        {@render Section("eName", eName)}
-
-        <!-- ePassport section: whole block navigates to /ePassport -->
-        <section class="mt-5">
-            <h4>ePassport</h4>
-            <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
-            <div
-                class="cursor-pointer relative"
-                onclick={() => goto("/ePassport")}
-                role="link"
-                tabindex="0"
-                onkeydown={(e) => {
-                    if (e.key === "Enter") goto("/ePassport");
-                }}
-            >
-                <div class="relative z-10">
-                    <IdentityCard
-                        variant="ePassport"
-                        userData={userData as Record<string, string>}
-                    />
-                </div>
-                {#if bindingDocsLoaded && (hasOnlySelfDocs || missingProvisionerDocs)}
-                    <button
-                        onclick={(e) => {
-                            e.stopPropagation();
-                            goto("/ePassport");
-                        }}
-                        class="relative z-0 w-full -mt-3 -translate-y-2.5 rounded-b-2xl px-4 pt-7.5 pb-3 flex items-center justify-center gap-2 text-sm font-medium shadow-md transition-colors
-                            {missingProvisionerDocs
-                            ? 'bg-emerald-400 text-emerald-900 active:bg-emerald-500'
-                            : 'bg-amber-400 text-amber-900 active:bg-amber-500'}"
-                    >
-                        <span>{missingProvisionerDocs ? "↑" : "⚠"}</span>
-                        {missingProvisionerDocs
-                            ? "New – add binding docs for trust & recovery"
-                            : "Verify your identity – secure DigitalSelf & earn trust"}
-                    </button>
-                {/if}
-            </div>
-        </section>
-
-        <Button.Nav
-            href="https://marketplace.w3ds.metastate.foundation/"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="rounded-3xl z-0 w-full border border-gray-300 h-48 text-black p-3 mt-8 flex flex-col justify-end cursor-pointer relative overflow-hidden  transition-shadow"
-        >
-            <img
-                src="/marketplace.png"
-                alt="Marketplace"
-                class="absolute inset-0 z-0 w-full h-full object-cover object-bottom"
-            />
-            <!-- Gradient overlay that fades towards the bottom -->
-            <div
-                class="absolute inset-0 z-1 bg-linear-to-t from-white via-white/60 to-transparent"
-            ></div>
-
-            <span
-                class="text-2xl font-bold flex gap-2 relative z-10 drop-shadow-lg"
-                >Discover Post Platforms</span
-            >
-            <span
-                class="text-sm opacity-90 relative z-10 drop-shadow-md flex gap-1 items-center"
-                >Explore
-                <div class="flex items-center">
-                    <img
-                        src="/images/W3DSLogoBlack.svg"
-                        alt="W3DS Logo"
-                        class="h-4"
-                    />
-                    -enabled services
-                </div>
-                <span class="relative z-10">
-                    <HugeiconsIcon
-                        size={16}
-                        strokeWidth={1.5}
-                        icon={LinkSquare02Icon}
-                    />
-                </span></span
-            >
-        </Button.Nav>
-    </main>
-
-    <BottomSheet
-        title="Scan QR Code"
-        bind:isOpen={shareQRdrawerOpen}
-        class="flex flex-col gap-4 items-center justify-center"
-    >
+    {#if pageReady}
+        <!-- Bottom fade so cards scrolling underneath don't crowd the Scan
+             FAB. Sits below the FAB (z-20 < z-30) and above the cards. The
+             tour's own bottom panel covers this during the walkthrough. -->
         <div
-            class="flex justify-center relative items-center overflow-hidden h-full rounded-3xl p-8 pt-0"
+            aria-hidden="true"
+            class="fixed bottom-0 left-0 right-0 h-32 z-20 pointer-events-none bg-linear-to-t from-white/80 to-transparent"
+        ></div>
+
+        <!-- Single, always-mounted Scan button. `top` transitions between
+             the in-tour centered position and the resting bottom-of-screen
+             spot so the FAB moves smoothly instead of disappearing on the
+             tour's last step → tour-done handover. -->
+        <div
+            class="fixed left-1/2 -translate-x-1/2 z-30 transition-[top,opacity] duration-500 ease-out"
+            style="top: {scanFABTop}px; opacity: {scanFABVisible ? 1 : 0};"
         >
-            <QrCode size={320} value={ename ?? ""} />
-        </div>
-
-        <h4 class="text-center mt-2">Share your eName</h4>
-        <p class="text-black-700 text-center">
-            Anyone scanning this can see your eName
-        </p>
-        <div class="flex justify-center items-center mt-4">
-            <Button.Action variant="solid" callback={shareQR} class="w-full">
-                Share
-            </Button.Action>
-        </div>
-    </BottomSheet>
-
-    <Button.Nav
-        href="/scan-qr"
-        class="fixed bottom-12 left-1/2 -translate-x-1/2"
-    >
-        <Button.Action
-            variant="solid"
-            size="md"
-            onclick={() => alert("Action button clicked!")}
-            class="mx-auto text-nowrap flex gap-8"
-        >
-            <HugeiconsIcon
-                size={32}
-                strokeWidth={2}
-                className="mr-2"
-                icon={QrCodeIcon}
-            />
-            Scan to Login
-        </Button.Action>
-    </Button.Nav>
-{/if}
-
-<!-- ── KYC upgrade overlay ───────────────────────────────────────────────────── -->
-{#if kycStep !== "idle"}
-    <!-- Hardware check / hw-error / starting (loading) -->
-    {#if kycStep === "checking-hw" || kycStep === "hw-error" || kycStep === "starting" || kycStep === "upgrading"}
-        <div class="fixed inset-0 z-50 bg-white overflow-y-auto">
-            <div
-                class="min-h-full flex flex-col p-6"
-                style="padding-top: max(24px, env(safe-area-inset-top));"
-            >
-                <article class="grow flex flex-col items-start w-full">
-                    <img
-                        src="/images/GetStarted.svg"
-                        alt="get-started"
-                        class="w-full mb-4"
-                    />
-
-                    {#if kycError}
-                        <div
-                            class="bg-[#ff3300] rounded-md p-2 w-full text-center text-white mb-4"
-                        >
-                            {kycError}
-                        </div>
-                    {/if}
-
-                    {#if kycStep === "checking-hw" || kycStep === "starting" || kycStep === "upgrading"}
-                        <div
-                            class="w-full py-20 flex flex-col items-center justify-center gap-6"
-                        >
-                            <Shadow size={40} color="rgb(142, 82, 255)" />
-                            <h4 class="text-center">
-                                {kycStep === "checking-hw"
-                                    ? "Checking device capabilities..."
-                                    : kycStep === "upgrading"
-                                      ? "Upgrading your eVault…"
-                                      : "Starting verification…"}
-                            </h4>
-                        </div>
-                    {:else if kycStep === "hw-error"}
-                        <h4 class="mt-2 mb-2 text-red-600 text-left">
-                            Hardware Security Not Available
-                        </h4>
-                        <p class="text-black-700 mb-4">
-                            Your phone doesn't support hardware crypto keys,
-                            which is a requirement for verified IDs.
-                        </p>
-                        <p class="text-black-700">
-                            Hardware-backed identity verification is not
-                            available on this device.
-                        </p>
-                    {/if}
-                </article>
-
-                {#if kycStep === "hw-error"}
-                    <div class="flex-none pt-8 pb-12">
-                        <Button.Action
-                            variant="soft"
-                            class="w-full"
-                            callback={resetKyc}
-                        >
-                            Cancel
-                        </Button.Action>
-                    </div>
-                {/if}
+            <div class="relative">
+                <ScanFAB fixed={false} />
+                <Lasso size="sm" active={tourStep === "scan"} />
             </div>
         </div>
     {/if}
 
-    <!-- Didit embedded verification -->
-    {#if kycStep === "verifying"}
-        <div
-            class="fixed inset-0 z-50 bg-white flex flex-col"
-            style="padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: max(24px, env(safe-area-inset-bottom));"
-        >
-            <div class="flex-none flex justify-end px-4 pt-2">
-                <button
-                    class="text-sm text-black-500 underline"
-                    onclick={resetKyc}
-                >
-                    Cancel
-                </button>
-            </div>
-            <div id="didit-container-home" class="flex-1 w-full"></div>
-        </div>
-    {/if}
-
-    <!-- Duplicate detected sheet -->
-    {#if kycStep === "duplicate"}
-        <div class="fixed inset-0 z-40 bg-black/40" aria-hidden="true"></div>
-        <div
-            class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4"
-            style="padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));"
-        >
-            <div class="flex items-center gap-3">
-                <div
-                    class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 text-lg font-bold"
-                >
-                    !
-                </div>
-                <h3 class="text-lg font-bold">Identity Already Registered</h3>
-            </div>
-            <p class="text-black-700 text-sm leading-relaxed">
-                This identity document is already linked to an existing eVault.
-                You can't create a duplicate — each person gets one verified
-                eVault.
-            </p>
-            {#if duplicateEName}
-                <div class="rounded-xl bg-gray-50 border border-gray-200 p-4">
-                    <p class="text-xs text-black-500 mb-1">
-                        Your existing eVault eName
-                    </p>
-                    <p
-                        class="font-mono text-sm font-medium text-black-900 break-all"
-                    >
-                        {duplicateEName}
-                    </p>
-                </div>
-                <p class="text-sm text-black-500">
-                    Use the eName above to recover access to your existing
-                    eVault instead.
-                </p>
-            {/if}
-            <div class="flex flex-col gap-3 pt-2">
-                <Button.Action
-                    variant="soft"
-                    class="w-full"
-                    callback={resetKyc}
-                >
-                    Got it
-                </Button.Action>
-            </div>
-        </div>
-    {/if}
-
-    <!-- Result bottom sheet -->
-    {#if kycStep === "result"}
-        <div class="fixed inset-0 z-40 bg-black/40" aria-hidden="true"></div>
-        <div
-            class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4"
-            style="padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));"
-        >
-            {#if kycError}
-                <div
-                    class="bg-[#ff3300] rounded-md p-2 w-full text-center text-white text-sm"
-                >
-                    {kycError}
-                </div>
-            {/if}
-
-            {#if diditResult === "approved"}
-                <div class="flex items-center gap-3">
-                    <div
-                        class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-lg font-bold"
-                    >
-                        ✓
-                    </div>
-                    <h3 class="text-lg font-bold">Identity Verified</h3>
-                </div>
-                <p class="text-black-700 text-sm">
-                    Your identity has been verified. Your eVault trust level
-                    will now be upgraded.
-                </p>
-                <div class="flex flex-col gap-3 pt-2">
-                    <Button.Action class="w-full" callback={handleUpgrade}>
-                        Continue
-                    </Button.Action>
-                </div>
-            {:else if diditResult === "in_review"}
-                <div class="flex items-center gap-3">
-                    <div
-                        class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-lg font-bold"
-                    >
-                        ⏳
-                    </div>
-                    <h3 class="text-lg font-bold">Under Review</h3>
-                </div>
-                <p class="text-black-700 text-sm">
-                    Your verification is being manually reviewed. You'll be
-                    notified when it's complete.
-                </p>
-                <div class="flex flex-col gap-3 pt-2">
-                    <Button.Action
-                        variant="soft"
-                        class="w-full"
-                        callback={resetKyc}
-                    >
-                        Close
-                    </Button.Action>
-                </div>
-            {:else}
-                <div class="flex items-center gap-3">
-                    <div
-                        class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-lg font-bold"
-                    >
-                        ✗
-                    </div>
-                    <h3 class="text-lg font-bold">Verification Failed</h3>
-                </div>
-                <p class="text-black-700 text-sm">
-                    {diditRejectionReason ??
-                        "Your verification could not be completed."}
-                </p>
-                <div class="flex flex-col gap-3 pt-2">
-                    <Button.Action class="w-full" callback={startKycUpgrade}>
-                        Try Again
-                    </Button.Action>
-                    <Button.Action
-                        variant="soft"
-                        class="w-full"
-                        callback={resetKyc}
-                    >
-                        Cancel
-                    </Button.Action>
-                </div>
-            {/if}
-        </div>
+    {#if tourStep !== null}
+        <WelcomeTour step={tourStep} onnext={handleTourNext} />
     {/if}
 {/if}
 
 {#if showToast}
     <Toast message={toastMessage} onClose={handleToastClose} />
 {/if}
+
+<KycUpgradeOverlay
+    open={kycOpen}
+    onupgraded={handleKycUpgraded}
+    onclose={handleKycClose}
+/>
+
+<SocialBindingDrawer
+    bind:isOpen={socialDrawerOpen}
+    {globalState}
+    onbound={handleSocialBound}
+/>
+
+<InfoDrawer bind:isOpen={eVaultInfoOpen} title="What is eVault?">
+    {#snippet body()}
+        <div
+            class="bg-primary-50/40 rounded-2xl w-full flex items-center justify-center shrink-0"
+        >
+            <img
+                src="/images/eVault-kid-drawing.png"
+                alt=""
+                class="w-full h-full object-contain"
+                aria-hidden="true"
+            />
+        </div>
+        <p>
+            eVault is your sovereign and secure storage. It holds all your
+            data: photos, documents, social media posts, messages to friends,
+            and more. Since your data is now stored by you, not platforms, you
+            can easily switch between services.
+        </p>
+        <p>
+            For example, if you don't like one messenger, simply switch to
+            another, and all your messages, chats, and friends will still be
+            there, because your data is stored with you, and the app only gets
+            temporary permission to access it.
+        </p>
+    {/snippet}
+</InfoDrawer>
+
+<InfoDrawer bind:isOpen={bindingDocsInfoOpen} title="Binding documents">
+    {#snippet body()}
+        <p>
+            Link binding documents to strengthen the connection between your
+            Digital and Real Selves. Upload verifiable artifacts to your eVault,
+            such as official documents, photos, or confirmations from friends
+            and family, so you can prove ownership of your eVault if needed.
+        </p>
+        <!-- Placeholder tile — swap in a real illustration when it ships. -->
+        <div
+            class="bg-primary-100 rounded-2xl aspect-square w-full shrink-0"
+            aria-hidden="true"
+        ></div>
+        <h4 class="text-black-900 font-bold text-base">Why it's important:</h4>
+        <p>
+            Unlike the usual Web 2.0 approach, where platforms make you create
+            an account and upload your data to them, in W3DS, you have your own
+            sovereign account — your Digital Self — and you control who can
+            access your data. With sovereignty comes responsibility.
+        </p>
+        <p>
+            By default, your Digital Self is tied to your Real Self via the eID
+            App, so if anything happens to your phone, you may lose control over
+            your data. However, if your personal artifacts — documents, photos,
+            and social confirmations — are stored in your eVault, you can prove
+            ownership of your Digital Self and regain control over your data.
+        </p>
+    {/snippet}
+</InfoDrawer>
+
+<style>
+.tour-card {
+    transition: opacity 400ms ease;
+}
+.tour-card-passed {
+    opacity: 0.35;
+}
+</style>

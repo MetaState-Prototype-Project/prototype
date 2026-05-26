@@ -13,7 +13,16 @@ const getGlobalState = getContext<() => GlobalState>("globalState");
 
 onMount(async () => {
     try {
-        const globalState = getGlobalState();
+        // Root layout init is async — on a hard reload directly into an
+        // (auth) route, this guard can mount before globalState is set.
+        // Poll briefly instead of failing immediately.
+        let globalState = getGlobalState();
+        let retries = 0;
+        while (!globalState && retries < 50) {
+            await new Promise((r) => setTimeout(r, 100));
+            globalState = getGlobalState();
+            retries++;
+        }
         if (!globalState) {
             console.error("Global state is not defined");
             guardFailed = true;

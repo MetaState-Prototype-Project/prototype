@@ -3,7 +3,11 @@ import type { BiometryType } from "@tauri-apps/plugin-biometric";
 export const runtime = $state<{
     header: {
         title: string | undefined;
+        subtitle: string | undefined;
         backEnabled: boolean | undefined;
+        /** Optional override for the AppNav back chevron. Falls back to
+         *  window.history.back() when undefined. */
+        onback: (() => void) | undefined;
     };
     /**
      *  None = 0,
@@ -15,7 +19,9 @@ export const runtime = $state<{
 }>({
     header: {
         title: undefined,
+        subtitle: undefined,
         backEnabled: undefined,
+        onback: undefined,
     },
     biometry: undefined,
 });

@@ -1,8 +1,9 @@
 <script lang="ts">
-import SplashScreen from "$lib/fragments/SplashScreen/SplashScreen.svelte";
-import { getContext, onDestroy, onMount, setContext } from "svelte";
+import { onDestroy, onMount, setContext } from "svelte";
+import { cubicOut } from "svelte/easing";
 import "../app.css";
-import { goto, onNavigate } from "$app/navigation";
+import { goto, onNavigate, preloadCode } from "$app/navigation";
+import { page } from "$app/state";
 import { GlobalState } from "$lib/global/state";
 
 import { runtime } from "$lib/global/runtime.svelte";
@@ -12,10 +13,51 @@ import { type Status, checkStatus } from "@tauri-apps/plugin-biometric";
 const { children } = $props();
 
 let globalState: GlobalState | undefined = $state(undefined);
-
-let showSplashScreen = $state(false);
-let previousRoute = null;
 let navigationStack: string[] = [];
+// Direction of the next route transition. Set by onNavigate before the
+// route content swaps, read by the slide transitions wrapping {@render children()}.
+let routeDirection = $state<"forward" | "backward">("forward");
+
+// Asymmetric route transitions: only one element moves per direction.
+//   Forward  → NEW slides in over OLD (OLD stays put).
+//   Backward → OLD slides out to the right, revealing NEW (NEW stays put).
+// The moving element gets a higher z-index so it sits on top of the
+// static one during the animation.
+function slideIn(
+    _node: HTMLElement,
+    { direction }: { direction: "forward" | "backward" },
+) {
+    if (direction === "backward") {
+        // NEW stays put — no animation, just instantaneous mount.
+        return { duration: 0 };
+    }
+    return {
+        duration: 200,
+        easing: cubicOut,
+        css: (t: number) =>
+            `transform: translateX(${(1 - t) * 100}%); z-index: 70;`,
+    };
+}
+
+function slideOut(
+    _node: HTMLElement,
+    { direction }: { direction: "forward" | "backward" },
+) {
+    if (direction === "forward") {
+        // OLD stays put for the duration of the new page's slide-in.
+        return {
+            duration: 200,
+            css: () => "transform: translateX(0);",
+        };
+    }
+    // Backward — slide OLD off to the right.
+    return {
+        duration: 200,
+        easing: cubicOut,
+        css: (t: number) =>
+            `transform: translateX(${(1 - t) * 100}%); z-index: 70;`,
+    };
+}
 let globalDeepLinkHandler: ((event: Event) => void) | undefined;
 let mainWrapper: HTMLElement | undefined = $state(undefined);
 let isAppReady = $state(false);
@@ -26,16 +68,12 @@ setContext("setGlobalState", (value: GlobalState | undefined) => {
     globalState = value;
 });
 
-// replace with actual data loading logic
-async function loadData() {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-}
-
-async function ensureMinimumDelay() {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-}
-
 onMount(async () => {
+    // Bundle preload for the routes the splash CTAs reach — keeps the
+    // first navigation snappy on cold start.
+    preloadCode("/onboarding").catch(() => {});
+    preloadCode("/recover").catch(() => {});
+
     let status: Status | undefined = undefined;
     try {
         status = await checkStatus();
@@ -146,11 +184,23 @@ onMount(async () => {
         console.error("Failed to initialize deep link listener:", error);
     }
 
-    // Helper function to check if user is on an authenticated route
+    // Helper function to check if user is on an authenticated route.
+    // Routes under (app)/ are protected by the auth guard. Since SvelteKit
+    // route groups (parentheses) don't appear in the URL, enumerate the
+    // top-level segments here. Any new (app)/<segment>/ folder must be
+    // added below or its deep-links will redirect to /login.
     function isAuthenticatedRoute(pathname: string): boolean {
-        // Authenticated routes are those under (app)/ which are protected by the auth guard
-        const authenticatedRoutes = ["/main", "/scan-qr", "/settings"];
-        return authenticatedRoutes.includes(pathname);
+        const appRouteSegments = [
+            "main",
+            "scan-qr",
+            "settings",
+            "personal",
+            "notifications",
+            "social-bindings",
+            "ePassport",
+        ];
+        const firstSegment = pathname.split("/")[1] ?? "";
+        return appRouteSegments.includes(firstSegment);
     }
 
     function handleDeepLink(urlString: string) {
@@ -588,14 +638,7 @@ onMount(async () => {
         }
     }
 
-    showSplashScreen = true; // Can't set up the original state to true or animation won't start
     navigationStack.push(window.location.pathname);
-
-    await Promise.all([loadData(), ensureMinimumDelay()]);
-
-    showSplashScreen = false;
-
-    // Mark app as ready and process any pending deep links
     isAppReady = true;
 
     // Process queued deep links
@@ -628,40 +671,33 @@ const safeAreaTop = $derived.by(
         ) || 0,
 );
 
-$effect(() => console.log("top", safeAreaTop));
-
 onNavigate((navigation) => {
-    if (!document.startViewTransition) return;
-
     const from = navigation.from?.url.pathname;
     const to = navigation.to?.url.pathname;
 
     if (!from || !to || from === to) return;
 
-    let direction: "left" | "right" = "right";
+    // Mark routes that have their own mount-time refresh guard. A SvelteKit
+    // navigation (link/goto) fires this hook; a hard reload does not — so
+    // the guard's onMount sees the flag iff the user genuinely navigated
+    // in, and redirects to / otherwise. Any caller can goto("/onboarding")
+    // without thinking about it.
+    if (to === "/onboarding") {
+        sessionStorage.setItem("navigatingToOnboarding", "true");
+    }
 
     const fromIndex = navigationStack.lastIndexOf(from);
     const toIndex = navigationStack.lastIndexOf(to);
 
     if (toIndex !== -1 && toIndex < fromIndex) {
-        // Backward navigation
-        direction = "left";
+        // Backward navigation — current page slides out to the right.
+        routeDirection = "backward";
         navigationStack = navigationStack.slice(0, toIndex + 1);
     } else {
-        // Forward navigation (or new path)
-        direction = "right";
+        // Forward navigation — new page slides in from the right.
+        routeDirection = "forward";
         navigationStack.push(to);
     }
-
-    document.documentElement.setAttribute("data-transition", direction);
-    previousRoute = to;
-
-    return new Promise((resolve) => {
-        document.startViewTransition(async () => {
-            resolve();
-            await navigation.complete;
-        });
-    });
 });
 
 $effect(() => {
@@ -673,18 +709,31 @@ $effect(() => {
 });
 </script>
 
-{#if showSplashScreen}
-    <SplashScreen />
-{:else}
-    <div
-        class="fixed top-0 left-0 right-0 h-[env(safe-area-inset-top)] bg-primary z-50"
-    ></div>
-    <div bind:this={mainWrapper} class="bg-white min-h-screen overflow-y-auto">
-        {#if children}
-            {@render children()}
-        {/if}
-    </div>
-{/if}
+<!-- Splash is now a regular route at /+page.svelte, so the layout just
+     wraps {@render children()} with the slide transition. No more fixed
+     overlay, no more stacking-context trickery. -->
+<div
+    bind:this={mainWrapper}
+    data-route-wrapper
+    class="bg-white min-h-screen overflow-y-auto relative overflow-x-hidden"
+>
+    {#if children}
+        {#key page.url.pathname}
+            <div
+                data-route-wrapper
+                class="absolute inset-0 bg-white"
+                in:slideIn={{ direction: routeDirection }}
+                out:slideOut={{ direction: routeDirection }}
+            >
+                {@render children()}
+            </div>
+        {/key}
+    {/if}
+</div>
+
+<div
+    class="fixed top-0 left-0 right-0 h-[env(safe-area-inset-top)] bg-primary z-80"
+></div>
 
 <style>
     :root {

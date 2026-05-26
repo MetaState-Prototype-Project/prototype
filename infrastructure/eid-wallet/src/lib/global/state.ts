@@ -166,6 +166,26 @@ export class GlobalState {
         }
     }
 
+    get hasSeenWelcomeTour() {
+        return this.#store
+            .get<boolean>("hasSeenWelcomeTour")
+            .then((value) => value ?? false)
+            .catch((error) => {
+                console.error("Failed to get welcome-tour status:", error);
+                return false;
+            });
+    }
+
+    set hasSeenWelcomeTour(value: boolean | Promise<boolean>) {
+        const resolve =
+            value instanceof Promise ? value : Promise.resolve(value);
+        resolve
+            .then((resolved) => this.#store.set("hasSeenWelcomeTour", resolved))
+            .catch((error) => {
+                console.error("Failed to set welcome-tour status:", error);
+            });
+    }
+
     async reset() {
         try {
             await this.securityController.clear();
@@ -174,6 +194,7 @@ export class GlobalState {
             await this.keyService.clear();
             await this.#store.delete("initialized");
             await this.#store.delete("isOnboardingComplete");
+            await this.#store.delete("hasSeenWelcomeTour");
         } catch (error) {
             console.error("Failed to reset global state:", error);
         }

@@ -42,6 +42,7 @@
       "@biomejs/biome",
       "@parcel/watcher",
       "@rollup/rollup-linux-x64-gnu",
+      "argon2",
       "cpu-features",
       "es5-ext",
       "esbuild",

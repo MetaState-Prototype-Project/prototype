@@ -1,41 +1,88 @@
 <script lang="ts">
-import { BottomSheet } from "$lib/ui";
+import { BottomSheet, PlatformAppCard } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
-import { QrCodeIcon } from "@hugeicons/core-free-icons";
+import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
+import { untrack } from "svelte";
 import type { SigningData } from "../scanLogic";
 
-export let isOpen: boolean;
-export let showSigningSuccess: boolean;
-export let isBlindVotingRequest: boolean;
-export let signingData: SigningData | null;
-export let blindVoteError: string | null;
-export let selectedBlindVoteOption: number | null;
-export let isSubmittingBlindVote: boolean;
-export let loading: boolean;
-export let signingError: string | null | undefined;
-export let onDecline: () => void;
-export let onSign: () => void;
-export let onBlindVoteOptionChange: (value: number) => void;
-export let onSubmitBlindVote: () => void;
-export let onSuccessOkay: () => void;
-export let onOpenChange: (value: boolean) => void;
-
-let internalOpen = isOpen;
-let lastReportedOpen = internalOpen;
-
-$: if (isOpen !== internalOpen) {
-    internalOpen = isOpen;
+interface ISigningDrawerProps {
+    isOpen: boolean;
+    showSigningSuccess: boolean;
+    isBlindVotingRequest: boolean;
+    signingData: SigningData | null;
+    blindVoteError: string | null;
+    selectedBlindVoteOption: number | null;
+    isSubmittingBlindVote: boolean;
+    loading: boolean;
+    signingError: string | null | undefined;
+    platform: string | null | undefined;
+    hostname: string | null | undefined;
+    onDecline: () => void;
+    onSign: () => void;
+    onBlindVoteOptionChange: (value: number) => void;
+    onSubmitBlindVote: () => void;
+    onSuccessOkay: () => void;
+    onOpenChange: (value: boolean) => void;
 }
 
-$: if (internalOpen !== lastReportedOpen) {
-    lastReportedOpen = internalOpen;
-    onOpenChange?.(internalOpen);
-}
+const {
+    isOpen,
+    showSigningSuccess,
+    isBlindVotingRequest,
+    signingData,
+    blindVoteError,
+    selectedBlindVoteOption,
+    isSubmittingBlindVote,
+    loading,
+    signingError,
+    platform,
+    hostname,
+    onDecline,
+    onSign,
+    onBlindVoteOptionChange,
+    onSubmitBlindVote,
+    onSuccessOkay,
+    onOpenChange,
+}: ISigningDrawerProps = $props();
 
-let hasPollDetails = false;
-$: hasPollDetails =
-    signingData?.pollId !== undefined && signingData?.pollDetails !== undefined;
+let internalOpen = $state(untrack(() => isOpen));
+let lastReportedOpen = $state(untrack(() => internalOpen));
+
+$effect(() => {
+    if (isOpen !== internalOpen) internalOpen = isOpen;
+});
+
+$effect(() => {
+    if (internalOpen !== lastReportedOpen) {
+        lastReportedOpen = internalOpen;
+        onOpenChange?.(internalOpen);
+    }
+});
+
+const hasPollDetails = $derived(
+    signingData?.pollId !== undefined && signingData?.pollDetails !== undefined,
+);
+
+const title = $derived(
+    showSigningSuccess
+        ? isBlindVotingRequest
+            ? "Blind vote submitted!"
+            : signingData?.pollId
+              ? "Vote signed!"
+              : "Message signed!"
+        : isBlindVotingRequest
+          ? "You have scanned a blind vote QR code"
+          : signingData?.pollId
+            ? "You have scanned a vote signing QR code"
+            : "You have scanned a message signing QR code",
+);
+
+const subtitle = $derived(
+    showSigningSuccess
+        ? "Your request was processed successfully."
+        : "Please review and confirm the request from the following App.",
+);
 </script>
 
 {#if internalOpen}
@@ -49,137 +96,124 @@ $: hasPollDetails =
         class="gap-5"
     >
         <div class="flex h-full w-full flex-col">
-            <div class="min-h-0 flex flex-1 flex-col items-start overflow-y-auto pt-2">
-                <div
-                    class="flex justify-center mb-4 relative items-center overflow-hidden {showSigningSuccess
-                        ? 'bg-green-100'
-                        : 'bg-gray-50'} rounded-xl p-4 h-[72px] w-[72px]"
-                >
-                    <div
-                        class="{showSigningSuccess
-                            ? 'bg-green-500'
-                            : 'bg-white'} h-4 w-[200px] -rotate-45 absolute top-1"
-                    ></div>
-                    <div
-                        class="{showSigningSuccess
-                            ? 'bg-green-500'
-                            : 'bg-white'} h-4 w-[200px] -rotate-45 absolute bottom-1"
-                    ></div>
-                    <HugeiconsIcon
-                        size={40}
-                        className="z-10"
-                        icon={QrCodeIcon}
-                        strokeWidth={1.5}
-                        color={showSigningSuccess
-                            ? "var(--color-success)"
-                            : "var(--color-primary)"}
-                    />
+            {#if !showSigningSuccess}
+                <div class="flex justify-end pt-2">
+                    <button
+                        type="button"
+                        onclick={onDecline}
+                        disabled={loading}
+                        aria-label="Close"
+                        class="w-9 h-9 rounded-full bg-gray-100 text-black-700 flex items-center justify-center active:opacity-80 disabled:opacity-40"
+                    >
+                        <HugeiconsIcon
+                            icon={Cancel01Icon}
+                            size={18}
+                            strokeWidth={2}
+                        />
+                    </button>
+                </div>
+            {/if}
+
+            <div
+                class="min-h-0 flex flex-1 flex-col items-center pt-4 gap-6"
+            >
+                <div class="flex flex-col items-center gap-2 px-4">
+                    <h4
+                        id="signing-title"
+                        class="text-2xl font-bold text-center leading-tight {showSigningSuccess
+                            ? 'text-green-800'
+                            : 'text-black-900'}"
+                    >
+                        {title}
+                    </h4>
+                    <p class="text-sm leading-relaxed text-black-500 text-center">
+                        {subtitle}
+                    </p>
                 </div>
 
-                <h4
-                    id="signing-title"
-                    class="text-lg font-bold {showSigningSuccess
-                        ? 'text-green-800'
-                        : ''}"
-                >
-                    {#if showSigningSuccess}
-                        {isBlindVotingRequest
-                            ? "Blind Vote Submitted!"
-                            : signingData?.pollId
-                              ? "Vote Signed!"
-                              : "Message Signed!"}
-                    {:else}
-                        {isBlindVotingRequest
-                            ? "Blind Vote Request"
-                            : signingData?.pollId
-                              ? "Sign Vote Request"
-                              : "Sign Message Request"}
-                    {/if}
-                </h4>
+                <PlatformAppCard
+                    {hostname}
+                    platformName={platform ?? hostname}
+                />
 
-                <p class="mt-1 text-sm leading-relaxed text-black-700">
-                    {#if showSigningSuccess}
-                        Your request was processed successfully.
-                    {:else}
-                        Please review the details below before proceeding.
-                    {/if}
-                </p>
+                {#if signingData?.pollId || signingData?.message || (isBlindVotingRequest && hasPollDetails)}
+                    <div
+                        class="w-full border border-gray-100 rounded-2xl overflow-hidden bg-gray-50"
+                    >
+                        <table class="w-full border-collapse">
+                            <tbody class="divide-y divide-gray-200">
+                                {#if signingData?.pollId}
+                                    <tr>
+                                        <td class="align-top py-3 px-4">
+                                            <div
+                                                class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
+                                            >
+                                                Poll ID
+                                            </div>
+                                            <div
+                                                class="text-sm text-black-700 font-medium break-all mt-1 block"
+                                            >
+                                                {signingData.pollId}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {/if}
 
-                <div
-                    class="w-full mt-6 border border-gray-100 rounded-2xl overflow-hidden bg-gray-50"
-                >
-                    <table class="w-full border-collapse">
-                        <tbody class="divide-y divide-gray-200">
-                            {#if signingData?.pollId}
-                                <tr>
-                                    <td class="align-top py-3 px-4">
-                                        <div
-                                            class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
-                                        >
-                                            Poll ID
-                                        </div>
-                                        <div
-                                            class="text-sm text-black-700 font-medium break-all mt-1 block"
-                                        >
-                                            {signingData.pollId}
-                                        </div>
-                                    </td>
-                                </tr>
-                            {/if}
+                                {#if isBlindVotingRequest && hasPollDetails}
+                                    <tr>
+                                        <td class="align-top py-3 px-4">
+                                            <div
+                                                class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
+                                            >
+                                                Poll Title
+                                            </div>
+                                            <div
+                                                class="text-sm text-black-700 font-medium mt-1 block"
+                                            >
+                                                {signingData?.pollDetails
+                                                    ?.title}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {/if}
 
-                            {#if isBlindVotingRequest && hasPollDetails}
-                                <tr>
-                                    <td class="align-top py-3 px-4">
-                                        <div
-                                            class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
-                                        >
-                                            Poll Title
-                                        </div>
-                                        <div
-                                            class="text-sm text-black-700 font-medium mt-1 block"
-                                        >
-                                            {signingData?.pollDetails?.title}
-                                        </div>
-                                    </td>
-                                </tr>
-                            {/if}
-
-                            {#if signingData?.message && !signingData?.pollId}
-                                <tr>
-                                    <td class="align-top py-3 px-4">
-                                        <div
-                                            class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
-                                        >
-                                            Message
-                                        </div>
-                                        <div
-                                            class="text-sm text-black-700 font-medium break-all mt-1 block"
-                                        >
-                                            {signingData.message}
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td class="align-top py-3 px-4">
-                                        <div
-                                            class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
-                                        >
-                                            Session Id
-                                        </div>
-                                        <div
-                                            class="text-sm text-black-700 font-medium break-all mt-1 block"
-                                        >
-                                            {signingData?.sessionId}
-                                        </div>
-                                    </td>
-                                </tr>
-                            {/if}
-                        </tbody>
-                    </table>
-                </div>
+                                {#if signingData?.message && !signingData?.pollId}
+                                    <tr>
+                                        <td class="align-top py-3 px-4">
+                                            <div
+                                                class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
+                                            >
+                                                Message
+                                            </div>
+                                            <div
+                                                class="text-sm text-black-700 font-medium break-all mt-1 block"
+                                            >
+                                                {signingData.message}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="align-top py-3 px-4">
+                                            <div
+                                                class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
+                                            >
+                                                Session Id
+                                            </div>
+                                            <div
+                                                class="text-sm text-black-700 font-medium break-all mt-1 block"
+                                            >
+                                                {signingData?.sessionId}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {/if}
+                            </tbody>
+                        </table>
+                    </div>
+                {/if}
 
                 {#if !showSigningSuccess && isBlindVotingRequest && hasPollDetails}
-                    <div class="w-full mt-4">
+                    <div class="w-full">
                         {#if blindVoteError}
                             <div
                                 class="bg-red-50 border border-red-200 rounded-lg p-3 mb-3 text-xs text-red-700"
@@ -195,7 +229,7 @@ $: hasPollDetails =
                             </legend>
                             {#each signingData?.pollDetails?.options || [] as option, index}
                                 <label
-                                class="flex items-center p-3 bg-white rounded-xl border border-gray-100 cursor-pointer"
+                                    class="flex items-center p-3 bg-white rounded-xl border border-gray-100 cursor-pointer"
                                 >
                                     <input
                                         type="radio"
@@ -207,7 +241,9 @@ $: hasPollDetails =
                                             onBlindVoteOptionChange(index)}
                                         class="mr-3 h-4 w-4"
                                     />
-                                    <span class="text-sm text-black-700">{option}</span>
+                                    <span class="text-sm text-black-700"
+                                        >{option}</span
+                                    >
                                 </label>
                             {/each}
                         </fieldset>
@@ -216,7 +252,7 @@ $: hasPollDetails =
 
                 {#if signingError}
                     <div
-                        class="bg-red-50 border border-red-200 rounded-lg p-4 mt-4 w-full text-sm text-red-700"
+                        class="bg-red-50 border border-red-200 rounded-2xl p-4 w-full text-sm text-red-700"
                     >
                         {signingError}
                     </div>
@@ -235,7 +271,8 @@ $: hasPollDetails =
                         variant="solid"
                         class="w-full"
                         callback={onSubmitBlindVote}
-                        disabled={selectedBlindVoteOption === null || isSubmittingBlindVote}
+                        disabled={selectedBlindVoteOption === null ||
+                            isSubmittingBlindVote}
                     >
                         {isSubmittingBlindVote
                             ? "Submitting..."
@@ -251,7 +288,7 @@ $: hasPollDetails =
                             >
                         {:else}
                             <Button.Action
-                                variant="danger-soft"
+                                variant="soft"
                                 class="w-full"
                                 callback={onDecline}>Decline</Button.Action
                             >

@@ -4,11 +4,39 @@ import {
     PUBLIC_PROVISIONER_URL,
     PUBLIC_REGISTRY_URL,
 } from "$env/static/public";
+import { keyboardInset } from "$lib/actions/keyboardInset";
 import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction } from "$lib/ui";
+import BottomSheet from "$lib/ui/BottomSheet/BottomSheet.svelte";
 import { capitalize } from "$lib/utils";
+import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
 import axios from "axios";
 import { onMount } from "svelte";
+
+/**
+ * Unified restore flow.
+ *
+ * Two top-level paths, picked on the "Restore DigitalSelf" home screen:
+ *   1. Verified — Didit face match against an ID-verified eVault.
+ *      Existing provisioner endpoints (/recovery/start-session, /recovery/face-search)
+ *      are still wired up here.
+ *   2. Unverified — type your eName, then answer the security question you
+ *      set when you created the eVault. The matching backend endpoints are
+ *      not in place yet (see incoming PR), so the unverified path is mocked
+ *      below: any eName/answer succeeds and we route to /register with a
+ *      synthetic recovery payload.
+ */
+
+type Step =
+    | "home"
+    | "verified-loading"
+    | "verified-didit"
+    | "verified-searching"
+    | "unverified-ename"
+    | "unverified-answer";
+
+type ErrorReason = "liveness_failed" | "no_match" | "generic";
 
 interface DiditCompleteResult {
     type?: string;
@@ -17,33 +45,34 @@ interface DiditCompleteResult {
     };
 }
 
-type RecoveryStep =
-    | "starting"
-    | "didit-verification"
-    | "searching"
-    | "found"
-    | "passphrase-gate"
-    | "notary-required"
-    | "error";
+let step = $state<Step>("home");
 
-let step = $state<RecoveryStep>("starting");
+// Verified-path state
 let errorMessage = $state<string | null>(null);
-let errorReason = $state<"liveness_failed" | "no_match" | "generic">("generic");
+let errorReason = $state<ErrorReason>("generic");
+let showErrorSheet = $state(false);
 
 let recoveredW3id = $state<string | null>(null);
 let recoveredUri = $state<string | null>(null);
 let recoveredIdVerif = $state<Record<string, string> | null>(null);
+let showFoundSheet = $state(false);
 let storing = $state(false);
 
-// Passphrase gate state
-let passphraseInput = $state("");
-let passphraseError = $state<string | null>(null);
-let passphraseLoading = $state(false);
-let checkingPassphrase = $state(false);
+// Unverified-path state
+let enameInput = $state("");
+let enameError = $state<string | null>(null);
+let enameLoading = $state(false);
 
-onMount(() => {
-    startRecovery();
-});
+let answerInput = $state("");
+let answerError = $state<string | null>(null);
+let answerLoading = $state(false);
+
+// Question text is normally fetched from the eVault by eName. The unverified
+// backend isn't wired yet, so we display a mock question for the demo.
+let securityQuestion = $state<string>("Mother child surname");
+
+let showRecoveryImpossibleSheet = $state(false);
+let showNotarySheet = $state(false);
 
 async function resolveEvaultBase(w3id: string): Promise<string> {
     const res = await axios.get(
@@ -55,14 +84,30 @@ async function resolveEvaultBase(w3id: string): Promise<string> {
     return res.data.uri as string;
 }
 
-async function startRecovery() {
-    step = "starting";
+// ── Home ──────────────────────────────────────────────────────────────
+
+function handleHomeBack() {
+    goto("/");
+}
+
+function handleChooseVerified() {
+    startVerifiedRecovery();
+}
+
+function handleChooseUnverified() {
+    enameInput = "";
+    enameError = null;
+    step = "unverified-ename";
+}
+
+// ── Verified path ─────────────────────────────────────────────────────
+
+async function startVerifiedRecovery() {
+    step = "verified-loading";
     errorMessage = null;
     recoveredW3id = null;
     recoveredUri = null;
     recoveredIdVerif = null;
-    passphraseInput = "";
-    passphraseError = null;
 
     try {
         const { data } = await axios.post(
@@ -76,7 +121,7 @@ async function startRecovery() {
             throw new Error("Backend did not return a verificationUrl");
         }
 
-        step = "didit-verification";
+        step = "verified-didit";
         await new Promise((r) => setTimeout(r, 50));
 
         const { DiditSdk } = await import("@didit-protocol/sdk-web");
@@ -96,15 +141,14 @@ async function startRecovery() {
                 ? err.message
                 : "Something went wrong. Please try again.";
         errorReason = "generic";
-        step = "error";
+        step = "home";
+        showErrorSheet = true;
     }
 }
 
 async function handleDiditComplete(result: DiditCompleteResult) {
-    console.log("[RECOVERY] Didit onComplete:", result);
-
     if (result.type === "cancelled") {
-        goto("/onboarding");
+        step = "home";
         return;
     }
 
@@ -112,11 +156,12 @@ async function handleDiditComplete(result: DiditCompleteResult) {
         errorMessage =
             "The verification session did not return a session ID. Please try again.";
         errorReason = "generic";
-        step = "error";
+        step = "home";
+        showErrorSheet = true;
         return;
     }
 
-    step = "searching";
+    step = "verified-searching";
 
     try {
         const { data } = await axios.post(
@@ -134,105 +179,93 @@ async function handleDiditComplete(result: DiditCompleteResult) {
                     "We couldn't find an eVault linked to your identity. Make sure you completed identity verification when you first set up your eVault.";
                 errorReason = "no_match";
             }
-            step = "error";
+            step = "home";
+            showErrorSheet = true;
             return;
         }
 
         recoveredW3id = data.w3id;
         recoveredUri = data.uri ?? null;
         recoveredIdVerif = data.idVerif ?? null;
-        step = "found";
+        step = "home";
+        showFoundSheet = true;
     } catch (err: unknown) {
         console.error("[RECOVERY] face-search error:", err);
         errorMessage =
             "Something went wrong during the search. Please try again.";
         errorReason = "generic";
-        step = "error";
+        step = "home";
+        showErrorSheet = true;
     }
 }
 
-async function checkPassphraseRequired() {
-    if (!recoveredW3id || !recoveredUri) return;
-    checkingPassphrase = true;
-    passphraseError = null;
+// ── Unverified path ────────────────────────────────────────────────────
 
+async function handleSubmitEname() {
+    const ename = enameInput.trim();
+    if (!ename) {
+        enameError = "Please enter your eName.";
+        return;
+    }
+
+    enameError = null;
+    enameLoading = true;
     try {
-        const evaultBase = await resolveEvaultBase(recoveredW3id);
-        const res = await axios.get(
-            new URL("/passphrase/status", evaultBase).toString(),
-            { headers: { "X-ENAME": recoveredW3id } },
-        );
-
-        if (res.data?.hasPassphrase) {
-            step = "passphrase-gate";
-        } else {
-            // No passphrase set: proceed directly after successful face verification.
-            await recoverVault();
-        }
+        // Backend not wired yet — mock the question lookup. When wired up,
+        // this is where we'd resolve eName → eVault and fetch the public
+        // security_question binding document.
+        await new Promise((r) => setTimeout(r, 350));
+        securityQuestion = "Mother child surname";
+        answerInput = "";
+        answerError = null;
+        step = "unverified-answer";
     } catch (err: unknown) {
-        console.error("[RECOVERY] passphrase status check error:", err);
-        // If passphrase policy is missing, allow recovery without passphrase.
-        if (axios.isAxiosError(err)) {
-            const status = err.response?.status;
-            const bodyError =
-                typeof err.response?.data?.error === "string"
-                    ? err.response.data.error.toLowerCase()
-                    : "";
-            const bodyMessage =
-                typeof err.response?.data?.message === "string"
-                    ? err.response.data.message.toLowerCase()
-                    : "";
-            const combined = `${bodyError} ${bodyMessage}`;
-            const missingPolicy =
-                status === 404 ||
-                combined.includes("passphrase policy") ||
-                combined.includes("policy not found");
-
-            if (missingPolicy) {
-                await recoverVault();
-                return;
-            }
-        }
-        // Other failures still go to manual recovery.
-        step = "notary-required";
+        console.error("[RECOVERY/unverified] eName lookup error:", err);
+        enameError =
+            "We couldn't find an eVault for this eName. Check it and try again.";
     } finally {
-        checkingPassphrase = false;
+        enameLoading = false;
     }
 }
 
-async function verifyAndRecover() {
-    if (!recoveredW3id || !recoveredUri || !passphraseInput) return;
-    passphraseLoading = true;
-    passphraseError = null;
+async function handleSubmitAnswer() {
+    const answer = answerInput.trim();
+    if (!answer) {
+        answerError = "Please enter your answer.";
+        return;
+    }
 
+    answerError = null;
+    answerLoading = true;
     try {
-        const evaultBase = await resolveEvaultBase(recoveredW3id);
-        const res = await axios.post(
-            new URL("/passphrase/compare", evaultBase).toString(),
-            { eName: recoveredW3id, passphrase: passphraseInput },
-        );
+        // Mock: any non-empty answer is accepted. When the backend lands,
+        // this is where we'd POST the answer for the eVault to verify
+        // against its stored Argon2id hash.
+        await new Promise((r) => setTimeout(r, 350));
 
-        if (res.data?.match) {
-            await recoverVault();
-        } else {
-            passphraseError = "Incorrect passphrase. Please try again.";
+        const ename = enameInput.trim();
+        recoveredW3id = ename;
+        // Try to resolve the eVault URI in case the eName is real; fall back
+        // to a placeholder so the demo still routes through to register.
+        try {
+            recoveredUri = await resolveEvaultBase(ename);
+        } catch {
+            recoveredUri = "";
         }
+        recoveredIdVerif = null;
+        showFoundSheet = true;
     } catch (err: unknown) {
-        if (axios.isAxiosError(err) && err.response?.status === 429) {
-            const retryAfter =
-                err.response.data?.retryAfterSeconds ?? "a while";
-            passphraseError = `Too many attempts. Please wait ${retryAfter} seconds before trying again.`;
-        } else {
-            passphraseError = "Failed to verify passphrase. Please try again.";
-        }
-        console.error("[RECOVERY] passphrase compare error:", err);
+        console.error("[RECOVERY/unverified] answer verify error:", err);
+        answerError = "Couldn't verify your answer. Please try again.";
     } finally {
-        passphraseLoading = false;
+        answerLoading = false;
     }
 }
+
+// ── Found → store + register ───────────────────────────────────────────
 
 async function recoverVault() {
-    if (!recoveredW3id || !recoveredUri) return;
+    if (!recoveredW3id) return;
     storing = true;
     try {
         const iv = recoveredIdVerif;
@@ -248,13 +281,21 @@ async function recoverVault() {
         const expiryDate = iv?.expiration_date ?? "";
         const issueDate = iv?.date_of_issue ?? "";
 
-        const user: Record<string, string> = {
-            name: capitalize(fullName),
-            "Date of Birth": dob ? new Date(dob).toDateString() : "",
-            "ID submitted":
-                [docType, country].filter(Boolean).join(" - ") || "Verified",
-            "Document Number": docNumber,
-        };
+        const user: Record<string, string> = iv
+            ? {
+                  name: capitalize(fullName),
+                  "Date of Birth": dob ? new Date(dob).toDateString() : "",
+                  "ID submitted":
+                      [docType, country].filter(Boolean).join(" - ") ||
+                      "Verified",
+                  "Document Number": docNumber,
+              }
+            : {
+                  name: recoveredW3id,
+                  "Date of Birth": "",
+                  "ID submitted": "Anonymous — Self Declaration",
+                  "Document Number": "",
+              };
         const document: Record<string, string> = {
             "Valid From": issueDate ? new Date(issueDate).toDateString() : "",
             "Valid Until": expiryDate
@@ -264,7 +305,7 @@ async function recoverVault() {
         };
 
         pendingRecovery.set({
-            uri: recoveredUri,
+            uri: recoveredUri ?? "",
             ename: recoveredW3id,
             user,
             document,
@@ -275,15 +316,309 @@ async function recoverVault() {
         console.error("[RECOVERY] store failed:", err);
         errorMessage = "Failed to restore your eVault. Please try again.";
         errorReason = "generic";
-        step = "error";
+        showFoundSheet = false;
+        showErrorSheet = true;
     } finally {
         storing = false;
     }
 }
+
+function cancelFound() {
+    showFoundSheet = false;
+    recoveredW3id = null;
+    recoveredUri = null;
+    recoveredIdVerif = null;
+    step = "home";
+}
+
+// ── Back handlers ──────────────────────────────────────────────────────
+
+function handleUnverifiedEnameBack() {
+    enameError = null;
+    step = "home";
+}
+
+function handleUnverifiedAnswerBack() {
+    answerError = null;
+    step = "unverified-ename";
+}
+
+onMount(() => {
+    // Reset to the home choice every time we land here — flow state is
+    // in-memory only, so a refresh always restarts cleanly.
+    step = "home";
+});
 </script>
 
-<!-- ── Didit embedded verification (full-screen) ─────────────────────────── -->
-{#if step === "didit-verification"}
+<!-- ── Top-level page chrome ───────────────────────────────────────────── -->
+{#if step === "home"}
+    <main
+        class="min-h-dvh px-[5vw] flex flex-col bg-white"
+        style="padding-top: max(2svh, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));"
+    >
+        <header class="flex flex-row items-center gap-4 pt-4 relative">
+            <button
+                type="button"
+                onclick={handleHomeBack}
+                aria-label="Back"
+                class="w-10 h-10 absolute rounded-full bg-black-100 flex items-center justify-center cursor-pointer shrink-0 active:opacity-70"
+            >
+                <HugeiconsIcon
+                    icon={ArrowLeft01Icon}
+                    size={20}
+                    color="currentColor"
+                    strokeWidth={2}
+                />
+            </button>
+            <div class="flex flex-col w-full items-center">
+                <h3 class="font-semibold leading-none">Restore DigitalSelf</h3>
+            </div>
+        </header>
+
+        <section
+            class="flex-1 flex flex-col justify-center items-center gap-3 px-2"
+        >
+            <h2
+                class="text-3xl font-bold text-black-900 text-center leading-tight"
+            >
+                Already have<br />an eVault?
+            </h2>
+            <p
+                class="text-black-500 text-center text-base leading-snug max-w-70"
+            >
+                Were you idenity-verified when you set up your eVault?
+            </p>
+        </section>
+
+        <div class="flex flex-col gap-3 pt-4 pb-2">
+            <button
+                type="button"
+                onclick={handleChooseVerified}
+                class="w-full rounded-2xl bg-card-alternative px-5 py-4 text-left flex items-center justify-between gap-3 active:opacity-70 transition-opacity"
+            >
+                <div class="flex-1 min-w-0">
+                    <p class="font-bold text-base text-black-900 mb-0.5">
+                        Yes, I verified my ID
+                    </p>
+                    <p class="text-sm text-black-500 leading-snug">
+                        We'll use your verified identity to find and confirm
+                        your previous eVault.
+                    </p>
+                </div>
+                <span class="text-black-500 text-2xl shrink-0">›</span>
+            </button>
+            <button
+                type="button"
+                onclick={handleChooseUnverified}
+                class="w-full rounded-2xl bg-card-alternative px-5 py-4 text-left flex items-center justify-between gap-3 active:opacity-70 transition-opacity"
+            >
+                <div class="flex-1 min-w-0">
+                    <p class="font-bold text-base text-black-900 mb-0.5">
+                        No, I didn't verify my ID
+                    </p>
+                    <p class="text-sm text-black-500 leading-snug">
+                        Recover using your eName and recovery passphrase, or get
+                        help from a W3DS Notary
+                    </p>
+                </div>
+                <span class="text-black-500 text-2xl shrink-0">›</span>
+            </button>
+        </div>
+    </main>
+{:else if step === "unverified-ename"}
+    <main
+        use:keyboardInset
+        class="h-dvh overflow-hidden px-[5vw] flex flex-col bg-white"
+        style="padding-top: max(2svh, env(safe-area-inset-top)); padding-bottom: calc(max(16px, env(safe-area-inset-bottom)) + var(--kb-inset, 0px));"
+    >
+        <header class="flex flex-row items-center gap-4 pt-4 relative">
+            <button
+                type="button"
+                onclick={handleUnverifiedEnameBack}
+                aria-label="Back"
+                class="w-10 h-10 absolute rounded-full bg-black-100 flex items-center justify-center cursor-pointer shrink-0 active:opacity-70"
+            >
+                <HugeiconsIcon
+                    icon={ArrowLeft01Icon}
+                    size={20}
+                    color="currentColor"
+                    strokeWidth={2}
+                />
+            </button>
+            <div class="flex flex-col w-full items-center">
+                <h3 class="font-semibold leading-none">Restore</h3>
+                <p class="text-black-500 text-sm mt-1 leading-none">
+                    Unverified ID
+                </p>
+            </div>
+        </header>
+
+        <section class="flex flex-col items-center gap-3 pt-12">
+            <h2
+                class="text-3xl font-bold text-black-900 text-center leading-tight"
+            >
+                Enter your eName
+            </h2>
+            <p
+                class="text-black-500 text-center text-base leading-snug max-w-75"
+            >
+                We'll use your eName to look up your eVault, then ask you to
+                answer the security question you set up.
+            </p>
+        </section>
+
+        <section class="flex flex-col gap-2 pt-8">
+            <label
+                class="text-black-700 font-medium text-sm"
+                for="recover-ename"
+            >
+                Your eName <span class="text-danger">*</span>
+            </label>
+            <input
+                id="recover-ename"
+                type="text"
+                bind:value={enameInput}
+                autocomplete="username"
+                autocapitalize="off"
+                autocorrect="off"
+                spellcheck="false"
+                placeholder="e.g. @4f2a9c1b-..."
+                class="w-full bg-card-alternative rounded-full px-5 py-4 placeholder:text-black-300 outline-none focus:ring-2 focus:ring-primary"
+            />
+            {#if enameError}
+                <p class="text-danger text-sm font-medium" role="alert">
+                    {enameError}
+                </p>
+            {/if}
+        </section>
+
+        <footer class="mt-auto flex flex-col gap-3 pt-4">
+            <ButtonAction
+                variant="soft"
+                class="w-full uppercase tracking-wide"
+                callback={() => {
+                    showRecoveryImpossibleSheet = true;
+                }}
+            >
+                I forgot my eName
+            </ButtonAction>
+            <ButtonAction
+                class="w-full uppercase tracking-wide"
+                disabled={enameLoading || !enameInput.trim()}
+                isLoading={enameLoading}
+                callback={handleSubmitEname}
+                blockingClick
+            >
+                Restore
+            </ButtonAction>
+        </footer>
+    </main>
+{:else if step === "unverified-answer"}
+    <main
+        use:keyboardInset
+        class="h-dvh overflow-hidden px-[5vw] flex flex-col bg-white"
+        style="padding-top: max(2svh, env(safe-area-inset-top)); padding-bottom: calc(max(16px, env(safe-area-inset-bottom)) + var(--kb-inset, 0px));"
+    >
+        <header class="flex flex-row items-center gap-4 pt-4 relative">
+            <button
+                type="button"
+                onclick={handleUnverifiedAnswerBack}
+                aria-label="Back"
+                class="w-10 h-10 absolute rounded-full bg-black-100 flex items-center justify-center cursor-pointer shrink-0 active:opacity-70"
+            >
+                <HugeiconsIcon
+                    icon={ArrowLeft01Icon}
+                    size={20}
+                    color="currentColor"
+                    strokeWidth={2}
+                />
+            </button>
+            <div class="flex flex-col w-full items-center">
+                <h3 class="font-semibold leading-none">Restore</h3>
+                <p class="text-black-500 text-sm mt-1 leading-none">
+                    Unverified ID
+                </p>
+            </div>
+        </header>
+
+        <section class="flex flex-col items-center gap-3 pt-12">
+            <h2
+                class="text-3xl font-bold text-black-900 text-center leading-tight"
+            >
+                Enter answer<br />to your question
+            </h2>
+        </section>
+
+        <section class="flex flex-col gap-2 pt-8">
+            <label
+                class="text-black-700 font-medium text-sm"
+                for="recover-answer"
+            >
+                {securityQuestion} <span class="text-danger">*</span>
+            </label>
+            <input
+                id="recover-answer"
+                type="text"
+                bind:value={answerInput}
+                autocomplete="off"
+                autocapitalize="off"
+                autocorrect="off"
+                spellcheck="false"
+                placeholder="Your answer"
+                class="w-full bg-card-alternative rounded-full px-5 py-4 placeholder:text-black-300 outline-none focus:ring-2 focus:ring-primary"
+            />
+            {#if answerError}
+                <p class="text-danger text-sm font-medium" role="alert">
+                    {answerError}
+                </p>
+            {/if}
+        </section>
+
+        <footer class="mt-auto flex flex-col gap-3 pt-4">
+            <ButtonAction
+                variant="soft"
+                class="w-full uppercase tracking-wide"
+                callback={() => {
+                    showNotarySheet = true;
+                }}
+            >
+                I forgot my answer
+            </ButtonAction>
+            <ButtonAction
+                class="w-full uppercase tracking-wide"
+                disabled={answerLoading || !answerInput.trim()}
+                isLoading={answerLoading}
+                callback={handleSubmitAnswer}
+                blockingClick
+            >
+                Restore
+            </ButtonAction>
+        </footer>
+    </main>
+{:else if step === "verified-loading" || step === "verified-searching"}
+    <main
+        class="flex min-h-dvh flex-col items-center justify-center bg-white px-6 gap-4"
+        style="padding-top: max(5.2svh, env(safe-area-inset-top)); padding-bottom: max(2rem, env(safe-area-inset-bottom));"
+    >
+        <div
+            class="h-14 w-14 animate-spin rounded-full border-4 border-gray-200 border-t-primary-500"
+        ></div>
+        <p class="font-semibold text-black-900 text-center">
+            {#if step === "verified-loading"}
+                Preparing verification…
+            {:else}
+                Finding your eVault…
+            {/if}
+        </p>
+        <p class="text-sm text-black-700 text-center">
+            {#if step === "verified-loading"}
+                Setting up your recovery session.
+            {:else}
+                Looking for an eVault linked to your identity.
+            {/if}
+        </p>
+    </main>
+{:else if step === "verified-didit"}
     <div
         class="fixed inset-0 z-50 bg-white flex flex-col"
         style="padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: max(24px, env(safe-area-inset-bottom));"
@@ -291,202 +626,153 @@ async function recoverVault() {
         <div class="flex-none flex justify-end px-4 pt-2">
             <button
                 class="text-sm text-black-500 underline"
-                onclick={() => goto("/onboarding")}
+                onclick={() => {
+                    step = "home";
+                }}
             >
                 Cancel
             </button>
         </div>
         <div id="recovery-didit-container" class="flex-1 w-full"></div>
     </div>
-{:else}
-    <!-- Background page — spinner while preparing / searching -->
-    <main
-        class="flex min-h-screen flex-col items-center justify-center bg-background px-6 gap-4"
-        style="padding-top: max(5.2svh, env(safe-area-inset-top)); padding-bottom: max(2rem, env(safe-area-inset-bottom));"
+{/if}
+
+<!-- ── eVault Found bottom sheet ──────────────────────────────────────── -->
+<BottomSheet bind:isOpen={showFoundSheet} dismissible={false}>
+    <header class="flex flex-col items-center gap-1">
+        <h2 class="text-2xl font-bold text-black-900">eVault Found</h2>
+        <p class="text-sm text-black-500 text-center">
+            Please review the connection details below
+        </p>
+    </header>
+
+    {#if recoveredW3id}
+        <div
+            class="bg-card-alternative rounded-2xl px-5 py-5 flex flex-col items-center gap-2"
+        >
+            <p class="text-base font-bold text-black-900">Your eName</p>
+            <p class="font-mono text-sm text-black-700 break-all text-center">
+                {recoveredW3id}
+            </p>
+        </div>
+    {/if}
+
+    <p class="text-sm text-black-500 text-center leading-snug">
+        We confirmed your identity. Here's your previous eVault - tap Continue
+        to restore access. If a recovery passphrase exists, we'll ask you to
+        verify it before continuing.
+    </p>
+
+    <div class="flex gap-3 pt-2">
+        <ButtonAction
+            variant="soft"
+            class="flex-1 uppercase tracking-wide"
+            callback={cancelFound}
+            disabled={storing}
+        >
+            Cancel
+        </ButtonAction>
+        <ButtonAction
+            class="flex-1 uppercase tracking-wide"
+            callback={recoverVault}
+            disabled={storing}
+            isLoading={storing}
+            blockingClick
+        >
+            Continue
+        </ButtonAction>
+    </div>
+</BottomSheet>
+
+<!-- ── Recovery not possible bottom sheet (forgot eName) ──────────────── -->
+<BottomSheet bind:isOpen={showRecoveryImpossibleSheet}>
+    <header class="flex flex-col items-center gap-1">
+        <h2 class="text-2xl font-bold text-black-900 text-center">
+            Recovery not possible
+        </h2>
+    </header>
+
+    <p class="text-sm text-black-500 text-center leading-snug">
+        Without your eName and without ID verification, there is no way to
+        recover your eVault. Your eName is your unique identifier - it cannot be
+        looked up without a verified identity.
+    </p>
+
+    <ButtonAction
+        class="w-full uppercase tracking-wide"
+        callback={() => {
+            showRecoveryImpossibleSheet = false;
+            goto("/onboarding");
+        }}
     >
-        {#if step === "starting" || step === "searching"}
-            <div class="h-14 w-14 animate-spin rounded-full border-4 border-gray-200 border-t-primary-500"></div>
-            <p class="font-semibold text-black-900 text-center">
-                {#if step === "starting"}
-                    Preparing verification…
-                {:else}
-                    Finding your eVault…
-                {/if}
-            </p>
-            <p class="text-sm text-black-700 text-center">
-                {#if step === "starting"}
-                    Setting up your recovery session.
-                {:else}
-                    Looking for an eVault linked to your identity.
-                {/if}
-            </p>
-            {#if step === "starting"}
-                <button
-                    onclick={() => goto("/onboarding")}
-                    class="mt-4 text-sm text-black-500 underline"
-                >
-                    Cancel
-                </button>
+        Create a new eVault
+    </ButtonAction>
+</BottomSheet>
+
+<!-- ── Notary required bottom sheet (forgot answer) ───────────────────── -->
+<BottomSheet bind:isOpen={showNotarySheet}>
+    <header class="flex flex-col items-center gap-1">
+        <h2 class="text-2xl font-bold text-black-900 text-center">
+            Visit a W3DS Notary
+        </h2>
+    </header>
+
+    <p class="text-sm text-black-500 text-center leading-snug">
+        Without your answer, your eVault cannot be restored automatically. A
+        Registered W3DS Notary can verify your identity in person using trusted
+        witnesses or other proofs of ownership and authorise recovery on your
+        behalf.
+    </p>
+
+    <ButtonAction
+        variant="soft"
+        class="w-full uppercase tracking-wide"
+        callback={() => {
+            showNotarySheet = false;
+        }}
+    >
+        Back
+    </ButtonAction>
+</BottomSheet>
+
+<!-- ── Error bottom sheet (verified path) ─────────────────────────────── -->
+<BottomSheet bind:isOpen={showErrorSheet}>
+    <header class="flex flex-col items-center gap-1">
+        <h2 class="text-2xl font-bold text-black-900 text-center">
+            {#if errorReason === "liveness_failed"}
+                Liveness check failed
+            {:else if errorReason === "no_match"}
+                No eVault found
+            {:else}
+                Something went wrong
             {/if}
+        </h2>
+    </header>
+
+    <p class="text-sm text-black-500 text-center leading-snug">
+        {errorMessage}
+    </p>
+
+    <div class="flex flex-col gap-3 pt-2">
+        {#if errorReason !== "no_match"}
+            <ButtonAction
+                class="w-full uppercase tracking-wide"
+                callback={() => {
+                    showErrorSheet = false;
+                    startVerifiedRecovery();
+                }}
+            >
+                Try Again
+            </ButtonAction>
         {/if}
-    </main>
-{/if}
-
-<!-- ── "eVault found" bottom sheet ─────────────────────────────────────────── -->
-{#if step === "found"}
-    <div class="fixed inset-0 z-40 bg-black/40" aria-hidden="true"></div>
-    <div
-        class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4"
-        style="padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));"
-    >
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-lg font-bold">
-                ✓
-            </div>
-            <h3 class="text-lg font-bold">eVault Found</h3>
-        </div>
-        <p class="text-black-700 text-sm">
-            We confirmed your identity. Here's your previous eVault — tap Continue
-            to restore access. If a recovery passphrase exists, we'll ask you to
-            verify it before continuing.
-        </p>
-        <div class="rounded-2xl bg-gray-50 border border-gray-200 p-4 flex flex-col gap-1">
-            <p class="text-xs text-black-500 font-medium uppercase tracking-wide">Your eName</p>
-            <p class="font-mono text-sm font-semibold text-black-900 break-all">{recoveredW3id}</p>
-        </div>
-        <div class="flex flex-col gap-3 pt-2">
-            <ButtonAction
-                class="w-full"
-                blockingClick
-                callback={checkPassphraseRequired}
-                disabled={checkingPassphrase}
-            >
-                {checkingPassphrase ? "Checking…" : "Continue →"}
-            </ButtonAction>
-            <ButtonAction
-                variant="soft"
-                class="w-full"
-                callback={() => goto("/onboarding")}
-            >
-                That's not me — cancel
-            </ButtonAction>
-        </div>
+        <ButtonAction
+            variant="soft"
+            class="w-full uppercase tracking-wide"
+            callback={() => {
+                showErrorSheet = false;
+            }}
+        >
+            Back
+        </ButtonAction>
     </div>
-{/if}
-
-<!-- ── Passphrase gate bottom sheet ─────────────────────────────────────────── -->
-{#if step === "passphrase-gate"}
-    <div class="fixed inset-0 z-40 bg-black/40" aria-hidden="true"></div>
-    <div
-        class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4"
-        style="padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));"
-    >
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-lg font-bold">
-                🔑
-            </div>
-            <h3 class="text-lg font-bold">Enter Recovery Passphrase</h3>
-        </div>
-        <p class="text-black-700 text-sm">
-            A recovery passphrase is required to restore this eVault. Please enter the passphrase you set in Settings.
-        </p>
-        <div class="flex flex-col gap-1">
-            <label for="recovery-passphrase" class="text-sm font-medium text-black-700">
-                Recovery Passphrase
-            </label>
-            <input
-                id="recovery-passphrase"
-                type="password"
-                bind:value={passphraseInput}
-                autocomplete="current-password"
-                placeholder="Enter your recovery passphrase"
-                class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition"
-                onkeydown={(e) => { if (e.key === "Enter" && passphraseInput) verifyAndRecover(); }}
-            />
-            {#if passphraseError}
-                <p class="text-xs text-red-500 mt-1">{passphraseError}</p>
-            {/if}
-        </div>
-        <div class="flex flex-col gap-3 pt-2">
-            <ButtonAction
-                class="w-full"
-                blockingClick
-                callback={verifyAndRecover}
-                disabled={passphraseLoading || !passphraseInput}
-            >
-                {passphraseLoading ? "Verifying…" : "Verify & Recover"}
-            </ButtonAction>
-            <ButtonAction
-                variant="soft"
-                class="w-full"
-                callback={() => goto("/onboarding")}
-            >
-                Cancel
-            </ButtonAction>
-        </div>
-    </div>
-{/if}
-
-<!-- ── Notary required bottom sheet ─────────────────────────────────────────── -->
-{#if step === "notary-required"}
-    <div class="fixed inset-0 z-40 bg-black/40" aria-hidden="true"></div>
-    <div
-        class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4"
-        style="padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));"
-    >
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-lg font-bold">
-                !
-            </div>
-            <h3 class="text-lg font-bold">Manual Recovery Required</h3>
-        </div>
-        <p class="text-black-700 text-sm leading-relaxed">
-            We couldn't verify the passphrase policy for this eVault right now, so
-            automatic recovery is unavailable.
-        </p>
-        <p class="text-black-700 text-sm leading-relaxed">
-            To recover your eVault, you must visit a <strong>Registered W3DS Notary</strong> in person.
-            They can verify your identity and authorise access to your eVault.
-        </p>
-        <div class="flex flex-col gap-3 pt-2">
-            <ButtonAction variant="soft" class="w-full" callback={() => goto("/onboarding")}>
-                Back to Onboarding
-            </ButtonAction>
-        </div>
-    </div>
-{/if}
-
-<!-- ── Error bottom sheet ──────────────────────────────────────────────────── -->
-{#if step === "error"}
-    <div class="fixed inset-0 z-40 bg-black/40" aria-hidden="true"></div>
-    <div
-        class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4"
-        style="padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));"
-    >
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-lg font-bold">
-                ✗
-            </div>
-            <h3 class="text-lg font-bold">
-                {#if errorReason === "liveness_failed"}
-                    Liveness Check Failed
-                {:else if errorReason === "no_match"}
-                    No eVault Found
-                {:else}
-                    Something Went Wrong
-                {/if}
-            </h3>
-        </div>
-        <p class="text-black-700 text-sm">{errorMessage}</p>
-        <div class="flex flex-col gap-3 pt-2">
-            {#if errorReason !== "no_match"}
-                <ButtonAction class="w-full" callback={startRecovery}>
-                    Try Again
-                </ButtonAction>
-            {/if}
-            <ButtonAction variant="soft" class="w-full" callback={() => goto("/onboarding")}>
-                Back to Onboarding
-            </ButtonAction>
-        </div>
-    </div>
-{/if}
+</BottomSheet>

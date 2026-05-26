@@ -1,88 +1,161 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
+import { keyboardInset } from "$lib/actions/keyboardInset";
 import type { GlobalState } from "$lib/global";
 import { runtime } from "$lib/global/runtime.svelte";
-import { BottomSheet, ButtonAction, InputPin } from "$lib/ui";
+import { BottomSheet, ButtonAction, PinDots } from "$lib/ui";
 import { CircleLock01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import { getContext, onMount } from "svelte";
 
+type Step = "current" | "new" | "repeat";
+
 let globalState: GlobalState | undefined = $state(undefined);
+let step = $state<Step>("current");
 let currentPin = $state("");
 let newPin = $state("");
 let repeatPin = $state("");
-let isError = $state(false);
-let showDrawer = $state(false);
+let error = $state<string | null>(null);
+let submitting = $state(false);
+let showSuccess = $state(false);
 
-const handleClose = async () => {
-    // close functionality goes here.
-    showDrawer = false;
-    goto("/settings");
-};
+const stepPin = $derived(
+    step === "current" ? currentPin : step === "new" ? newPin : repeatPin,
+);
+const canSubmit = $derived(stepPin.length === 4);
 
-const handleChangePIN = async () => {
-    if (newPin.length < 4 || repeatPin.length < 4 || currentPin.length < 4) {
-        isError = true;
+const stepTitle = $derived(
+    step === "current"
+        ? "Enter your current PIN"
+        : step === "new"
+          ? "Enter your new PIN"
+          : "Confirm your new PIN",
+);
+
+function advance() {
+    if (!canSubmit) return;
+    error = null;
+    if (step === "current") {
+        step = "new";
+    } else if (step === "new") {
+        step = "repeat";
+    } else {
+        void submit();
+    }
+}
+
+async function submit() {
+    if (!globalState) return;
+    if (repeatPin !== newPin) {
+        error = "PIN codes don't match. Try again.";
+        repeatPin = "";
         return;
     }
-
-    if (newPin !== repeatPin) {
-        isError = true;
-        return;
-    }
-
+    submitting = true;
     try {
-        await globalState?.securityController.updatePin(
+        await globalState.securityController.updatePin(
             newPin,
             repeatPin,
             currentPin,
         );
-        isError = false;
-        showDrawer = true;
+        showSuccess = true;
     } catch (err) {
         console.error("Failed to update PIN:", err);
-        isError = true;
+        // Most failures here are wrong-current-PIN — bounce back to step 1.
+        error =
+            "Couldn't update your PIN. Check your current PIN and try again.";
+        step = "current";
+        currentPin = "";
+        newPin = "";
+        repeatPin = "";
+    } finally {
+        submitting = false;
     }
-};
+}
+
+function handleClose() {
+    showSuccess = false;
+    // /settings/pin is normally entered from /settings, so popping history
+    // gets us back without leaving an orphan entry. If the user landed here
+    // directly (deep link, refresh), there's nothing to pop — fall back to
+    // /settings so they aren't stranded on the success card.
+    if (window.history.length > 1) {
+        window.history.back();
+    } else {
+        goto("/settings");
+    }
+}
+
+// Reset any stale error the moment the user starts typing again.
+$effect(() => {
+    if (stepPin.length > 0 && error) error = null;
+});
 
 $effect(() => {
     runtime.header.title = "Change PIN";
-    if (repeatPin.length === 4 && newPin === repeatPin) isError = false;
+    // Step-aware back: walk back through internal steps before leaving the page.
+    runtime.header.onback = () => {
+        error = null;
+        if (step === "repeat") {
+            repeatPin = "";
+            step = "new";
+        } else if (step === "new") {
+            newPin = "";
+            step = "current";
+        } else if (window.history.length > 1) {
+            window.history.back();
+        } else {
+            goto("/settings");
+        }
+    };
+    return () => {
+        runtime.header.onback = undefined;
+    };
 });
 
 onMount(() => {
     globalState = getContext<() => GlobalState>("globalState")();
-    if (!globalState) throw new Error("Global state is not defined");
 });
 </script>
 
 <main
-    class="h-[85vh] px-[5vw] pb-[8svh] flex flex-col justify-between"
-    style="padding-top: max(4svh, env(safe-area-inset-top));"
+    use:keyboardInset
+    class="h-[calc(100dvh-7rem)] overflow-hidden flex flex-col"
+    style="padding-bottom: calc(max(16px, env(safe-area-inset-bottom)) + var(--kb-inset, 0px));"
 >
-    <section>
-        <div>
-            <p class="mb-[1svh]">Enter you current PIN</p>
-            <InputPin bind:pin={currentPin} variant="sm" />
-        </div>
-        <div>
-            <p class="mb-[1svh]">Enter your new PIN</p>
-            <InputPin bind:pin={newPin} {isError} variant="sm" />
-        </div>
-        <div>
-            <p class="mb-[1svh]">Confirm new PIN</p>
-            <InputPin bind:pin={repeatPin} {isError} variant="sm" />
-        </div>
-        <p class={`text-danger mt-[3.4svh] ${isError ? "block" : "hidden"}`}>
-            Your PIN does not match, try again.
+    <section class="flex-1 flex flex-col items-center justify-center gap-4">
+        <p class="text-black-700 text-center text-lg">
+            {stepTitle}
         </p>
+
+        {#if step === "current"}
+            <PinDots bind:pin={currentPin} />
+        {:else if step === "new"}
+            <PinDots bind:pin={newPin} />
+        {:else}
+            <PinDots bind:pin={repeatPin} />
+        {/if}
+
+        {#if error}
+            <p class="text-danger text-sm font-medium text-center" role="alert">
+                {error}
+            </p>
+        {/if}
     </section>
-    <ButtonAction class="w-full" callback={handleChangePIN}
-        >Change PIN</ButtonAction
-    >
+
+    <footer class="w-full">
+        <ButtonAction
+            class="w-full uppercase tracking-wide"
+            disabled={!canSubmit || submitting}
+            callback={advance}
+            blockingClick={step === "repeat"}
+        >
+            {step === "repeat" ? "Change PIN" : "Next"}
+        </ButtonAction>
+    </footer>
 </main>
 
-<BottomSheet bind:isOpen={showDrawer}>
+<BottomSheet bind:isOpen={showSuccess} dismissible={false}>
     <div
         class="relative bg-gray w-18 h-18 rounded-3xl flex justify-center items-center mb-[2.3svh]"
     >
@@ -92,12 +165,8 @@ onMount(() => {
                 color="var(--color-primary)"
             />
         </span>
-        <img class="absolute top-0 start-0" src="/images/Line.svg" alt="line" />
-        <img
-            class="absolute top-0 start-0"
-            src="/images/Line2.svg"
-            alt="line"
-        />
+        <img class="absolute top-0 inset-s-0" src="/images/Line.svg" alt="" />
+        <img class="absolute top-0 inset-s-0" src="/images/Line2.svg" alt="" />
     </div>
     <h4>PIN code changed!</h4>
     <p class="text-black-700 mt-[0.5svh] mb-[2.3svh]">

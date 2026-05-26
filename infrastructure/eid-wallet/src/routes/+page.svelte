@@ -1,64 +1,95 @@
 <script lang="ts">
+import { browser } from "$app/environment";
 import { goto } from "$app/navigation";
+import SplashScreen from "$lib/fragments/SplashScreen/SplashScreen.svelte";
 import type { GlobalState } from "$lib/global";
-import * as Button from "$lib/ui/Button";
 import { getContext, onMount } from "svelte";
 
-let globalState: GlobalState | undefined = $state(undefined);
+const getGlobalState = getContext<() => GlobalState | undefined>("globalState");
 
-let clearPin = $state(async () => {});
-let cleared = $state(false);
+// Read sync (before first paint) so backward-nav from /onboarding lands
+// directly in state C without flashing state A for a frame.
+const skipIntro =
+    browser && sessionStorage.getItem("splashImmediate") === "true";
+if (skipIntro) sessionStorage.removeItem("splashImmediate");
+
+// false = state A (logo "closed"); true = state B (tagline revealed).
+let splashOpen = $state(skipIntro);
+// true = state C (bottom drawer revealed) — Create/Restore for new users,
+// single Continue for returning users.
+let splashShowDrawer = $state(skipIntro);
+// Set for returning users; the Continue tap navigates here and carries the
+// user gesture Android needs to auto-open the soft keyboard on /login.
+let returningUserTarget = $state<string | null>(null);
+
+async function handleCreateDigitalSelf() {
+    // The mount-guard flag for /onboarding is set centrally by the layout's
+    // onNavigate hook (applies to any route that has a refresh guard), so
+    // these handlers just need to goto.
+    await goto("/onboarding");
+}
+
+async function handleRestoreDigitalSelf() {
+    await goto("/recover");
+}
+
+async function handleContinue() {
+    if (returningUserTarget) await goto(returningUserTarget);
+}
 
 onMount(async () => {
-    globalState = getContext<() => GlobalState>("globalState")();
-    if (!globalState) throw new Error("Global state is not defined");
-    clearPin = async () => {
-        try {
-            await globalState?.securityController.clearPin();
-            cleared = true;
-        } catch (error) {
-            console.error("Failed to clear PIN:", error);
-            // Consider adding user-facing error feedback
-        }
-    };
+    if (skipIntro) {
+        // Backward nav from /onboarding — already at state C, nothing to do.
+        return;
+    }
+
+    // Hold state A briefly so the "logo closed" reads as intentional.
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    splashOpen = true;
+
+    // Give state B a beat to land before deciding what comes next.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    // Wait for layout's globalState init if it hasn't landed yet.
+    let globalState = getGlobalState?.();
+    let retries = 0;
+    while (!globalState && retries < 50) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        globalState = getGlobalState?.();
+        retries++;
+    }
+
     let onboardingComplete = false;
-    try {
-        onboardingComplete = await globalState.isOnboardingComplete;
-    } catch (error) {
-        console.error("Failed to determine onboarding status:", error);
+    let userExists = false;
+    if (globalState) {
+        try {
+            onboardingComplete = await globalState.isOnboardingComplete;
+            userExists = !!(await globalState.userController.user);
+        } catch (error) {
+            console.error("Failed to read onboarding state:", error);
+        }
     }
 
-    const user = await globalState.userController.user;
-    const pinHash = await globalState.securityController.pinHash;
-    const vault = await globalState.vaultController.vault;
-    console.log(
-        "[ROOT] routing check — onboardingComplete:",
-        onboardingComplete,
-        "| user:",
-        !!user,
-        "| pinHash:",
-        !!pinHash,
-        "| vault:",
-        !!vault,
-    );
+    if (onboardingComplete && userExists) {
+        // Returning user — show a Continue CTA instead of auto-redirecting,
+        // so the tap can carry the gesture into /login's keyboard auto-open.
+        const pinHash = globalState
+            ? await globalState.securityController.pinHash
+            : null;
+        returningUserTarget = pinHash ? "/login" : "/register";
+        splashShowDrawer = true;
+        return;
+    }
 
-    if (!onboardingComplete || !user) {
-        console.log(
-            "[ROOT] → /onboarding (onboardingComplete:",
-            onboardingComplete,
-            ", user:",
-            !!user,
-            ")",
-        );
-        await goto("/onboarding");
-        return;
-    }
-    if (!pinHash) {
-        console.log("[ROOT] → /register (no pinHash)");
-        await goto("/register");
-        return;
-    }
-    console.log("[ROOT] → /login");
-    await goto("/login");
+    // First-time user — reveal the drawer with CTAs.
+    splashShowDrawer = true;
 });
 </script>
+
+<SplashScreen
+    open={splashOpen}
+    showDrawer={splashShowDrawer}
+    oncreate={handleCreateDigitalSelf}
+    onrestore={handleRestoreDigitalSelf}
+    oncontinue={returningUserTarget ? handleContinue : undefined}
+/>

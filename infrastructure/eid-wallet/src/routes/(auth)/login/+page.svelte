@@ -1,8 +1,8 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
-import { Hero } from "$lib/fragments";
+import { keyboardInset } from "$lib/actions/keyboardInset";
 import type { GlobalState } from "$lib/global";
-import { InputPin } from "$lib/ui";
+import { PinDots } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import {
     type AuthOptions,
@@ -10,149 +10,127 @@ import {
     checkStatus,
 } from "@tauri-apps/plugin-biometric";
 import { getContext, onMount } from "svelte";
+import { Shadow } from "svelte-loading-spinners";
+import StepHeader from "../onboarding/steps/StepHeader.svelte";
 
 let pin = $state("");
 let isError = $state(false);
 let isPostAuthLoading = $state(false);
-let clearPin = $state(async () => {});
-let handlePinInput = $state((pin: string) => {});
-let globalState: GlobalState | undefined = $state(undefined);
 let hasPendingDeepLink = $state(false);
+
+const getGlobalState = getContext<() => GlobalState | undefined>("globalState");
+let globalState: GlobalState | undefined = $state(undefined);
 
 const authOpts: AuthOptions = {
     allowDeviceCredential: false,
-
     cancelTitle: "Cancel",
-
     // iOS
     fallbackTitle: "Please enter your PIN",
-
     // Android
     title: "Login",
     subtitle: "Please authenticate to continue",
     confirmationRequired: true,
 };
 
-const getGlobalState = getContext<() => GlobalState>("globalState");
-const setGlobalState =
-    getContext<(value: GlobalState) => void>("setGlobalState");
+async function clearPin() {
+    if (isPostAuthLoading) return;
+    pin = "";
+    isError = false;
+}
 
-onMount(async () => {
-    globalState = getContext<() => GlobalState>("globalState")();
-    if (!globalState) {
-        console.error("Global state is not defined");
-        await goto("/"); // Redirect to home or error page
+async function continueAfterSuccessfulAuth(gs: GlobalState) {
+    try {
+        const vault = await gs.vaultController.vault;
+        if (vault?.ename) {
+            const healthCheck = await gs.vaultController.checkHealth(
+                vault.ename,
+            );
+            if (!healthCheck.healthy) {
+                console.warn("eVault health check failed:", healthCheck.error);
+                // Non-blocking — continue to the app.
+            }
+
+            try {
+                await gs.vaultController.syncPublicKey(vault.ename);
+            } catch (error) {
+                console.error("Error syncing public key:", error);
+            }
+
+            try {
+                await gs.notificationService.registerDevice(vault.ename);
+            } catch (error) {
+                console.error(
+                    "Error registering device for notifications:",
+                    error,
+                );
+            }
+        }
+    } catch (error) {
+        console.error("Error during eVault health check:", error);
+    }
+
+    const pendingDeepLink = sessionStorage.getItem("pendingDeepLink");
+    if (pendingDeepLink) {
+        try {
+            sessionStorage.setItem("deepLinkData", pendingDeepLink);
+            sessionStorage.removeItem("pendingDeepLink");
+            await goto("/scan-qr");
+            return;
+        } catch (error) {
+            console.error("Error processing pending deep link:", error);
+            sessionStorage.removeItem("pendingDeepLink");
+        }
+    }
+
+    await goto("/main");
+}
+
+async function verifyAndAdvance(currentPin: string) {
+    if (isPostAuthLoading) return;
+    if (!globalState) return;
+    if (currentPin.length !== 4) return;
+
+    isError = false;
+    isPostAuthLoading = true;
+
+    const ok = await globalState.securityController.verifyPin(currentPin);
+    if (!ok) {
+        isError = true;
+        pin = "";
+        isPostAuthLoading = false;
         return;
     }
 
-    // Check if there's a pending deep link
+    await continueAfterSuccessfulAuth(globalState);
+}
+
+$effect(() => {
+    if (pin.length === 4) verifyAndAdvance(pin);
+});
+
+onMount(async () => {
+    // Root +layout creates globalState in its own onMount (which runs after
+    // children). Poll until it's available — same pattern as (app)/+layout.
+    let gs = getGlobalState();
+    let retries = 0;
+    while (!gs && retries < 50) {
+        await new Promise((r) => setTimeout(r, 100));
+        gs = getGlobalState();
+        retries++;
+    }
+    if (!gs) {
+        console.error("Global state never became available");
+        await goto("/");
+        return;
+    }
+    globalState = gs;
+
     const pendingDeepLink = sessionStorage.getItem("pendingDeepLink");
     hasPendingDeepLink = !!pendingDeepLink;
-    if (hasPendingDeepLink) {
-        console.log("Pending deep link detected on login page");
-    }
 
-    clearPin = async () => {
-        pin = "";
-        isError = false;
-        if (isPostAuthLoading) return;
-    };
-
-    handlePinInput = async (pin: string) => {
-        if (isPostAuthLoading) return;
-        if (pin.length === 4) {
-            isError = false;
-            isPostAuthLoading = true;
-            const check = globalState
-                ? await globalState.securityController.verifyPin(pin)
-                : false;
-            if (!check) {
-                isError = true;
-                isPostAuthLoading = false;
-                return;
-            }
-
-            // Check eVault health after successful login
-            try {
-                const vault = await globalState?.vaultController.vault;
-                if (vault?.ename && globalState) {
-                    const healthCheck =
-                        await globalState.vaultController.checkHealth(
-                            vault.ename,
-                        );
-                    if (!healthCheck.healthy) {
-                        console.warn(
-                            "eVault health check failed:",
-                            healthCheck.error,
-                        );
-
-                        // For other errors, continue to app - non-blocking
-                    }
-
-                    // Sync public key to eVault core
-                    try {
-                        await globalState.vaultController.syncPublicKey(
-                            vault.ename,
-                        );
-                    } catch (error) {
-                        console.error("Error syncing public key:", error);
-                    }
-
-                    // Register device for push notifications on login
-                    try {
-                        await globalState.notificationService.registerDevice(
-                            vault.ename,
-                        );
-                    } catch (error) {
-                        console.error(
-                            "Error registering device for notifications:",
-                            error,
-                        );
-                    }
-                }
-            } catch (error) {
-                console.error("Error during eVault health check:", error);
-            }
-
-            // Check if there's a pending deep link to process
-            const pendingDeepLink = sessionStorage.getItem("pendingDeepLink");
-            if (pendingDeepLink) {
-                try {
-                    const deepLinkData = JSON.parse(pendingDeepLink);
-                    console.log(
-                        "Processing pending deep link after login:",
-                        deepLinkData,
-                    );
-
-                    // Store the deep link data for the scan page
-                    sessionStorage.setItem("deepLinkData", pendingDeepLink);
-                    // Clear the pending deep link
-                    sessionStorage.removeItem("pendingDeepLink");
-
-                    // Redirect to scan page to process the deep link
-                    await goto("/scan-qr");
-                    return;
-                } catch (error) {
-                    console.error("Error processing pending deep link:", error);
-                    sessionStorage.removeItem("pendingDeepLink");
-                }
-            }
-
-            // No pending deep link, go to main page
-            await goto("/main");
-            return;
-        }
-        isPostAuthLoading = false;
-    };
-
-    // for some reason it's important for this to be done before the biometric stuff
-    // otherwise pin doesn't work
-    $effect(() => {
-        handlePinInput(pin);
-    });
-
+    // Try biometric first if available.
     if (
-        (await globalState.securityController.biometricSupport) &&
+        (await gs.securityController.biometricSupport) &&
         (await checkStatus()).isAvailable
     ) {
         try {
@@ -161,75 +139,7 @@ onMount(async () => {
                 authOpts,
             );
             isPostAuthLoading = true;
-
-            // Check eVault health after successful biometric login
-            try {
-                const vault = await globalState.vaultController.vault;
-                if (vault?.ename) {
-                    const healthCheck =
-                        await globalState.vaultController.checkHealth(
-                            vault.ename,
-                        );
-                    if (!healthCheck.healthy) {
-                        console.warn(
-                            "eVault health check failed:",
-                            healthCheck.error,
-                        );
-
-                        // For other errors, continue to app - non-blocking
-                    }
-
-                    // Sync public key to eVault core
-                    try {
-                        await globalState.vaultController.syncPublicKey(
-                            vault.ename,
-                        );
-                    } catch (error) {
-                        console.error("Error syncing public key:", error);
-                    }
-
-                    // Register device for push notifications on biometric login
-                    try {
-                        await globalState.notificationService.registerDevice(
-                            vault.ename,
-                        );
-                    } catch (error) {
-                        console.error(
-                            "Error registering device for notifications:",
-                            error,
-                        );
-                    }
-                }
-            } catch (error) {
-                console.error("Error during eVault health check:", error);
-            }
-
-            // Check if there's a pending deep link to process
-            const pendingDeepLink = sessionStorage.getItem("pendingDeepLink");
-            if (pendingDeepLink) {
-                try {
-                    const deepLinkData = JSON.parse(pendingDeepLink);
-                    console.log(
-                        "Processing pending deep link after biometric login:",
-                        deepLinkData,
-                    );
-
-                    // Store the deep link data for the scan page
-                    sessionStorage.setItem("deepLinkData", pendingDeepLink);
-                    // Clear the pending deep link
-                    sessionStorage.removeItem("pendingDeepLink");
-
-                    // Redirect to scan page to process the deep link
-                    await goto("/scan-qr");
-                    return;
-                } catch (error) {
-                    console.error("Error processing pending deep link:", error);
-                    sessionStorage.removeItem("pendingDeepLink");
-                }
-            }
-
-            // No pending deep link, go to main page
-            await goto("/main");
+            await continueAfterSuccessfulAuth(gs);
         } catch (e) {
             console.error("Biometric authentication failed", e);
             isPostAuthLoading = false;
@@ -239,71 +149,48 @@ onMount(async () => {
 </script>
 
 <main
-    class="min-h-[100svh] px-[5vw] flex flex-col justify-between"
-    style="padding-top: max(5.2svh, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));"
+    use:keyboardInset
+    class="h-dvh overflow-hidden px-[5vw] flex flex-col bg-white"
+    style="padding-top: max(2svh, env(safe-area-inset-top)); padding-bottom: calc(max(16px, env(safe-area-inset-bottom)) + var(--kb-inset, 0px));"
 >
-    <section class="mt-4">
-        <Hero title="Log in to your account" class="mb-[6svh]">
-            {#snippet subtitle()}
-                {#if isPostAuthLoading}
-                    Logging you in...
-                {:else}
-                    Enter your 4-digit PIN code
-                {/if}
-            {/snippet}
-        </Hero>
+    <StepHeader title="Enter your PIN" />
 
+    {#if hasPendingDeepLink && !isPostAuthLoading}
+        <div
+            class="bg-primary-100 border border-primary-200 rounded-xl px-4 py-2.5 mt-4 text-sm text-primary"
+            role="status"
+        >
+            <strong>Authentication request pending.</strong>
+            Sign in to continue.
+        </div>
+    {/if}
+
+    <section
+        class="flex-1 flex flex-col items-center justify-center gap-6"
+    >
         {#if isPostAuthLoading}
-            <div
-                class="fixed inset-0 flex flex-col items-center justify-center gap-3 py-8"
-            >
-                <div
-                    class="h-12 w-12 rounded-full border-4 border-primary border-t-transparent animate-spin"
-                ></div>
-                <p class="text-primary text-sm">Logging you in...</p>
-            </div>
+            <Shadow size={40} color="rgb(142, 82, 255)" />
+            <p class="text-primary text-sm">Logging you in…</p>
         {:else}
-            {#if hasPendingDeepLink}
-                <div
-                    class="bg-primary-100 border border-primary-200 rounded-2xl p-4 mb-4"
-                >
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <svg
-                                class="h-5 w-5 text-primary"
-                                viewBox="0 0 20 20"
-                                fill="currentColor"
-                            >
-                                <path
-                                    fill-rule="evenodd"
-                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                                    clip-rule="evenodd"
-                                />
-                            </svg>
-                        </div>
-                        <div class="ml-3">
-                            <p class="text-sm text-primary">
-                                <strong>Authentication Request Pending</strong
-                                ><br />
-                                Complete login to process the authentication request
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            {/if}
+            <PinDots bind:pin />
 
-            <InputPin bind:pin {isError} onchange={() => handlePinInput(pin)} />
-            <p
-                class={`text-danger mt-[3.4svh] ${isError ? "block" : "hidden"}`}
-            >
-                Your PIN does not match, try again.
-            </p>
+            {#if isError}
+                <p class="text-danger text-sm font-medium" role="alert">
+                    Your PIN does not match, try again.
+                </p>
+            {/if}
         {/if}
     </section>
-    {#if !isPostAuthLoading}
-        <Button.Action class={`w-full`} variant="danger" callback={clearPin}>
-            Clear PIN
-        </Button.Action>
-    {/if}
-</main>
 
+    <footer class="w-full">
+        {#if !isPostAuthLoading}
+            <Button.Action
+                variant="soft"
+                class="w-full uppercase tracking-wide"
+                callback={clearPin}
+            >
+                Clear PIN
+            </Button.Action>
+        {/if}
+    </footer>
+</main>

@@ -2,7 +2,6 @@
 import { goto } from "$app/navigation";
 import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
 import type { GlobalState } from "$lib/global";
-import { ButtonAction, CameraPermissionDialog } from "$lib/ui";
 import { getContext, onDestroy, onMount } from "svelte";
 import type { SVGAttributes } from "svelte/elements";
 import { get } from "svelte/store";
@@ -42,7 +41,6 @@ const {
     authError,
     signingError,
     authLoading,
-    cameraPermissionDenied,
     socialBindingDrawerOpen,
     socialBindingRequesterEname,
     socialBindingRequesterName,
@@ -67,7 +65,6 @@ const {
     handleSignVote,
     initialize,
     retryPermission,
-    handleOpenSettings,
     handleSocialBinding,
     closeSocialBindingDrawer,
 } = actions;
@@ -156,10 +153,6 @@ function handleRevealDrawerOpenChange(value: boolean) {
     setRevealRequestOpen(value);
 }
 
-function handlePermissionGoBack() {
-    goto("/main");
-}
-
 async function handleSocialBindingConfirm() {
     await handleSocialBinding();
 }
@@ -174,7 +167,7 @@ function handleSocialBindingOpenChange(value: boolean) {
 }
 </script>
 
-<AppNav title="Scan QR Code" titleClasses="text-white" iconColor="white" />
+<AppNav title="Scan QR Code" titleClasses="text-white" />
 
 <div
     class="flex flex-col justify-center items-center min-h-[calc(100vh-200px)] pb-20"
@@ -201,14 +194,6 @@ function handleSocialBindingOpenChange(value: boolean) {
     </h4>
 </div>
 
-<CameraPermissionDialog
-    isOpen={$cameraPermissionDenied}
-    onOpenSettings={handleOpenSettings}
-    onGoBack={handlePermissionGoBack}
-    title="Camera Access Required"
-    description="To scan QR codes, please grant camera permission in your device settings."
-/>
-
 <AuthDrawer
     isOpen={$codeScannedDrawerOpen}
     platform={$platform}
@@ -225,6 +210,7 @@ function handleSocialBindingOpenChange(value: boolean) {
 <LoggedInDrawer
     isOpen={$loggedInDrawerOpen}
     platform={$platform}
+    hostname={$hostname}
     redirect={$redirect}
     onConfirm={handleLoggedInDrawerConfirm}
     onOpenChange={handleLoggedInDrawerOpenChange}
@@ -240,6 +226,8 @@ function handleSocialBindingOpenChange(value: boolean) {
     isSubmittingBlindVote={$isSubmittingBlindVote}
     loading={$loading}
     signingError={$signingError}
+    platform={$platform}
+    hostname={$hostname}
     onDecline={handleSigningDrawerDecline}
     onSign={handleSignVote}
     onBlindVoteOptionChange={handleBlindVoteOptionChange}
@@ -255,6 +243,8 @@ function handleSocialBindingOpenChange(value: boolean) {
     revealPollId={$revealPollId}
     revealError={$revealError}
     isRevealingVote={$isRevealingVote}
+    platform={$platform}
+    hostname={$hostname}
     onCancel={handleRevealDrawerCancel}
     onReveal={handleRevealVote}
     onOpenChange={handleRevealDrawerOpenChange}
