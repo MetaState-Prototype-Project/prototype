@@ -737,7 +737,20 @@ const isAppPath = (p: string) =>
 
 beforeNavigate((navigation) => {
     if (navigation.type !== "popstate") return;
+
+    const from = navigation.from?.url.pathname;
     const to = navigation.to?.url.pathname;
+
+    // /main is the home — a hard floor. Pressing back from it should never
+    // surface a sibling app route (scan, settings) or an auth screen. Once a
+    // user has reached home, only forward navigations apply.
+    if (from === "/main") {
+        navigation.cancel();
+        return;
+    }
+
+    // For any other route, still block back-nav that would land on a
+    // pre-app auth screen if the user has reached the app this session.
     if (!to || !AUTH_PATHS.has(to)) return;
     if (!navigationStack.some(isAppPath)) return;
     navigation.cancel();

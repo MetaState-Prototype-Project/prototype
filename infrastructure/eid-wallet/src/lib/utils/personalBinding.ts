@@ -14,6 +14,14 @@ import {
     vaultGqlRequest,
 } from "./socialBinding";
 
+/**
+ * Shared cap on free-text fields the user writes into the personal-binding
+ * sheets (parameters textarea, knowledge question/answer, photo description).
+ * Anything past this is almost certainly user error and stresses the
+ * canonical-hash signing path. Enforced via `maxlength` in each input.
+ */
+export const PERSONAL_BINDING_MAX_LENGTH = 2048;
+
 const CREATE_BINDING_DOC_MUTATION = `
     mutation CreateBindingDoc($input: CreateBindingDocumentInput!) {
         createBindingDocument(input: $input) {

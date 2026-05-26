@@ -3,6 +3,7 @@ import type { PhotoMark } from "$lib/stores/personalBinding";
 import { ButtonAction, CameraPermissionDialog } from "$lib/ui";
 import BottomSheet from "$lib/ui/BottomSheet/BottomSheet.svelte";
 import { createCameraPermissionManager } from "$lib/utils";
+import { PERSONAL_BINDING_MAX_LENGTH } from "$lib/utils/personalBinding";
 import { Cancel01Icon, Delete02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 
@@ -234,9 +235,15 @@ const sheetTitle = $derived(editing ? "Edit photo mark" : "Add photo mark");
                     id="photo-description-pre"
                     type="text"
                     bind:value={description}
+                    maxlength={PERSONAL_BINDING_MAX_LENGTH}
                     placeholder="Describe this photo"
                     class="w-full bg-card-alternative rounded-full px-5 py-4 placeholder:text-black-300 outline-none focus:ring-2 focus:ring-primary"
                 />
+                {#if description.length > PERSONAL_BINDING_MAX_LENGTH - 150}
+                    <p class="text-xs text-black-500 text-right mt-1">
+                        {description.length} / {PERSONAL_BINDING_MAX_LENGTH}
+                    </p>
+                {/if}
             </div>
         </div>
     {:else if mode === "capture"}
@@ -295,9 +302,15 @@ const sheetTitle = $derived(editing ? "Edit photo mark" : "Add photo mark");
                     id="photo-description"
                     type="text"
                     bind:value={description}
+                    maxlength={PERSONAL_BINDING_MAX_LENGTH}
                     placeholder="Describe this photo"
                     class="w-full bg-card-alternative rounded-full px-5 py-4 placeholder:text-black-300 outline-none focus:ring-2 focus:ring-primary"
                 />
+                {#if description.length > PERSONAL_BINDING_MAX_LENGTH - 150}
+                    <p class="text-xs text-black-500 text-right mt-1">
+                        {description.length} / {PERSONAL_BINDING_MAX_LENGTH}
+                    </p>
+                {/if}
             </div>
 
             <ButtonAction class="w-full" callback={save}>Save</ButtonAction>

@@ -419,19 +419,92 @@ export async function fetchUnsignedSocialDocs(
         bindingDocuments: { edges: BindingDocEdge[] };
     }>(ownGqlUrl, callerEname, SOCIAL_BINDING_DOCS_QUERY);
 
-    return (data.bindingDocuments?.edges ?? []).filter((edge) => {
+    const unsigned = (data.bindingDocuments?.edges ?? []).filter((edge) => {
         const parsed = edge.node.parsed;
         if (!parsed || parsed.type !== "social_connection") return false;
         // The signer writes subject=@requester into the requester's vault,
         // so the requester IS the subject of the doc they need to counter-sign.
         if (parsed.subject !== normalized) return false;
-        // Requester hasn't counter-signed yet
+        // Requester hasn't counter-signed yet.
         const signatures = Array.isArray(parsed.signatures)
             ? parsed.signatures
             : [];
         const alreadySigned = signatures.some((s) => s.signer === normalized);
         return !alreadySigned;
     });
+
+    // Dedupe by signer: each scan of the requester's QR creates a fresh
+    // envelope. When a scanner scans more than once (the usual reason —
+    // they thought it didn't work) the requester ends up with several
+    // identical pending docs, all needing acceptance. Surface just the
+    // newest from each signer; the dupes are pruned by
+    // pruneDuplicateUnsignedDocs() below at consent time.
+    const newestBySigner = new Map<string, BindingDocEdge>();
+    for (const edge of unsigned) {
+        const signer = edge.node.parsed?.signatures?.[0]?.signer ?? null;
+        if (!signer) continue;
+        const existing = newestBySigner.get(signer);
+        if (!existing) {
+            newestBySigner.set(signer, edge);
+            continue;
+        }
+        const existingTs =
+            existing.node.parsed?.signatures?.[0]?.timestamp ?? "";
+        const candidateTs = edge.node.parsed?.signatures?.[0]?.timestamp ?? "";
+        if (candidateTs > existingTs) newestBySigner.set(signer, edge);
+    }
+    return Array.from(newestBySigner.values());
+}
+
+/**
+ * After successfully counter-signing one pending binding doc from a given
+ * signer, look up every OTHER unsigned doc with the same signer on the
+ * caller's vault and delete them. These are duplicate envelopes from
+ * repeat scans of the same QR; collapsing them here stops the drawer from
+ * re-prompting the user to accept the "same" binding over and over.
+ */
+export async function pruneDuplicateUnsignedDocs(
+    ownGqlUrl: string,
+    callerEname: string,
+    keepDocId: string,
+    signer: string,
+): Promise<number> {
+    const normalized = callerEname.startsWith("@")
+        ? callerEname
+        : `@${callerEname}`;
+
+    const data = await vaultGqlRequest<{
+        bindingDocuments: { edges: BindingDocEdge[] };
+    }>(ownGqlUrl, callerEname, SOCIAL_BINDING_DOCS_QUERY);
+
+    const dupes = (data.bindingDocuments?.edges ?? []).filter((edge) => {
+        if (edge.node.id === keepDocId) return false;
+        const parsed = edge.node.parsed;
+        if (!parsed || parsed.type !== "social_connection") return false;
+        if (parsed.subject !== normalized) return false;
+        const sigs = Array.isArray(parsed.signatures) ? parsed.signatures : [];
+        // Same signer, and the caller hasn't already countersigned this
+        // one either — i.e. it's a stale duplicate of the doc we just
+        // accepted.
+        const sameSigner = sigs[0]?.signer === signer;
+        const callerAlreadySigned = sigs.some((s) => s.signer === normalized);
+        return sameSigner && !callerAlreadySigned;
+    });
+
+    let deleted = 0;
+    for (const edge of dupes) {
+        try {
+            await deleteSocialBindingDoc(ownGqlUrl, callerEname, edge.node.id);
+            deleted += 1;
+        } catch (err) {
+            console.warn(
+                "[socialBinding] failed to prune duplicate doc",
+                edge.node.id,
+                err,
+            );
+        }
+    }
+    return deleted;
 }
 
 // ---------------------------------------------------------------------------
@@ -446,6 +519,13 @@ export interface SocialBindingSummary {
     relationDescription: string;
     /** False for scanner-side mirror copies that only carry one signature. */
     mutuallySigned: boolean;
+    /**
+     * `sent` — the user initiated this binding (signed first).
+     * `received` — the user countersigned a request from the counterparty.
+     * Derived from `signatures[0].signer`. Defaults to `received` when there
+     * are no signatures (shouldn't happen post-fetch but stay defensive).
+     */
+    role: "sent" | "received";
 }
 
 // All social_connection docs on the caller's own vault, newest first.
@@ -481,6 +561,10 @@ export async function fetchSocialBindings(
             .sort()
             .reverse()[0];
 
+        const firstSigner = sigs[0]?.signer;
+        const role: "sent" | "received" =
+            firstSigner === normalized ? "sent" : "received";
+
         out.push({
             docId: edge.node.id,
             counterpartyEname: counterparty,
@@ -490,6 +574,7 @@ export async function fetchSocialBindings(
                     ? (parsed.data.relation_description as string)
                     : "",
             mutuallySigned: sigs.length >= 2,
+            role,
         });
     }
 

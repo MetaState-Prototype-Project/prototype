@@ -219,3 +219,29 @@ body {
     position: relative;
     z-index: 1;
 }
+
+/* WebView passthrough for the native camera scanner.
+ *
+ * The Tauri barcode-scanner plugin opens the camera in a native overlay
+ * BEHIND the WebView. Whichever page calls scan({ windowed: true }) must
+ * make the body + its route wrappers transparent for that scan's duration
+ * so the feed can show through. Toggled on/off by code (currently /scan-qr
+ * and /recover's notary path).
+ *
+ * Lives in app.css rather than per-layout because /recover is in (public)
+ * and (app)'s style block doesn't load there. */
+body.custom-global-style {
+    background-color: transparent;
+    overflow: hidden;
+}
+body.custom-global-style [data-route-wrapper] {
+    background-color: transparent !important;
+}
+/* The notary-recovery scan opens from /recover (public group), whose page
+ * uses `<main class="bg-white …">` instead of [data-route-wrapper]. The
+ * recover <main> is nested under the root layout's slide-wrapper divs,
+ * so we need a descendant selector. Drawers/bottom-sheets use <div
+ * role="dialog"> not <main> so this won't clobber their backgrounds. */
+body.custom-global-style main {
+    background-color: transparent !important;
+}

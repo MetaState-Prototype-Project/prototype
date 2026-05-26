@@ -1,6 +1,7 @@
 <script lang="ts">
 import { ButtonAction } from "$lib/ui";
 import BottomSheet from "$lib/ui/BottomSheet/BottomSheet.svelte";
+import { PERSONAL_BINDING_MAX_LENGTH } from "$lib/utils/personalBinding";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 
@@ -57,9 +58,15 @@ function close() {
         <textarea
             bind:value
             rows="3"
+            maxlength={PERSONAL_BINDING_MAX_LENGTH}
             placeholder="e.g. born 4 March 1992 in Lisbon, 1.78 m, brown eyes"
             class="w-full bg-card-alternative rounded-2xl px-5 py-4 placeholder:text-black-300 outline-none focus:ring-2 focus:ring-primary resize-none"
         ></textarea>
+        {#if value.length > PERSONAL_BINDING_MAX_LENGTH - 150}
+            <p class="text-xs text-black-500 text-right -mt-2">
+                {value.length} / {PERSONAL_BINDING_MAX_LENGTH}
+            </p>
+        {/if}
 
         <ButtonAction class="w-full" callback={save}>Save</ButtonAction>
     </div>

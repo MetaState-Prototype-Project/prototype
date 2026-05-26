@@ -177,6 +177,36 @@ server.get("/platforms", async (request, reply) => {
     return platforms;
 });
 
+// Whitelist of approved notaries. The wallet uses this to verify that a
+// notary-issued recovery QR was minted by a real notary host (i.e. one whose
+// public key is reachable at that host's /.well-known/jwks.json). Without
+// this gate, anyone running a sham eNotary could mint recovery codes for
+// any eName and silently take over the target's eVault.
+//
+// Set REGISTRY_NOTARIES to a JSON array of entries:
+//   [{ "ename": "@notary.eid", "url": "http://host:port", "name": "Label" }]
+server.get("/notaries", async (request, reply) => {
+    try {
+        const raw = process.env.REGISTRY_NOTARIES;
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) {
+            server.log.warn("REGISTRY_NOTARIES is not a JSON array; returning []");
+            return [];
+        }
+        return parsed.filter(
+            (entry: unknown) =>
+                entry &&
+                typeof entry === "object" &&
+                typeof (entry as { ename?: unknown }).ename === "string" &&
+                typeof (entry as { url?: unknown }).url === "string",
+        );
+    } catch (error) {
+        server.log.error(error);
+        reply.status(500).send({ error: "Failed to read notary whitelist" });
+    }
+});
+
 // Expose the JWK used for signing
 server.get("/.well-known/jwks.json", async (request, reply) => {
     try {

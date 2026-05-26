@@ -15,8 +15,16 @@ import { capitalize } from "$lib/utils";
 import { PERSONAL_BINDING_BY_TYPE_QUERY } from "$lib/utils/personalBinding";
 import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
+import {
+    Format,
+    checkPermissions,
+    openAppSettings,
+    requestPermissions,
+    scan,
+} from "@tauri-apps/plugin-barcode-scanner";
 import axios from "axios";
 import { GraphQLClient } from "graphql-request";
+import { createLocalJWKSet, decodeJwt, jwtVerify } from "jose";
 import { onMount } from "svelte";
 
 /**
@@ -38,11 +46,17 @@ type Step =
     | "home"
     | "verified-didit"
     | "unverified-ename"
-    | "unverified-answer";
+    | "unverified-answer"
+    | "notary-scanning"
+    | "notary-confirm";
 
 /** Loading overlay phases — rendered as a LoadingSheet on top of whatever
  *  step is active, so the underlying screen stays visible (and blurred). */
-type LoadingPhase = "starting-session" | "finding-evault" | null;
+type LoadingPhase =
+    | "starting-session"
+    | "finding-evault"
+    | "verifying-notary"
+    | null;
 
 type ErrorReason = "liveness_failed" | "no_match" | "generic";
 
@@ -61,14 +75,18 @@ const loadingTitle = $derived(
         ? "Preparing verification"
         : loadingPhase === "finding-evault"
           ? "Finding your eVault"
-          : "",
+          : loadingPhase === "verifying-notary"
+            ? "Verifying the notary"
+            : "",
 );
 const loadingSubtitle = $derived(
     loadingPhase === "starting-session"
         ? "Setting up your recovery session."
         : loadingPhase === "finding-evault"
           ? "Looking for an eVault linked to your identity."
-          : "",
+          : loadingPhase === "verifying-notary"
+            ? "Checking the recovery code's signature against the registry."
+            : "",
 );
 
 function cancelLoading() {
@@ -106,6 +124,25 @@ let lockedUntilLabel = $state<string | null>(null);
 
 let showRecoveryImpossibleSheet = $state(false);
 let showNotarySheet = $state(false);
+
+// ── Notary-issued recovery (signed-JWT QR) ────────────────────────────
+interface NotaryWhitelistEntry {
+    ename: string;
+    url: string;
+    name?: string;
+}
+interface NotaryRecoveryPayload {
+    sessionId: string;
+    targetEName: string;
+    notaryEName: string;
+    claim: string;
+}
+let notarySessionId = $state<string | null>(null);
+let notaryClaimUrl = $state<string | null>(null);
+let notaryDisplayName = $state<string | null>(null);
+let notaryTargetEName = $state<string | null>(null);
+let notaryError = $state<string | null>(null);
+let notaryClaiming = $state(false);
 
 async function resolveEvaultBase(w3id: string): Promise<string> {
     const res = await axios.get(
@@ -621,6 +658,326 @@ async function handleSubmitAnswer() {
     }
 }
 
+// ── Notary path (signed-JWT QR) ───────────────────────────────────────
+//
+// Trust chain: scan → decode-unverified → registry /notaries whitelist →
+// fetch the named notary's JWKS → verify the JWT signature → confirm with
+// the user → POST claim. We never trust the claim endpoint's response shape
+// for anything load-bearing; the verified JWT payload is the source of
+// truth for sessionId + targetEName, and we re-resolve the vault URI from
+// the registry independently in fetchRecoveryProfile.
+
+function originOf(url: string): string | null {
+    try {
+        return new URL(url).origin;
+    } catch {
+        return null;
+    }
+}
+
+function handleChooseNotary() {
+    notaryError = null;
+    void runNotaryRecovery();
+}
+
+async function runNotaryRecovery() {
+    console.log("[RECOVERY/notary] tap → starting flow");
+
+    // Permission dance first — `scan()` silently no-ops if the camera
+    // permission has never been granted on this device, so without this
+    // the "I am at a notary" button looks completely dead on first tap.
+    let permission: string | null = null;
+    try {
+        permission = await checkPermissions();
+        console.log("[RECOVERY/notary] checkPermissions:", permission);
+    } catch (err) {
+        console.warn("[RECOVERY/notary] checkPermissions threw:", err);
+        permission = null;
+    }
+    if (
+        permission === "prompt" ||
+        permission === "denied" ||
+        permission === null
+    ) {
+        try {
+            permission = await requestPermissions();
+            console.log("[RECOVERY/notary] requestPermissions:", permission);
+        } catch (err) {
+            console.warn(
+                "[RECOVERY/notary] camera permission request failed:",
+                err,
+            );
+            permission = null;
+        }
+    }
+    if (permission !== "granted") {
+        errorMessage =
+            "We need camera access to scan the recovery code. Open this app in your device's Settings to allow the camera.";
+        errorReason = "generic";
+        showErrorSheet = true;
+        // Best-effort: open the system settings page directly so the user
+        // doesn't have to hunt for it.
+        try {
+            await openAppSettings();
+        } catch (err) {
+            console.warn("[RECOVERY/notary] openAppSettings failed:", err);
+        }
+        return;
+    }
+
+    // `windowed: true` opens the native camera overlay BEHIND the WebView.
+    // For the camera feed to actually appear the WebView body needs to be
+    // transparent (the same trick (app)/+layout.svelte uses for /scan-qr).
+    // Without this the scan IS happening, but the user sees a white page
+    // and assumes the button is broken.
+    let scanned: { content?: string } | null = null;
+    // Swap the home UI for a crosshair-only scanning step so the buttons
+    // and copy don't sit on top of the live camera feed. Body class makes
+    // the WebView transparent so the native overlay shows through.
+    const previousStep = step;
+    step = "notary-scanning";
+    if (typeof document !== "undefined") {
+        document.body.classList.add("custom-global-style");
+    }
+    try {
+        console.log("[RECOVERY/notary] calling scan()…");
+        scanned = await scan({
+            formats: [Format.QRCode],
+            windowed: true,
+        });
+        console.log("[RECOVERY/notary] scan returned:", scanned);
+    } catch (err) {
+        console.warn("[RECOVERY/notary] scan cancelled or failed:", err);
+        // Surface the failure instead of silently returning — most often
+        // this is the user cancelling, but if it's a plugin/runtime error
+        // they should at least see *something*.
+        errorMessage =
+            err instanceof Error && err.message
+                ? `Couldn't open the camera: ${err.message}`
+                : "Couldn't open the camera. Please try again.";
+        errorReason = "generic";
+        showErrorSheet = true;
+        step = previousStep;
+        return;
+    } finally {
+        if (typeof document !== "undefined") {
+            document.body.classList.remove("custom-global-style");
+        }
+    }
+    const content = scanned?.content?.trim();
+    if (!content) {
+        step = previousStep;
+        return;
+    }
+
+    if (!content.startsWith("w3ds://notary-recovery")) {
+        errorMessage = "That QR isn't a notary recovery code.";
+        errorReason = "generic";
+        showErrorSheet = true;
+        return;
+    }
+
+    // Parse `w3ds://notary-recovery?token=...`. URL() with a custom scheme
+    // doesn't reliably expose query params, so split manually.
+    const queryStart = content.indexOf("?");
+    if (queryStart === -1) {
+        errorMessage = "That QR isn't a valid notary recovery code.";
+        errorReason = "generic";
+        showErrorSheet = true;
+        return;
+    }
+    const params = new URLSearchParams(content.slice(queryStart + 1));
+    const token = params.get("token");
+    if (!token) {
+        errorMessage = "That QR isn't a valid notary recovery code.";
+        errorReason = "generic";
+        showErrorSheet = true;
+        return;
+    }
+
+    loadingPhase = "verifying-notary";
+    try {
+        // 1. Decode unverified to read the declared notary + claim URL.
+        let unverified: Partial<NotaryRecoveryPayload>;
+        try {
+            unverified = decodeJwt(token);
+        } catch {
+            failNotary("This recovery code is malformed.");
+            return;
+        }
+        const declaredNotary = unverified.notaryEName;
+        const declaredClaim = unverified.claim;
+        if (
+            typeof declaredNotary !== "string" ||
+            typeof declaredClaim !== "string"
+        ) {
+            failNotary("This recovery code is missing required fields.");
+            return;
+        }
+
+        // 2. Hit registry whitelist.
+        let whitelist: NotaryWhitelistEntry[];
+        try {
+            const resp = await axios.get<NotaryWhitelistEntry[]>(
+                new URL("/notaries", PUBLIC_REGISTRY_URL).toString(),
+                { timeout: 8_000 },
+            );
+            whitelist = Array.isArray(resp.data) ? resp.data : [];
+        } catch (err) {
+            console.error("[RECOVERY/notary] whitelist fetch failed:", err);
+            failNotary("Couldn't reach the registry to verify the notary.");
+            return;
+        }
+        const entry = whitelist.find((e) => e.ename === declaredNotary);
+        if (!entry) {
+            failNotary(
+                "This recovery code wasn't issued by a recognised notary.",
+            );
+            return;
+        }
+
+        // 3. Claim URL must live on the same origin as the whitelisted notary.
+        if (originOf(entry.url) !== originOf(declaredClaim)) {
+            failNotary(
+                "This recovery code wasn't issued by a recognised notary.",
+            );
+            return;
+        }
+
+        // 4. Fetch the notary's JWKS and verify the JWT signature.
+        let jwksJson: { keys?: unknown[] };
+        try {
+            const jwksResp = await axios.get<{ keys?: unknown[] }>(
+                new URL("/.well-known/jwks.json", entry.url).toString(),
+                { timeout: 8_000 },
+            );
+            jwksJson = jwksResp.data;
+        } catch (err) {
+            console.error("[RECOVERY/notary] jwks fetch failed:", err);
+            failNotary("Couldn't verify the notary's identity. Try again.");
+            return;
+        }
+        const JWKS = createLocalJWKSet({
+            keys: Array.isArray(jwksJson?.keys) ? jwksJson.keys : [],
+        } as Parameters<typeof createLocalJWKSet>[0]);
+
+        let verifiedPayload: NotaryRecoveryPayload;
+        try {
+            const { payload } = await jwtVerify(token, JWKS);
+            verifiedPayload = payload as unknown as NotaryRecoveryPayload;
+        } catch (err) {
+            console.warn("[RECOVERY/notary] JWT verify failed:", err);
+            failNotary("This recovery code's signature is invalid.");
+            return;
+        }
+
+        // Sanity: confirm verified payload matches what we just whitelisted.
+        if (
+            verifiedPayload.notaryEName !== declaredNotary ||
+            verifiedPayload.claim !== declaredClaim ||
+            !verifiedPayload.sessionId ||
+            !verifiedPayload.targetEName
+        ) {
+            failNotary("This recovery code is internally inconsistent.");
+            return;
+        }
+
+        // 5. Trust established. Show the user a confirmation sheet before we
+        //    consume the session.
+        notarySessionId = verifiedPayload.sessionId;
+        notaryClaimUrl = verifiedPayload.claim;
+        notaryTargetEName = verifiedPayload.targetEName;
+        notaryDisplayName = entry.name ?? verifiedPayload.notaryEName;
+        notaryError = null;
+        loadingPhase = null;
+        step = "notary-confirm";
+    } catch (err) {
+        console.error("[RECOVERY/notary] unexpected:", err);
+        failNotary("Something went wrong. Please try again.");
+    }
+}
+
+function failNotary(msg: string) {
+    loadingPhase = null;
+    errorMessage = msg;
+    errorReason = "generic";
+    showErrorSheet = true;
+    if (step === "notary-scanning") step = "home";
+}
+
+async function handleNotaryConfirm() {
+    if (!notarySessionId || !notaryClaimUrl || !notaryTargetEName) return;
+    notaryClaiming = true;
+    notaryError = null;
+    try {
+        const claimResp = await axios.post<{
+            success: boolean;
+            eName?: string;
+            uri?: string;
+            reason?: string;
+        }>(
+            notaryClaimUrl,
+            {
+                sessionId: notarySessionId,
+                targetEName: notaryTargetEName,
+            },
+            { timeout: 10_000 },
+        );
+        const data = claimResp.data;
+        if (!data.success) {
+            const reason = data.reason ?? "generic";
+            notaryError =
+                reason === "expired"
+                    ? "This recovery code has expired. Ask the notary to issue a new one."
+                    : reason === "consumed"
+                      ? "This recovery code has already been used."
+                      : reason === "not_found"
+                        ? "We couldn't find that recovery code."
+                        : "Something went wrong claiming the code.";
+            return;
+        }
+
+        const ename = data.eName ?? notaryTargetEName;
+        const uri = data.uri;
+        if (!uri) {
+            notaryError = "The notary didn't return a vault URL.";
+            return;
+        }
+
+        // Hand off to the same downstream the verified path uses: populate
+        // the eVault Found sheet's state and let recoverVault() do the rest.
+        recoveredW3id = ename;
+        recoveredUri = uri;
+        recoveredVaultUri = uri;
+        try {
+            const client = makeRecoveryClient(uri, ename);
+            recoveredIdVerif = await fetchRecoveryProfile(client);
+        } catch (err) {
+            console.warn(
+                "[RECOVERY/notary] profile fetch failed; continuing without:",
+                err,
+            );
+            recoveredIdVerif = null;
+        }
+        showFoundSheet = true;
+        step = "home";
+    } catch (err) {
+        console.error("[RECOVERY/notary] claim failed:", err);
+        notaryError = "Couldn't reach the notary. Check your connection.";
+    } finally {
+        notaryClaiming = false;
+    }
+}
+
+function handleNotaryCancel() {
+    notarySessionId = null;
+    notaryClaimUrl = null;
+    notaryTargetEName = null;
+    notaryDisplayName = null;
+    notaryError = null;
+    step = "home";
+}
+
 // ── Found → store + register ───────────────────────────────────────────
 
 async function recoverVault() {
@@ -780,8 +1137,23 @@ onMount(() => {
                         No, I didn't verify my ID
                     </p>
                     <p class="text-sm text-black-500 leading-snug">
-                        Recover using your eName and recovery passphrase, or get
-                        help from a W3DS Notary
+                        Recover using your eName and the security question you
+                        set during onboarding.
+                    </p>
+                </div>
+                <span class="text-black-500 text-2xl shrink-0">›</span>
+            </button>
+            <button
+                type="button"
+                onclick={handleChooseNotary}
+                class="w-full rounded-2xl bg-card-alternative px-5 py-4 text-left flex items-center justify-between gap-3 active:opacity-70 transition-opacity"
+            >
+                <div class="flex-1 min-w-0">
+                    <p class="font-bold text-base text-black-900 mb-0.5">
+                        I am at a notary
+                    </p>
+                    <p class="text-sm text-black-500 leading-snug">
+                        Scan the recovery QR your notary has issued for you.
                     </p>
                 </div>
                 <span class="text-black-500 text-2xl shrink-0">›</span>
@@ -975,6 +1347,118 @@ onMount(() => {
         </div>
         <div id="recovery-didit-container" class="flex-1 w-full"></div>
     </div>
+{:else if step === "notary-scanning"}
+    <!-- Crosshair-only overlay while the native scanner is open. body
+         class makes the WebView transparent so the camera feed shows
+         through. Same SVG primitives as /scan-qr's overlay. -->
+    <main
+        class="min-h-dvh flex flex-col items-center justify-center px-6 gap-10"
+    >
+        <svg
+            class="mx-auto"
+            width="204"
+            height="215"
+            viewBox="0 0 204 215"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+        >
+            <path
+                d="M46 4H15C8.92487 4 4 8.92487 4 15V46"
+                stroke="white"
+                stroke-width="8"
+                stroke-linecap="round"
+            />
+            <path
+                d="M158 4H189C195.075 4 200 8.92487 200 15V46"
+                stroke="white"
+                stroke-width="8"
+                stroke-linecap="round"
+            />
+            <path
+                d="M46 211H15C8.92487 211 4 206.075 4 200V169"
+                stroke="white"
+                stroke-width="8"
+                stroke-linecap="round"
+            />
+            <path
+                d="M158 211H189C195.075 211 200 206.075 200 200V169"
+                stroke="white"
+                stroke-width="8"
+                stroke-linecap="round"
+            />
+        </svg>
+        <h4 class="text-white font-semibold text-center">
+            Point the camera at the notary's QR
+        </h4>
+    </main>
+{:else if step === "notary-confirm"}
+    <main
+        class="h-dvh overflow-hidden px-[5vw] flex flex-col bg-white"
+        style="padding-top: max(2svh, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));"
+    >
+        <header class="flex flex-row items-center gap-4 pt-4 relative">
+            <button
+                type="button"
+                onclick={handleNotaryCancel}
+                aria-label="Back"
+                class="w-10 h-10 absolute rounded-full bg-black-100 flex items-center justify-center cursor-pointer shrink-0 active:opacity-70"
+            >
+                <HugeiconsIcon
+                    icon={ArrowLeft01Icon}
+                    size={20}
+                    color="currentColor"
+                    strokeWidth={2}
+                />
+            </button>
+            <div class="flex flex-col w-full items-center">
+                <h3 class="font-semibold leading-none">Notary recovery</h3>
+            </div>
+        </header>
+
+        <section class="flex-1 flex flex-col justify-center gap-3 px-2">
+            <h2
+                class="text-3xl font-bold text-black-900 text-center leading-tight"
+            >
+                Recover {notaryTargetEName ?? ""}?
+            </h2>
+            <p class="text-black-500 text-center text-base leading-snug">
+                This recovery code was issued by
+                <span class="font-semibold text-black-900"
+                    >{notaryDisplayName ?? ""}</span
+                >.
+                Continue only if you're with them in person.
+            </p>
+
+            {#if notaryError}
+                <p
+                    class="text-danger text-sm font-medium text-center mt-2"
+                    role="alert"
+                >
+                    {notaryError}
+                </p>
+            {/if}
+        </section>
+
+        <footer class="w-full flex flex-col gap-3 pt-4">
+            <ButtonAction
+                class="w-full uppercase tracking-wide"
+                disabled={notaryClaiming}
+                isLoading={notaryClaiming}
+                callback={handleNotaryConfirm}
+                blockingClick
+            >
+                Continue
+            </ButtonAction>
+            <ButtonAction
+                variant="soft"
+                class="w-full uppercase tracking-wide"
+                disabled={notaryClaiming}
+                callback={handleNotaryCancel}
+            >
+                Cancel
+            </ButtonAction>
+        </footer>
+    </main>
 {/if}
 
 <!-- ── Loading overlay (preparing / finding) ──────────────────────────── -->

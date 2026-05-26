@@ -1,4 +1,5 @@
 <script lang="ts">
+import type { SocialBindingSummary } from "$lib/utils/socialBinding";
 import { ArrowDown01Icon, ArrowUp01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import { slide } from "svelte/transition";
@@ -8,11 +9,22 @@ export interface SocialBindingDisplay {
     counterpartyEname: string;
     /** Resolved display name; falls back to eName if resolution failed. */
     counterpartyName: string;
+    /**
+     * Aggregated relationship direction. `both` when the user has both sent
+     * and received bindings with the same counterparty (e.g. they scanned
+     * each other's QRs at the same coffee).
+     */
+    role: "sent" | "received" | "both";
+    /**
+     * Underlying per-doc summaries kept around so the details bottom sheet
+     * can list them without re-fetching.
+     */
+    bindings: SocialBindingSummary[];
 }
 
 interface ISocialBindingAccordionProps {
     totalCount: number;
-    /** Resolved names for the first N contacts shown inline. */
+    /** One entry per contact; the page de-duplicates before passing in. */
     previewBindings: SocialBindingDisplay[];
     oninvite?: () => void;
     onfulllist?: () => void;
@@ -47,6 +59,8 @@ function handleInviteClick(e: MouseEvent) {
     oninvite?.();
 }
 
+// Comma-joined preview: "Alex Chen, Sam Patel, Jordan Reyes and 3 others".
+// Per-contact tap-to-open lives on the /social-bindings full-list page.
 const previewLine = $derived.by(() => {
     if (previewBindings.length === 0) return "";
     const names = previewBindings.map((b) => b.counterpartyName);

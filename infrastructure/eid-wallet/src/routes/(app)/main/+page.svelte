@@ -5,6 +5,22 @@
 // back from /notifications, /settings, etc. should just snap into place.
 // MUST live in `<script module>` — a regular `<script>` runs per instance.
 let hasMountedBefore = false;
+
+// Render cache. Stashing the last-known values up here means re-entering
+// /main (e.g. back from /settings) paints cards instantly with stale data
+// instead of flashing the white loading splash. The component still kicks
+// off a fresh fetch on mount; the loaders write back into both the
+// component state and these slots so the next visit is also instant.
+import type { LegalIdDoc } from "./components/LegalIdAccordion.svelte";
+import type { SocialBindingDisplay } from "./components/SocialBindingAccordion.svelte";
+
+let cachedUserData: Record<string, unknown> | undefined;
+let cachedEname: string | undefined;
+let cachedIsFake: boolean | undefined;
+let cachedLegalId: LegalIdDoc | null = null;
+let cachedSocialBindingCount = 0;
+let cachedSocialBindingPreview: SocialBindingDisplay[] = [];
+let hasEverLoaded = false;
 </script>
 
 <script lang="ts">
@@ -37,19 +53,19 @@ import EVaultCard from "./components/EVaultCard.svelte";
 import Greeting from "./components/Greeting.svelte";
 import InfoDrawer from "./components/InfoDrawer.svelte";
 import Lasso from "./components/Lasso.svelte";
-import type { LegalIdDoc } from "./components/LegalIdAccordion.svelte";
 import ScanFAB from "./components/ScanFAB.svelte";
 import SocialBindingDrawer from "./components/SocialBindingDrawer.svelte";
-import type { SocialBindingDisplay } from "./components/SocialBindingAccordion.svelte";
 import WelcomeTour, {
     TOUR_ORDER,
     type TourStep,
 } from "./components/WelcomeTour.svelte";
 import KycUpgradeOverlay from "./legacy/KycUpgradeOverlay.svelte";
 
-let userData: Record<string, unknown> | undefined = $state(undefined);
+// Seed component state from the module-scope cache so re-entry paints
+// instantly; loaders below refresh in-place.
+let userData: Record<string, unknown> | undefined = $state(cachedUserData);
 let greeting: string | undefined = $state(undefined);
-let ename: string | undefined = $state(undefined);
+let ename: string | undefined = $state(cachedEname);
 let profileCreationStatus: "idle" | "loading" | "success" | "failed" =
     $state("idle");
 let skipProfileSetupGate = $state(false);
@@ -70,8 +86,8 @@ let toastMessage = $state("");
 // overlay flips it to false after a successful upgrade, but that in-memory
 // write path is unreliable — fall back on the presence of an id_document
 // binding doc as the authoritative signal.
-let isFake = $state<boolean | undefined>(undefined);
-let legalId = $state<LegalIdDoc | null>(null);
+let isFake = $state<boolean | undefined>(cachedIsFake);
+let legalId = $state<LegalIdDoc | null>(cachedLegalId);
 let kycOpen = $state(false);
 let eVaultInfoOpen = $state(false);
 let bindingDocsInfoOpen = $state(false);
@@ -79,8 +95,10 @@ let socialDrawerOpen = $state(false);
 
 // Accordion shows N resolved names; total comes from the full count.
 const SOCIAL_PREVIEW_COUNT = 5;
-let socialBindingCount = $state(0);
-let socialBindingPreview = $state<SocialBindingDisplay[]>([]);
+let socialBindingCount = $state(cachedSocialBindingCount);
+let socialBindingPreview = $state<SocialBindingDisplay[]>(
+    cachedSocialBindingPreview,
+);
 const verified = $derived(isFake === false || legalId !== null);
 
 function openKycFlow() {
@@ -139,6 +157,7 @@ async function loadBindingDocuments(): Promise<void> {
             .find((p): p is ParsedBindingDoc => p?.type === "id_document");
 
         legalId = idDoc ? toLegalIdDoc(idDoc) : null;
+        cachedLegalId = legalId;
     } catch (err) {
         console.warn("[main] Failed to load binding documents:", err);
     }
@@ -196,33 +215,59 @@ async function loadSocialBindings(): Promise<void> {
 
     try {
         const bindings = await fetchSocialBindings(gqlUrl, callerEname);
-        socialBindingCount = bindings.length;
 
-        const previewSlice = bindings.slice(0, SOCIAL_PREVIEW_COUNT);
+        // Group by counterparty. The same person can show up across multiple
+        // docs (one for each direction the binding was scanned in); we want
+        // one row per contact with a combined role.
+        const byContact = new Map<string, typeof bindings>();
+        for (const b of bindings) {
+            const list = byContact.get(b.counterpartyEname);
+            if (list) list.push(b);
+            else byContact.set(b.counterpartyEname, [b]);
+        }
+
+        socialBindingCount = byContact.size;
+        cachedSocialBindingCount = socialBindingCount;
+
+        const groupedSlice = Array.from(byContact.values()).slice(
+            0,
+            SOCIAL_PREVIEW_COUNT,
+        );
         const preview = await Promise.all(
-            previewSlice.map(async (b): Promise<SocialBindingDisplay> => {
+            groupedSlice.map(async (group): Promise<SocialBindingDisplay> => {
+                const counterpartyEname = group[0].counterpartyEname;
+                const hasSent = group.some((b) => b.role === "sent");
+                const hasReceived = group.some((b) => b.role === "received");
+                const role: SocialBindingDisplay["role"] =
+                    hasSent && hasReceived
+                        ? "both"
+                        : hasSent
+                          ? "sent"
+                          : "received";
+
+                let name = counterpartyEname;
                 try {
-                    const counterVaultUri = await resolveVaultUri(
-                        b.counterpartyEname,
-                    );
-                    const name = await fetchNameFromVault(
+                    const counterVaultUri =
+                        await resolveVaultUri(counterpartyEname);
+                    name = await fetchNameFromVault(
                         counterVaultUri,
-                        b.counterpartyEname,
-                        b.counterpartyEname,
+                        counterpartyEname,
+                        counterpartyEname,
                     );
-                    return {
-                        counterpartyEname: b.counterpartyEname,
-                        counterpartyName: name,
-                    };
                 } catch {
-                    return {
-                        counterpartyEname: b.counterpartyEname,
-                        counterpartyName: b.counterpartyEname,
-                    };
+                    // Resolution failed — fall through with eName as label.
                 }
+
+                return {
+                    counterpartyEname,
+                    counterpartyName: name,
+                    role,
+                    bindings: group,
+                };
             }),
         );
         socialBindingPreview = preview;
+        cachedSocialBindingPreview = preview;
     } catch (err) {
         console.warn("[main] Failed to load social bindings:", err);
     }
@@ -307,9 +352,12 @@ let tourStep = $state<TourStep | null>(null);
 // layout wraps children in `absolute inset-0` inside `min-h-screen`, which
 // makes the body unscrollable.
 let tourOffset = $state(0);
-// Cards don't mount until pageReady is true — avoids a flash of the full
-// layout before the tour-seen flag resolves on first visit.
-let pageReady = $state(false);
+// Cards don't mount until pageReady is true on the FIRST ever load — avoids
+// a flash of the full layout before the tour-seen flag resolves on the very
+// first visit. On every subsequent re-entry we seed from the module cache
+// (hasEverLoaded === true), so the splash never fires and the cards paint
+// instantly with last-known values while the background refresh runs.
+let pageReady = $state(hasEverLoaded);
 const tourActive = $derived(tourStep !== null);
 const tourGreeting = $derived(tourActive ? "Hello" : (greeting ?? "Hi"));
 
@@ -356,7 +404,14 @@ const SCAN_FAB_BOTTOM_INSET_PX = 48;
 // Computed Y position (in px from viewport top) for the Scan FAB. Always
 // fixed-positioned — top transitions smoothly between the in-tour spot and
 // the resting bottom position so the FAB moves rather than disappearing.
-let scanFABTop = $state(0);
+// Seed synchronously from the viewport so the FAB renders at the bottom on
+// first paint; otherwise it lands at top=0 for one tick and the CSS
+// transition slides it down — visible every time you come back to /main.
+function restingScanFABTop(): number {
+    if (typeof window === "undefined") return 0;
+    return window.innerHeight - SCAN_FAB_HEIGHT_PX - SCAN_FAB_BOTTOM_INSET_PX;
+}
+let scanFABTop = $state(restingScanFABTop());
 const scanFABVisible = $derived(tourStep === null || tourStep === "scan");
 
 // The scan-step value of scanFABTop is set imperatively inside
@@ -366,8 +421,7 @@ const scanFABVisible = $derived(tourStep === null || tourStep === "scan");
 $effect(() => {
     if (typeof window === "undefined") return;
     if (tourStep !== "scan") {
-        scanFABTop =
-            window.innerHeight - SCAN_FAB_HEIGHT_PX - SCAN_FAB_BOTTOM_INSET_PX;
+        scanFABTop = restingScanFABTop();
     }
 });
 
@@ -548,9 +602,12 @@ onMount(() => {
         const userInfo = await gs.userController.user;
         const fake = await gs.userController.isFake;
         isFake = fake;
+        cachedIsFake = fake;
         userData = { ...userInfo, isFake: fake };
+        cachedUserData = userData;
         const vaultData = await gs.vaultController.vault;
         ename = vaultData?.ename;
+        cachedEname = ename;
 
         await loadBindingDocuments();
         await loadPersonalIntoStore();
@@ -561,6 +618,7 @@ onMount(() => {
             tourStep = "ename";
         }
         pageReady = true;
+        hasEverLoaded = true;
 
         // One-shot notifications prompt. Don't pile it on top of the welcome
         // tour — defer to when the user has dismissed it. For returning users
@@ -574,14 +632,54 @@ onMount(() => {
             globalState.vaultController.profileCreationStatus;
     };
     statusInterval = setInterval(checkStatus, 1000);
+
+    // Passive refresh: re-pull bindings when the app returns to the
+    // foreground and on a slow interval while /main is visible. The loaders
+    // already write into both component state and the module cache, so
+    // these are idempotent.
+    bindingsRefreshInterval = setInterval(() => {
+        if (typeof document !== "undefined" && document.hidden) return;
+        void refreshBindings();
+    }, 30_000);
+
+    onVisibility = () => {
+        if (typeof document !== "undefined" && !document.hidden) {
+            void refreshBindings();
+        }
+    };
+    if (typeof document !== "undefined") {
+        document.addEventListener("visibilitychange", onVisibility);
+    }
 });
 
 onDestroy(() => {
     if (statusInterval) {
         clearInterval(statusInterval);
     }
+    if (bindingsRefreshInterval) {
+        clearInterval(bindingsRefreshInterval);
+    }
+    if (typeof document !== "undefined" && onVisibility) {
+        document.removeEventListener("visibilitychange", onVisibility);
+    }
     unsubNotifications?.();
 });
+
+let bindingsRefreshInterval: ReturnType<typeof setInterval> | undefined =
+    undefined;
+let onVisibility: (() => void) | undefined = undefined;
+
+async function refreshBindings(): Promise<void> {
+    if (!globalState) return;
+    try {
+        await Promise.all([
+            loadBindingDocuments(),
+            loadPersonalIntoStore(),
+        ]);
+    } catch (err) {
+        console.warn("[main] passive refresh failed:", err);
+    }
+}
 </script>
 
 {#if profileCreationStatus === "loading" && !skipProfileSetupGate}
