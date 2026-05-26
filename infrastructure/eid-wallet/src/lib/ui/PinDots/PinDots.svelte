@@ -35,6 +35,31 @@ function focusInput() {
 }
 
 const isEmpty = $derived(pin.length === 0);
+
+// iOS-style "briefly reveal the digit you just typed before masking". When
+// pin grows by one, surface that index for REVEAL_MS; another keystroke
+// before then cancels the timer and reveals the new index instead. Backspace
+// or clear hides the reveal immediately.
+const REVEAL_MS = 700;
+let revealedIndex = $state(-1);
+let prevLength = 0;
+
+$effect(() => {
+    const len = pin.length;
+    if (len > prevLength) {
+        const idx = len - 1;
+        revealedIndex = idx;
+        prevLength = len;
+        const timer = setTimeout(() => {
+            revealedIndex = -1;
+        }, REVEAL_MS);
+        return () => clearTimeout(timer);
+    }
+    if (len < prevLength) {
+        revealedIndex = -1;
+    }
+    prevLength = len;
+});
 </script>
 
 <button
@@ -46,10 +71,18 @@ const isEmpty = $derived(pin.length === 0);
 >
     {#each Array(4) as _, i (i)}
         <div
-            class="w-11 h-17 rounded-full bg-white flex items-center justify-center text-4xl font-extrabold text-black-900 font-condensed"
+            class="w-11 h-17 rounded-full bg-white flex items-center justify-center"
             style="box-shadow: 0px 4px 19.9px 0px #00000024;"
         >
-            {pin[i] ?? ""}
+            {#if pin[i] && i === revealedIndex}
+                <span
+                    class="text-4xl font-extrabold text-black-900 font-condensed"
+                >
+                    {pin[i]}
+                </span>
+            {:else if pin[i]}
+                <span class="w-4 h-4 rounded-full bg-black-900"></span>
+            {/if}
         </div>
     {/each}
 </button>
