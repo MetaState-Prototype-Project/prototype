@@ -21,11 +21,6 @@
     let witnessedSessionIds: string[] = [];
     let verifiedWitnesses: string[] = [];
 
-    let resetMessage = "";
-    let resetting = false;
-    let recoveredPassphrase = "";
-    let passphraseModalOpen = false;
-    let modalCopied = false;
     let witnessPollTimer: ReturnType<typeof setInterval> | null = null;
 
     // ── Notary-issued recovery code (QR) ─────────────────────────────────
@@ -157,7 +152,6 @@
     }
 
     async function requestWitness(witnessEName: string) {
-        resetMessage = "";
         witnessStatus = "Creating witness session...";
         const response = await fetch("/api/witness/session", {
             method: "POST",
@@ -174,21 +168,6 @@
         qrData = payload.qrData;
         witnessStatus = "QR generated. Ask the friend to scan and sign.";
         await refreshWitnessStatus();
-    }
-
-    function randomChars(length: number): string {
-        const chars =
-            "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*()-_=+";
-        return Array.from(
-            { length },
-            () => chars[Math.floor(Math.random() * chars.length)],
-        ).join("");
-    }
-
-    async function copyRecoveredPassphrase() {
-        if (!recoveredPassphrase) return;
-        await navigator.clipboard.writeText(recoveredPassphrase);
-        modalCopied = true;
     }
 
     function getDataValue(data: Record<string, unknown>, key: string): string {
@@ -241,38 +220,6 @@
         witnessPollTimer = setInterval(() => {
             void refreshWitnessStatus();
         }, 3000);
-    }
-
-    async function generateAndResetPassphrase() {
-        resetMessage = "";
-        if (witnessedSessionIds.length === 0) {
-            resetMessage = "At least one witness must be verified first.";
-            return;
-        }
-
-        const generatedPassphrase = `${randomChars(6)}-${randomChars(6)}-${randomChars(6)}-${randomChars(6)}`;
-        resetting = true;
-        try {
-            const response = await fetch("/api/passphrase/reset", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    targetEName: eName,
-                    newPassphrase: generatedPassphrase,
-                    witnessSessionIds: witnessedSessionIds,
-                }),
-            });
-            const payload = await response.json();
-            if (!response.ok) throw new Error(payload.error || "Reset failed");
-            recoveredPassphrase = generatedPassphrase;
-            modalCopied = false;
-            passphraseModalOpen = true;
-            resetMessage = "";
-        } catch (err) {
-            resetMessage = err instanceof Error ? err.message : "Failed to reset passphrase";
-        } finally {
-            resetting = false;
-        }
     }
 
     $: if (activeWitnessSessionId) {
@@ -502,56 +449,5 @@
             {/if}
         </section>
 
-        <section class="mt-6 rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-            <h2 class="text-lg font-semibold">Reset Passphrase</h2>
-            <p class="mt-2 text-sm text-slate-500">At least one witnessed session is required.</p>
-            <p class="mt-1 text-xs text-slate-500">
-                Witness sessions ready: {witnessedSessionIds.length}
-            </p>
-            <button
-                class="mt-4 rounded-md bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={resetting || witnessedSessionIds.length === 0}
-                on:click={generateAndResetPassphrase}
-            >
-                {resetting ? "Generating and setting..." : "Generate recovery passphrase"}
-            </button>
-
-            {#if resetMessage}
-                <p class="mt-3 text-sm text-slate-700">{resetMessage}</p>
-            {/if}
-        </section>
-
-        {#if passphraseModalOpen}
-            <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                <div class="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl">
-                    <h3 class="text-lg font-semibold">Recovery passphrase generated</h3>
-                    <p class="mt-2 text-sm text-slate-600">
-                        Save this passphrase now. It will be shown only for this recovery action.
-                    </p>
-
-                    <button
-                        class="mt-4 w-full rounded-md bg-slate-50 px-3 py-3 text-left font-mono text-sm ring-1 ring-slate-200 hover:bg-slate-100"
-                        on:click={copyRecoveredPassphrase}
-                    >
-                        {recoveredPassphrase}
-                    </button>
-
-                    <div class="mt-4 flex items-center justify-end gap-2">
-                        <button
-                            class="rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"
-                            on:click={copyRecoveredPassphrase}
-                        >
-                            {modalCopied ? "Copied" : "Click to copy"}
-                        </button>
-                        <button
-                            class="rounded-md bg-slate-900 px-3 py-2 text-sm text-white hover:bg-slate-700"
-                            on:click={() => (passphraseModalOpen = false)}
-                        >
-                            Done
-                        </button>
-                    </div>
-                </div>
-            </div>
-        {/if}
     {/if}
 </main>

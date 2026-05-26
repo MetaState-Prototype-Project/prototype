@@ -98,6 +98,12 @@ function cancelLoading() {
 let errorMessage = $state<string | null>(null);
 let errorReason = $state<ErrorReason>("generic");
 let showErrorSheet = $state(false);
+/**
+ * Which recovery path raised the current error. Drives the "Try Again"
+ * CTA in the error sheet so a failed notary scan doesn't launch into
+ * Didit on retry (and vice versa).
+ */
+let errorSource = $state<"verified" | "notary" | null>(null);
 
 let recoveredW3id = $state<string | null>(null);
 let recoveredUri = $state<string | null>(null);
@@ -175,6 +181,7 @@ function handleChooseUnverified() {
 async function startVerifiedRecovery() {
     loadingPhase = "starting-session";
     errorMessage = null;
+    errorSource = "verified";
     recoveredW3id = null;
     recoveredUri = null;
     recoveredIdVerif = null;
@@ -714,6 +721,7 @@ async function runNotaryRecovery() {
         errorMessage =
             "We need camera access to scan the recovery code. Open this app in your device's Settings to allow the camera.";
         errorReason = "generic";
+        errorSource = "notary";
         showErrorSheet = true;
         // Best-effort: open the system settings page directly so the user
         // doesn't have to hunt for it.
@@ -756,6 +764,7 @@ async function runNotaryRecovery() {
                 ? `Couldn't open the camera: ${err.message}`
                 : "Couldn't open the camera. Please try again.";
         errorReason = "generic";
+        errorSource = "notary";
         showErrorSheet = true;
         step = previousStep;
         return;
@@ -901,6 +910,7 @@ function failNotary(msg: string) {
     loadingPhase = null;
     errorMessage = msg;
     errorReason = "generic";
+    errorSource = "notary";
     showErrorSheet = true;
     if (step === "notary-scanning") step = "home";
 }
@@ -944,8 +954,12 @@ async function handleNotaryConfirm() {
             return;
         }
 
-        // Hand off to the same downstream the verified path uses: populate
-        // the eVault Found sheet's state and let recoverVault() do the rest.
+        // Hand off straight to the recovery downstream — no second "eVault
+        // Found" confirmation. The notary-confirm sheet already showed the
+        // user which eName is being recovered; making them tap Continue on
+        // another sheet right after is pure friction. recoverVault() writes
+        // pendingRecovery + navigates to /onboarding, where the step
+        // machine detects recovery and skips ID verification entirely.
         recoveredW3id = ename;
         recoveredUri = uri;
         recoveredVaultUri = uri;
@@ -959,8 +973,7 @@ async function handleNotaryConfirm() {
             );
             recoveredIdVerif = null;
         }
-        showFoundSheet = true;
-        step = "home";
+        await recoverVault();
     } catch (err) {
         console.error("[RECOVERY/notary] claim failed:", err);
         notaryError = "Couldn't reach the notary. Check your connection.";
@@ -1591,7 +1604,14 @@ onMount(() => {
                 class="w-full uppercase tracking-wide"
                 callback={() => {
                     showErrorSheet = false;
-                    startVerifiedRecovery();
+                    // Retry the same path that failed — bouncing a failed
+                    // notary scan into Didit's ID verification flow is the
+                    // worst user experience imaginable.
+                    if (errorSource === "notary") {
+                        runNotaryRecovery();
+                    } else {
+                        startVerifiedRecovery();
+                    }
                 }}
             >
                 Try Again
