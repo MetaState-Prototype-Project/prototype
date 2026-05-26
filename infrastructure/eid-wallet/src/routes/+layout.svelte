@@ -714,11 +714,13 @@ $effect(() => {
      overlay, no more stacking-context trickery. -->
 <div
     bind:this={mainWrapper}
+    data-route-wrapper
     class="bg-white min-h-screen overflow-y-auto relative overflow-x-hidden"
 >
     {#if children}
         {#key page.url.pathname}
             <div
+                data-route-wrapper
                 class="absolute inset-0 bg-white"
                 in:slideIn={{ direction: routeDirection }}
                 out:slideOut={{ direction: routeDirection }}

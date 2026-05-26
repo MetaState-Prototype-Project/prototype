@@ -375,11 +375,17 @@ onMount(() => {
             </div>
         </header>
 
-        <section class="flex-1 flex flex-col justify-center items-center gap-3 px-2">
-            <h2 class="text-3xl font-bold text-black-900 text-center leading-tight">
+        <section
+            class="flex-1 flex flex-col justify-center items-center gap-3 px-2"
+        >
+            <h2
+                class="text-3xl font-bold text-black-900 text-center leading-tight"
+            >
                 Already have<br />an eVault?
             </h2>
-            <p class="text-black-500 text-center text-base leading-snug max-w-70">
+            <p
+                class="text-black-500 text-center text-base leading-snug max-w-70"
+            >
                 Were you idenity-verified when you set up your eVault?
             </p>
         </section>
@@ -395,8 +401,8 @@ onMount(() => {
                         Yes, I verified my ID
                     </p>
                     <p class="text-sm text-black-500 leading-snug">
-                        We'll use your verified identity to find
-                        and confirm your previous eVault.
+                        We'll use your verified identity to find and confirm
+                        your previous eVault.
                     </p>
                 </div>
                 <span class="text-black-500 text-2xl shrink-0">›</span>
@@ -411,9 +417,8 @@ onMount(() => {
                         No, I didn't verify my ID
                     </p>
                     <p class="text-sm text-black-500 leading-snug">
-                        Recover using your eName and recovery
-                        passphrase, or get help from a W3DS
-                        Notary
+                        Recover using your eName and recovery passphrase, or get
+                        help from a W3DS Notary
                     </p>
                 </div>
                 <span class="text-black-500 text-2xl shrink-0">›</span>
@@ -449,13 +454,16 @@ onMount(() => {
         </header>
 
         <section class="flex flex-col items-center gap-3 pt-12">
-            <h2 class="text-3xl font-bold text-black-900 text-center leading-tight">
+            <h2
+                class="text-3xl font-bold text-black-900 text-center leading-tight"
+            >
                 Enter your eName
             </h2>
-            <p class="text-black-500 text-center text-base leading-snug max-w-75">
-                Your recovery passphrase was set in
-                the eVault Settings. Both your
-                eName and passphrase must match
+            <p
+                class="text-black-500 text-center text-base leading-snug max-w-75"
+            >
+                Your recovery passphrase was set in the eVault Settings. Both
+                your eName and passphrase must match
             </p>
         </section>
 
@@ -534,7 +542,9 @@ onMount(() => {
         </header>
 
         <section class="flex flex-col items-center gap-3 pt-12">
-            <h2 class="text-3xl font-bold text-black-900 text-center leading-tight">
+            <h2
+                class="text-3xl font-bold text-black-900 text-center leading-tight"
+            >
                 Enter anwer<br />to your question
             </h2>
         </section>
@@ -637,7 +647,9 @@ onMount(() => {
     </header>
 
     {#if recoveredW3id}
-        <div class="bg-card-alternative rounded-2xl px-5 py-5 flex flex-col items-center gap-2">
+        <div
+            class="bg-card-alternative rounded-2xl px-5 py-5 flex flex-col items-center gap-2"
+        >
             <p class="text-base font-bold text-black-900">Your eName</p>
             <p class="font-mono text-sm text-black-700 break-all text-center">
                 {recoveredW3id}
@@ -682,8 +694,8 @@ onMount(() => {
 
     <p class="text-sm text-black-500 text-center leading-snug">
         Without your eName and without ID verification, there is no way to
-        recover your eVault. Your eName is your unique identifier - it cannot
-        be looked up without a verified identity.
+        recover your eVault. Your eName is your unique identifier - it cannot be
+        looked up without a verified identity.
     </p>
 
     <ButtonAction

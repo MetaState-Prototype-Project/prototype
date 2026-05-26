@@ -118,6 +118,7 @@ $effect(() => {
 {/if} -->
 
 <div
+    data-route-wrapper
     class="px-4 pb-4 bg-white"
     style="padding-top: max(2.5rem, calc(env(safe-area-inset-top) + 1rem));"
 >
@@ -125,8 +126,15 @@ $effect(() => {
 </div>
 
 <style>
-    :global(body.custom-global-style, body.custom-global-style *:not(button)) {
-        background-color: #00000000;
-        overflow-y: hidden;
+    /* On /scan-qr the body goes transparent so the Tauri camera feed shows
+       through. Only the route wrappers (data-route-wrapper) need to follow —
+       targeting *every* descendant also clobbered drawer backgrounds and
+       caused overflow-y:hidden to clip every shadow in the tree. */
+    :global(body.custom-global-style) {
+        background-color: transparent;
+        overflow: hidden;
+    }
+    :global(body.custom-global-style [data-route-wrapper]) {
+        background-color: transparent !important;
     }
 </style>
