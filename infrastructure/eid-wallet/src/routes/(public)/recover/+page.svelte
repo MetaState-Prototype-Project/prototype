@@ -2,6 +2,7 @@
 import { goto } from "$app/navigation";
 import {
     PUBLIC_EID_WALLET_TOKEN,
+    PUBLIC_PROVISIONER_SHARED_SECRET,
     PUBLIC_PROVISIONER_URL,
     PUBLIC_REGISTRY_URL,
 } from "$env/static/public";
@@ -277,6 +278,168 @@ interface SecurityQuestionResponse {
     };
 }
 
+interface BindingDocsResponse {
+    bindingDocuments: {
+        edges: Array<{
+            node: {
+                parsed: {
+                    type?: string;
+                    data?: Record<string, unknown>;
+                };
+            };
+        }>;
+    };
+}
+
+const ALL_BINDING_DOCS_QUERY = `
+    query AllBindingDocs {
+        bindingDocuments(first: 50) {
+            edges { node { parsed } }
+        }
+    }
+`;
+
+function asStr(v: unknown): string | undefined {
+    return typeof v === "string" && v.length > 0 ? v : undefined;
+}
+
+/**
+ * After a successful answer validation we still need to populate the user's
+ * name + legal-ID details on the recovering device. The verified (Didit) path
+ * gets these from /recovery/face-search; the unverified path has to pull them
+ * itself from the user's existing eVault bindings + the provisioner.
+ *
+ * Strategy:
+ *  1. Pull all binding documents from the eVault in one round trip.
+ *  2. If an id_document exists, build an idVerif-shaped payload from its
+ *     `data` directly. If the doc only carries the sparse provisioner
+ *     shape `{ vendor, reference, name }`, fall back to GET
+ *     /verification/v2/decision/{reference} to retrieve the full Didit
+ *     id_verifications[0] just like the verified recovery path receives.
+ *  3. If no id_document, return a "self-declared" idVerif using the `self`
+ *     binding doc's name as a last resort.
+ *
+ * Returns null only if neither source produces a usable name — caller falls
+ * back to the existing "Anonymous — Self Declaration" placeholder.
+ */
+async function fetchRecoveryProfile(
+    client: GraphQLClient,
+): Promise<Record<string, string> | null> {
+    let docs: BindingDocsResponse;
+    try {
+        docs = await client.request<BindingDocsResponse>(
+            ALL_BINDING_DOCS_QUERY,
+        );
+    } catch (err) {
+        console.warn("[RECOVERY/unverified] binding-docs fetch failed:", err);
+        return null;
+    }
+
+    const parsed = (docs.bindingDocuments?.edges ?? [])
+        .map((e) => e.node.parsed)
+        .filter((p): p is { type: string; data: Record<string, unknown> } =>
+            Boolean(p?.type),
+        );
+
+    const idDoc = parsed.find((p) => p.type === "id_document");
+
+    if (idDoc) {
+        const data = idDoc.data;
+        const direct = {
+            full_name:
+                asStr(data.full_name) ??
+                asStr(data.name) ??
+                [asStr(data.first_name), asStr(data.last_name)]
+                    .filter(Boolean)
+                    .join(" "),
+            date_of_birth:
+                asStr(data.date_of_birth) ?? asStr(data.dateOfBirth) ?? "",
+            document_type:
+                asStr(data.document_type) ?? asStr(data.documentType) ?? "",
+            document_number:
+                asStr(data.document_number) ?? asStr(data.documentNumber) ?? "",
+            issuing_state_name:
+                asStr(data.issuing_state_name) ??
+                asStr(data.issuing_country) ??
+                "",
+            issuing_state: asStr(data.issuing_state) ?? "",
+            expiration_date:
+                asStr(data.expiration_date) ?? asStr(data.expirationDate) ?? "",
+            date_of_issue:
+                asStr(data.date_of_issue) ?? asStr(data.dateOfIssue) ?? "",
+        };
+
+        // Provisioner currently stores a sparse doc `{ vendor, reference,
+        // name }`. If document_type/number etc. are blank, try to enrich
+        // via the Didit decision endpoint.
+        const isSparse = !direct.document_type && !direct.document_number;
+        const reference = asStr(data.reference);
+        if (isSparse && reference) {
+            try {
+                const { data: decision } = await axios.get<{
+                    id_verifications?: Array<Record<string, string>>;
+                }>(
+                    new URL(
+                        `/verification/v2/decision/${encodeURIComponent(reference)}`,
+                        PUBLIC_PROVISIONER_URL,
+                    ).toString(),
+                    {
+                        headers: {
+                            "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET,
+                        },
+                    },
+                );
+                const iv = decision.id_verifications?.[0];
+                if (iv) {
+                    return {
+                        full_name: iv.full_name ?? direct.full_name ?? "",
+                        first_name: iv.first_name ?? "",
+                        last_name: iv.last_name ?? "",
+                        date_of_birth: iv.date_of_birth ?? "",
+                        document_type: iv.document_type ?? "",
+                        document_number: iv.document_number ?? "",
+                        issuing_state_name: iv.issuing_state_name ?? "",
+                        issuing_state: iv.issuing_state ?? "",
+                        expiration_date: iv.expiration_date ?? "",
+                        date_of_issue: iv.date_of_issue ?? "",
+                    };
+                }
+            } catch (err) {
+                console.warn(
+                    "[RECOVERY/unverified] decision lookup failed:",
+                    err,
+                );
+            }
+        }
+
+        // Either the doc was rich enough, or the decision fetch failed —
+        // either way return whatever we have. Empty strings are fine; the
+        // existing recoverVault() handles missing fields.
+        if (direct.full_name) {
+            return direct;
+        }
+    }
+
+    const selfDoc = parsed.find((p) => p.type === "self");
+    if (selfDoc) {
+        const name = asStr(selfDoc.data.name);
+        if (name) {
+            return {
+                full_name: name,
+                date_of_birth: "",
+                document_type: "Self-Declaration",
+                document_number: "",
+                issuing_state_name: "",
+                issuing_state: "",
+                expiration_date: "",
+                date_of_issue: "",
+            };
+        }
+    }
+
+    return null;
+}
+
 async function handleSubmitEname() {
     const ename = enameInput.trim();
     if (!ename) {
@@ -427,7 +590,14 @@ async function handleSubmitAnswer() {
         if (result.success) {
             recoveredW3id = ename;
             recoveredUri = recoveredVaultUri;
-            recoveredIdVerif = null; // unverified path → no ID data
+            // Pull whatever name / legal-ID data the eVault already has so
+            // the recovered user lands with their real identity populated
+            // (verified KYC users get their full Didit fields back; anonymous
+            // users get at least their self-declared name). Best-effort —
+            // failure leaves recoveredIdVerif null, which the existing
+            // recoverVault() fallback turns into "Anonymous — Self
+            // Declaration", preserving prior behaviour.
+            recoveredIdVerif = await fetchRecoveryProfile(client);
             showFoundSheet = true;
             return;
         }

@@ -6,7 +6,6 @@ import {
     clearAllNotifications,
     clearNotificationsForChat,
     getNotifications,
-    seedDummyNotifications,
     subscribe,
 } from "$lib/stores/notifications";
 import { onDestroy, onMount } from "svelte";
@@ -68,34 +67,15 @@ function handleClearAll() {
     clearAllNotifications();
     refresh();
 }
-
-const isDev = import.meta.env.DEV;
-function handleSeedDummy() {
-    seedDummyNotifications();
-    refresh();
-}
 </script>
 
 <AppNav title="Notifications" />
 
-{#if notifications.length > 0 || isDev}
-    <div class="flex justify-end gap-4 mb-4">
-        {#if isDev}
-            <button
-                onclick={handleSeedDummy}
-                class="text-sm text-black-500"
-            >
-                Seed dummy
-            </button>
-        {/if}
-        {#if notifications.length > 0}
-            <button
-                onclick={handleClearAll}
-                class="text-sm text-primary"
-            >
-                Clear all
-            </button>
-        {/if}
+{#if notifications.length > 0}
+    <div class="flex justify-end mb-4">
+        <button onclick={handleClearAll} class="text-sm text-primary">
+            Clear all
+        </button>
     </div>
 {/if}
 

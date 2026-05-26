@@ -12,6 +12,21 @@
     body {
         overscroll-behavior: none;
         -webkit-tap-highlight-color: transparent;
+        /* This is a native mobile app — text selection on tap-and-hold is
+         * a desktop-browser affordance that just feels broken here, and on
+         * iOS the magnifier loupe over scan buttons / PIN dots is a regular
+         * cause of misclicks. Opt back in below for inputs/textareas. */
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+    }
+
+    input,
+    textarea,
+    [contenteditable="true"] {
+        user-select: text;
+        -webkit-user-select: text;
+        -webkit-touch-callout: default;
     }
 
     /* Typography */
