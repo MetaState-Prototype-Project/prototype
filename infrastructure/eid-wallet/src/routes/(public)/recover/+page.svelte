@@ -462,8 +462,8 @@ onMount(() => {
             <p
                 class="text-black-500 text-center text-base leading-snug max-w-75"
             >
-                Your recovery passphrase was set in the eVault Settings. Both
-                your eName and passphrase must match
+                We'll use your eName to look up your eVault, then ask you to
+                answer the security question you set up.
             </p>
         </section>
 
@@ -545,7 +545,7 @@ onMount(() => {
             <h2
                 class="text-3xl font-bold text-black-900 text-center leading-tight"
             >
-                Enter anwer<br />to your question
+                Enter answer<br />to your question
             </h2>
         </section>
 

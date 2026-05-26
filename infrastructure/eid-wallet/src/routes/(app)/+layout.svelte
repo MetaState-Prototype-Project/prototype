@@ -104,7 +104,12 @@ $effect(() => {
             () => document.body.classList.add("custom-global-style"),
             220,
         );
-        return () => clearTimeout(t);
+        return () => {
+            clearTimeout(t);
+            // Remove the class on unmount or when leaving /scan-qr so it
+            // never leaks past the route's lifetime.
+            document.body.classList.remove("custom-global-style");
+        };
     }
     document.body.classList.remove("custom-global-style");
 });

@@ -27,27 +27,30 @@ async function handleScanClick() {
     if (busy) return;
     busy = true;
 
-    let permission: PermissionState | null = null;
     try {
-        permission = await checkPermissions();
-    } catch {
-        permission = null;
-    }
-    if (permission === "prompt" || permission === "denied") {
+        let permission: PermissionState | null = null;
         try {
-            permission = await requestPermissions();
+            permission = await checkPermissions();
         } catch {
             permission = null;
         }
-    }
+        if (permission === "prompt" || permission === "denied") {
+            try {
+                permission = await requestPermissions();
+            } catch {
+                permission = null;
+            }
+        }
 
-    if (permission === "granted") {
-        await goto(href);
-    } else {
-        permissionDialogOpen = true;
+        if (permission === "granted") {
+            await goto(href);
+        } else {
+            permissionDialogOpen = true;
+        }
+    } finally {
+        // Ensure busy clears even if goto() rejects so the FAB stays tappable.
+        busy = false;
     }
-
-    busy = false;
 }
 
 async function handleOpenSettings() {

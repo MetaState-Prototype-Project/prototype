@@ -65,9 +65,19 @@ const localUrl = $derived(localKey ? (LOCAL_ICONS[localKey] ?? null) : null);
 // Start at the first stage that could produce a URL — skip "local" when we
 // have no bundled icon, so the cascade doesn't wait on a load/error event
 // that will never fire.
-let stage = $state<Stage>(
-    untrack(() => (localUrl ? "local" : hostname ? "apple" : "fallback")),
-);
+let stage = $state<Stage>("fallback");
+
+// Reset the cascade whenever hostname/localUrl change so a card reused for a
+// new platform doesn't inherit a stale stage from the previous one. Only
+// listening to those two inputs — handleError below also writes stage, but
+// since this effect doesn't read it, those mutations don't retrigger.
+$effect(() => {
+    const _hostname = hostname;
+    const _localUrl = localUrl;
+    untrack(() => {
+        stage = _localUrl ? "local" : _hostname ? "apple" : "fallback";
+    });
+});
 
 const iconUrl = $derived(
     stage === "local"

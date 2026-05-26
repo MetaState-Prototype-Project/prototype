@@ -54,7 +54,7 @@ $effect(() => {
             class={cn(
                 fullScreen
                     ? "fixed inset-0 z-50 bg-white shadow-xl flex flex-col gap-4"
-                    : "fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4 max-h-[88svh]",
+                    : "fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4 max-h-[88svh] overflow-y-auto",
                 restProps.class,
             )}
             style={`${
