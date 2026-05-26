@@ -2,7 +2,6 @@
 import { goto } from "$app/navigation";
 import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
 import type { GlobalState } from "$lib/global";
-import { ButtonAction, CameraPermissionDialog } from "$lib/ui";
 import { getContext, onDestroy, onMount } from "svelte";
 import type { SVGAttributes } from "svelte/elements";
 import { get } from "svelte/store";
@@ -42,7 +41,6 @@ const {
     authError,
     signingError,
     authLoading,
-    cameraPermissionDenied,
     socialBindingDrawerOpen,
     socialBindingRequesterEname,
     socialBindingRequesterName,
@@ -67,7 +65,6 @@ const {
     handleSignVote,
     initialize,
     retryPermission,
-    handleOpenSettings,
     handleSocialBinding,
     closeSocialBindingDrawer,
 } = actions;
@@ -156,10 +153,6 @@ function handleRevealDrawerOpenChange(value: boolean) {
     setRevealRequestOpen(value);
 }
 
-function handlePermissionGoBack() {
-    goto("/main");
-}
-
 async function handleSocialBindingConfirm() {
     await handleSocialBinding();
 }
@@ -200,14 +193,6 @@ function handleSocialBindingOpenChange(value: boolean) {
         Point the camera at the code
     </h4>
 </div>
-
-<CameraPermissionDialog
-    isOpen={$cameraPermissionDenied}
-    onOpenSettings={handleOpenSettings}
-    onGoBack={handlePermissionGoBack}
-    title="Camera Access Required"
-    description="To scan QR codes, please grant camera permission in your device settings."
-/>
 
 <AuthDrawer
     isOpen={$codeScannedDrawerOpen}
