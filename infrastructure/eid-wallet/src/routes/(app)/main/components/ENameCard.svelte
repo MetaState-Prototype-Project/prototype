@@ -53,7 +53,7 @@ async function copyEName() {
     </div>
     <div class="flex items-end justify-between gap-3">
         <p
-            class="text-black-700 opacity-50 font-medium break-all flex-1 min-w-0 leading-snug"
+            class="text-black-700 opacity-50 font-medium text-balance wrap-break-word flex-1 min-w-0 leading-snug"
         >
             {ename ?? "Loading..."}<button
                 type="button"
