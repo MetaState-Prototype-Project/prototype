@@ -10,8 +10,9 @@ import {
 import { clearAllNotifications } from "$lib/stores/notifications";
 import { BottomSheet, ButtonAction } from "$lib/ui";
 import { PinIcon, PrivacyIcon } from "$lib/ui/icons";
-import { Delete02Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/svelte";
+import { isPermissionGranted } from "@choochmeque/tauri-plugin-notifications-api";
+import { FaceIdIcon, Notification02Icon } from "@hugeicons/core-free-icons";
+import { checkStatus } from "@tauri-apps/plugin-biometric";
 import { getContext, onMount } from "svelte";
 
 const getGlobalState = getContext<() => GlobalState>("globalState");
@@ -22,17 +23,49 @@ const globalState = $derived(getGlobalState());
 // The "App Version" subtitle is owned by /settings/+layout.svelte (captured
 // at layout init from page.url.pathname). Pushing it through runtime here
 // would re-render the OLD AppNav mid- or post-transition and flash.
-const isDev = import.meta.env.DEV;
 
 let currentLanguage = $state(getCurrentLanguage());
+let biometricsSubtitle = $state("Tap to configure");
+let notificationsSubtitle = $state("Tap to configure");
 onMount(() =>
     subscribeLanguage(() => {
         currentLanguage = getCurrentLanguage();
     }),
 );
 
+// Reflect current biometric state in the row subtitle so the user doesn't
+// have to open the page to see whether it's on.
+$effect(() => {
+    if (!globalState) return;
+    (async () => {
+        try {
+            const status = await checkStatus();
+            if (!status.isAvailable) {
+                biometricsSubtitle = "Unavailable on this device";
+                return;
+            }
+            const enabled =
+                await globalState.securityController.biometricSupport;
+            biometricsSubtitle = enabled ? "On" : "Off";
+        } catch {
+            biometricsSubtitle = "Tap to configure";
+        }
+    })();
+});
+
+// Same subtitle treatment for notifications — surface the OS-level state.
+$effect(() => {
+    (async () => {
+        try {
+            const granted = await isPermissionGranted();
+            notificationsSubtitle = granted ? "On" : "Off";
+        } catch {
+            notificationsSubtitle = "Tap to configure";
+        }
+    })();
+});
+
 let isLogoutDrawerOpen = $state(false);
-let isDeleteConfirmOpen = $state(false);
 
 function openLogout() {
     isLogoutDrawerOpen = true;
@@ -58,29 +91,13 @@ async function performLogout() {
     goto("/");
 }
 
-// Dev-only delete. Same effect as logout under the hood since reset() doesn't
-// touch the backend; the separate confirmation just makes the dev intent
-// explicit while we're testing the splash → onboarding path.
-function openDeleteConfirm() {
-    isDeleteConfirmOpen = true;
-}
-
-function cancelDelete() {
-    isDeleteConfirmOpen = false;
-}
-
-async function performDelete() {
-    isDeleteConfirmOpen = false;
-    await performLogout();
-}
-
 async function openPrivacy(e: Event) {
     e.preventDefault();
     try {
         const { openUrl } = await import("@tauri-apps/plugin-opener");
-        await openUrl("https://metastate.foundation/");
+        await openUrl("https://metastate.foundation/privacy");
     } catch {
-        window.location.href = "https://metastate.foundation/";
+        window.location.href = "https://metastate.foundation/privacy";
     }
 }
 
@@ -114,9 +131,23 @@ $effect(() => {
     </SettingsNavigationBtn>
 
     <SettingsNavigationBtn
+        label="Biometric login"
+        subtitle={biometricsSubtitle}
+        href="/settings/biometrics"
+        icon={FaceIdIcon}
+    />
+
+    <SettingsNavigationBtn
+        label="Notifications"
+        subtitle={notificationsSubtitle}
+        href="/settings/notifications"
+        icon={Notification02Icon}
+    />
+
+    <SettingsNavigationBtn
         label="Privacy policy"
         subtitle="External link"
-        href="https://metastate.foundation/"
+        href="https://metastate.foundation/privacy"
         onclick={openPrivacy}
     >
         {#snippet iconSlot()}
@@ -130,26 +161,6 @@ $effect(() => {
         </ButtonAction>
     </div>
 
-    {#if isDev}
-        <!-- Discreet dev-only entry to the local-wipe flow that used to be
-             surfaced as "Delete Account". Same effect as logout under the
-             hood since neither touches the backend. -->
-        <div class="mt-6 flex justify-end">
-            <button
-                type="button"
-                onclick={openDeleteConfirm}
-                aria-label="Dev: delete account"
-                class="text-black-300 active:opacity-60 p-2"
-            >
-                <HugeiconsIcon
-                    icon={Delete02Icon}
-                    size={18}
-                    color="currentColor"
-                    strokeWidth={2}
-                />
-            </button>
-        </div>
-    {/if}
 </main>
 
 <BottomSheet bind:isOpen={isLogoutDrawerOpen}>
@@ -179,34 +190,3 @@ $effect(() => {
     </div>
 </BottomSheet>
 
-{#if isDev}
-    <BottomSheet bind:isOpen={isDeleteConfirmOpen}>
-        <div class="flex items-start justify-between gap-3">
-            <h3 class="text-2xl font-bold text-black-900">
-                Delete account (dev)
-            </h3>
-            <button
-                type="button"
-                onclick={cancelDelete}
-                aria-label="Close"
-                class="w-9 h-9 rounded-full bg-black-50 flex items-center justify-center text-black-700 active:opacity-70 shrink-0"
-            >
-                <span aria-hidden="true" class="text-lg leading-none">×</span>
-            </button>
-        </div>
-        <p class="text-black-500 leading-snug">
-            Wipes all local wallet state and returns to onboarding. The eVault
-            on the backend is left intact.
-        </p>
-        <div class="flex gap-3 mt-2">
-            <ButtonAction variant="soft" class="flex-1" callback={cancelDelete}
-                >Cancel</ButtonAction
-            >
-            <ButtonAction
-                variant="danger"
-                class="flex-1"
-                callback={performDelete}>Delete</ButtonAction
-            >
-        </div>
-    </BottomSheet>
-{/if}

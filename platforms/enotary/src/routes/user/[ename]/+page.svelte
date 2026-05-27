@@ -21,12 +21,103 @@
     let witnessedSessionIds: string[] = [];
     let verifiedWitnesses: string[] = [];
 
-    let resetMessage = "";
-    let resetting = false;
-    let recoveredPassphrase = "";
-    let passphraseModalOpen = false;
-    let modalCopied = false;
     let witnessPollTimer: ReturnType<typeof setInterval> | null = null;
+
+    // ── Notary-issued recovery code (QR) ─────────────────────────────────
+    let recoveryQr = "";
+    let recoverySessionId = "";
+    let recoveryExpiresAt = 0;
+    let recoveryStatus: "idle" | "issuing" | "waiting" | "claimed" | "expired" =
+        "idle";
+    let recoveryError = "";
+    let recoveryStatusTimer: ReturnType<typeof setInterval> | null = null;
+    let recoveryNow = Date.now();
+
+    $: recoveryRemainingMs = Math.max(0, recoveryExpiresAt - recoveryNow);
+    $: recoveryRemainingLabel = formatRemaining(recoveryRemainingMs);
+
+    function formatRemaining(ms: number): string {
+        const totalSec = Math.floor(ms / 1000);
+        const m = Math.floor(totalSec / 60);
+        const s = totalSec % 60;
+        return `${m}:${s.toString().padStart(2, "0")}`;
+    }
+
+    async function issueRecoveryCode() {
+        recoveryError = "";
+        recoveryStatus = "issuing";
+        stopRecoveryStatusPolling();
+        try {
+            const response = await fetch("/api/recovery/issue", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ targetEName: eName }),
+            });
+            const payload = await response.json();
+            if (!response.ok) {
+                throw new Error(payload?.message || "Failed to issue recovery code");
+            }
+            recoveryQr = payload.qrPayload;
+            recoverySessionId = payload.sessionId;
+            recoveryExpiresAt = payload.expiresAt;
+            recoveryNow = Date.now();
+            recoveryStatus = "waiting";
+            startRecoveryStatusPolling();
+        } catch (err) {
+            recoveryStatus = "idle";
+            recoveryError = err instanceof Error ? err.message : "Failed to issue recovery code";
+        }
+    }
+
+    async function refreshRecoveryStatus() {
+        if (!recoverySessionId) return;
+        recoveryNow = Date.now();
+        if (recoveryRemainingMs <= 0 && recoveryStatus === "waiting") {
+            recoveryStatus = "expired";
+            stopRecoveryStatusPolling();
+            return;
+        }
+        try {
+            const response = await fetch(
+                `/api/recovery/status?sessionId=${encodeURIComponent(recoverySessionId)}`,
+            );
+            const payload = await response.json();
+            if (response.ok) {
+                if (payload.status === "consumed") {
+                    recoveryStatus = "claimed";
+                    stopRecoveryStatusPolling();
+                } else if (payload.status === "expired") {
+                    recoveryStatus = "expired";
+                    stopRecoveryStatusPolling();
+                }
+            }
+        } catch {
+            // ignore transient poll errors; we retry on the next tick
+        }
+    }
+
+    function startRecoveryStatusPolling() {
+        stopRecoveryStatusPolling();
+        recoveryStatusTimer = setInterval(() => {
+            void refreshRecoveryStatus();
+        }, 2000);
+    }
+
+    function stopRecoveryStatusPolling() {
+        if (recoveryStatusTimer) {
+            clearInterval(recoveryStatusTimer);
+            recoveryStatusTimer = null;
+        }
+    }
+
+    function dismissRecoveryCode() {
+        stopRecoveryStatusPolling();
+        recoveryQr = "";
+        recoverySessionId = "";
+        recoveryExpiresAt = 0;
+        recoveryStatus = "idle";
+        recoveryError = "";
+    }
 
     $: idDocuments = documents.filter((doc) => doc.type === "id_document");
     $: selfDocuments = documents.filter((doc) => doc.type === "self");
@@ -61,7 +152,6 @@
     }
 
     async function requestWitness(witnessEName: string) {
-        resetMessage = "";
         witnessStatus = "Creating witness session...";
         const response = await fetch("/api/witness/session", {
             method: "POST",
@@ -78,21 +168,6 @@
         qrData = payload.qrData;
         witnessStatus = "QR generated. Ask the friend to scan and sign.";
         await refreshWitnessStatus();
-    }
-
-    function randomChars(length: number): string {
-        const chars =
-            "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*()-_=+";
-        return Array.from(
-            { length },
-            () => chars[Math.floor(Math.random() * chars.length)],
-        ).join("");
-    }
-
-    async function copyRecoveredPassphrase() {
-        if (!recoveredPassphrase) return;
-        await navigator.clipboard.writeText(recoveredPassphrase);
-        modalCopied = true;
     }
 
     function getDataValue(data: Record<string, unknown>, key: string): string {
@@ -147,38 +222,6 @@
         }, 3000);
     }
 
-    async function generateAndResetPassphrase() {
-        resetMessage = "";
-        if (witnessedSessionIds.length === 0) {
-            resetMessage = "At least one witness must be verified first.";
-            return;
-        }
-
-        const generatedPassphrase = `${randomChars(6)}-${randomChars(6)}-${randomChars(6)}-${randomChars(6)}`;
-        resetting = true;
-        try {
-            const response = await fetch("/api/passphrase/reset", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    targetEName: eName,
-                    newPassphrase: generatedPassphrase,
-                    witnessSessionIds: witnessedSessionIds,
-                }),
-            });
-            const payload = await response.json();
-            if (!response.ok) throw new Error(payload.error || "Reset failed");
-            recoveredPassphrase = generatedPassphrase;
-            modalCopied = false;
-            passphraseModalOpen = true;
-            resetMessage = "";
-        } catch (err) {
-            resetMessage = err instanceof Error ? err.message : "Failed to reset passphrase";
-        } finally {
-            resetting = false;
-        }
-    }
-
     $: if (activeWitnessSessionId) {
         startWitnessPolling();
     } else {
@@ -186,7 +229,10 @@
     }
 
     onMount(loadUser);
-    onDestroy(stopWitnessPolling);
+    onDestroy(() => {
+        stopWitnessPolling();
+        stopRecoveryStatusPolling();
+    });
 </script>
 
 <main class="mx-auto max-w-6xl p-8">
@@ -342,55 +388,66 @@
         </section>
 
         <section class="mt-6 rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-            <h2 class="text-lg font-semibold">Reset Passphrase</h2>
-            <p class="mt-2 text-sm text-slate-500">At least one witnessed session is required.</p>
-            <p class="mt-1 text-xs text-slate-500">
-                Witness sessions ready: {witnessedSessionIds.length}
+            <h2 class="text-lg font-semibold">Issue recovery code</h2>
+            <p class="mt-2 text-sm text-slate-500">
+                After performing in-person due diligence, generate a one-shot
+                QR for the user to scan from their wallet. The code is valid
+                for 15 minutes and can be claimed only once.
             </p>
-            <button
-                class="mt-4 rounded-md bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={resetting || witnessedSessionIds.length === 0}
-                on:click={generateAndResetPassphrase}
-            >
-                {resetting ? "Generating and setting..." : "Generate recovery passphrase"}
-            </button>
 
-            {#if resetMessage}
-                <p class="mt-3 text-sm text-slate-700">{resetMessage}</p>
-            {/if}
-        </section>
-
-        {#if passphraseModalOpen}
-            <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                <div class="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl">
-                    <h3 class="text-lg font-semibold">Recovery passphrase generated</h3>
-                    <p class="mt-2 text-sm text-slate-600">
-                        Save this passphrase now. It will be shown only for this recovery action.
-                    </p>
-
-                    <button
-                        class="mt-4 w-full rounded-md bg-slate-50 px-3 py-3 text-left font-mono text-sm ring-1 ring-slate-200 hover:bg-slate-100"
-                        on:click={copyRecoveredPassphrase}
+            {#if recoveryStatus === "idle"}
+                <button
+                    class="mt-4 rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    on:click={issueRecoveryCode}
+                >
+                    Generate recovery QR
+                </button>
+            {:else if recoveryStatus === "issuing"}
+                <p class="mt-3 text-sm text-slate-700">Issuing…</p>
+            {:else}
+                <div class="mt-4 flex flex-col gap-4 md:flex-row md:items-start">
+                    <div
+                        class={`flex justify-center rounded-lg bg-slate-50 p-4 ${
+                            recoveryStatus === "waiting" ? "" : "opacity-50"
+                        }`}
                     >
-                        {recoveredPassphrase}
-                    </button>
-
-                    <div class="mt-4 flex items-center justify-end gap-2">
+                        <QrCode value={recoveryQr} size={240} />
+                    </div>
+                    <div class="flex-1 space-y-2 text-sm">
+                        {#if recoveryStatus === "waiting"}
+                            <p class="text-slate-700">
+                                <strong>Show this code to the user.</strong>
+                                Ask them to open their wallet → Recover → "I am
+                                at a notary" and scan it.
+                            </p>
+                            <p class="font-mono text-slate-500">
+                                Expires in {recoveryRemainingLabel}
+                            </p>
+                        {:else if recoveryStatus === "claimed"}
+                            <p class="rounded-md bg-emerald-50 px-3 py-2 text-emerald-800">
+                                ✓ Code scanned. The user's wallet is now
+                                completing recovery.
+                            </p>
+                        {:else if recoveryStatus === "expired"}
+                            <p class="rounded-md bg-amber-50 px-3 py-2 text-amber-800">
+                                This code has expired. Generate a fresh one if
+                                needed.
+                            </p>
+                        {/if}
                         <button
                             class="rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"
-                            on:click={copyRecoveredPassphrase}
+                            on:click={dismissRecoveryCode}
                         >
-                            {modalCopied ? "Copied" : "Click to copy"}
-                        </button>
-                        <button
-                            class="rounded-md bg-slate-900 px-3 py-2 text-sm text-white hover:bg-slate-700"
-                            on:click={() => (passphraseModalOpen = false)}
-                        >
-                            Done
+                            Dismiss
                         </button>
                     </div>
                 </div>
-            </div>
-        {/if}
+            {/if}
+
+            {#if recoveryError}
+                <p class="mt-3 text-sm text-red-700">{recoveryError}</p>
+            {/if}
+        </section>
+
     {/if}
 </main>

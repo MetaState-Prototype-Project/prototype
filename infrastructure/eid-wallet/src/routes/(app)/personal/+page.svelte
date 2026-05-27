@@ -27,9 +27,6 @@ import AddKnowledgeSheet from "./components/AddKnowledgeSheet.svelte";
 import AddParametersSheet from "./components/AddParametersSheet.svelte";
 import AddPhotoSheet from "./components/AddPhotoSheet.svelte";
 
-const KEY_ID = "default";
-const SIGN_CONTEXT = "personal-binding";
-
 const binding = $derived($personalBinding);
 const achieved = $derived(marksAchieved(binding));
 const photosFilled = $derived(binding.photos.length > 0);
@@ -131,11 +128,7 @@ async function signOwner(
         type,
         data,
     });
-    const signature = await globalState.walletSdkAdapter.signPayload(
-        KEY_ID,
-        SIGN_CONTEXT,
-        canonical,
-    );
+    const signature = await globalState.keyService.sign(canonical);
     return {
         signer: ename,
         signature,
@@ -462,7 +455,7 @@ async function handleKnowledgeSave(data: {
         )}
         {@render markCard(
             "Personal parameters",
-            "Personal details: date and place of birth, height, eye color and etc",
+            "Personal details: date and place of birth, height, eye colour, and other identifying traits",
             parametersFilled,
             parametersBody,
         )}

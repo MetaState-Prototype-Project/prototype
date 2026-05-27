@@ -3,7 +3,7 @@ import { InformationCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 
 interface IEVaultCardProps {
-    /** Available storage label, e.g. "80 Gb". */
+    /** Available storage label, e.g. "5 GB". */
     available: string;
     oninfo?: () => void;
 }

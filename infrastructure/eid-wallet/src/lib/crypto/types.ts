@@ -1,70 +1,40 @@
 /**
- * Common interface for key management operations
- * Abstracts hardware and software key storage implementations
+ * Common interface for key management operations.
+ * Every wallet has exactly one key, identified internally by WALLET_KEY_ALIAS.
+ * Implementations abstract hardware (Keystore/Secure Enclave) vs software (Web Crypto) storage.
  */
 export interface KeyManager {
-    /**
-     * Check if a key exists for the given keyId
-     */
-    exists(keyId: string): Promise<boolean>;
-
-    /**
-     * Generate a new key pair for the given keyId
-     */
-    generate(keyId: string): Promise<string | undefined>;
-
-    /**
-     * Get the public key for the given keyId
-     */
-    getPublicKey(keyId: string): Promise<string | undefined>;
-
-    /**
-     * Sign a payload with the given keyId
-     */
-    signPayload(keyId: string, payload: string): Promise<string>;
-
-    /**
-     * Verify a signature with the given keyId and payload
-     */
-    verifySignature(
-        keyId: string,
-        payload: string,
-        signature: string,
-    ): Promise<boolean>;
-
-    /**
-     * Get the type of key manager (hardware or software)
-     */
+    exists(): Promise<boolean>;
+    generate(): Promise<void>;
+    getPublicKey(): Promise<string>;
+    signPayload(payload: string): Promise<string>;
+    verifySignature(payload: string, signature: string): Promise<boolean>;
     getType(): "hardware" | "software";
 }
 
 /**
- * Configuration for key managers
+ * The single key alias used everywhere. Hardware keystore uses this as the alias;
+ * software storage uses it as the localStorage slot suffix.
+ *
+ * Value is "default" for backwards compatibility — existing installs have their
+ * hardware keystore entry stored under this alias, and hardware-keystore aliases
+ * cannot be renamed from JS. Do NOT change this value.
  */
-export interface KeyManagerConfig {
-    keyId: string;
-    useHardware?: boolean;
-    preVerificationMode?: boolean;
-}
+export const WALLET_KEY_ALIAS = "default";
 
 /**
- * Key pair data structure for software storage
+ * Key pair data structure for software storage.
  */
 export interface SoftwareKeyPair {
     privateKey: string;
     publicKey: string;
-    keyId: string;
     createdAt: string;
 }
 
-/**
- * Error types for key management operations
- */
 export class KeyManagerError extends Error {
     constructor(
         message: string,
         public readonly code: string,
-        public readonly keyId?: string,
     ) {
         super(message);
         this.name = "KeyManagerError";

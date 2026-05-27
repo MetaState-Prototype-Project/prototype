@@ -160,11 +160,7 @@ export class VaultController {
      * SDK checks /whois and skips PATCH if current key already in certs; otherwise PATCHes /public-key.
      * Returns true if the sync succeeded, false otherwise.
      */
-    async syncPublicKey(
-        eName: string,
-        keyId = "default",
-        context = "onboarding",
-    ): Promise<boolean> {
+    async syncPublicKey(eName: string): Promise<boolean> {
         if (!this.#walletSdkAdapter) {
             console.warn(
                 "Wallet SDK adapter not available, cannot sync public key",
@@ -180,8 +176,7 @@ export class VaultController {
             await syncPublicKeyToEvault(this.#walletSdkAdapter, {
                 evaultUri: vault.uri,
                 eName,
-                keyId,
-                context,
+                context: "wallet",
                 authToken: PUBLIC_EID_WALLET_TOKEN || null,
                 registryUrl: PUBLIC_REGISTRY_URL,
             });
@@ -747,5 +742,64 @@ export class VaultController {
 
     async clear() {
         await this.#store.delete("vault");
+    }
+
+    /**
+     * Persist the vault and AWAIT the store write before resolving. Use this
+     * (not the `vault =` setter) when you intend to navigate immediately
+     * afterwards — the setter kicks off the store write without awaiting it,
+     * which leaves a window where the auth guard on the next route reads back
+     * undefined and bounces the user to /login. Background work (profile
+     * upsert, device registration, key sync) is still fire-and-forget.
+     */
+    async setVaultAndPersist(vault: {
+        uri: string;
+        ename: string;
+    }): Promise<void> {
+        await this.#store.set("vault", vault);
+        // Best-effort background chores; failures must not block the caller.
+        void this.registerDeviceForNotifications(vault.ename).catch((error) =>
+            console.error(
+                "[VaultController] device registration failed:",
+                error,
+            ),
+        );
+        void this.syncPublicKey(vault.ename).catch((error) =>
+            console.error("[VaultController] public-key sync failed:", error),
+        );
+        if (this.profileCreationStatus !== "success") {
+            this.profileCreationStatus = "loading";
+            void (async () => {
+                try {
+                    const userData = await this.#userController.user;
+                    const displayName = userData?.name || vault.ename;
+                    await this.upsertUserProfileInEVault(
+                        vault.ename,
+                        displayName,
+                        vault.ename,
+                    );
+                    this.profileCreationStatus = "success";
+                } catch (error) {
+                    console.error(
+                        "[VaultController] UserProfile upsert failed:",
+                        error,
+                    );
+                    try {
+                        await this.upsertUserProfileInEVault(
+                            vault.ename,
+                            vault.ename,
+                            vault.ename,
+                        );
+                        this.profileCreationStatus = "success";
+                    } catch (fallbackError) {
+                        console.error(
+                            "[VaultController] UserProfile upsert fallback failed:",
+                            fallbackError,
+                        );
+                        this.profileCreationStatus = "failed";
+                    }
+                }
+            })();
+        }
     }
 }

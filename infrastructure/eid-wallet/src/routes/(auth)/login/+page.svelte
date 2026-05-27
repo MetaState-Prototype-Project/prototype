@@ -2,7 +2,7 @@
 import { goto } from "$app/navigation";
 import { keyboardInset } from "$lib/actions/keyboardInset";
 import type { GlobalState } from "$lib/global";
-import { PinDots } from "$lib/ui";
+import { LoadingSheet, PinDots } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import {
     type AuthOptions,
@@ -10,7 +10,6 @@ import {
     checkStatus,
 } from "@tauri-apps/plugin-biometric";
 import { getContext, onMount } from "svelte";
-import { Shadow } from "svelte-loading-spinners";
 import StepHeader from "../onboarding/steps/StepHeader.svelte";
 
 let pin = $state("");
@@ -39,34 +38,42 @@ async function clearPin() {
 }
 
 async function continueAfterSuccessfulAuth(gs: GlobalState) {
+    // Fire-and-forget post-login chores. These hit the network with no client
+    // timeout, so awaiting them here can strand the user on the "Logging you
+    // in…" spinner indefinitely. The app pages will retry as needed.
     try {
         const vault = await gs.vaultController.vault;
         if (vault?.ename) {
-            const healthCheck = await gs.vaultController.checkHealth(
-                vault.ename,
-            );
-            if (!healthCheck.healthy) {
-                console.warn("eVault health check failed:", healthCheck.error);
-                // Non-blocking — continue to the app.
-            }
-
-            try {
-                await gs.vaultController.syncPublicKey(vault.ename);
-            } catch (error) {
-                console.error("Error syncing public key:", error);
-            }
-
-            try {
-                await gs.notificationService.registerDevice(vault.ename);
-            } catch (error) {
-                console.error(
-                    "Error registering device for notifications:",
-                    error,
+            const ename = vault.ename;
+            void gs.vaultController
+                .checkHealth(ename)
+                .then((health) => {
+                    if (!health.healthy) {
+                        console.warn(
+                            "eVault health check failed:",
+                            health.error,
+                        );
+                    }
+                })
+                .catch((error) =>
+                    console.error("eVault health check error:", error),
                 );
-            }
+            void gs.vaultController
+                .syncPublicKey(ename)
+                .catch((error) =>
+                    console.error("Error syncing public key:", error),
+                );
+            void gs.notificationService
+                .registerDevice(ename)
+                .catch((error) =>
+                    console.error(
+                        "Error registering device for notifications:",
+                        error,
+                    ),
+                );
         }
     } catch (error) {
-        console.error("Error during eVault health check:", error);
+        console.error("Error reading vault during login:", error);
     }
 
     const pendingDeepLink = sessionStorage.getItem("pendingDeepLink");
@@ -165,32 +172,31 @@ onMount(async () => {
         </div>
     {/if}
 
-    <section
-        class="flex-1 flex flex-col items-center justify-center gap-6"
-    >
-        {#if isPostAuthLoading}
-            <Shadow size={40} color="rgb(142, 82, 255)" />
-            <p class="text-primary text-sm">Logging you in…</p>
-        {:else}
-            <PinDots bind:pin />
+    <section class="flex-1 flex flex-col items-center justify-center gap-6">
+        <PinDots bind:pin />
 
-            {#if isError}
-                <p class="text-danger text-sm font-medium" role="alert">
-                    Your PIN does not match, try again.
-                </p>
-            {/if}
+        {#if isError}
+            <p class="text-danger text-sm font-medium" role="alert">
+                Your PIN does not match, try again.
+            </p>
         {/if}
     </section>
 
     <footer class="w-full">
-        {#if !isPostAuthLoading}
-            <Button.Action
-                variant="soft"
-                class="w-full uppercase tracking-wide"
-                callback={clearPin}
-            >
-                Clear PIN
-            </Button.Action>
-        {/if}
+        <Button.Action
+            variant="soft"
+            class="w-full uppercase tracking-wide"
+            callback={clearPin}
+        >
+            Clear PIN
+        </Button.Action>
     </footer>
 </main>
+
+<!-- Sign-in spinner — overlays the PIN screen with a blurred backdrop so the
+     user has visual context for the step they just completed. -->
+<LoadingSheet
+    isOpen={isPostAuthLoading}
+    title="Signing you in"
+    subtitle="Setting things up. This only takes a moment."
+/>

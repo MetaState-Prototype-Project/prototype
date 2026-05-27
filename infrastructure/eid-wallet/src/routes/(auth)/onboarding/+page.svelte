@@ -8,15 +8,17 @@ import {
 } from "$env/static/public";
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
-import { ButtonAction } from "$lib/ui";
+import { pendingRecovery } from "$lib/stores/pendingRecovery";
+import { ButtonAction, LoadingSheet } from "$lib/ui";
 import { capitalize, getCanonicalBindingDocString } from "$lib/utils";
 import axios from "axios";
 import { GraphQLClient } from "graphql-request";
 import { getContext, onMount, tick } from "svelte";
-import { Shadow } from "svelte-loading-spinners";
 import { cubicOut } from "svelte/easing";
+import { get } from "svelte/store";
 import { v4 as uuidv4 } from "uuid";
 import { provision } from "wallet-sdk";
+import BiometricsSetup from "./steps/BiometricsSetup.svelte";
 import NameInput from "./steps/NameInput.svelte";
 import PinCreate from "./steps/PinCreate.svelte";
 import PinRepeat from "./steps/PinRepeat.svelte";
@@ -27,14 +29,27 @@ const KEY_ID = "default";
 type Step =
     | "pin-create"
     | "pin-repeat"
+    | "biometrics"
     | "name"
     | "home"
     | "new-evault"
     | "kyc-panel"
     | "didit-verification"
     | "verif-result"
-    | "anonymous-form"
-    | "loading";
+    | "anonymous-form";
+
+/** Loading overlay phases — rendered as a LoadingSheet on top of whatever
+ *  step is active, so the underlying screen stays visible (and blurred). */
+type LoadingPhase =
+    | "creating-evault"
+    | "restoring-evault"
+    | "starting-verification"
+    | "fetching-decision"
+    | "upgrading"
+    | "checking-hardware"
+    | null;
+
+const RECOVERY_SKIP_PROFILE_SETUP_KEY = "recoverySkipProfileSetup";
 
 interface DiditWarning {
     short_description?: string;
@@ -73,12 +88,61 @@ interface DiditCompleteResult {
 
 let step = $state<Step>("pin-create");
 let error = $state<string | null>(null);
-let loading = $state(false);
+let loadingPhase = $state<LoadingPhase>(null);
 
-// New-onboarding flow state (PIN create -> repeat -> name -> new-evault)
+const loadingCopy = $derived(
+    loadingPhase === "creating-evault"
+        ? {
+              title: "Creating your eVault",
+              subtitle:
+                  "Generating your eName and signing your binding document.",
+          }
+        : loadingPhase === "restoring-evault"
+          ? {
+                title: "Restoring your eVault",
+                subtitle: "Loading your identity onto this device.",
+            }
+          : loadingPhase === "starting-verification"
+            ? {
+                  title: "Starting verification",
+                  subtitle: "Opening a secure session with our ID partner.",
+              }
+            : loadingPhase === "fetching-decision"
+              ? {
+                    title: "Checking your verification",
+                    subtitle: "Hang tight — we're confirming your result.",
+                }
+              : loadingPhase === "upgrading"
+                ? {
+                      title: "Upgrading your eVault",
+                      subtitle:
+                          "Linking your verified identity to your eVault.",
+                  }
+                : loadingPhase === "checking-hardware"
+                  ? {
+                        title: "Checking your device",
+                        subtitle: "Looking for hardware-backed key support.",
+                    }
+                  : { title: "", subtitle: "" },
+);
+
+function cancelLoading() {
+    // Non-cancellable inner work — we just dismiss the spinner so the user
+    // can try again from the previous step if it's stuck. The underlying
+    // operation continues in the background but its result is discarded.
+    loadingPhase = null;
+}
+
+// New-onboarding flow state (PIN create -> repeat -> biometrics -> name)
 let pinFirstAttempt = $state("");
 let chosenName = $state("");
 let nameError = $state<string | null>(null);
+
+// Recovery mode is set in onMount if pendingRecovery is populated. In recovery
+// we skip the name step (recovery already provides a user) and the final action
+// after biometrics is "persist the recovered vault" instead of "provision new".
+let isRecovery = $state(false);
+let recoveryError = $state<string | null>(null);
 
 const handlePinCreateBack = () => {
     // Skip the splash A→B intro on the way back — the route slide is the
@@ -150,23 +214,81 @@ const handlePinRepeatComplete = async (confirmedPin: string) => {
         pinFirstAttempt,
         confirmedPin,
     );
+    goToStep("biometrics", "forward");
+};
+
+const handleBiometricsBack = () => {
+    goToStep("pin-repeat", "backward");
+};
+
+const handleBiometricsEnable = async () => {
+    try {
+        globalState.securityController.biometricSupport = true;
+    } catch (err) {
+        console.warn("[onboarding] biometric enable failed:", err);
+    }
+    await advancePastBiometrics();
+};
+
+const handleBiometricsSkip = async () => {
+    await advancePastBiometrics();
+};
+
+/**
+ * After biometrics, branch on recovery vs new onboarding:
+ *  - Recovery: persist the recovered vault and land on /main (the WelcomeTour
+ *    on /main does the animated identity reveal that used to live in
+ *    /review + /e-passport).
+ *  - New onboarding: continue to the name step → anonymous provisioning.
+ */
+const advancePastBiometrics = async () => {
+    if (isRecovery) {
+        await completeRecovery();
+        return;
+    }
     goToStep("name", "forward");
+};
+
+const completeRecovery = async () => {
+    const recovery = get(pendingRecovery);
+    if (!recovery) {
+        recoveryError = "Recovery data lost. Please start recovery again.";
+        return;
+    }
+    loadingPhase = "restoring-evault";
+    try {
+        localStorage.setItem(RECOVERY_SKIP_PROFILE_SETUP_KEY, "true");
+        await globalState.keyService.ensureKey();
+        await globalState.vaultController.setVaultAndPersist({
+            uri: recovery.uri,
+            ename: recovery.ename,
+        });
+        pendingRecovery.set(null);
+        globalState.isOnboardingComplete = true;
+        loadingPhase = null;
+        await goto("/main", { replaceState: true });
+    } catch (err) {
+        console.error("[onboarding] recovery completion failed:", err);
+        recoveryError =
+            "Couldn't restore your eVault. Check your connection and try again.";
+        loadingPhase = null;
+    }
 };
 
 const handleNameBack = () => {
     nameError = null;
-    goToStep("pin-repeat", "backward");
+    goToStep("biometrics", "backward");
 };
 
 const handleNameComplete = async (enteredName: string) => {
     chosenName = enteredName;
     nameError = null;
-    // Drop straight into the legacy loading screen — Shadow spinner + status.
-    step = "loading";
+    // LoadingSheet overlays the name screen (which stays mounted underneath).
+    loadingPhase = "creating-evault";
 
     try {
         globalState.userController.isFake = true;
-        await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
+        await globalState.keyService.ensureKey();
 
         const provisionResult = await provision(globalState.walletSdkAdapter, {
             registryUrl: PUBLIC_REGISTRY_URL,
@@ -211,11 +333,7 @@ const handleNameComplete = async (enteredName: string) => {
             type: "self",
             data: bindingData,
         });
-        const signature = await globalState.walletSdkAdapter.signPayload(
-            KEY_ID,
-            "signing",
-            payload,
-        );
+        const signature = await globalState.keyService.sign(payload);
 
         const gqlClient = new GraphQLClient(graphqlEndpoint, {
             headers: {
@@ -259,22 +377,25 @@ const handleNameComplete = async (enteredName: string) => {
 
         // Persist user + vault, then mark onboarding done.
         globalState.userController.user = { name: enteredName };
-        globalState.vaultController.vault = { uri, ename };
+        await globalState.vaultController.setVaultAndPersist({ uri, ename });
         globalState.isOnboardingComplete = true;
 
-        // TODO(next): step = "welcome" once the Welcome screen is built.
-        // For now we land directly on /main.
-        await goto("/main");
+        // Land on /main; the WelcomeTour there draws the animated lines
+        // around the identity card (replaces the old /review + /e-passport).
+        loadingPhase = null;
+        await goto("/main", { replaceState: true });
     } catch (err) {
         console.error("Failed to provision eVault:", err);
         nameError =
             "Couldn't create your eVault. Check your connection and try again.";
-        step = "name";
+        loadingPhase = null;
     }
 };
 
-// KYC panel sub-state
-let checkingHardware = $state(false);
+// KYC panel sub-state — hardware-error is the only inline thing left; the
+// "checking hardware" and "starting verification" indicators are handled by
+// loadingPhase + the LoadingSheet overlay so they stay consistent with the
+// rest of the loading affordances.
 let showHardwareError = $state(false);
 
 // Didit verification state
@@ -312,7 +433,7 @@ function generatePassportNumber() {
 
 const handleIdentityPath = async () => {
     step = "kyc-panel";
-    checkingHardware = true;
+    loadingPhase = "checking-hardware";
     showHardwareError = false;
     error = null;
 
@@ -324,21 +445,21 @@ const handleIdentityPath = async () => {
                 "Hardware-backed keys not available on this device",
             );
         }
-        checkingHardware = false;
+        loadingPhase = null;
     } catch (err) {
         console.error("Hardware key test failed:", err);
         showHardwareError = true;
-        checkingHardware = false;
+        loadingPhase = null;
     }
 };
 
 const handleKycNext = async () => {
-    loading = true;
+    loadingPhase = "starting-verification";
     error = null;
     duplicateExistingW3id = null;
     duplicateDocumentNumber = null;
     try {
-        await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
+        await globalState.keyService.ensureKey();
 
         const { data } = await axios.post(
             new URL("/verification/v2", PUBLIC_PROVISIONER_URL).toString(),
@@ -359,7 +480,7 @@ const handleKycNext = async () => {
 
         diditLocalId = data.id;
         diditSessionId = data.sessionToken; // store token; actual Didit sessionId comes from onComplete
-        loading = false;
+        loadingPhase = null;
         step = "didit-verification";
 
         // Wait a tick for the container to mount
@@ -381,7 +502,7 @@ const handleKycNext = async () => {
             err instanceof Error
                 ? err.message
                 : "Failed to start verification. Please try again.";
-        loading = false;
+        loadingPhase = null;
         setTimeout(() => {
             error = null;
         }, 6000);
@@ -403,7 +524,7 @@ const handleDiditComplete = async (result: DiditCompleteResult) => {
     }
 
     diditActualSessionId = result.session.sessionId;
-    step = "loading";
+    loadingPhase = "fetching-decision";
 
     try {
         const { data: decision } = await axios.get<DiditDecision>(
@@ -436,10 +557,12 @@ const handleDiditComplete = async (result: DiditCompleteResult) => {
                 "Verification could not be completed.";
         }
 
+        loadingPhase = null;
         step = "verif-result";
     } catch (err) {
         console.error("Failed to fetch Didit decision:", err);
         error = "Failed to retrieve verification result. Please try again.";
+        loadingPhase = null;
         step = "kyc-panel";
         setTimeout(() => {
             error = null;
@@ -503,7 +626,7 @@ const handleProvision = async () => {
     };
     globalState.userController.isFake = false;
 
-    step = "loading";
+    loadingPhase = "creating-evault";
 
     try {
         const result = await provision(globalState.walletSdkAdapter, {
@@ -521,6 +644,7 @@ const handleProvision = async () => {
             diditResult = "duplicate";
             error =
                 "An eVault already exists for this identity. You cannot create a duplicate — please reclaim your existing eVault instead.";
+            loadingPhase = null;
             step = "verif-result";
             return;
         }
@@ -534,17 +658,20 @@ const handleProvision = async () => {
             );
         }
 
-        globalState.vaultController.vault = {
+        await globalState.vaultController.setVaultAndPersist({
             uri: result.uri,
             ename: result.w3id,
-        };
-        goto("/register");
+        });
+        globalState.isOnboardingComplete = true;
+        loadingPhase = null;
+        await goto("/main", { replaceState: true });
     } catch (err) {
         console.error("Provisioning failed:", err);
         error =
             err instanceof Error
                 ? err.message
                 : "We couldn’t create your eVault after identity verification. Check your connection, then tap Continue again.";
+        loadingPhase = null;
         step = "verif-result";
         setTimeout(() => {
             error = null;
@@ -563,12 +690,12 @@ const handleAnonymousSubmit = async () => {
         return;
     }
 
-    step = "loading";
+    loadingPhase = "creating-evault";
     error = null;
 
     try {
         globalState.userController.isFake = true;
-        await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
+        await globalState.keyService.ensureKey();
 
         const provisionResult = await provision(globalState.walletSdkAdapter, {
             registryUrl: PUBLIC_REGISTRY_URL,
@@ -594,6 +721,7 @@ const handleAnonymousSubmit = async () => {
                 provisionResult,
             );
             error = "Provisioning response is incomplete. Please try again.";
+            loadingPhase = null;
             step = "anonymous-form";
             return;
         }
@@ -619,11 +747,7 @@ const handleAnonymousSubmit = async () => {
             type: "self",
             data: bindingData,
         });
-        const signature = await globalState.walletSdkAdapter.signPayload(
-            KEY_ID,
-            "signing",
-            payload,
-        );
+        const signature = await globalState.keyService.sign(payload);
 
         const gqlClient = new GraphQLClient(graphqlEndpoint, {
             headers: {
@@ -679,12 +803,15 @@ const handleAnonymousSubmit = async () => {
             "Verified On": new Date().toDateString(),
         };
 
-        globalState.vaultController.vault = { uri, ename };
-        goto("/register");
+        await globalState.vaultController.setVaultAndPersist({ uri, ename });
+        globalState.isOnboardingComplete = true;
+        loadingPhase = null;
+        await goto("/main", { replaceState: true });
     } catch (err) {
         console.error("Anonymous provisioning failed:", err);
         error =
             "We couldn’t create your self-declared eVault. Check your connection, then tap Confirm & Create again.";
+        loadingPhase = null;
         step = "anonymous-form";
         setTimeout(() => {
             error = null;
@@ -710,7 +837,7 @@ const handleUpgrade = async () => {
         return;
     }
 
-    step = "loading";
+    loadingPhase = "upgrading";
     try {
         const { data } = await axios.post(
             new URL(
@@ -727,6 +854,7 @@ const handleUpgrade = async () => {
         if (!data.success) {
             throw new Error(data.message ?? "Upgrade failed");
         }
+        loadingPhase = null;
         goto("/ePassport");
     } catch (err) {
         console.error("[Upgrade] failed:", err);
@@ -734,6 +862,7 @@ const handleUpgrade = async () => {
             err instanceof Error
                 ? err.message
                 : "Upgrade failed. Please try again.";
+        loadingPhase = null;
         step = "verif-result";
         setTimeout(() => {
             error = null;
@@ -760,6 +889,18 @@ onMount(async () => {
         }
     }
 
+    // Recovery enters this route via /recover after writing pendingRecovery.
+    // The user-controller fields (name, document) are populated up-front so
+    // the rest of the flow can read them like a normal onboarded user. We
+    // skip the "name" step because recovery already supplies it.
+    const recovery = get(pendingRecovery);
+    if (recovery) {
+        isRecovery = true;
+        globalState.userController.isFake = false;
+        globalState.userController.user = recovery.user;
+        globalState.userController.document = recovery.document;
+    }
+
     // Detect upgrade mode from query param
     if (upgradeRequested) {
         upgradeMode = true;
@@ -770,7 +911,7 @@ onMount(async () => {
 });
 </script>
 
-{#if step === "pin-create" || step === "pin-repeat" || step === "name"}
+{#if step === "pin-create" || step === "pin-repeat" || step === "biometrics" || step === "name"}
     <div class="relative overflow-hidden min-h-dvh">
         {#key step}
             <div
@@ -789,6 +930,12 @@ onMount(async () => {
                         onback={handlePinRepeatBack}
                         oncomplete={handlePinRepeatComplete}
                     />
+                {:else if step === "biometrics"}
+                    <BiometricsSetup
+                        onback={handleBiometricsBack}
+                        onenable={handleBiometricsEnable}
+                        onskip={handleBiometricsSkip}
+                    />
                 {:else if step === "name"}
                     <NameInput
                         onback={handleNameBack}
@@ -798,6 +945,14 @@ onMount(async () => {
                 {/if}
             </div>
         {/key}
+        {#if recoveryError}
+            <p
+                class="absolute inset-x-0 bottom-24 text-center text-danger text-sm font-medium px-4"
+                role="alert"
+            >
+                {recoveryError}
+            </p>
+        {/if}
     </div>
 {:else}
 <main
@@ -1003,15 +1158,6 @@ onMount(async () => {
             </ButtonAction>
         </div>
 
-        <!-- ── Screen: loading ────────────────────────────────────────────────── -->
-    {:else if step === "loading"}
-        <section class="grow flex flex-col items-center justify-center gap-6">
-            <Shadow size={40} color="rgb(142, 82, 255)" />
-            <h4 class="text-center">Generating your eName</h4>
-            <p class="text-center text-black-500 text-sm">
-                Creating your eVault and signing your binding document…
-            </p>
-        </section>
     {/if}
 </main>
 
@@ -1037,23 +1183,7 @@ onMount(async () => {
                     </div>
                 {/if}
 
-                {#if loading}
-                    <div
-                        class="w-full py-20 flex flex-col items-center justify-center gap-6"
-                    >
-                        <Shadow size={40} color="rgb(142, 82, 255)" />
-                        <h4 class="text-center">Starting verification…</h4>
-                    </div>
-                {:else if checkingHardware}
-                    <div
-                        class="w-full py-20 flex flex-col items-center justify-center gap-6"
-                    >
-                        <Shadow size={40} color="rgb(142, 82, 255)" />
-                        <h4 class="text-center">
-                            Checking device capabilities...
-                        </h4>
-                    </div>
-                {:else if showHardwareError}
+                {#if showHardwareError}
                     <h4 class="mt-2 mb-2 text-red-600 text-left">
                         Hardware Security Not Available
                     </h4>
@@ -1081,7 +1211,7 @@ onMount(async () => {
             </article>
 
             <div class="flex-none pt-8 pb-12">
-                {#if !loading && !checkingHardware}
+                {#if loadingPhase === null}
                     <div class="flex flex-col w-full gap-3">
                         {#if showHardwareError}
                             <ButtonAction
@@ -1300,3 +1430,11 @@ onMount(async () => {
 {/if}
 
 {/if}
+
+<!-- ── Loading overlay (creating/restoring/verifying/etc.) ─────────────── -->
+<LoadingSheet
+    isOpen={loadingPhase !== null}
+    title={loadingCopy.title}
+    subtitle={loadingCopy.subtitle}
+    oncancel={cancelLoading}
+/>

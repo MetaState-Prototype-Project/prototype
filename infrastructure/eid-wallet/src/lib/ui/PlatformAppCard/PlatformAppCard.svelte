@@ -105,8 +105,20 @@ function handleLoad(e: Event) {
     }
 }
 
-const initial = $derived((platformName?.[0] ?? "?").toUpperCase());
-const displayName = $derived(platformName ?? "Unknown app");
+// Display name: use the hostname's first subdomain segment when we have a
+// hostname (e.g. "evoting.w3ds.metastate.foundation" → "evoting"). Falls
+// back to the explicit platformName prop, then to "Unknown app". The
+// first-segment heuristic matches how every Metastate platform is named
+// (subdomain == app), and matters because the `platform` query param in
+// QR codes is unreliable — it often carries the previous session's value.
+const derivedName = $derived.by(() => {
+    const segment = hostname?.split(".")[0]?.trim();
+    if (segment) return segment;
+    if (platformName) return platformName;
+    return "Unknown app";
+});
+const initial = $derived((derivedName[0] ?? "?").toUpperCase());
+const displayName = $derived(derivedName);
 </script>
 
 <div class="flex flex-col items-center w-full {classes}">

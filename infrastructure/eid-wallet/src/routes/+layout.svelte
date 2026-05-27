@@ -2,13 +2,17 @@
 import { onDestroy, onMount, setContext } from "svelte";
 import { cubicOut } from "svelte/easing";
 import "../app.css";
-import { goto, onNavigate, preloadCode } from "$app/navigation";
+import { beforeNavigate, goto, onNavigate, preloadCode } from "$app/navigation";
 import { page } from "$app/state";
 import { GlobalState } from "$lib/global/state";
 
 import { runtime } from "$lib/global/runtime.svelte";
 import { swipedetect } from "$lib/utils";
+import { installTerminalConsoleBridge } from "$lib/utils/terminalConsole";
 import { type Status, checkStatus } from "@tauri-apps/plugin-biometric";
+
+// Mirror console.* to the Tauri host stdout so logs land in `pnpm tauri dev`.
+installTerminalConsoleBridge();
 
 const { children } = $props();
 
@@ -686,18 +690,70 @@ onNavigate((navigation) => {
         sessionStorage.setItem("navigatingToOnboarding", "true");
     }
 
-    const fromIndex = navigationStack.lastIndexOf(from);
-    const toIndex = navigationStack.lastIndexOf(to);
+    // Direction comes from the navigation TYPE, not stack indices. Indexing
+    // into the stack gave wrong answers when the user navigated forward to a
+    // route they'd visited before in the same session: the old entry was still
+    // in the stack with a lower index, so `toIndex < fromIndex` triggered a
+    // backward slide on what was actually a forward link tap.
+    const isBack =
+        navigation.type === "popstate" &&
+        typeof navigation.delta === "number" &&
+        navigation.delta < 0;
 
-    if (toIndex !== -1 && toIndex < fromIndex) {
-        // Backward navigation — current page slides out to the right.
+    if (isBack) {
         routeDirection = "backward";
-        navigationStack = navigationStack.slice(0, toIndex + 1);
+        const toIndex = navigationStack.lastIndexOf(to);
+        if (toIndex !== -1) {
+            navigationStack = navigationStack.slice(0, toIndex + 1);
+        }
     } else {
-        // Forward navigation — new page slides in from the right.
         routeDirection = "forward";
         navigationStack.push(to);
     }
+});
+
+// Pre-app auth routes — system/browser back must NOT land here once the user
+// has reached an (app) route, otherwise pressing Android back from /main
+// surfaces /login or /onboarding and the user can re-trigger flows they
+// already finished. Forward navigations are unaffected. beforeNavigate must
+// run synchronously, so we use the navigation stack as the "is signed in"
+// proxy: if the user has ever landed on an (app) route in this session, any
+// back-nav to an auth screen is blocked.
+const AUTH_PATHS = new Set(["/", "/login", "/onboarding", "/recover"]);
+const APP_PATH_PREFIXES = [
+    "/main",
+    "/scan-qr",
+    "/personal",
+    "/social-bindings",
+    "/ePassport",
+    "/settings",
+    "/notifications",
+    "/open-message",
+];
+const isAppPath = (p: string) =>
+    APP_PATH_PREFIXES.some(
+        (prefix) => p === prefix || p.startsWith(`${prefix}/`),
+    );
+
+beforeNavigate((navigation) => {
+    if (navigation.type !== "popstate") return;
+
+    const from = navigation.from?.url.pathname;
+    const to = navigation.to?.url.pathname;
+
+    // /main is the home — a hard floor. Pressing back from it should never
+    // surface a sibling app route (scan, settings) or an auth screen. Once a
+    // user has reached home, only forward navigations apply.
+    if (from === "/main") {
+        navigation.cancel();
+        return;
+    }
+
+    // For any other route, still block back-nav that would land on a
+    // pre-app auth screen if the user has reached the app this session.
+    if (!to || !AUTH_PATHS.has(to)) return;
+    if (!navigationStack.some(isAppPath)) return;
+    navigation.cancel();
 });
 
 $effect(() => {

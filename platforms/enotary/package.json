@@ -25,6 +25,7 @@
 		"@metastate-foundation/types": "workspace:*",
 		"axios": "^1.12.2",
         "graphql-request": "^7.3.1",
+        "jose": "^5.2.2",
         "signature-validator": "workspace:*",
         "svelte-qrcode": "^1.0.1"
     }

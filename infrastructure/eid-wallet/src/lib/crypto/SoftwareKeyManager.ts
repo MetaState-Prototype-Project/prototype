@@ -1,317 +1,191 @@
 import type { KeyManager, SoftwareKeyPair } from "./types";
-import { KeyManagerError, KeyManagerErrorCodes } from "./types";
+import {
+    KeyManagerError,
+    KeyManagerErrorCodes,
+    WALLET_KEY_ALIAS,
+} from "./types";
+
+const STORAGE_KEY = `eid-wallet-software-key:${WALLET_KEY_ALIAS}`;
+const LEGACY_STORAGE_KEY = "eid-wallet-software-keys-software-key-default";
 
 /**
- * Software key manager implementation using Web Crypto API and localStorage
+ * Software key manager. ECDSA P-256 via Web Crypto, stored in localStorage.
+ * One key per wallet — keyed by WALLET_KEY_ALIAS.
+ *
+ * Public keys are returned in `z<hex-of-SPKI>` form to match the multibase-like
+ * shape the hardware plugin emits, so the eVault sees identical strings either way.
  */
 export class SoftwareKeyManager implements KeyManager {
-    private readonly storageKey = "eid-wallet-software-keys";
-    private readonly keyPrefix = "software-key-";
-
     getType(): "hardware" | "software" {
         return "software";
     }
 
-    async exists(keyId: string): Promise<boolean> {
+    async exists(): Promise<boolean> {
         try {
-            const storageKey = this.getStorageKey(keyId);
-            const stored = localStorage.getItem(storageKey);
-            return stored !== null;
+            return localStorage.getItem(STORAGE_KEY) !== null;
         } catch (error) {
-            console.error("Software key exists check failed:", error);
             throw new KeyManagerError(
-                "Failed to check if software key exists",
+                `Software key exists check failed: ${stringifyError(error)}`,
                 KeyManagerErrorCodes.STORAGE_ERROR,
-                keyId,
             );
         }
     }
 
-    async generate(keyId: string): Promise<string | undefined> {
+    async generate(): Promise<void> {
         try {
-            // Check if key already exists
-            if (await this.exists(keyId)) {
-                console.log(`Software key ${keyId} already exists`);
-                return "key-exists";
-            }
+            if (await this.exists()) return;
 
-            // Generate a new key pair using Web Crypto API
             const keyPair = await crypto.subtle.generateKey(
-                {
-                    name: "ECDSA",
-                    namedCurve: "P-256",
-                },
-                true, // extractable
+                { name: "ECDSA", namedCurve: "P-256" },
+                true,
                 ["sign", "verify"],
             );
 
-            // Export the private key
             const privateKeyBuffer = await crypto.subtle.exportKey(
                 "pkcs8",
                 keyPair.privateKey,
             );
-            const privateKeyString = this.arrayBufferToBase64(privateKeyBuffer);
-
-            // Export the public key
             const publicKeyBuffer = await crypto.subtle.exportKey(
                 "spki",
                 keyPair.publicKey,
             );
-            const publicKeyString = this.arrayBufferToBase64(publicKeyBuffer);
 
-            // Store the key pair
-            const keyPairData: SoftwareKeyPair = {
-                privateKey: privateKeyString,
-                publicKey: publicKeyString,
-                keyId,
+            const data: SoftwareKeyPair = {
+                privateKey: arrayBufferToBase64(privateKeyBuffer),
+                publicKey: arrayBufferToBase64(publicKeyBuffer),
                 createdAt: new Date().toISOString(),
             };
-
-            const storageKey = this.getStorageKey(keyId);
-            localStorage.setItem(storageKey, JSON.stringify(keyPairData));
-
-            console.log(`Software key pair generated and stored for ${keyId}`);
-            return "key-generated";
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         } catch (error) {
-            console.error("Software key generation failed:", error);
+            if (error instanceof KeyManagerError) throw error;
             throw new KeyManagerError(
-                "Failed to generate software key",
+                `Software key generation failed: ${stringifyError(error)}`,
                 KeyManagerErrorCodes.KEY_GENERATION_FAILED,
-                keyId,
             );
         }
     }
 
-    async getPublicKey(keyId: string): Promise<string | undefined> {
-        try {
-            const keyPair = await this.getKeyPair(keyId);
-            if (!keyPair) {
-                throw new KeyManagerError(
-                    "Software key not found",
-                    KeyManagerErrorCodes.KEY_NOT_FOUND,
-                    keyId,
-                );
-            }
-
-            // Convert the stored public key to a format compatible with the hardware API
-            // The hardware API returns multibase hex format, so we'll convert our base64 to hex
-            const publicKeyBuffer = this.base64ToArrayBuffer(keyPair.publicKey);
-            const publicKeyHex = this.arrayBufferToHex(publicKeyBuffer);
-
-            // Add multibase prefix (assuming 'z' for base58btc, but we'll use hex for simplicity)
-            return `z${publicKeyHex}`;
-        } catch (error) {
-            console.error("Software public key retrieval failed:", error);
-            if (error instanceof KeyManagerError) {
-                throw error;
-            }
-            throw new KeyManagerError(
-                "Failed to get software public key",
-                KeyManagerErrorCodes.KEY_NOT_FOUND,
-                keyId,
-            );
-        }
+    async getPublicKey(): Promise<string> {
+        const keyPair = this.#read();
+        const buf = base64ToArrayBuffer(keyPair.publicKey);
+        return `z${arrayBufferToHex(buf)}`;
     }
 
-    async signPayload(keyId: string, payload: string): Promise<string> {
+    async signPayload(payload: string): Promise<string> {
         try {
-            console.log("=".repeat(70));
-            console.log("🔐 [SoftwareKeyManager] signPayload called");
-            console.log("=".repeat(70));
-            console.log(`Key ID: ${keyId}`);
-            console.log(`Payload: "${payload}"`);
-            console.log(`Payload length: ${payload.length} bytes`);
-            const payloadHex = Array.from(new TextEncoder().encode(payload))
-                .map((b) => b.toString(16).padStart(2, "0"))
-                .join("");
-            console.log(`Payload (hex): ${payloadHex}`);
-
-            const keyPair = await this.getKeyPair(keyId);
-            if (!keyPair) {
-                throw new KeyManagerError(
-                    "Software key not found",
-                    KeyManagerErrorCodes.KEY_NOT_FOUND,
-                    keyId,
-                );
-            }
-
-            // Log the public key that corresponds to this private key
-            console.log(
-                `Public key (base64): ${keyPair.publicKey.substring(0, 60)}...`,
-            );
-            console.log(`Public key (full): ${keyPair.publicKey}`);
-
-            // Import the private key
-            const privateKeyBuffer = this.base64ToArrayBuffer(
-                keyPair.privateKey,
-            );
-            console.log(
-                `Private key buffer length: ${privateKeyBuffer.byteLength} bytes`,
-            );
-
+            const keyPair = this.#read();
             const privateKey = await crypto.subtle.importKey(
                 "pkcs8",
-                privateKeyBuffer,
-                {
-                    name: "ECDSA",
-                    namedCurve: "P-256",
-                },
+                base64ToArrayBuffer(keyPair.privateKey),
+                { name: "ECDSA", namedCurve: "P-256" },
                 false,
                 ["sign"],
             );
-            console.log("✅ Private key imported successfully");
-
-            // Convert payload to ArrayBuffer
-            const payloadBuffer = new TextEncoder().encode(payload);
-            console.log(
-                `Payload buffer length: ${payloadBuffer.byteLength} bytes`,
-            );
-            console.log(
-                `Payload buffer (hex): ${this.arrayBufferToHex(payloadBuffer)}`,
-            );
-
-            // Sign the payload
-            console.log("Signing with ECDSA P-256, SHA-256...");
             const signature = await crypto.subtle.sign(
-                {
-                    name: "ECDSA",
-                    hash: "SHA-256",
-                },
+                { name: "ECDSA", hash: "SHA-256" },
                 privateKey,
-                payloadBuffer,
+                new TextEncoder().encode(payload),
             );
-
-            console.log(
-                `Signature buffer length: ${signature.byteLength} bytes`,
-            );
-            console.log(
-                `Signature buffer (hex): ${this.arrayBufferToHex(signature)}`,
-            );
-
-            // Convert signature to base64 string
-            const signatureString = this.arrayBufferToBase64(signature);
-            console.log(`✅ Software signature created for ${keyId}`);
-            console.log(
-                `Signature (base64): ${signatureString.substring(0, 50)}...`,
-            );
-            console.log(`Signature (full): ${signatureString}`);
-            console.log(`Signature length: ${signatureString.length} chars`);
-            console.log("=".repeat(70));
-            return signatureString;
+            return arrayBufferToBase64(signature);
         } catch (error) {
-            console.error("❌ Software signing failed:", error);
-            if (error instanceof KeyManagerError) {
-                throw error;
-            }
+            if (error instanceof KeyManagerError) throw error;
             throw new KeyManagerError(
-                "Failed to sign payload with software key",
+                `Software signing failed: ${stringifyError(error)}`,
                 KeyManagerErrorCodes.SIGNING_FAILED,
-                keyId,
             );
         }
     }
 
     async verifySignature(
-        keyId: string,
         payload: string,
         signature: string,
     ): Promise<boolean> {
         try {
-            const keyPair = await this.getKeyPair(keyId);
-            if (!keyPair) {
-                throw new KeyManagerError(
-                    "Software key not found",
-                    KeyManagerErrorCodes.KEY_NOT_FOUND,
-                    keyId,
-                );
-            }
-
-            // Import the public key
-            const publicKeyBuffer = this.base64ToArrayBuffer(keyPair.publicKey);
+            const keyPair = this.#read();
             const publicKey = await crypto.subtle.importKey(
                 "spki",
-                publicKeyBuffer,
-                {
-                    name: "ECDSA",
-                    namedCurve: "P-256",
-                },
+                base64ToArrayBuffer(keyPair.publicKey),
+                { name: "ECDSA", namedCurve: "P-256" },
                 false,
                 ["verify"],
             );
-
-            // Convert payload and signature to ArrayBuffers
-            const payloadBuffer = new TextEncoder().encode(payload);
-            const signatureBuffer = this.base64ToArrayBuffer(signature);
-
-            // Verify the signature
-            const isValid = await crypto.subtle.verify(
-                {
-                    name: "ECDSA",
-                    hash: "SHA-256",
-                },
+            return await crypto.subtle.verify(
+                { name: "ECDSA", hash: "SHA-256" },
                 publicKey,
-                signatureBuffer,
-                payloadBuffer,
+                base64ToArrayBuffer(signature),
+                new TextEncoder().encode(payload),
             );
-
-            console.log(
-                `Software signature verification for ${keyId}:`,
-                isValid,
-            );
-            return isValid;
         } catch (error) {
-            console.error("Software signature verification failed:", error);
-            if (error instanceof KeyManagerError) {
-                throw error;
-            }
+            if (error instanceof KeyManagerError) throw error;
             throw new KeyManagerError(
-                "Failed to verify signature with software key",
+                `Software signature verification failed: ${stringifyError(error)}`,
                 KeyManagerErrorCodes.VERIFICATION_FAILED,
-                keyId,
             );
         }
     }
 
-    private async getKeyPair(keyId: string): Promise<SoftwareKeyPair | null> {
+    #read(): SoftwareKeyPair {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (!stored) {
+            throw new KeyManagerError(
+                "Software key not found",
+                KeyManagerErrorCodes.KEY_NOT_FOUND,
+            );
+        }
         try {
-            const storageKey = this.getStorageKey(keyId);
-            const stored = localStorage.getItem(storageKey);
-            if (!stored) {
-                return null;
-            }
             return JSON.parse(stored) as SoftwareKeyPair;
         } catch (error) {
-            console.error("Failed to retrieve key pair from storage:", error);
-            return null;
+            throw new KeyManagerError(
+                `Software key store corrupt: ${stringifyError(error)}`,
+                KeyManagerErrorCodes.STORAGE_ERROR,
+            );
         }
     }
+}
 
-    private getStorageKey(keyId: string): string {
-        return `${this.storageKey}-${this.keyPrefix}${keyId}`;
+/**
+ * One-shot migration: copy legacy "default"-keyed localStorage entry into the
+ * new single-slot location, then delete the old one. Idempotent.
+ */
+export function migrateLegacySoftwareKey(): void {
+    try {
+        if (localStorage.getItem(STORAGE_KEY)) return;
+        const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+        if (!legacy) return;
+        // Legacy shape included a `keyId` field; the new shape ignores it
+        // because JSON.parse keeps unknown keys but TS only sees declared ones.
+        localStorage.setItem(STORAGE_KEY, legacy);
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+    } catch (error) {
+        console.warn("Legacy software-key migration failed:", error);
     }
+}
 
-    private arrayBufferToBase64(buffer: ArrayBuffer): string {
-        const bytes = new Uint8Array(buffer);
-        let binary = "";
-        for (let i = 0; i < bytes.byteLength; i++) {
-            binary += String.fromCharCode(bytes[i]);
-        }
-        return btoa(binary);
-    }
+function stringifyError(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
 
-    private base64ToArrayBuffer(base64: string): ArrayBuffer {
-        const binary = atob(base64);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.charCodeAt(i);
-        }
-        return bytes.buffer;
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
     }
+    return btoa(binary);
+}
 
-    private arrayBufferToHex(buffer: ArrayBuffer): string {
-        const bytes = new Uint8Array(buffer);
-        return Array.from(bytes)
-            .map((b) => b.toString(16).padStart(2, "0"))
-            .join("");
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
     }
+    return bytes.buffer;
+}
+
+function arrayBufferToHex(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    return Array.from(bytes)
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
 }

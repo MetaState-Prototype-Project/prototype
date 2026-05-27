@@ -1,5 +1,6 @@
 export { default as Drawer } from "./Drawer/Drawer.svelte";
 export { default as BottomSheet } from "./BottomSheet/BottomSheet.svelte";
+export { default as LoadingSheet } from "./LoadingSheet/LoadingSheet.svelte";
 export { default as InputPin } from "./InputPin/InputPin.svelte";
 export { default as PinDots } from "./PinDots/PinDots.svelte";
 export { default as ButtonAction } from "./Button/ButtonAction.svelte";

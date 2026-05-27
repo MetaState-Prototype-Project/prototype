@@ -8,6 +8,7 @@ import {
     fetchNameFromVault,
     fetchUnsignedSocialDocs,
     getCanonicalBindingDocString,
+    pruneDuplicateUnsignedDocs,
     resolveVaultUri,
 } from "$lib/utils";
 import { onDestroy } from "svelte";
@@ -113,23 +114,53 @@ async function confirm() {
             : `@${vault.ename}`;
         const gqlUrl = new URL("/graphql", vault.uri).toString();
 
-        const canonical = getCanonicalBindingDocString({
-            subject: pendingDocParsed.subject,
-            type: pendingDocParsed.type,
-            data: pendingDocParsed.data,
-        });
-        const sig = await globalState.walletSdkAdapter.signPayload(
-            "default",
-            "signing",
-            canonical,
+        // Idempotency: if the doc somehow already carries our signature
+        // (e.g. a stale poll result re-surfaced after we just signed it),
+        // treat as already-done and don't re-POST.
+        const existingSigs = Array.isArray(pendingDocParsed.signatures)
+            ? pendingDocParsed.signatures
+            : [];
+        const alreadySignedByUs = existingSigs.some(
+            (s) => s.signer === callerEname,
         );
-        await addCounterpartySignature(
-            gqlUrl,
-            callerEname,
-            callerEname,
-            pendingDocId,
-            sig,
-        );
+
+        const signerEname = existingSigs[0]?.signer ?? null;
+
+        if (!alreadySignedByUs) {
+            const canonical = getCanonicalBindingDocString({
+                subject: pendingDocParsed.subject,
+                type: pendingDocParsed.type,
+                data: pendingDocParsed.data,
+            });
+            const sig = await globalState.keyService.sign(canonical);
+            await addCounterpartySignature(
+                gqlUrl,
+                callerEname,
+                callerEname,
+                pendingDocId,
+                sig,
+            );
+        }
+
+        // After accepting, remove any duplicate envelopes left over from
+        // repeat scans of the same QR by the same counterparty — otherwise
+        // the polling loop will show them on the next drawer open and
+        // re-prompt the user to "accept" what they just accepted.
+        if (signerEname) {
+            try {
+                await pruneDuplicateUnsignedDocs(
+                    gqlUrl,
+                    callerEname,
+                    pendingDocId,
+                    signerEname,
+                );
+            } catch (err) {
+                console.warn(
+                    "[SocialBindingDrawer] duplicate prune failed:",
+                    err,
+                );
+            }
+        }
 
         phase = "success";
         onbound?.();
@@ -269,6 +300,20 @@ onDestroy(stopPolling);
             wants to establish a social connection with you. Accept to confirm the
             binding.
         </p>
+
+        {#if typeof pendingDocParsed?.data?.relation_description === "string" && pendingDocParsed.data.relation_description.trim().length > 0}
+            <div
+                class="bg-card-alternative rounded-2xl px-4 py-3 mt-1"
+            >
+                <p class="text-xs uppercase tracking-wide text-black-500 mb-1">
+                    They said
+                </p>
+                <p class="text-black-900 leading-snug">
+                    {pendingDocParsed.data.relation_description}
+                </p>
+            </div>
+        {/if}
+
         <div class="flex gap-3 mt-2">
             <ButtonAction variant="soft" class="flex-1" callback={decline}>
                 Decline

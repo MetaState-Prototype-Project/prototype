@@ -51,47 +51,16 @@ export class GlobalState {
         );
         this.notificationService = NotificationService.getInstance();
 
-        this.keyService.setHardwareFallbackHandler(
-            async ({ keyId, context, originalError }) => {
-                console.warn(
-                    "[GlobalState] Hardware signing fallback triggered; syncing software public key",
-                    {
-                        keyId,
-                        context,
-                        error:
-                            originalError instanceof Error
-                                ? originalError.message
-                                : String(originalError),
-                    },
-                );
-
-                try {
-                    const vault = await this.vaultController.vault;
-                    if (!vault?.ename) return;
-                    await this.vaultController.syncPublicKey(vault.ename);
-                } catch (syncError) {
-                    console.error(
-                        "[GlobalState] Failed to sync fallback public key:",
-                        syncError,
-                    );
-                }
-            },
-        );
-
-        this.keyService.setEvaultKeyResolver(async (keyId, context) => {
+        this.keyService.setEvaultKeyResolver(async () => {
             const vault = await this.vaultController.vault;
             if (!vault?.ename) return [];
             return this.vaultController.fetchRegisteredPublicKeys(vault.ename);
         });
 
-        this.keyService.setEvaultSyncHandler(async (keyId, context) => {
+        this.keyService.setEvaultSyncHandler(async () => {
             const vault = await this.vaultController.vault;
             if (!vault?.ename) return false;
-            return this.vaultController.syncPublicKey(
-                vault.ename,
-                keyId,
-                context,
-            );
+            return this.vaultController.syncPublicKey(vault.ename);
         });
     }
 

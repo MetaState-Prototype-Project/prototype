@@ -565,6 +565,17 @@ export function createScanLogic({
             }
 
             redirect.set(redirectUri);
+            // Refresh hostname for the signing drawer's PlatformAppCard.
+            // Without this it carries the value from the previous flow
+            // (e.g. the last login's host) and the wrong app icon/name
+            // shows up on signing modals.
+            try {
+                const platformHost = new URL(platformUrl ?? redirectUri)
+                    .hostname;
+                hostname.set(platformHost);
+            } catch {
+                hostname.set(null);
+            }
 
             try {
                 const decodedString = atob(base64Data);
@@ -744,11 +755,7 @@ export function createScanLogic({
                 } as Record<string, unknown>,
             };
             const payload = getCanonicalBindingDocString(doc);
-            const sig = await globalState.walletSdkAdapter.signPayload(
-                "default",
-                "signing",
-                payload,
-            );
+            const sig = await globalState.keyService.sign(payload);
 
             await createSocialConnectionDoc(
                 requesterGqlUrl,
@@ -782,11 +789,7 @@ export function createScanLogic({
                     const mirrorPayload =
                         getCanonicalBindingDocString(mirrorDoc);
                     const mirrorSig =
-                        await globalState.walletSdkAdapter.signPayload(
-                            "default",
-                            "signing",
-                            mirrorPayload,
-                        );
+                        await globalState.keyService.sign(mirrorPayload);
                     await createOwnSocialBindingMirror(
                         ownGqlUrl,
                         signerEname,
@@ -1015,8 +1018,7 @@ export function createScanLogic({
                 throw new Error("No vault available for blind voting");
             }
 
-            // Same default key via wallet-sdk adapter (no separate signing context)
-            await globalState.walletSdkAdapter.ensureKey("default", "signing");
+            await globalState.keyService.ensureKey();
 
             const voterPublicKey = vault.ename;
             if (!voterPublicKey) {
@@ -1437,6 +1439,29 @@ export function createScanLogic({
                 if (get(signingSessionId) && base64Data && redirectUri) {
                     redirect.set(redirectUri);
                     signingError.set(null); // Clear any previous signing errors
+
+                    // Refresh hostname so the signing drawer picks the
+                    // right app icon. Prefer platform_url when present
+                    // (it's the actual app host); fall back to the
+                    // redirect URI.
+                    try {
+                        let parsedPayload: { platformUrl?: string } | null =
+                            null;
+                        try {
+                            parsedPayload = JSON.parse(atob(base64Data));
+                        } catch {
+                            parsedPayload = null;
+                        }
+                        const candidate =
+                            parsedPayload?.platformUrl ?? redirectUri;
+                        hostname.set(new URL(candidate).hostname);
+                    } catch (error) {
+                        console.error(
+                            "Error parsing platform/redirect URL for hostname:",
+                            error,
+                        );
+                        hostname.set("unknown");
+                    }
 
                     try {
                         const decodedString = atob(base64Data);

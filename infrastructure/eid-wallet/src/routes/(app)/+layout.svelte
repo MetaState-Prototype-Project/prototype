@@ -33,9 +33,20 @@ onMount(async () => {
             return;
         }
 
-        const vault = await globalState.vaultController.vault;
+        // Brief retry — store reads can race the just-completed write from
+        // the previous route (onboarding / e-passport / login).
+        let vault = await globalState.vaultController.vault;
+        let vaultRetries = 0;
+        while (!vault && vaultRetries < 10) {
+            await new Promise((r) => setTimeout(r, 100));
+            vault = await globalState.vaultController.vault;
+            vaultRetries++;
+        }
         if (!vault) {
-            console.log("User not authenticated, redirecting to login");
+            console.log(
+                "[APP GUARD] vault missing after retry, redirecting to login | path:",
+                page.url.pathname,
+            );
             await goto("/login");
             return;
         }
@@ -65,21 +76,13 @@ onMount(async () => {
             console.error("Failed to set up notification listener:", error);
         }
 
-        // Check for pending notifications and navigate to the message's open page
+        // Pull any pending notifications down so they appear in the in-app
+        // panel, but DON'T auto-navigate to /open-message. Hijacking the user
+        // away from whatever page they were on the moment a message arrives
+        // (or the app is reopened) is jarring — they can tap the notification
+        // in the panel when they're ready.
         try {
-            const notificationService = globalState.notificationService;
-            const notifData =
-                await notificationService.checkAndShowNotifications();
-            if (notifData?.globalChatId) {
-                const params = new URLSearchParams({
-                    chatId: notifData.globalChatId,
-                    ...(notifData.title && { title: notifData.title }),
-                    ...(notifData.body && { body: notifData.body }),
-                });
-                await goto(
-                    `/open-message/${encodeURIComponent(notifData.globalMessageId || notifData.globalChatId)}?${params.toString()}`,
-                );
-            }
+            await globalState.notificationService.checkAndShowNotifications();
         } catch (error) {
             console.error("Failed to check notifications:", error);
         }

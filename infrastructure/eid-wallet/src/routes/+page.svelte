@@ -76,7 +76,7 @@ onMount(async () => {
         const pinHash = globalState
             ? await globalState.securityController.pinHash
             : null;
-        returningUserTarget = pinHash ? "/login" : "/register";
+        returningUserTarget = pinHash ? "/login" : "/onboarding";
         splashShowDrawer = true;
         return;
     }

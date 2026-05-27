@@ -171,7 +171,7 @@ async function startKycUpgrade() {
 
     kycStep = "starting";
     try {
-        await globalState.walletSdkAdapter.ensureKey("default", "onboarding");
+        await globalState.keyService.ensureKey();
 
         const { data } = await axios.post(
             new URL("/verification/v2", PUBLIC_PROVISIONER_URL).toString(),
@@ -535,11 +535,7 @@ async function confirmSocialBinding() {
             type: socialBindingPendingDocParsed.type,
             data: socialBindingPendingDocParsed.data,
         });
-        const sig = await globalState.walletSdkAdapter.signPayload(
-            "default",
-            "signing",
-            payload,
-        );
+        const sig = await globalState.keyService.sign(payload);
         await addCounterpartySignature(
             gqlUrl,
             callerEname,

@@ -156,7 +156,7 @@ async function startKycUpgrade() {
 
     kycStep = "starting";
     try {
-        await globalState.walletSdkAdapter.ensureKey("default", "onboarding");
+        await globalState.keyService.ensureKey();
 
         const { data } = await axios.post(
             new URL("/verification/v2", PUBLIC_PROVISIONER_URL).toString(),

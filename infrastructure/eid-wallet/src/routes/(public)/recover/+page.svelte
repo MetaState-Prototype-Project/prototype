@@ -1,6 +1,8 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
 import {
+    PUBLIC_EID_WALLET_TOKEN,
+    PUBLIC_PROVISIONER_SHARED_SECRET,
     PUBLIC_PROVISIONER_URL,
     PUBLIC_REGISTRY_URL,
 } from "$env/static/public";
@@ -8,10 +10,22 @@ import { keyboardInset } from "$lib/actions/keyboardInset";
 import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction } from "$lib/ui";
 import BottomSheet from "$lib/ui/BottomSheet/BottomSheet.svelte";
+import LoadingSheet from "$lib/ui/LoadingSheet/LoadingSheet.svelte";
 import { capitalize } from "$lib/utils";
+import { PERSONAL_BINDING_BY_TYPE_QUERY } from "$lib/utils/personalBinding";
 import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
+import {
+    Format,
+    cancel as cancelScan,
+    checkPermissions,
+    openAppSettings,
+    requestPermissions,
+    scan,
+} from "@tauri-apps/plugin-barcode-scanner";
 import axios from "axios";
+import { GraphQLClient } from "graphql-request";
+import { createLocalJWKSet, decodeJwt, jwtVerify } from "jose";
 import { onMount } from "svelte";
 
 /**
@@ -22,19 +36,28 @@ import { onMount } from "svelte";
  *      Existing provisioner endpoints (/recovery/start-session, /recovery/face-search)
  *      are still wired up here.
  *   2. Unverified — type your eName, then answer the security question you
- *      set when you created the eVault. The matching backend endpoints are
- *      not in place yet (see incoming PR), so the unverified path is mocked
- *      below: any eName/answer succeeds and we route to /register with a
- *      synthetic recovery payload.
+ *      set during the personal-binding flow. We resolve the eName to its
+ *      eVault URI via the registry, fetch the security_question binding doc,
+ *      and call the eVault's validateSecurityAnswer mutation. The mutation
+ *      tracks failed attempts per-eName and locks the caller out after a
+ *      configurable threshold.
  */
 
 type Step =
     | "home"
-    | "verified-loading"
     | "verified-didit"
-    | "verified-searching"
     | "unverified-ename"
-    | "unverified-answer";
+    | "unverified-answer"
+    | "notary-scanning";
+
+/** Loading overlay phases — rendered as a LoadingSheet on top of whatever
+ *  step is active, so the underlying screen stays visible (and blurred). */
+type LoadingPhase =
+    | "starting-session"
+    | "finding-evault"
+    | "verifying-notary"
+    | "restoring-vault"
+    | null;
 
 type ErrorReason = "liveness_failed" | "no_match" | "generic";
 
@@ -46,11 +69,46 @@ interface DiditCompleteResult {
 }
 
 let step = $state<Step>("home");
+let loadingPhase = $state<LoadingPhase>(null);
+
+const loadingTitle = $derived(
+    loadingPhase === "starting-session"
+        ? "Preparing verification"
+        : loadingPhase === "finding-evault"
+          ? "Finding your eVault"
+          : loadingPhase === "verifying-notary"
+            ? "Verifying the notary"
+            : loadingPhase === "restoring-vault"
+              ? "Restoring your eVault"
+              : "",
+);
+const loadingSubtitle = $derived(
+    loadingPhase === "starting-session"
+        ? "Setting up your recovery session."
+        : loadingPhase === "finding-evault"
+          ? "Looking for an eVault linked to your identity."
+          : loadingPhase === "verifying-notary"
+            ? "Checking the recovery code's signature against the registry."
+            : loadingPhase === "restoring-vault"
+              ? "Claiming your recovery code and loading your data."
+              : "",
+);
+
+function cancelLoading() {
+    loadingPhase = null;
+    step = "home";
+}
 
 // Verified-path state
 let errorMessage = $state<string | null>(null);
 let errorReason = $state<ErrorReason>("generic");
 let showErrorSheet = $state(false);
+/**
+ * Which recovery path raised the current error. Drives the "Try Again"
+ * CTA in the error sheet so a failed notary scan doesn't launch into
+ * Didit on retry (and vice versa).
+ */
+let errorSource = $state<"verified" | "notary" | null>(null);
 
 let recoveredW3id = $state<string | null>(null);
 let recoveredUri = $state<string | null>(null);
@@ -67,12 +125,35 @@ let answerInput = $state("");
 let answerError = $state<string | null>(null);
 let answerLoading = $state(false);
 
-// Question text is normally fetched from the eVault by eName. The unverified
-// backend isn't wired yet, so we display a mock question for the demo.
-let securityQuestion = $state<string>("Mother child surname");
+// Question text + envelope id are pulled from the target eVault during
+// handleSubmitEname. The envelope id is the metaEnvelopeId of the
+// security_question binding document — required to validate the answer.
+let securityQuestion = $state<string>("");
+let recoveryEnvelopeId = $state<string | null>(null);
+let recoveredVaultUri = $state<string | null>(null);
+let lockedUntilLabel = $state<string | null>(null);
 
 let showRecoveryImpossibleSheet = $state(false);
 let showNotarySheet = $state(false);
+
+// ── Notary-issued recovery (signed-JWT QR) ────────────────────────────
+interface NotaryWhitelistEntry {
+    ename: string;
+    url: string;
+    name?: string;
+}
+interface NotaryRecoveryPayload {
+    sessionId: string;
+    targetEName: string;
+    notaryEName: string;
+    claim: string;
+}
+let notarySessionId = $state<string | null>(null);
+let notaryClaimUrl = $state<string | null>(null);
+let notaryDisplayName = $state<string | null>(null);
+let notaryTargetEName = $state<string | null>(null);
+let notaryError = $state<string | null>(null);
+let notaryClaiming = $state(false);
 
 async function resolveEvaultBase(w3id: string): Promise<string> {
     const res = await axios.get(
@@ -103,8 +184,9 @@ function handleChooseUnverified() {
 // ── Verified path ─────────────────────────────────────────────────────
 
 async function startVerifiedRecovery() {
-    step = "verified-loading";
+    loadingPhase = "starting-session";
     errorMessage = null;
+    errorSource = "verified";
     recoveredW3id = null;
     recoveredUri = null;
     recoveredIdVerif = null;
@@ -121,6 +203,7 @@ async function startVerifiedRecovery() {
             throw new Error("Backend did not return a verificationUrl");
         }
 
+        loadingPhase = null;
         step = "verified-didit";
         await new Promise((r) => setTimeout(r, 50));
 
@@ -141,6 +224,7 @@ async function startVerifiedRecovery() {
                 ? err.message
                 : "Something went wrong. Please try again.";
         errorReason = "generic";
+        loadingPhase = null;
         step = "home";
         showErrorSheet = true;
     }
@@ -161,7 +245,8 @@ async function handleDiditComplete(result: DiditCompleteResult) {
         return;
     }
 
-    step = "verified-searching";
+    step = "home";
+    loadingPhase = "finding-evault";
 
     try {
         const { data } = await axios.post(
@@ -179,6 +264,7 @@ async function handleDiditComplete(result: DiditCompleteResult) {
                     "We couldn't find an eVault linked to your identity. Make sure you completed identity verification when you first set up your eVault.";
                 errorReason = "no_match";
             }
+            loadingPhase = null;
             step = "home";
             showErrorSheet = true;
             return;
@@ -187,6 +273,7 @@ async function handleDiditComplete(result: DiditCompleteResult) {
         recoveredW3id = data.w3id;
         recoveredUri = data.uri ?? null;
         recoveredIdVerif = data.idVerif ?? null;
+        loadingPhase = null;
         step = "home";
         showFoundSheet = true;
     } catch (err: unknown) {
@@ -194,12 +281,213 @@ async function handleDiditComplete(result: DiditCompleteResult) {
         errorMessage =
             "Something went wrong during the search. Please try again.";
         errorReason = "generic";
+        loadingPhase = null;
         step = "home";
         showErrorSheet = true;
     }
 }
 
 // ── Unverified path ────────────────────────────────────────────────────
+
+function normalizeEname(ename: string): string {
+    return ename.startsWith("@") ? ename : `@${ename}`;
+}
+
+function makeRecoveryClient(uri: string, ename: string): GraphQLClient {
+    const endpoint = new URL("/graphql", uri).toString();
+    // The eVault's bindingDocuments query + validateSecurityAnswer mutation
+    // both require the shared bearer token (per the access guard). The
+    // X-ENAME header tells the resolver which identity to look up.
+    const headers: Record<string, string> = {
+        "X-ENAME": normalizeEname(ename),
+    };
+    if (PUBLIC_EID_WALLET_TOKEN) {
+        headers.Authorization = `Bearer ${PUBLIC_EID_WALLET_TOKEN}`;
+    }
+    return new GraphQLClient(endpoint, { headers });
+}
+
+interface SecurityQuestionEdge {
+    node: {
+        id: string;
+        parsed: {
+            data?: {
+                kind?: string;
+                question?: string;
+                answerHash?: string;
+            };
+            signatures?: Array<{ timestamp?: string }>;
+        };
+    };
+}
+
+interface SecurityQuestionResponse {
+    bindingDocuments: {
+        edges: SecurityQuestionEdge[];
+    };
+}
+
+interface BindingDocsResponse {
+    bindingDocuments: {
+        edges: Array<{
+            node: {
+                parsed: {
+                    type?: string;
+                    data?: Record<string, unknown>;
+                };
+            };
+        }>;
+    };
+}
+
+const ALL_BINDING_DOCS_QUERY = `
+    query AllBindingDocs {
+        bindingDocuments(first: 50) {
+            edges { node { parsed } }
+        }
+    }
+`;
+
+function asStr(v: unknown): string | undefined {
+    return typeof v === "string" && v.length > 0 ? v : undefined;
+}
+
+/**
+ * After a successful answer validation we still need to populate the user's
+ * name + legal-ID details on the recovering device. The verified (Didit) path
+ * gets these from /recovery/face-search; the unverified path has to pull them
+ * itself from the user's existing eVault bindings + the provisioner.
+ *
+ * Strategy:
+ *  1. Pull all binding documents from the eVault in one round trip.
+ *  2. If an id_document exists, build an idVerif-shaped payload from its
+ *     `data` directly. If the doc only carries the sparse provisioner
+ *     shape `{ vendor, reference, name }`, fall back to GET
+ *     /verification/v2/decision/{reference} to retrieve the full Didit
+ *     id_verifications[0] just like the verified recovery path receives.
+ *  3. If no id_document, return a "self-declared" idVerif using the `self`
+ *     binding doc's name as a last resort.
+ *
+ * Returns null only if neither source produces a usable name — caller falls
+ * back to the existing "Anonymous — Self Declaration" placeholder.
+ */
+async function fetchRecoveryProfile(
+    client: GraphQLClient,
+): Promise<Record<string, string> | null> {
+    let docs: BindingDocsResponse;
+    try {
+        docs = await client.request<BindingDocsResponse>(
+            ALL_BINDING_DOCS_QUERY,
+        );
+    } catch (err) {
+        console.warn("[RECOVERY/unverified] binding-docs fetch failed:", err);
+        return null;
+    }
+
+    const parsed = (docs.bindingDocuments?.edges ?? [])
+        .map((e) => e.node.parsed)
+        .filter((p): p is { type: string; data: Record<string, unknown> } =>
+            Boolean(p?.type),
+        );
+
+    const idDoc = parsed.find((p) => p.type === "id_document");
+
+    if (idDoc) {
+        const data = idDoc.data;
+        const direct = {
+            full_name:
+                asStr(data.full_name) ??
+                asStr(data.name) ??
+                [asStr(data.first_name), asStr(data.last_name)]
+                    .filter(Boolean)
+                    .join(" "),
+            date_of_birth:
+                asStr(data.date_of_birth) ?? asStr(data.dateOfBirth) ?? "",
+            document_type:
+                asStr(data.document_type) ?? asStr(data.documentType) ?? "",
+            document_number:
+                asStr(data.document_number) ?? asStr(data.documentNumber) ?? "",
+            issuing_state_name:
+                asStr(data.issuing_state_name) ??
+                asStr(data.issuing_country) ??
+                "",
+            issuing_state: asStr(data.issuing_state) ?? "",
+            expiration_date:
+                asStr(data.expiration_date) ?? asStr(data.expirationDate) ?? "",
+            date_of_issue:
+                asStr(data.date_of_issue) ?? asStr(data.dateOfIssue) ?? "",
+        };
+
+        // Provisioner currently stores a sparse doc `{ vendor, reference,
+        // name }`. If document_type/number etc. are blank, try to enrich
+        // via the Didit decision endpoint.
+        const isSparse = !direct.document_type && !direct.document_number;
+        const reference = asStr(data.reference);
+        if (isSparse && reference) {
+            try {
+                const { data: decision } = await axios.get<{
+                    id_verifications?: Array<Record<string, string>>;
+                }>(
+                    new URL(
+                        `/verification/v2/decision/${encodeURIComponent(reference)}`,
+                        PUBLIC_PROVISIONER_URL,
+                    ).toString(),
+                    {
+                        headers: {
+                            "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET,
+                        },
+                    },
+                );
+                const iv = decision.id_verifications?.[0];
+                if (iv) {
+                    return {
+                        full_name: iv.full_name ?? direct.full_name ?? "",
+                        first_name: iv.first_name ?? "",
+                        last_name: iv.last_name ?? "",
+                        date_of_birth: iv.date_of_birth ?? "",
+                        document_type: iv.document_type ?? "",
+                        document_number: iv.document_number ?? "",
+                        issuing_state_name: iv.issuing_state_name ?? "",
+                        issuing_state: iv.issuing_state ?? "",
+                        expiration_date: iv.expiration_date ?? "",
+                        date_of_issue: iv.date_of_issue ?? "",
+                    };
+                }
+            } catch (err) {
+                console.warn(
+                    "[RECOVERY/unverified] decision lookup failed:",
+                    err,
+                );
+            }
+        }
+
+        // Either the doc was rich enough, or the decision fetch failed —
+        // either way return whatever we have. Empty strings are fine; the
+        // existing recoverVault() handles missing fields.
+        if (direct.full_name) {
+            return direct;
+        }
+    }
+
+    const selfDoc = parsed.find((p) => p.type === "self");
+    if (selfDoc) {
+        const name = asStr(selfDoc.data.name);
+        if (name) {
+            return {
+                full_name: name,
+                date_of_birth: "",
+                document_type: "Self-Declaration",
+                document_number: "",
+                issuing_state_name: "",
+                issuing_state: "",
+                expiration_date: "",
+                date_of_issue: "",
+            };
+        }
+    }
+
+    return null;
+}
 
 async function handleSubmitEname() {
     const ename = enameInput.trim();
@@ -211,20 +499,103 @@ async function handleSubmitEname() {
     enameError = null;
     enameLoading = true;
     try {
-        // Backend not wired yet — mock the question lookup. When wired up,
-        // this is where we'd resolve eName → eVault and fetch the public
-        // security_question binding document.
-        await new Promise((r) => setTimeout(r, 350));
-        securityQuestion = "Mother child surname";
+        let uri: string;
+        try {
+            uri = await resolveEvaultBase(ename);
+        } catch (err) {
+            console.warn("[RECOVERY/unverified] eName resolve failed:", err);
+            enameError = "We couldn't find that eName. Check it and try again.";
+            return;
+        }
+
+        const client = makeRecoveryClient(uri, ename);
+
+        let resp: SecurityQuestionResponse;
+        try {
+            resp = await client.request<SecurityQuestionResponse>(
+                PERSONAL_BINDING_BY_TYPE_QUERY,
+                { type: "security_question" },
+            );
+        } catch (err) {
+            console.error(
+                "[RECOVERY/unverified] security_question fetch failed:",
+                err,
+            );
+            enameError =
+                "Couldn't reach that eVault. Check your connection and try again.";
+            return;
+        }
+
+        const edges = resp.bindingDocuments?.edges ?? [];
+        if (edges.length === 0) {
+            enameError =
+                "This eVault has no recovery question set. Recovery isn't possible without ID verification.";
+            return;
+        }
+
+        // Most-recent wins: every edit creates a new doc, and the older ones
+        // are orphans we shouldn't validate against.
+        const latest = [...edges].sort((a, b) => {
+            const at = a.node.parsed.signatures?.[0]?.timestamp ?? "";
+            const bt = b.node.parsed.signatures?.[0]?.timestamp ?? "";
+            return bt.localeCompare(at);
+        })[0];
+
+        const question = latest?.node.parsed.data?.question ?? "";
+        if (!question || !latest?.node.id) {
+            enameError =
+                "This eVault's recovery question is missing or malformed.";
+            return;
+        }
+
+        securityQuestion = question;
+        recoveryEnvelopeId = latest.node.id;
+        recoveredVaultUri = uri;
         answerInput = "";
         answerError = null;
+        lockedUntilLabel = null;
         step = "unverified-answer";
     } catch (err: unknown) {
         console.error("[RECOVERY/unverified] eName lookup error:", err);
-        enameError =
-            "We couldn't find an eVault for this eName. Check it and try again.";
+        enameError = "Something went wrong. Please try again.";
     } finally {
         enameLoading = false;
+    }
+}
+
+const VALIDATE_SECURITY_ANSWER_MUTATION = `
+    mutation ValidateAnswer($input: ValidateSecurityAnswerInput!) {
+        validateSecurityAnswer(input: $input) {
+            success
+            reason
+            lockedUntil
+            attemptsRemaining
+            errors { message code }
+        }
+    }
+`;
+
+interface ValidateAnswerResponse {
+    validateSecurityAnswer: {
+        success: boolean;
+        reason: string | null;
+        lockedUntil: string | null;
+        attemptsRemaining: number | null;
+        errors: Array<{ message: string; code: string }> | null;
+    };
+}
+
+function formatLockedUntil(iso: string): string {
+    try {
+        const d = new Date(iso);
+        return d.toLocaleString(undefined, {
+            hour: "numeric",
+            minute: "2-digit",
+            day: "numeric",
+            month: "short",
+        });
+    } catch {
+        return iso;
     }
 }
 
@@ -234,32 +605,423 @@ async function handleSubmitAnswer() {
         answerError = "Please enter your answer.";
         return;
     }
+    if (!recoveryEnvelopeId || !recoveredVaultUri) {
+        answerError = "Please re-enter your eName and try again.";
+        step = "unverified-ename";
+        return;
+    }
 
     answerError = null;
     answerLoading = true;
     try {
-        // Mock: any non-empty answer is accepted. When the backend lands,
-        // this is where we'd POST the answer for the eVault to verify
-        // against its stored Argon2id hash.
-        await new Promise((r) => setTimeout(r, 350));
-
         const ename = enameInput.trim();
-        recoveredW3id = ename;
-        // Try to resolve the eVault URI in case the eName is real; fall back
-        // to a placeholder so the demo still routes through to register.
-        try {
-            recoveredUri = await resolveEvaultBase(ename);
-        } catch {
-            recoveredUri = "";
+        const client = makeRecoveryClient(recoveredVaultUri, ename);
+        const resp = await client.request<ValidateAnswerResponse>(
+            VALIDATE_SECURITY_ANSWER_MUTATION,
+            {
+                input: {
+                    metaEnvelopeId: recoveryEnvelopeId,
+                    candidate: answer,
+                },
+            },
+        );
+        const result = resp.validateSecurityAnswer;
+
+        if (result.errors?.length) {
+            console.error(
+                "[RECOVERY/unverified] validate returned errors:",
+                result.errors,
+            );
+            answerError = "Couldn't verify your answer. Please try again.";
+            return;
         }
-        recoveredIdVerif = null;
-        showFoundSheet = true;
+
+        if (result.success) {
+            recoveredW3id = ename;
+            recoveredUri = recoveredVaultUri;
+            // Pull whatever name / legal-ID data the eVault already has so
+            // the recovered user lands with their real identity populated
+            // (verified KYC users get their full Didit fields back; anonymous
+            // users get at least their self-declared name). Best-effort —
+            // failure leaves recoveredIdVerif null, which the existing
+            // recoverVault() fallback turns into "Anonymous — Self
+            // Declaration", preserving prior behaviour.
+            recoveredIdVerif = await fetchRecoveryProfile(client);
+            showFoundSheet = true;
+            return;
+        }
+
+        if (result.lockedUntil) {
+            lockedUntilLabel = formatLockedUntil(result.lockedUntil);
+            answerError = `Too many wrong answers. Try again after ${lockedUntilLabel}.`;
+            return;
+        }
+
+        const left = result.attemptsRemaining;
+        answerError =
+            typeof left === "number"
+                ? `That answer doesn't match. ${left} ${left === 1 ? "try" : "tries"} left.`
+                : "That answer doesn't match.";
     } catch (err: unknown) {
         console.error("[RECOVERY/unverified] answer verify error:", err);
         answerError = "Couldn't verify your answer. Please try again.";
     } finally {
         answerLoading = false;
     }
+}
+
+// ── Notary path (signed-JWT QR) ───────────────────────────────────────
+//
+// Trust chain: scan → decode-unverified → registry /notaries whitelist →
+// fetch the named notary's JWKS → verify the JWT signature → confirm with
+// the user → POST claim. We never trust the claim endpoint's response shape
+// for anything load-bearing; the verified JWT payload is the source of
+// truth for sessionId + targetEName, and we re-resolve the vault URI from
+// the registry independently in fetchRecoveryProfile.
+
+function originOf(url: string): string | null {
+    try {
+        return new URL(url).origin;
+    } catch {
+        return null;
+    }
+}
+
+function handleChooseNotary() {
+    notaryError = null;
+    void runNotaryRecovery();
+}
+
+async function handleNotaryScanCancel() {
+    // Tell the plugin to release the camera, then ALWAYS undo the
+    // body-transparency + step toggle ourselves. Relying on
+    // runNotaryRecovery()'s finally block doesn't work reliably because
+    // cancel() doesn't always resolve the in-flight scan() promise — the
+    // page would stay transparent and the home buttons invisible behind
+    // the still-mounted scan screen.
+    try {
+        await cancelScan();
+    } catch (err) {
+        console.warn("[RECOVERY/notary] cancel failed:", err);
+    }
+    if (typeof document !== "undefined") {
+        document.body.classList.remove("custom-global-style");
+    }
+    step = "home";
+}
+
+async function runNotaryRecovery() {
+    console.log("[RECOVERY/notary] tap → starting flow");
+
+    // Permission dance first — `scan()` silently no-ops if the camera
+    // permission has never been granted on this device, so without this
+    // the "I am at a notary" button looks completely dead on first tap.
+    let permission: string | null = null;
+    try {
+        permission = await checkPermissions();
+        console.log("[RECOVERY/notary] checkPermissions:", permission);
+    } catch (err) {
+        console.warn("[RECOVERY/notary] checkPermissions threw:", err);
+        permission = null;
+    }
+    if (
+        permission === "prompt" ||
+        permission === "denied" ||
+        permission === null
+    ) {
+        try {
+            permission = await requestPermissions();
+            console.log("[RECOVERY/notary] requestPermissions:", permission);
+        } catch (err) {
+            console.warn(
+                "[RECOVERY/notary] camera permission request failed:",
+                err,
+            );
+            permission = null;
+        }
+    }
+    if (permission !== "granted") {
+        errorMessage =
+            "We need camera access to scan the recovery code. Open this app in your device's Settings to allow the camera.";
+        errorReason = "generic";
+        errorSource = "notary";
+        showErrorSheet = true;
+        // Best-effort: open the system settings page directly so the user
+        // doesn't have to hunt for it.
+        try {
+            await openAppSettings();
+        } catch (err) {
+            console.warn("[RECOVERY/notary] openAppSettings failed:", err);
+        }
+        return;
+    }
+
+    // `windowed: true` opens the native camera overlay BEHIND the WebView.
+    // For the camera feed to actually appear the WebView body needs to be
+    // transparent (the same trick (app)/+layout.svelte uses for /scan-qr).
+    // Without this the scan IS happening, but the user sees a white page
+    // and assumes the button is broken.
+    let scanned: { content?: string } | null = null;
+    // Swap the home UI for a crosshair-only scanning step so the buttons
+    // and copy don't sit on top of the live camera feed. Body class makes
+    // the WebView transparent so the native overlay shows through.
+    const previousStep = step;
+    step = "notary-scanning";
+    if (typeof document !== "undefined") {
+        document.body.classList.add("custom-global-style");
+    }
+    try {
+        console.log("[RECOVERY/notary] calling scan()…");
+        scanned = await scan({
+            formats: [Format.QRCode],
+            windowed: true,
+        });
+        console.log("[RECOVERY/notary] scan returned:", scanned);
+    } catch (err) {
+        console.warn("[RECOVERY/notary] scan cancelled or failed:", err);
+        // Surface the failure instead of silently returning — most often
+        // this is the user cancelling, but if it's a plugin/runtime error
+        // they should at least see *something*.
+        errorMessage =
+            err instanceof Error && err.message
+                ? `Couldn't open the camera: ${err.message}`
+                : "Couldn't open the camera. Please try again.";
+        errorReason = "generic";
+        errorSource = "notary";
+        showErrorSheet = true;
+        step = previousStep;
+        return;
+    } finally {
+        if (typeof document !== "undefined") {
+            document.body.classList.remove("custom-global-style");
+        }
+    }
+    const content = scanned?.content?.trim();
+    if (!content) {
+        step = previousStep;
+        return;
+    }
+
+    if (!content.startsWith("w3ds://notary-recovery")) {
+        errorMessage = "That QR isn't a notary recovery code.";
+        errorReason = "generic";
+        showErrorSheet = true;
+        return;
+    }
+
+    // Parse `w3ds://notary-recovery?token=...`. URL() with a custom scheme
+    // doesn't reliably expose query params, so split manually.
+    const queryStart = content.indexOf("?");
+    if (queryStart === -1) {
+        errorMessage = "That QR isn't a valid notary recovery code.";
+        errorReason = "generic";
+        showErrorSheet = true;
+        return;
+    }
+    const params = new URLSearchParams(content.slice(queryStart + 1));
+    const token = params.get("token");
+    if (!token) {
+        errorMessage = "That QR isn't a valid notary recovery code.";
+        errorReason = "generic";
+        showErrorSheet = true;
+        return;
+    }
+
+    loadingPhase = "verifying-notary";
+    try {
+        // 1. Decode unverified to read the declared notary + claim URL.
+        let unverified: Partial<NotaryRecoveryPayload>;
+        try {
+            unverified = decodeJwt(token);
+        } catch {
+            failNotary("This recovery code is malformed.");
+            return;
+        }
+        const declaredNotary = unverified.notaryEName;
+        const declaredClaim = unverified.claim;
+        if (
+            typeof declaredNotary !== "string" ||
+            typeof declaredClaim !== "string"
+        ) {
+            failNotary("This recovery code is missing required fields.");
+            return;
+        }
+
+        // 2. Hit registry whitelist.
+        let whitelist: NotaryWhitelistEntry[];
+        try {
+            const resp = await axios.get<NotaryWhitelistEntry[]>(
+                new URL("/notaries", PUBLIC_REGISTRY_URL).toString(),
+                { timeout: 8_000 },
+            );
+            whitelist = Array.isArray(resp.data) ? resp.data : [];
+        } catch (err) {
+            console.error("[RECOVERY/notary] whitelist fetch failed:", err);
+            failNotary("Couldn't reach the registry to verify the notary.");
+            return;
+        }
+        const entry = whitelist.find((e) => e.ename === declaredNotary);
+        if (!entry) {
+            failNotary(
+                "This recovery code wasn't issued by a recognised notary.",
+            );
+            return;
+        }
+
+        // 3. Claim URL must live on the same origin as the whitelisted notary.
+        if (originOf(entry.url) !== originOf(declaredClaim)) {
+            failNotary(
+                "This recovery code wasn't issued by a recognised notary.",
+            );
+            return;
+        }
+
+        // 4. Fetch the notary's JWKS and verify the JWT signature.
+        let jwksJson: { keys?: unknown[] };
+        try {
+            const jwksResp = await axios.get<{ keys?: unknown[] }>(
+                new URL("/.well-known/jwks.json", entry.url).toString(),
+                { timeout: 8_000 },
+            );
+            jwksJson = jwksResp.data;
+        } catch (err) {
+            console.error("[RECOVERY/notary] jwks fetch failed:", err);
+            failNotary("Couldn't verify the notary's identity. Try again.");
+            return;
+        }
+        const JWKS = createLocalJWKSet({
+            keys: Array.isArray(jwksJson?.keys) ? jwksJson.keys : [],
+        } as Parameters<typeof createLocalJWKSet>[0]);
+
+        let verifiedPayload: NotaryRecoveryPayload;
+        try {
+            const { payload } = await jwtVerify(token, JWKS);
+            verifiedPayload = payload as unknown as NotaryRecoveryPayload;
+        } catch (err) {
+            console.warn("[RECOVERY/notary] JWT verify failed:", err);
+            failNotary("This recovery code's signature is invalid.");
+            return;
+        }
+
+        // Sanity: confirm verified payload matches what we just whitelisted.
+        if (
+            verifiedPayload.notaryEName !== declaredNotary ||
+            verifiedPayload.claim !== declaredClaim ||
+            !verifiedPayload.sessionId ||
+            !verifiedPayload.targetEName
+        ) {
+            failNotary("This recovery code is internally inconsistent.");
+            return;
+        }
+
+        // 5. Trust established. Claim straight away and let the shared
+        //    eVault-Found bottom sheet be the user's confirmation point —
+        //    same UX as the verified-Didit and security-question paths.
+        //    No intermediate full-page confirm screen.
+        notarySessionId = verifiedPayload.sessionId;
+        notaryClaimUrl = verifiedPayload.claim;
+        notaryTargetEName = verifiedPayload.targetEName;
+        notaryDisplayName = entry.name ?? verifiedPayload.notaryEName;
+        notaryError = null;
+        // Keep the LoadingSheet up — just swap the copy — through the claim
+        // + profile fetch. Otherwise the user stares at a blank /recover
+        // home for a couple of seconds before the eVault-Found sheet
+        // arrives and thinks the app froze.
+        loadingPhase = "restoring-vault";
+        step = "home";
+        await handleNotaryConfirm();
+    } catch (err) {
+        console.error("[RECOVERY/notary] unexpected:", err);
+        failNotary("Something went wrong. Please try again.");
+    }
+}
+
+function failNotary(msg: string) {
+    loadingPhase = null;
+    errorMessage = msg;
+    errorReason = "generic";
+    errorSource = "notary";
+    showErrorSheet = true;
+    if (step === "notary-scanning") step = "home";
+}
+
+async function handleNotaryConfirm() {
+    if (!notarySessionId || !notaryClaimUrl || !notaryTargetEName) return;
+    notaryClaiming = true;
+    notaryError = null;
+    try {
+        const claimResp = await axios.post<{
+            success: boolean;
+            eName?: string;
+            uri?: string;
+            reason?: string;
+        }>(
+            notaryClaimUrl,
+            {
+                sessionId: notarySessionId,
+                targetEName: notaryTargetEName,
+            },
+            { timeout: 10_000 },
+        );
+        const data = claimResp.data;
+        if (!data.success) {
+            const reason = data.reason ?? "generic";
+            failNotary(
+                reason === "expired"
+                    ? "This recovery code has expired. Ask the notary to issue a new one."
+                    : reason === "consumed"
+                      ? "This recovery code has already been used."
+                      : reason === "not_found"
+                        ? "We couldn't find that recovery code."
+                        : "Something went wrong claiming the code.",
+            );
+            return;
+        }
+
+        const ename = data.eName ?? notaryTargetEName;
+        const uri = data.uri;
+        if (!uri) {
+            failNotary("The notary didn't return a vault URL.");
+            return;
+        }
+
+        // Hand off to the same eVault-Found sheet the other two recovery
+        // paths use. Identical downstream after Continue: recoverVault()
+        // writes pendingRecovery and the /onboarding step machine detects
+        // recovery and skips ID verification entirely.
+        recoveredW3id = ename;
+        recoveredUri = uri;
+        recoveredVaultUri = uri;
+        try {
+            const client = makeRecoveryClient(uri, ename);
+            recoveredIdVerif = await fetchRecoveryProfile(client);
+        } catch (err) {
+            console.warn(
+                "[RECOVERY/notary] profile fetch failed; continuing without:",
+                err,
+            );
+            recoveredIdVerif = null;
+        }
+        // Open the found-sheet THEN drop the loading overlay — flipping
+        // them the other way leaves a frame of empty home screen.
+        showFoundSheet = true;
+        step = "home";
+        loadingPhase = null;
+    } catch (err) {
+        console.error("[RECOVERY/notary] claim failed:", err);
+        failNotary("Couldn't reach the notary. Check your connection.");
+    } finally {
+        notaryClaiming = false;
+    }
+}
+
+function handleNotaryCancel() {
+    notarySessionId = null;
+    notaryClaimUrl = null;
+    notaryTargetEName = null;
+    notaryDisplayName = null;
+    notaryError = null;
+    step = "home";
 }
 
 // ── Found → store + register ───────────────────────────────────────────
@@ -311,7 +1073,11 @@ async function recoverVault() {
             document,
         });
 
-        await goto("/register");
+        // Recovery joins the onboarding step machine: it skips the name step
+        // (recovery already has the name) and the final action after the
+        // biometrics step persists the recovered vault instead of provisioning
+        // a new one.
+        await goto("/onboarding", { replaceState: true });
     } catch (err) {
         console.error("[RECOVERY] store failed:", err);
         errorMessage = "Failed to restore your eVault. Please try again.";
@@ -417,8 +1183,23 @@ onMount(() => {
                         No, I didn't verify my ID
                     </p>
                     <p class="text-sm text-black-500 leading-snug">
-                        Recover using your eName and recovery passphrase, or get
-                        help from a W3DS Notary
+                        Recover using your eName and the security question you
+                        set during onboarding.
+                    </p>
+                </div>
+                <span class="text-black-500 text-2xl shrink-0">›</span>
+            </button>
+            <button
+                type="button"
+                onclick={handleChooseNotary}
+                class="w-full rounded-2xl bg-card-alternative px-5 py-4 text-left flex items-center justify-between gap-3 active:opacity-70 transition-opacity"
+            >
+                <div class="flex-1 min-w-0">
+                    <p class="font-bold text-base text-black-900 mb-0.5">
+                        I am at a notary
+                    </p>
+                    <p class="text-sm text-black-500 leading-snug">
+                        Scan the recovery QR your notary has issued for you.
                     </p>
                 </div>
                 <span class="text-black-500 text-2xl shrink-0">›</span>
@@ -595,29 +1376,6 @@ onMount(() => {
             </ButtonAction>
         </footer>
     </main>
-{:else if step === "verified-loading" || step === "verified-searching"}
-    <main
-        class="flex min-h-dvh flex-col items-center justify-center bg-white px-6 gap-4"
-        style="padding-top: max(5.2svh, env(safe-area-inset-top)); padding-bottom: max(2rem, env(safe-area-inset-bottom));"
-    >
-        <div
-            class="h-14 w-14 animate-spin rounded-full border-4 border-gray-200 border-t-primary-500"
-        ></div>
-        <p class="font-semibold text-black-900 text-center">
-            {#if step === "verified-loading"}
-                Preparing verification…
-            {:else}
-                Finding your eVault…
-            {/if}
-        </p>
-        <p class="text-sm text-black-700 text-center">
-            {#if step === "verified-loading"}
-                Setting up your recovery session.
-            {:else}
-                Looking for an eVault linked to your identity.
-            {/if}
-        </p>
-    </main>
 {:else if step === "verified-didit"}
     <div
         class="fixed inset-0 z-50 bg-white flex flex-col"
@@ -635,7 +1393,80 @@ onMount(() => {
         </div>
         <div id="recovery-didit-container" class="flex-1 w-full"></div>
     </div>
+{:else if step === "notary-scanning"}
+    <!-- Crosshair-only overlay while the native scanner is open. body
+         class makes the WebView transparent so the camera feed shows
+         through. Same SVG primitives as /scan-qr's overlay. -->
+    <main
+        class="min-h-dvh flex flex-col px-6"
+        style="padding-top: max(2svh, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));"
+    >
+        <header class="flex flex-row items-center gap-4 pt-4 relative">
+            <button
+                type="button"
+                onclick={handleNotaryScanCancel}
+                aria-label="Back"
+                class="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center cursor-pointer shrink-0 active:opacity-70"
+            >
+                <HugeiconsIcon
+                    icon={ArrowLeft01Icon}
+                    size={20}
+                    color="currentColor"
+                    strokeWidth={2}
+                />
+            </button>
+        </header>
+
+        <section
+            class="flex-1 flex flex-col items-center justify-center gap-10"
+        >
+            <svg
+                class="mx-auto"
+                width="204"
+                height="215"
+                viewBox="0 0 204 215"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+            >
+                <path
+                    d="M46 4H15C8.92487 4 4 8.92487 4 15V46"
+                    stroke="white"
+                    stroke-width="8"
+                    stroke-linecap="round"
+                />
+                <path
+                    d="M158 4H189C195.075 4 200 8.92487 200 15V46"
+                    stroke="white"
+                    stroke-width="8"
+                    stroke-linecap="round"
+                />
+                <path
+                    d="M46 211H15C8.92487 211 4 206.075 4 200V169"
+                    stroke="white"
+                    stroke-width="8"
+                    stroke-linecap="round"
+                />
+                <path
+                    d="M158 211H189C195.075 211 200 206.075 200 200V169"
+                    stroke="white"
+                    stroke-width="8"
+                    stroke-linecap="round"
+                />
+            </svg>
+            <h4 class="text-white font-semibold text-center">
+                Point the camera at the notary's QR
+            </h4>
+        </section>
+    </main>
 {/if}
+
+<!-- ── Loading overlay (preparing / finding) ──────────────────────────── -->
+<LoadingSheet
+    isOpen={loadingPhase !== null}
+    title={loadingTitle}
+    subtitle={loadingSubtitle}
+    oncancel={cancelLoading}
+/>
 
 <!-- ── eVault Found bottom sheet ──────────────────────────────────────── -->
 <BottomSheet bind:isOpen={showFoundSheet} dismissible={false}>
@@ -759,7 +1590,14 @@ onMount(() => {
                 class="w-full uppercase tracking-wide"
                 callback={() => {
                     showErrorSheet = false;
-                    startVerifiedRecovery();
+                    // Retry the same path that failed — bouncing a failed
+                    // notary scan into Didit's ID verification flow is the
+                    // worst user experience imaginable.
+                    if (errorSource === "notary") {
+                        runNotaryRecovery();
+                    } else {
+                        startVerifiedRecovery();
+                    }
                 }}
             >
                 Try Again
