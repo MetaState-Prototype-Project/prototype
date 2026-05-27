@@ -565,6 +565,17 @@ export function createScanLogic({
             }
 
             redirect.set(redirectUri);
+            // Refresh hostname for the signing drawer's PlatformAppCard.
+            // Without this it carries the value from the previous flow
+            // (e.g. the last login's host) and the wrong app icon/name
+            // shows up on signing modals.
+            try {
+                const platformHost = new URL(platformUrl ?? redirectUri)
+                    .hostname;
+                hostname.set(platformHost);
+            } catch {
+                hostname.set(null);
+            }
 
             try {
                 const decodedString = atob(base64Data);
@@ -1428,6 +1439,29 @@ export function createScanLogic({
                 if (get(signingSessionId) && base64Data && redirectUri) {
                     redirect.set(redirectUri);
                     signingError.set(null); // Clear any previous signing errors
+
+                    // Refresh hostname so the signing drawer picks the
+                    // right app icon. Prefer platform_url when present
+                    // (it's the actual app host); fall back to the
+                    // redirect URI.
+                    try {
+                        let parsedPayload: { platformUrl?: string } | null =
+                            null;
+                        try {
+                            parsedPayload = JSON.parse(atob(base64Data));
+                        } catch {
+                            parsedPayload = null;
+                        }
+                        const candidate =
+                            parsedPayload?.platformUrl ?? redirectUri;
+                        hostname.set(new URL(candidate).hostname);
+                    } catch (error) {
+                        console.error(
+                            "Error parsing platform/redirect URL for hostname:",
+                            error,
+                        );
+                        hostname.set("unknown");
+                    }
 
                     try {
                         const decodedString = atob(base64Data);

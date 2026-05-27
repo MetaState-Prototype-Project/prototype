@@ -17,6 +17,7 @@ import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import {
     Format,
+    cancel as cancelScan,
     checkPermissions,
     openAppSettings,
     requestPermissions,
@@ -47,8 +48,7 @@ type Step =
     | "verified-didit"
     | "unverified-ename"
     | "unverified-answer"
-    | "notary-scanning"
-    | "notary-confirm";
+    | "notary-scanning";
 
 /** Loading overlay phases — rendered as a LoadingSheet on top of whatever
  *  step is active, so the underlying screen stays visible (and blurred). */
@@ -56,6 +56,7 @@ type LoadingPhase =
     | "starting-session"
     | "finding-evault"
     | "verifying-notary"
+    | "restoring-vault"
     | null;
 
 type ErrorReason = "liveness_failed" | "no_match" | "generic";
@@ -77,7 +78,9 @@ const loadingTitle = $derived(
           ? "Finding your eVault"
           : loadingPhase === "verifying-notary"
             ? "Verifying the notary"
-            : "",
+            : loadingPhase === "restoring-vault"
+              ? "Restoring your eVault"
+              : "",
 );
 const loadingSubtitle = $derived(
     loadingPhase === "starting-session"
@@ -86,7 +89,9 @@ const loadingSubtitle = $derived(
           ? "Looking for an eVault linked to your identity."
           : loadingPhase === "verifying-notary"
             ? "Checking the recovery code's signature against the registry."
-            : "",
+            : loadingPhase === "restoring-vault"
+              ? "Claiming your recovery code and loading your data."
+              : "",
 );
 
 function cancelLoading() {
@@ -687,6 +692,24 @@ function handleChooseNotary() {
     void runNotaryRecovery();
 }
 
+async function handleNotaryScanCancel() {
+    // Tell the plugin to release the camera, then ALWAYS undo the
+    // body-transparency + step toggle ourselves. Relying on
+    // runNotaryRecovery()'s finally block doesn't work reliably because
+    // cancel() doesn't always resolve the in-flight scan() promise — the
+    // page would stay transparent and the home buttons invisible behind
+    // the still-mounted scan screen.
+    try {
+        await cancelScan();
+    } catch (err) {
+        console.warn("[RECOVERY/notary] cancel failed:", err);
+    }
+    if (typeof document !== "undefined") {
+        document.body.classList.remove("custom-global-style");
+    }
+    step = "home";
+}
+
 async function runNotaryRecovery() {
     console.log("[RECOVERY/notary] tap → starting flow");
 
@@ -891,15 +914,22 @@ async function runNotaryRecovery() {
             return;
         }
 
-        // 5. Trust established. Show the user a confirmation sheet before we
-        //    consume the session.
+        // 5. Trust established. Claim straight away and let the shared
+        //    eVault-Found bottom sheet be the user's confirmation point —
+        //    same UX as the verified-Didit and security-question paths.
+        //    No intermediate full-page confirm screen.
         notarySessionId = verifiedPayload.sessionId;
         notaryClaimUrl = verifiedPayload.claim;
         notaryTargetEName = verifiedPayload.targetEName;
         notaryDisplayName = entry.name ?? verifiedPayload.notaryEName;
         notaryError = null;
-        loadingPhase = null;
-        step = "notary-confirm";
+        // Keep the LoadingSheet up — just swap the copy — through the claim
+        // + profile fetch. Otherwise the user stares at a blank /recover
+        // home for a couple of seconds before the eVault-Found sheet
+        // arrives and thinks the app froze.
+        loadingPhase = "restoring-vault";
+        step = "home";
+        await handleNotaryConfirm();
     } catch (err) {
         console.error("[RECOVERY/notary] unexpected:", err);
         failNotary("Something went wrong. Please try again.");
@@ -936,30 +966,29 @@ async function handleNotaryConfirm() {
         const data = claimResp.data;
         if (!data.success) {
             const reason = data.reason ?? "generic";
-            notaryError =
+            failNotary(
                 reason === "expired"
                     ? "This recovery code has expired. Ask the notary to issue a new one."
                     : reason === "consumed"
                       ? "This recovery code has already been used."
                       : reason === "not_found"
                         ? "We couldn't find that recovery code."
-                        : "Something went wrong claiming the code.";
+                        : "Something went wrong claiming the code.",
+            );
             return;
         }
 
         const ename = data.eName ?? notaryTargetEName;
         const uri = data.uri;
         if (!uri) {
-            notaryError = "The notary didn't return a vault URL.";
+            failNotary("The notary didn't return a vault URL.");
             return;
         }
 
-        // Hand off straight to the recovery downstream — no second "eVault
-        // Found" confirmation. The notary-confirm sheet already showed the
-        // user which eName is being recovered; making them tap Continue on
-        // another sheet right after is pure friction. recoverVault() writes
-        // pendingRecovery + navigates to /onboarding, where the step
-        // machine detects recovery and skips ID verification entirely.
+        // Hand off to the same eVault-Found sheet the other two recovery
+        // paths use. Identical downstream after Continue: recoverVault()
+        // writes pendingRecovery and the /onboarding step machine detects
+        // recovery and skips ID verification entirely.
         recoveredW3id = ename;
         recoveredUri = uri;
         recoveredVaultUri = uri;
@@ -973,10 +1002,14 @@ async function handleNotaryConfirm() {
             );
             recoveredIdVerif = null;
         }
-        await recoverVault();
+        // Open the found-sheet THEN drop the loading overlay — flipping
+        // them the other way leaves a frame of empty home screen.
+        showFoundSheet = true;
+        step = "home";
+        loadingPhase = null;
     } catch (err) {
         console.error("[RECOVERY/notary] claim failed:", err);
-        notaryError = "Couldn't reach the notary. Check your connection.";
+        failNotary("Couldn't reach the notary. Check your connection.");
     } finally {
         notaryClaiming = false;
     }
@@ -1365,56 +1398,15 @@ onMount(() => {
          class makes the WebView transparent so the camera feed shows
          through. Same SVG primitives as /scan-qr's overlay. -->
     <main
-        class="min-h-dvh flex flex-col items-center justify-center px-6 gap-10"
-    >
-        <svg
-            class="mx-auto"
-            width="204"
-            height="215"
-            viewBox="0 0 204 215"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-        >
-            <path
-                d="M46 4H15C8.92487 4 4 8.92487 4 15V46"
-                stroke="white"
-                stroke-width="8"
-                stroke-linecap="round"
-            />
-            <path
-                d="M158 4H189C195.075 4 200 8.92487 200 15V46"
-                stroke="white"
-                stroke-width="8"
-                stroke-linecap="round"
-            />
-            <path
-                d="M46 211H15C8.92487 211 4 206.075 4 200V169"
-                stroke="white"
-                stroke-width="8"
-                stroke-linecap="round"
-            />
-            <path
-                d="M158 211H189C195.075 211 200 206.075 200 200V169"
-                stroke="white"
-                stroke-width="8"
-                stroke-linecap="round"
-            />
-        </svg>
-        <h4 class="text-white font-semibold text-center">
-            Point the camera at the notary's QR
-        </h4>
-    </main>
-{:else if step === "notary-confirm"}
-    <main
-        class="h-dvh overflow-hidden px-[5vw] flex flex-col bg-white"
+        class="min-h-dvh flex flex-col px-6"
         style="padding-top: max(2svh, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));"
     >
         <header class="flex flex-row items-center gap-4 pt-4 relative">
             <button
                 type="button"
-                onclick={handleNotaryCancel}
+                onclick={handleNotaryScanCancel}
                 aria-label="Back"
-                class="w-10 h-10 absolute rounded-full bg-black-100 flex items-center justify-center cursor-pointer shrink-0 active:opacity-70"
+                class="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center cursor-pointer shrink-0 active:opacity-70"
             >
                 <HugeiconsIcon
                     icon={ArrowLeft01Icon}
@@ -1423,54 +1415,48 @@ onMount(() => {
                     strokeWidth={2}
                 />
             </button>
-            <div class="flex flex-col w-full items-center">
-                <h3 class="font-semibold leading-none">Notary recovery</h3>
-            </div>
         </header>
 
-        <section class="flex-1 flex flex-col justify-center gap-3 px-2">
-            <h2
-                class="text-3xl font-bold text-black-900 text-center leading-tight"
+        <section
+            class="flex-1 flex flex-col items-center justify-center gap-10"
+        >
+            <svg
+                class="mx-auto"
+                width="204"
+                height="215"
+                viewBox="0 0 204 215"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
             >
-                Recover {notaryTargetEName ?? ""}?
-            </h2>
-            <p class="text-black-500 text-center text-base leading-snug">
-                This recovery code was issued by
-                <span class="font-semibold text-black-900"
-                    >{notaryDisplayName ?? ""}</span
-                >.
-                Continue only if you're with them in person.
-            </p>
-
-            {#if notaryError}
-                <p
-                    class="text-danger text-sm font-medium text-center mt-2"
-                    role="alert"
-                >
-                    {notaryError}
-                </p>
-            {/if}
+                <path
+                    d="M46 4H15C8.92487 4 4 8.92487 4 15V46"
+                    stroke="white"
+                    stroke-width="8"
+                    stroke-linecap="round"
+                />
+                <path
+                    d="M158 4H189C195.075 4 200 8.92487 200 15V46"
+                    stroke="white"
+                    stroke-width="8"
+                    stroke-linecap="round"
+                />
+                <path
+                    d="M46 211H15C8.92487 211 4 206.075 4 200V169"
+                    stroke="white"
+                    stroke-width="8"
+                    stroke-linecap="round"
+                />
+                <path
+                    d="M158 211H189C195.075 211 200 206.075 200 200V169"
+                    stroke="white"
+                    stroke-width="8"
+                    stroke-linecap="round"
+                />
+            </svg>
+            <h4 class="text-white font-semibold text-center">
+                Point the camera at the notary's QR
+            </h4>
         </section>
-
-        <footer class="w-full flex flex-col gap-3 pt-4">
-            <ButtonAction
-                class="w-full uppercase tracking-wide"
-                disabled={notaryClaiming}
-                isLoading={notaryClaiming}
-                callback={handleNotaryConfirm}
-                blockingClick
-            >
-                Continue
-            </ButtonAction>
-            <ButtonAction
-                variant="soft"
-                class="w-full uppercase tracking-wide"
-                disabled={notaryClaiming}
-                callback={handleNotaryCancel}
-            >
-                Cancel
-            </ButtonAction>
-        </footer>
     </main>
 {/if}
 
