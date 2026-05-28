@@ -860,16 +860,12 @@ async function refreshBindings(): Promise<void> {
 
 <InfoDrawer bind:isOpen={eVaultInfoOpen} title="What is eVault?">
     {#snippet body()}
-        <div
-            class="bg-primary-50/40 rounded-2xl w-full flex items-center justify-center shrink-0"
-        >
-            <img
-                src="/images/eVault-kid-drawing.png"
-                alt=""
-                class="w-full h-full object-contain"
-                aria-hidden="true"
-            />
-        </div>
+        <img
+            src="/images/what-is-evault.png"
+            alt=""
+            class="w-full h-auto rounded-2xl shrink-0"
+            aria-hidden="true"
+        />
         <p>
             eVault is your sovereign and secure storage. It holds all your
             data: photos, documents, social media posts, messages to friends,
@@ -893,11 +889,12 @@ async function refreshBindings(): Promise<void> {
             such as official documents, photos, or confirmations from friends
             and family, so you can prove ownership of your eVault if needed.
         </p>
-        <!-- Placeholder tile — swap in a real illustration when it ships. -->
-        <div
-            class="bg-primary-100 rounded-2xl aspect-square w-full shrink-0"
+        <img
+            src="/images/binding-documents.png"
+            alt=""
+            class="w-full h-auto rounded-2xl shrink-0"
             aria-hidden="true"
-        ></div>
+        />
         <h4 class="text-black-900 font-bold text-base">Why it's important:</h4>
         <p>
             Unlike the usual Web 2.0 approach, where platforms make you create
