@@ -135,6 +135,13 @@ interface ScanLogic {
     actions: ScanActions;
 }
 
+// Module-scoped guard — survives Scan QR page re-mounts. The per-instance
+// `scanning` store is recreated on every mount, so it can't stop a remount
+// from firing scan() while a previous native scan is still alive. Two
+// overlapping scan() calls deadlock the barcode-scanner plugin's command
+// mutex on the main thread, which iOS then kills via the 0x8BADF00D watchdog.
+let scanInFlight = false;
+
 export function createScanLogic({
     globalState,
     goto,
@@ -205,7 +212,9 @@ export function createScanLogic({
         if (permissions === "granted") {
             const formats = [Format.QRCode];
             const windowed = true;
-            if (get(scanning)) return;
+            // Module-scoped guard blocks overlapping scans across re-mounts,
+            // not just within this instance's lifetime.
+            if (scanInFlight || get(scanning)) return;
             // Don't start scanning if any drawer is already open
             if (
                 get(codeScannedDrawerOpen) ||
@@ -215,6 +224,16 @@ export function createScanLogic({
                 get(socialBindingDrawerOpen)
             )
                 return;
+            // Tear down any stale native scan session left behind by a
+            // previous mount before starting a new one. Without this, the
+            // second scan() re-enters the plugin's command mutex and hangs
+            // the main thread (0x8BADF00D watchdog kill).
+            try {
+                await cancel();
+            } catch {
+                // No active session to cancel — fine.
+            }
+            scanInFlight = true;
             scanning.set(true);
 
             scan({ formats, windowed })
@@ -281,6 +300,7 @@ export function createScanLogic({
                     console.error("Scan error:", error);
                 })
                 .finally(() => {
+                    scanInFlight = false;
                     scanning.set(false);
                 });
         }
@@ -288,6 +308,7 @@ export function createScanLogic({
 
     async function cancelScan() {
         await cancel();
+        scanInFlight = false;
         scanning.set(false);
     }
 
