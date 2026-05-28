@@ -45,6 +45,81 @@ Uploads are performed through the eVault `uploadFile` GraphQL mutation, which
 takes base64 content and returns the `w3ds://file` URI, the Meta Envelope ID,
 and the public object-storage URL.
 
+## The `uploadFile` mutation
+
+```graphql
+uploadFile(input: UploadFileInput!): UploadFilePayload!
+```
+
+Uploads a file to object storage and creates an addressable **File Meta
+Envelope** (ontology `w3ds-file-v1`). The request **must** carry an
+`X-ENAME: @<user-ename>` header — uploads are rejected without it. Object
+storage must be configured on the eVault (DigitalOcean Spaces / S3-compatible);
+otherwise the mutation returns an error.
+
+### Input — `UploadFileInput`
+
+| Field         | Type        | Description                                                          |
+| ------------- | ----------- | -------------------------------------------------------------------- |
+| `filename`    | `String!`   | Original file name.                                                  |
+| `contentType` | `String!`   | MIME type of the file.                                               |
+| `content`     | `String!`   | Base64-encoded file content — raw base64 **or** a `data:` URI.       |
+| `acl`         | `[String!]!`| Access-control list for the created File Meta Envelope (e.g. `["*"]`).|
+
+Constraints: content must be valid base64 (malformed input is rejected) and the
+decoded size must not exceed **50 MB**.
+
+### Payload — `UploadFilePayload`
+
+| Field            | Type           | Description                                                       |
+| ---------------- | -------------- | ----------------------------------------------------------------- |
+| `uri`            | `String`       | The `w3ds://file` URI addressing the upload; `null` on error.     |
+| `metaEnvelopeId` | `String`       | ID of the File Meta Envelope describing the upload.               |
+| `publicUrl`      | `String`       | Public object-storage URL of the file.                            |
+| `errors`         | `[UserError!]` | Errors that occurred during the upload (`field`, `message`, `code`).|
+
+### Stored Meta Envelope payload
+
+The mutation persists a Meta Envelope with ontology `w3ds-file-v1` and payload:
+
+```json
+{ "filename", "contentType", "size", "blobKey", "publicUrl", "uploadedAt" }
+```
+
+where `size` is the decoded byte length, `blobKey` is the object-storage key
+(`files/{owner}/{id}-{filename}`), and `uploadedAt` is an ISO-8601 timestamp.
+
+> **Note:** this `w3ds-file-v1` storage envelope is **not** the same as the
+> platform-level `File` ontology (`a1b2c3d4-e5f6-7890-abcd-ef1234567890`). See
+> [File ontology vs. `w3ds-file-v1`](#file-ontology-vs-w3ds-file-v1) below.
+
+### Example
+
+```graphql
+mutation UploadFile($input: UploadFileInput!) {
+  uploadFile(input: $input) {
+    uri
+    metaEnvelopeId
+    publicUrl
+    errors { field message code }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "filename": "contract.pdf",
+    "contentType": "application/pdf",
+    "content": "data:application/pdf;base64,JVBERi0x...",
+    "acl": ["*"]
+  }
+}
+```
+
+On failure after the blob is written, the orphaned object is deleted
+(compensating cleanup), so a failed upload leaves no dangling storage object.
+
 ## Resolving (dereferencing) a URI
 
 There are two dereferencers.
@@ -86,6 +161,38 @@ or `Error` for:
 - Empty `ename` or `meta-envelope-id`.
 - A non-existent `ename` (eVault cannot be resolved).
 - A non-existent or non-file Meta Envelope.
+
+## File ontology vs. `w3ds-file-v1`
+
+There are **two distinct file schemas** in the system. They are easy to confuse
+but serve different layers, and conflating them is a common source of bugs.
+
+| | `w3ds-file-v1` | `File` ontology |
+| --- | --- | --- |
+| **Identifier** | `w3ds-file-v1` (string) | `a1b2c3d4-e5f6-7890-abcd-ef1234567890` (UUID) |
+| **Created by** | `uploadFile` mutation, at upload time | Platform apps (file-manager, esigner) via the Web3 Adapter mapping |
+| **Layer** | Storage / transport — describes a blob in object storage | Application domain — a file record in a platform's database |
+| **Payload** | `filename`, `contentType`, `size`, `blobKey`, `publicUrl`, `uploadedAt` | `id`, `name`, `displayName`, `description`, `mimeType`, `size`, `md5Hash`, `data`, `url`, `ownerId`, `folderId`, `createdAt`, `updatedAt` |
+| **Addressed by** | `w3ds://file?id=@ename/<meta-envelope-id>` | Synced as a normal Meta Envelope through platform mappings |
+| **Defined in** | `evault-core/src/core/utils/w3ds-uri.ts` (`FILE_SCHEMA_ID`) | `services/ontology/schemas/file.json` |
+
+**They are not the same envelope.** The payload documented above
+(`{ filename, contentType, size, blobKey, publicUrl, uploadedAt }`) belongs to
+`w3ds-file-v1` only — it is the low-level record the `uploadFile` mutation
+creates so a blob can be dereferenced via a `w3ds://file` URI.
+
+The `File` ontology (`a1b2c3d4-...`) is a higher-level platform concept: a
+file-manager/esigner record with folders, owners, display names and an MD5
+hash, mapped to/from the global layer by the Web3 Adapter (see
+`platforms/file-manager/api/src/web3adapter/mappings/file.mapping.json`). Note
+the field names differ — e.g. `name` vs `filename`, `mimeType` vs
+`contentType`, `url` vs `publicUrl`/`blobKey` — so they are **not**
+interchangeable payloads.
+
+In short: use `w3ds-file-v1` + `w3ds://file` URIs to store and dereference raw
+blobs; use the `File` ontology when modelling a platform's file records. A
+single user-facing "file" may involve both — a `File` ontology record whose
+`url` points at a blob uploaded via `uploadFile`.
 
 ## Mapper integration
 
