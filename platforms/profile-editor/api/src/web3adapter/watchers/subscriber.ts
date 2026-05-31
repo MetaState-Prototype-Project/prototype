@@ -1,132 +1,102 @@
+import path from "node:path";
 import {
-	EventSubscriber,
-	EntitySubscriberInterface,
-	InsertEvent,
-	UpdateEvent,
-	RemoveEvent,
+    type EntitySubscriberInterface,
+    EventSubscriber,
+    type InsertEvent,
+    type UpdateEvent,
 } from "typeorm";
 import { Web3Adapter } from "web3-adapter";
-import path from "path";
-import dotenv from "dotenv";
+import { env } from "../../env";
 
-dotenv.config({ path: path.resolve(__dirname, "../../../../../../.env") });
-
+/** Single adapter instance — owns the mappings, the eVault client, the id-map. */
 export const adapter = new Web3Adapter({
-	schemasPath: path.resolve(__dirname, "../mappings/"),
-	dbPath: path.resolve(
-		process.env.PROFILE_EDITOR_MAPPING_DB_PATH as string,
-	),
-	registryUrl: process.env.PUBLIC_REGISTRY_URL as string,
-	platform: process.env.PUBLIC_PROFILE_EDITOR_BASE_URL as string,
+    schemasPath: path.resolve(__dirname, "../mappings/"),
+    dbPath: path.resolve(env.mappingDbPath),
+    registryUrl: env.registryUrl,
+    platform: env.baseUrl,
 });
 
+const SYNCED_TABLES = new Set(["users", "professional_profiles"]);
+
+/**
+ * Outbound sync: on any local write to users/professional_profiles, push the
+ * row to the owner's eVault via the adapter (toGlobal). `lockedIds` skips rows
+ * we just received inbound (echo prevention). A 3s debounce coalesces rapid
+ * edits and lets the webhook's storeMapping land first.
+ */
 @EventSubscriber()
 export class PostgresSubscriber implements EntitySubscriberInterface {
-	private adapter: Web3Adapter;
-	private pendingChanges: Map<string, number> = new Map();
+    private pending = new Map<string, number>();
 
-	constructor() {
-		this.adapter = adapter;
+    constructor() {
+        setInterval(
+            () => {
+                const now = Date.now();
+                for (const [key, ts] of this.pending.entries()) {
+                    if (now - ts > 10 * 60 * 1000) this.pending.delete(key);
+                }
+            },
+            5 * 60 * 1000,
+        );
+    }
 
-		setInterval(() => {
-			const now = Date.now();
-			const maxAge = 10 * 60 * 1000;
-			for (const [key, timestamp] of this.pendingChanges.entries()) {
-				if (now - timestamp > maxAge) {
-					this.pendingChanges.delete(key);
-				}
-			}
-		}, 5 * 60 * 1000);
-	}
+    afterInsert(event: InsertEvent<unknown>) {
+        this.handle(event.entity, event.metadata.tableName);
+    }
 
-	async afterInsert(event: InsertEvent<any>) {
-		const entity = event.entity;
-		if (!entity) return;
-		const tableName = event.metadata.tableName.endsWith("s")
-			? event.metadata.tableName
-			: event.metadata.tableName + "s";
-		await this.handleChange(this.entityToPlain(entity), tableName);
-	}
+    afterUpdate(event: UpdateEvent<unknown>) {
+        if (event.entity) this.handle(event.entity, event.metadata.tableName);
+    }
 
-	async afterUpdate(event: UpdateEvent<any>) {
-		const entity = event.entity;
-		if (!entity) return;
-		await this.handleChange(
-			this.entityToPlain(entity),
-			event.metadata.tableName,
-		);
-	}
+    private handle(entity: unknown, tableName: string): void {
+        if (!SYNCED_TABLES.has(tableName)) return;
+        const id = (entity as { id?: string })?.id;
+        if (!id) return;
 
-	async afterRemove(event: RemoveEvent<any>) {
-		const entity = event.entity;
-		if (!entity) return;
-		await this.handleChange(
-			this.entityToPlain(entity),
-			event.metadata.tableName,
-		);
-	}
+        const key = `${tableName}:${id}`;
+        if (this.pending.has(key)) return;
+        this.pending.set(key, Date.now());
 
-	private async handleChange(data: any, tableName: string): Promise<void> {
-		if (tableName === "sessions" || tableName === "users") return;
-		if (!data.id) return;
-		console.log(`[subscriber] change detected: table=${tableName} id=${data.id} keys=[${Object.keys(data).join(",")}]`);
+        setTimeout(async () => {
+            try {
+                const globalId =
+                    (await adapter.mappingDb.getGlobalId(id)) ?? "";
+                if (adapter.lockedIds.includes(globalId)) return;
 
-		const changeKey = `${tableName}:${data.id}`;
-		if (this.pendingChanges.has(changeKey)) return;
-		this.pendingChanges.set(changeKey, Date.now());
+                // Re-fetch the full row so toGlobal sees every mapped field
+                // (a TypeORM update event may carry only changed columns).
+                const { AppDataSource } = await import("../../db");
+                const { User } = await import("../../entities/User");
+                const { ProfessionalProfile } = await import(
+                    "../../entities/ProfessionalProfile"
+                );
+                const repo = AppDataSource.getRepository(
+                    tableName === "users" ? User : ProfessionalProfile,
+                );
+                const row = await repo.findOneBy({ id });
+                if (!row) return;
 
-		try {
-			setTimeout(async () => {
-				try {
-					let globalId =
-						await this.adapter.mappingDb.getGlobalId(data.id);
-					globalId = globalId ?? "";
+                await adapter.handleChange({
+                    data: entityToPlain(row),
+                    tableName,
+                });
+            } catch (err) {
+                console.error(
+                    `[subscriber] ${tableName} sync failed:`,
+                    (err as Error).message,
+                );
+            } finally {
+                this.pending.delete(key);
+            }
+        }, 3_000);
+    }
+}
 
-					if (this.adapter.lockedIds.includes(globalId)) {
-						return;
-					}
-
-					await this.adapter.handleChange({
-						data,
-						tableName: tableName.toLowerCase(),
-					});
-				} finally {
-					this.pendingChanges.delete(changeKey);
-				}
-			}, 3_000);
-		} catch (error) {
-			console.error(
-				`Error processing change for ${tableName}:`,
-				error,
-			);
-			this.pendingChanges.delete(changeKey);
-		}
-	}
-
-	private entityToPlain(entity: any): any {
-		if (!entity || typeof entity !== "object") return entity;
-		if (entity instanceof Date) return entity.toISOString();
-		if (Array.isArray(entity))
-			return entity.map((item) => this.entityToPlain(item));
-
-		const plain: Record<string, unknown> = {};
-		for (const [key, value] of Object.entries(entity)) {
-			if (key.startsWith("_")) continue;
-
-			if (value && typeof value === "object") {
-				if (Array.isArray(value)) {
-					plain[key] = value.map((item) =>
-						this.entityToPlain(item),
-					);
-				} else if (value instanceof Date) {
-					plain[key] = value.toISOString();
-				} else {
-					plain[key] = this.entityToPlain(value);
-				}
-			} else {
-				plain[key] = value;
-			}
-		}
-		return plain;
-	}
+function entityToPlain(entity: unknown): Record<string, unknown> {
+    const plain: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(entity as object)) {
+        if (key.startsWith("_")) continue;
+        plain[key] = value instanceof Date ? value.toISOString() : value;
+    }
+    return plain;
 }
