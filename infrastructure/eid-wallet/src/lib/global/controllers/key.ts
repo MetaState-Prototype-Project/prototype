@@ -13,11 +13,15 @@ const LEGACY_CONTEXTS_KEY = "keyService.contexts";
 /**
  * Single-key service. Every wallet has exactly one key, hardware-backed when the
  * device supports it, software otherwise. Pre-verification (anonymous demo) users
- * are forced onto software so they don't pollute the hardware keystore.
+ * are forced onto software so they don't pollute the hardware keystore. If a
+ * device probes as hardware-capable but then fails to *generate* a key (e.g. an
+ * Android phone with no StrongBox secure element), ensureKey demotes the wallet
+ * to software keys so the user is never hard-blocked.
  *
- * All key operations flow through #withEvaultSync, which on failure checks whether
- * the local key matches what the eVault has bound; if not, syncs and retries once.
- * A genuine failure after that is surfaced to the caller — no silent fallback.
+ * Operational failures are different: signing flows through #withEvaultSync,
+ * which on failure checks whether the local key matches what the eVault has
+ * bound; if not, syncs and retries once. A genuine failure after that is
+ * surfaced to the caller — no silent fallback or key-type switch mid-life.
  */
 export class KeyService {
     #store: Store;
@@ -87,8 +91,32 @@ export class KeyService {
     async ensureKey(): Promise<{ created: boolean }> {
         const manager = await this.getManager();
         if (await manager.exists()) return { created: false };
-        await manager.generate();
-        return { created: true };
+
+        try {
+            await manager.generate();
+            return { created: true };
+        } catch (error) {
+            // The hardware manager can pass the availability probe (the native
+            // `exists` check never touches the secure element) yet still fail to
+            // *generate* — e.g. Android phones that expose a keystore but have
+            // no StrongBox secure element, which the native plugin requires.
+            // Rather than hard-blocking the user (this is the "Couldn't restore
+            // your eVault" failure during recovery), demote to software keys and
+            // generate there. Pre-verification users already run on software, so
+            // this is the same well-trodden path. Safe because the device key is
+            // generated fresh here and is not yet bound to the eVault — there is
+            // no in-use key to invalidate.
+            if (this.#managerType !== "hardware") throw error;
+
+            console.warn(
+                "[KeyService] Hardware key generation failed; falling back to software keys:",
+                error,
+            );
+            const software = await this.#demoteToSoftware();
+            if (await software.exists()) return { created: false };
+            await software.generate();
+            return { created: true };
+        }
     }
 
     async getPublicKey(): Promise<string> {
@@ -119,6 +147,17 @@ export class KeyService {
         await this.#store.delete(MANAGER_TYPE_KEY);
         await this.#store.delete(READY_KEY);
         await this.#store.delete(LEGACY_CONTEXTS_KEY);
+    }
+
+    /**
+     * Switch this wallet to software keys after hardware generation fails and
+     * persist the choice so later sessions skip the hardware path entirely.
+     */
+    async #demoteToSoftware(): Promise<KeyManager> {
+        this.#managerType = "software";
+        this.#manager = KeyManagerFactory.get("software");
+        await this.#store.set(MANAGER_TYPE_KEY, "software");
+        return this.#manager;
     }
 
     /**
