@@ -59,9 +59,13 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
 
         setTimeout(async () => {
             try {
-                const globalId =
-                    (await adapter.mappingDb.getGlobalId(id)) ?? "";
-                if (adapter.lockedIds.includes(globalId)) return;
+                const globalId = await adapter.mappingDb.getGlobalId(id);
+                if (
+                    adapter.lockedIds.includes(id) ||
+                    (globalId && adapter.lockedIds.includes(globalId))
+                ) {
+                    return;
+                }
 
                 // Re-fetch the full row so toGlobal sees every mapped field
                 // (a TypeORM update event may carry only changed columns).

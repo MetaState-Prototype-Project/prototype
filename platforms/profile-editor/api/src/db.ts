@@ -14,7 +14,12 @@ export const AppDataSource = new DataSource({
     entities: [User, ProfessionalProfile],
     migrations: [path.join(__dirname, "migrations", "*.{ts,js}")],
     subscribers: [PostgresSubscriber],
-    ssl: env.dbCaCert ? { rejectUnauthorized: false, ca: env.dbCaCert } : false,
+    ssl: env.dbCaCert
+        ? {
+              rejectUnauthorized: env.nodeEnv === "production",
+              ca: env.dbCaCert,
+          }
+        : false,
     extra: {
         max: 10,
         min: 2,

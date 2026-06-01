@@ -47,9 +47,9 @@ export class WebhookController {
                 return res.status(200).send();
             }
 
-            await this.adapter.mappingDb.storeMapping({ localId, globalId });
             this.adapter.addToLockedIds(localId);
             this.adapter.addToLockedIds(globalId);
+            await this.adapter.mappingDb.storeMapping({ localId, globalId });
 
             res.status(200).send();
         } catch (error) {

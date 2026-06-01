@@ -20,49 +20,49 @@ export class ProfessionalProfile {
     id!: string;
 
     @Column({ nullable: true, unique: true })
-    ename!: string;
+    ename!: string | null;
 
     @Column({ nullable: true })
-    name!: string;
+    name!: string | null;
 
     @Column({ nullable: true })
-    headline!: string;
+    headline!: string | null;
 
     @Column({ nullable: true, type: "text" })
-    bio!: string;
+    bio!: string | null;
 
     @Column({ nullable: true })
-    location!: string;
+    location!: string | null;
 
     @Column("text", { array: true, nullable: true })
-    skills!: string[];
+    skills!: string[] | null;
 
     @Column({ nullable: true })
-    cvFileId!: string;
+    cvFileId!: string | null;
 
     @Column({ nullable: true })
-    videoIntroFileId!: string;
+    videoIntroFileId!: string | null;
 
     @Column({ default: false })
     isPublic!: boolean;
 
     @Column({ type: "jsonb", nullable: true })
-    workExperience!: WorkExperience[];
+    workExperience!: WorkExperience[] | null;
 
     @Column({ type: "jsonb", nullable: true })
-    education!: Education[];
+    education!: Education[] | null;
 
     @Column({ type: "jsonb", nullable: true })
-    socialLinks!: SocialLink[];
+    socialLinks!: SocialLink[] | null;
 
     @Column({ nullable: true })
-    email!: string;
+    email!: string | null;
 
     @Column({ nullable: true })
-    phone!: string;
+    phone!: string | null;
 
     @Column({ nullable: true })
-    website!: string;
+    website!: string | null;
 
     @CreateDateColumn()
     createdAt!: Date;

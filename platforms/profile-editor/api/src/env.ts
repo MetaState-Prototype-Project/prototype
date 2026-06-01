@@ -1,7 +1,7 @@
 import path from "node:path";
 import { config } from "dotenv";
 
-// Load the repo-root .env (five levels up from src/ at runtime).
+// Load the repo-root .env (four levels up from src/ at runtime).
 config({ path: path.resolve(__dirname, "../../../../.env") });
 
 function required(name: string): string {

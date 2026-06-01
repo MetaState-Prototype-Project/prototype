@@ -2,8 +2,25 @@ import type { Request, RequestHandler, Response } from "express";
 import multer from "multer";
 import { adapter } from "../web3adapter/watchers/subscriber";
 
+// Server-side allowlist — the returned public URL is rendered directly in
+// <img>/<video>/<object> on profile pages, so active/scriptable content
+// (HTML, SVG, JS) must never get a public blob. Don't trust the client
+// `accept` filter.
+const ALLOWED_MIME_TYPES = new Set([
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "image/webp",
+    "video/mp4",
+    "video/webm",
+    "application/pdf",
+]);
+
 const upload = multer({
-    limits: { fileSize: 100 * 1024 * 1024 },
+    // memoryStorage keeps the whole file in RAM and toString("base64") copies
+    // it again — keep the limit modest so concurrent uploads can't exhaust the
+    // process heap.
+    limits: { fileSize: 25 * 1024 * 1024 },
     storage: multer.memoryStorage(),
 });
 
@@ -21,6 +38,11 @@ async function handleUpload(req: Request, res: Response): Promise<void> {
         const ename = req.user?.ename;
         if (!ename) {
             res.status(401).json({ error: "Authentication required" });
+            return;
+        }
+
+        if (!ALLOWED_MIME_TYPES.has(req.file.mimetype)) {
+            res.status(415).json({ error: "Unsupported media type" });
             return;
         }
 

@@ -18,25 +18,25 @@ export class User {
     id!: string;
 
     @Column({ nullable: true, unique: true })
-    ename!: string;
+    ename!: string | null;
 
     @Column({ nullable: true })
-    handle!: string;
+    handle!: string | null;
 
     @Column({ nullable: true })
-    name!: string;
+    name!: string | null;
 
     @Column({ nullable: true, type: "text" })
-    bio!: string;
+    bio!: string | null;
 
     @Column({ nullable: true })
-    avatarUrl!: string;
+    avatarUrl!: string | null;
 
     @Column({ nullable: true })
-    bannerUrl!: string;
+    bannerUrl!: string | null;
 
     @Column({ nullable: true })
-    location!: string;
+    location!: string | null;
 
     @Column({ default: false })
     isVerified!: boolean;
