@@ -35,7 +35,7 @@ const {
                  createBindingDocument today; there's no update mutation, and
                  patching the underlying MetaEnvelope would invalidate the
                  existing signature. Re-enable once that path lands. -->
-            <!-- {#if !tourActive}
+            {#if !tourActive}
                 <button
                     type="button"
                     aria-label="Edit name"
@@ -44,7 +44,7 @@ const {
                 >
                     <EditIcon size={18} />
                 </button>
-            {/if} -->
+            {/if}
         </div>
     </div>
 
