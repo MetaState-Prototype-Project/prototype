@@ -65,6 +65,21 @@ export class SoftwareKeyManager implements KeyManager {
         }
     }
 
+    /**
+     * Discard any stored key and generate a fresh one. Used by the key service
+     * to recover from an unusable key (e.g. a hardware key the OS evicted) by
+     * rotating onto a brand-new software key. Unlike generate(), this never
+     * no-ops on an existing key.
+     */
+    async regenerate(): Promise<void> {
+        try {
+            localStorage.removeItem(STORAGE_KEY);
+        } catch {
+            // ignore — generate() will surface any genuine storage error
+        }
+        await this.generate();
+    }
+
     async getPublicKey(): Promise<string> {
         const keyPair = this.#read();
         const buf = base64ToArrayBuffer(keyPair.publicKey);

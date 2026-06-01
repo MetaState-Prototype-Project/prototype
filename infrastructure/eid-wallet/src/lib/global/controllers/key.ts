@@ -1,4 +1,8 @@
-import { KeyManagerFactory, migrateLegacySoftwareKey } from "$lib/crypto";
+import {
+    KeyManagerError,
+    KeyManagerFactory,
+    migrateLegacySoftwareKey,
+} from "$lib/crypto";
 import type { KeyManager } from "$lib/crypto";
 import type { Store } from "@tauri-apps/plugin-store";
 
@@ -161,49 +165,83 @@ export class KeyService {
     }
 
     /**
-     * Run a key operation. On failure, check whether our local public key is
-     * bound on the eVault; if not, sync it and retry once. If the retry still
-     * fails — or the local key was already bound — the original error stands.
+     * Recover from an unusable signing key by rotating onto a fresh software
+     * key. Hardware is what failed (and the plugin can't delete a keystore
+     * alias from JS), so recovery always lands on software. The caller is
+     * responsible for (re)binding the new key to the eVault.
+     */
+    async #rotateToFreshKey(): Promise<void> {
+        await this.#demoteToSoftware();
+        await KeyManagerFactory.getSoftware().regenerate();
+    }
+
+    /**
+     * Run a key operation with self-healing. On failure:
+     *  1. If the local key is usable but not yet registered on the eVault, bind
+     *     it and retry once.
+     *  2. If the local key itself is unusable — the common failure on Android
+     *     devices whose OS evicts/invalidates keystore entries, where the key
+     *     still "exists" and its public key may still be bound but can no longer
+     *     sign — rotate onto a fresh software key, (re)bind it (additive: the
+     *     dead key is left in place but is inert), and retry once.
+     * If neither remedy resolves it, the original error stands.
      */
     async #withEvaultSync<T>(op: () => Promise<T>): Promise<T> {
         try {
             return await op();
         } catch (firstError) {
-            if (!this.#evaultKeyResolver || !this.#evaultSyncHandler) {
+            if (!this.#evaultSyncHandler) {
                 throw firstError;
             }
 
-            let localPk: string;
-            try {
-                localPk = await this.getPublicKey();
-            } catch {
-                throw firstError;
+            // Remedy 1: the local key works but isn't registered on the eVault
+            // yet — bind it and retry. If the key is unreadable or the retry
+            // still fails, fall through to rotation.
+            if (this.#evaultKeyResolver) {
+                try {
+                    const localPk = await this.getPublicKey();
+                    const bound = await this.#evaultKeyResolver();
+                    if (!bound.includes(localPk)) {
+                        console.warn(
+                            "[KeyService] Local key not bound on eVault; syncing and retrying",
+                        );
+                        if (await this.#evaultSyncHandler()) {
+                            return await op();
+                        }
+                    }
+                } catch (rebindError) {
+                    console.warn(
+                        "[KeyService] eVault re-bind did not resolve the failure:",
+                        rebindError,
+                    );
+                }
             }
 
-            let bound: string[];
-            try {
-                bound = await this.#evaultKeyResolver();
-            } catch (resolverError) {
+            // Remedy 2: the local key can't perform the operation (e.g. a
+            // hardware key the OS evicted). Only attempt this for genuine key
+            // failures. Rotate to a fresh software key, bind it, retry once.
+            if (firstError instanceof KeyManagerError) {
                 console.warn(
-                    "[KeyService] eVault key resolver failed during recovery:",
-                    resolverError,
+                    "[KeyService] Signing key unusable; rotating to a fresh key and re-binding:",
+                    firstError,
                 );
-                throw firstError;
+                try {
+                    await this.#rotateToFreshKey();
+                    if (await this.#evaultSyncHandler()) {
+                        return await op();
+                    }
+                    console.error(
+                        "[KeyService] failed to bind rotated key to eVault",
+                    );
+                } catch (rotateError) {
+                    console.warn(
+                        "[KeyService] key rotation recovery failed:",
+                        rotateError,
+                    );
+                }
             }
 
-            if (bound.includes(localPk)) {
-                // Our key is already bound — the failure is real.
-                throw firstError;
-            }
-
-            console.warn(
-                "[KeyService] Local key not bound on eVault; syncing and retrying",
-            );
-            const synced = await this.#evaultSyncHandler();
-            if (!synced) {
-                throw firstError;
-            }
-            return await op();
+            throw firstError;
         }
     }
 
