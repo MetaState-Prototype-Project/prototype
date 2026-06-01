@@ -715,7 +715,7 @@ async function refreshBindings(): Promise<void> {
 {:else}
     <div
         class="relative transition-transform duration-500 ease-out will-change-transform"
-        style="padding-top: max(12px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom)); transform: translateY(-{tourOffset}px);"
+        style="padding-bottom: max(16px, env(safe-area-inset-bottom)); transform: translateY(-{tourOffset}px);"
     >
         {#if pageReady}
             <div
