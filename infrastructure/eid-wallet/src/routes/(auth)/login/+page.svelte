@@ -4,6 +4,7 @@ import { keyboardInset } from "$lib/actions/keyboardInset";
 import type { GlobalState } from "$lib/global";
 import { LoadingSheet, PinDots } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
+import { continueAfterSuccessfulAuth } from "$lib/utils/postLogin";
 import {
     type AuthOptions,
     authenticate,
@@ -12,10 +13,25 @@ import {
 import { getContext, onMount } from "svelte";
 import StepHeader from "../onboarding/steps/StepHeader.svelte";
 
+// Splash sets this when it has already tried biometric over its own screen.
+// /login then skips re-prompting and just shows the PIN UI.
+const BIOMETRIC_ATTEMPTED_KEY = "biometricAttemptedOnSplash";
+
 let pin = $state("");
 let isError = $state(false);
 let isPostAuthLoading = $state(false);
 let hasPendingDeepLink = $state(false);
+let pinInput = $state<HTMLInputElement | undefined>(undefined);
+
+// Refocus the hidden PIN input on background taps so the user doesn't have
+// to aim for the dots themselves to summon the keyboard. We skip taps that
+// land on interactive elements so their own click handlers (Clear PIN, back
+// chevron, etc.) still behave normally.
+function handleBackgroundClick(e: MouseEvent) {
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('button, a, [role="button"]')) return;
+    pinInput?.focus({ preventScroll: true });
+}
 
 const getGlobalState = getContext<() => GlobalState | undefined>("globalState");
 let globalState: GlobalState | undefined = $state(undefined);
@@ -35,61 +51,6 @@ async function clearPin() {
     if (isPostAuthLoading) return;
     pin = "";
     isError = false;
-}
-
-async function continueAfterSuccessfulAuth(gs: GlobalState) {
-    // Fire-and-forget post-login chores. These hit the network with no client
-    // timeout, so awaiting them here can strand the user on the "Logging you
-    // in…" spinner indefinitely. The app pages will retry as needed.
-    try {
-        const vault = await gs.vaultController.vault;
-        if (vault?.ename) {
-            const ename = vault.ename;
-            void gs.vaultController
-                .checkHealth(ename)
-                .then((health) => {
-                    if (!health.healthy) {
-                        console.warn(
-                            "eVault health check failed:",
-                            health.error,
-                        );
-                    }
-                })
-                .catch((error) =>
-                    console.error("eVault health check error:", error),
-                );
-            void gs.vaultController
-                .syncPublicKey(ename)
-                .catch((error) =>
-                    console.error("Error syncing public key:", error),
-                );
-            void gs.notificationService
-                .registerDevice(ename)
-                .catch((error) =>
-                    console.error(
-                        "Error registering device for notifications:",
-                        error,
-                    ),
-                );
-        }
-    } catch (error) {
-        console.error("Error reading vault during login:", error);
-    }
-
-    const pendingDeepLink = sessionStorage.getItem("pendingDeepLink");
-    if (pendingDeepLink) {
-        try {
-            sessionStorage.setItem("deepLinkData", pendingDeepLink);
-            sessionStorage.removeItem("pendingDeepLink");
-            await goto("/scan-qr");
-            return;
-        } catch (error) {
-            console.error("Error processing pending deep link:", error);
-            sessionStorage.removeItem("pendingDeepLink");
-        }
-    }
-
-    await goto("/main");
 }
 
 async function verifyAndAdvance(currentPin: string) {
@@ -135,6 +96,16 @@ onMount(async () => {
     const pendingDeepLink = sessionStorage.getItem("pendingDeepLink");
     hasPendingDeepLink = !!pendingDeepLink;
 
+    // If the splash already prompted biometric over its own screen, skip the
+    // retry here and let the user enter their PIN. The flag survives the
+    // route transition but is single-use.
+    const biometricHandledBySplash =
+        sessionStorage.getItem(BIOMETRIC_ATTEMPTED_KEY) === "true";
+    if (biometricHandledBySplash) {
+        sessionStorage.removeItem(BIOMETRIC_ATTEMPTED_KEY);
+        return;
+    }
+
     // Try biometric first if available.
     if (
         (await gs.securityController.biometricSupport) &&
@@ -155,8 +126,15 @@ onMount(async () => {
 });
 </script>
 
+<!-- The PIN input is the only meaningful interaction here; keyboard users
+     focus it directly via tab. The pointer-only listener just refocuses the
+     same input when sighted users tap the background, so there's no
+     keyboard interaction worth mirroring. -->
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <main
     use:keyboardInset
+    onclick={handleBackgroundClick}
     class="h-dvh overflow-hidden px-[5vw] flex flex-col bg-white"
     style="padding-top: max(2svh, env(safe-area-inset-top)); padding-bottom: calc(max(16px, env(safe-area-inset-bottom)) + var(--kb-inset, 0px));"
 >
@@ -173,7 +151,7 @@ onMount(async () => {
     {/if}
 
     <section class="flex-1 flex flex-col items-center justify-center gap-6">
-        <PinDots bind:pin />
+        <PinDots bind:pin bind:inputEl={pinInput} />
 
         {#if isError}
             <p class="text-danger text-sm font-medium" role="alert">

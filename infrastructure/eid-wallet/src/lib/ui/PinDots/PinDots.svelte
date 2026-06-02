@@ -5,15 +5,17 @@ interface IPinDotsProps {
     pin: string;
     autofocus?: boolean;
     class?: string;
+    /** Bind a reference to the underlying hidden input so the parent can
+     *  trigger focus from elsewhere (e.g. a background tap on /login). */
+    inputEl?: HTMLInputElement | undefined;
 }
 
 let {
     pin = $bindable(""),
     autofocus = true,
     class: classes = "",
+    inputEl = $bindable<HTMLInputElement | undefined>(undefined),
 }: IPinDotsProps = $props();
-
-let inputEl: HTMLInputElement | undefined = $state();
 
 // Android WebView only attaches its IME input connection after first paint;
 // focus before that is a no-op for the soft keyboard.

@@ -1015,7 +1015,7 @@ onMount(async () => {
                 >
                 and
                 <a
-                    href="https://metastate.foundation/"
+                    href="https://metastate.foundation/privacy"
                     rel="noopener noreferrer"
                     target="_blank"
                     class="text-primary underline underline-offset-4"

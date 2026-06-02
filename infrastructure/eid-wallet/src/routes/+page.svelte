@@ -3,7 +3,24 @@ import { browser } from "$app/environment";
 import { goto } from "$app/navigation";
 import SplashScreen from "$lib/fragments/SplashScreen/SplashScreen.svelte";
 import type { GlobalState } from "$lib/global";
+import { continueAfterSuccessfulAuth } from "$lib/utils/postLogin";
+import {
+    type AuthOptions,
+    authenticate,
+    checkStatus,
+} from "@tauri-apps/plugin-biometric";
 import { getContext, onMount } from "svelte";
+
+const BIOMETRIC_ATTEMPTED_KEY = "biometricAttemptedOnSplash";
+
+const authOpts: AuthOptions = {
+    allowDeviceCredential: false,
+    cancelTitle: "Cancel",
+    fallbackTitle: "Please enter your PIN",
+    title: "Login",
+    subtitle: "Please authenticate to continue",
+    confirmationRequired: true,
+};
 
 const getGlobalState = getContext<() => GlobalState | undefined>("globalState");
 
@@ -15,12 +32,9 @@ if (skipIntro) sessionStorage.removeItem("splashImmediate");
 
 // false = state A (logo "closed"); true = state B (tagline revealed).
 let splashOpen = $state(skipIntro);
-// true = state C (bottom drawer revealed) — Create/Restore for new users,
-// single Continue for returning users.
+// true = state C (bottom drawer revealed) — Create/Restore for new users.
+// Returning users skip the drawer entirely and auto-redirect to /login.
 let splashShowDrawer = $state(skipIntro);
-// Set for returning users; the Continue tap navigates here and carries the
-// user gesture Android needs to auto-open the soft keyboard on /login.
-let returningUserTarget = $state<string | null>(null);
 
 async function handleCreateDigitalSelf() {
     // The mount-guard flag for /onboarding is set centrally by the layout's
@@ -31,10 +45,6 @@ async function handleCreateDigitalSelf() {
 
 async function handleRestoreDigitalSelf() {
     await goto("/recover");
-}
-
-async function handleContinue() {
-    if (returningUserTarget) await goto(returningUserTarget);
 }
 
 onMount(async () => {
@@ -71,13 +81,53 @@ onMount(async () => {
     }
 
     if (onboardingComplete && userExists) {
-        // Returning user — show a Continue CTA instead of auto-redirecting,
-        // so the tap can carry the gesture into /login's keyboard auto-open.
+        // Returning user.
         const pinHash = globalState
             ? await globalState.securityController.pinHash
             : null;
-        returningUserTarget = pinHash ? "/login" : "/onboarding";
-        splashShowDrawer = true;
+
+        // If no PIN is set we bounce back to onboarding to recover; no
+        // biometric prompt makes sense from that state.
+        if (!pinHash) {
+            await goto("/onboarding");
+            return;
+        }
+
+        // Fire biometric over the splash itself so the prompt isn't competing
+        // with the /login slide-in. On success we run the post-auth chores
+        // and route straight to /main (no /login flash). On cancel/fail we
+        // slide into /login with a sessionStorage flag so /login knows the
+        // biometric attempt already happened and skips re-prompting.
+        let biometricAvailable = false;
+        try {
+            biometricAvailable =
+                !!globalState &&
+                (await globalState.securityController.biometricSupport) &&
+                (await checkStatus()).isAvailable;
+        } catch (error) {
+            console.error("Biometric availability check failed:", error);
+        }
+
+        if (biometricAvailable && globalState) {
+            sessionStorage.setItem(BIOMETRIC_ATTEMPTED_KEY, "true");
+            try {
+                await authenticate(
+                    "You must authenticate with PIN first",
+                    authOpts,
+                );
+                // Success — clear the flag (we won't reach /login at all)
+                // and run the shared post-auth routine.
+                sessionStorage.removeItem(BIOMETRIC_ATTEMPTED_KEY);
+                await continueAfterSuccessfulAuth(globalState);
+                return;
+            } catch (e) {
+                // Cancel/fail. Leave the flag set so /login skips its own
+                // biometric retry, then slide into /login for PIN entry.
+                console.warn("Biometric on splash failed", e);
+            }
+        }
+
+        await goto("/login");
         return;
     }
 
@@ -91,5 +141,4 @@ onMount(async () => {
     showDrawer={splashShowDrawer}
     oncreate={handleCreateDigitalSelf}
     onrestore={handleRestoreDigitalSelf}
-    oncontinue={returningUserTarget ? handleContinue : undefined}
 />
