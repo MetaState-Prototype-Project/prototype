@@ -7,16 +7,16 @@ import { MigrationInterface, QueryRunner } from "typeorm";
  * re-ingesting an updated MetaEnvelope queues a fresh delivery instead of being
  * silently dropped by the old constraint.
  */
-export class AddDeliveryContentHash1780000000000
-    implements MigrationInterface
-{
-    name = "AddDeliveryContentHash1780000000000";
+export class AddDeliveryContentHash1780404367748 implements MigrationInterface {
+    name = "AddDeliveryContentHash1780404367748";
 
     public async up(queryRunner: QueryRunner): Promise<void> {
+        // Add nullable first, then backfill: a straight `ADD ... NOT NULL`
+        // fails on any table that already has delivery rows.
         await queryRunner.query(
-            `ALTER TABLE "deliveries" ADD COLUMN "contentHash" varchar`,
+            `ALTER TABLE "deliveries" ADD "contentHash" character varying`,
         );
-        // Backfill legacy rows with a single constant: this preserves the old
+        // Backfill legacy rows with a single constant. This preserves the old
         // one-delivery-per-(subscription, packet) semantics for rows that
         // predate content-based dedup.
         await queryRunner.query(
@@ -38,10 +38,10 @@ export class AddDeliveryContentHash1780000000000
             `ALTER TABLE "deliveries" DROP CONSTRAINT "uq_delivery_subscription_packet_content"`,
         );
         await queryRunner.query(
-            `ALTER TABLE "deliveries" ADD CONSTRAINT "uq_delivery_subscription_packet" UNIQUE ("subscriptionId", "packetId")`,
+            `ALTER TABLE "deliveries" DROP COLUMN "contentHash"`,
         );
         await queryRunner.query(
-            `ALTER TABLE "deliveries" DROP COLUMN "contentHash"`,
+            `ALTER TABLE "deliveries" ADD CONSTRAINT "uq_delivery_subscription_packet" UNIQUE ("subscriptionId", "packetId")`,
         );
     }
 }
