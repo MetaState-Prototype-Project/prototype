@@ -51,8 +51,8 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        CFBundleShortVersionString: 0.1.0
-        CFBundleVersion: 0.1.0
+        CFBundleShortVersionString: 1.0.1
+        CFBundleVersion: 1.0.1
     entitlements:
       path: eid-wallet_iOS/eid-wallet_iOS.entitlements
     scheme:
