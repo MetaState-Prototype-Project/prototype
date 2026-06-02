@@ -2,6 +2,7 @@ import { AppDataSource } from "../database/data-source";
 import { Delivery } from "../database/entities/Delivery";
 import { Packet } from "../database/entities/Packet";
 import type { AwarenessPayload } from "../types";
+import { contentHash } from "../utils/contentHash";
 import { SubscriptionMatcher } from "./SubscriptionMatcher";
 
 /** Returns the normalised origin of a URL, or null if it cannot be parsed. */
@@ -56,19 +57,27 @@ export class IngestService {
             return { packetId: packet.id, deliveriesQueued: 0 };
         }
 
+        // Dedupe deliveries by payload content rather than packet id alone:
+        // re-ingesting an updated envelope (new hash) must queue a new delivery,
+        // while a retried POST of the same payload (same hash) must not.
+        const hash = contentHash(payload.data ?? null);
+
         const deliveryRepo = AppDataSource.getRepository(Delivery);
         const rows = subscriptions.map((sub) =>
             deliveryRepo.create({
                 subscriptionId: sub.id,
                 packetId: packet.id,
+                contentHash: hash,
                 status: "pending",
                 attempts: 0,
                 nextAttemptAt: new Date(),
             }),
         );
 
-        // orIgnore skips deliveries that already exist for this packet/sub pair,
-        // so an evault-core retry of POST /ingest does not double-deliver.
+        // orIgnore skips deliveries that already exist for this
+        // (subscription, packet, content) triple, so an evault-core retry of
+        // POST /ingest with unchanged data does not double-deliver. An updated
+        // payload has a different contentHash and is inserted as a new delivery.
         const result = await deliveryRepo
             .createQueryBuilder()
             .insert()
