@@ -18,6 +18,7 @@ let cachedUserData: Record<string, unknown> | undefined;
 let cachedEname: string | undefined;
 let cachedIsFake: boolean | undefined;
 let cachedLegalId: LegalIdDoc | null = null;
+let cachedDisplayName: string | undefined;
 let cachedSocialBindingCount = 0;
 let cachedSocialBindingPreview: SocialBindingDisplay[] = [];
 let hasEverLoaded = false;
@@ -88,6 +89,10 @@ let toastMessage = $state("");
 // binding doc as the authoritative signal.
 let isFake = $state<boolean | undefined>(cachedIsFake);
 let legalId = $state<LegalIdDoc | null>(cachedLegalId);
+// Display name from the self-binding doc — the one the user typed at
+// registration. Never gets overwritten by KYC the way userController.user.name
+// does, so this stays as the user's chosen handle on the home greeting.
+let displayName = $state<string | undefined>(cachedDisplayName);
 let kycOpen = $state(false);
 let eVaultInfoOpen = $state(false);
 let bindingDocsInfoOpen = $state(false);
@@ -152,12 +157,20 @@ async function loadBindingDocuments(): Promise<void> {
         const edges: { node: { parsed: ParsedBindingDoc | null } }[] =
             json?.data?.bindingDocuments?.edges ?? [];
 
-        const idDoc = edges
+        const parsedDocs = edges
             .map((e) => e.node.parsed)
-            .find((p): p is ParsedBindingDoc => p?.type === "id_document");
+            .filter((p): p is ParsedBindingDoc => p !== null);
 
+        const idDoc = parsedDocs.find((p) => p.type === "id_document");
         legalId = idDoc ? toLegalIdDoc(idDoc) : null;
         cachedLegalId = legalId;
+
+        const selfDoc = parsedDocs.find((p) => p.type === "self");
+        const selfName = selfDoc?.data?.name;
+        if (typeof selfName === "string" && selfName.trim()) {
+            displayName = selfName.trim();
+            cachedDisplayName = displayName;
+        }
     } catch (err) {
         console.warn("[main] Failed to load binding documents:", err);
     }
@@ -725,7 +738,7 @@ async function refreshBindings(): Promise<void> {
             >
                 <Greeting
                     greeting={tourGreeting}
-                    name={(userData?.name as string) ?? ""}
+                    name={displayName ?? (userData?.name as string) ?? ""}
                     {notificationCount}
                     {tourActive}
                 />
