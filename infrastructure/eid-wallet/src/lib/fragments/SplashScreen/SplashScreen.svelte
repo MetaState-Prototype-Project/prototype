@@ -11,9 +11,6 @@ interface ISplashScreenProps {
     showDrawer?: boolean;
     oncreate?: () => void;
     onrestore?: () => void;
-    /** When provided, the drawer renders a single "Continue" button instead
-     *  of the Create / Restore pair (returning-user variant). */
-    oncontinue?: () => void;
 }
 
 const {
@@ -21,7 +18,6 @@ const {
     showDrawer = false,
     oncreate,
     onrestore,
-    oncontinue,
 }: ISplashScreenProps = $props();
 
 // Roboto Condensed ships with font-display: swap, so without this gate the
@@ -97,52 +93,42 @@ onMount(async () => {
             class="absolute inset-x-0 bottom-0 bg-white rounded-t-3xl px-5 pt-5 flex flex-col gap-3"
             style="padding-bottom: max(20px, env(safe-area-inset-bottom));"
         >
-            {#if oncontinue}
-                <ButtonAction
-                    variant="solid"
-                    callback={oncontinue}
-                    class="w-full uppercase tracking-wide active:bg-primary-400"
+            <ButtonAction
+                variant="solid"
+                callback={oncreate}
+                class="w-full uppercase tracking-wide active:bg-primary-400"
+            >
+                Create Digital Self
+            </ButtonAction>
+            <ButtonAction
+                variant="soft"
+                callback={onrestore}
+                class="w-full uppercase tracking-wide text-black active:bg-primary-200"
+            >
+                Restore Digital Self
+            </ButtonAction>
+            <p
+                class="text-center font-medium text-md text-black-700/50 leading-normal"
+            >
+                By continuing you agree to our
+                <a
+                    href="https://metastate.foundation/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-primary"
                 >
-                    Continue
-                </ButtonAction>
-            {:else}
-                <ButtonAction
-                    variant="solid"
-                    callback={oncreate}
-                    class="w-full uppercase tracking-wide active:bg-primary-400"
+                    Terms &amp; Conditions
+                </a>
+                and
+                <a
+                    href="https://metastate.foundation/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-primary"
                 >
-                    Create Digital Self
-                </ButtonAction>
-                <ButtonAction
-                    variant="soft"
-                    callback={onrestore}
-                    class="w-full uppercase tracking-wide text-black active:bg-primary-200"
-                >
-                    Restore Digital Self
-                </ButtonAction>
-                <p
-                    class="text-center font-medium text-md text-black-700/50 leading-normal"
-                >
-                    By continuing you agree to our
-                    <a
-                        href="https://metastate.foundation/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="text-primary"
-                    >
-                        Terms &amp; Conditions
-                    </a>
-                    and
-                    <a
-                        href="https://metastate.foundation/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="text-primary"
-                    >
-                        Privacy Policy
-                    </a>
-                </p>
-            {/if}
+                    Privacy Policy
+                </a>
+            </p>
         </div>
     {/if}
 </div>
