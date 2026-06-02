@@ -16,11 +16,16 @@ export type DeliveryStatus =
 
 /**
  * A queued webhook delivery of one packet to one subscription. The unique
- * (subscriptionId, packetId) constraint makes ingest idempotent if evault-core
- * retries a POST.
+ * (subscriptionId, packetId, contentHash) constraint dedupes by content: a
+ * retried POST of the same payload is idempotent, while re-ingesting an updated
+ * envelope (new contentHash) queues a fresh delivery.
  */
 @Entity("deliveries")
-@Unique("uq_delivery_subscription_packet", ["subscriptionId", "packetId"])
+@Unique("uq_delivery_subscription_packet_content", [
+    "subscriptionId",
+    "packetId",
+    "contentHash",
+])
 export class Delivery {
     @PrimaryGeneratedColumn("uuid")
     id!: string;
@@ -31,6 +36,10 @@ export class Delivery {
 
     @Column({ type: "varchar" })
     packetId!: string;
+
+    /** SHA-256 of the packet payload at ingest; dedupes deliveries by content. */
+    @Column({ type: "varchar" })
+    contentHash!: string;
 
     @Column({ type: "varchar", default: "pending" })
     status!: DeliveryStatus;
