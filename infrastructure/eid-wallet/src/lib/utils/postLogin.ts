@@ -62,6 +62,7 @@ export async function continueAfterSuccessfulAuth(
         } catch (error) {
             console.error("Error processing pending deep link:", error);
             sessionStorage.removeItem("pendingDeepLink");
+            sessionStorage.removeItem("deepLinkData");
         }
     }
 
