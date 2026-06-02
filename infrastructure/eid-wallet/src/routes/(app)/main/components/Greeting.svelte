@@ -30,11 +30,6 @@ const {
             <h2 class="text-display font-bold font-condensed text-black">
                 {name}
             </h2>
-            <!-- Edit-name button hidden until the backend supports updating
-                 the self-binding document. evault-core only exposes
-                 createBindingDocument today; there's no update mutation, and
-                 patching the underlying MetaEnvelope would invalidate the
-                 existing signature. Re-enable once that path lands. -->
             {#if !tourActive}
                 <button
                     type="button"

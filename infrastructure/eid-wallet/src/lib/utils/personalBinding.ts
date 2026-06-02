@@ -176,6 +176,35 @@ export async function createSecurityQuestion(
     return unwrapCreate(result);
 }
 
+/**
+ * Re-issue the user's self-binding doc with a new display name. Same shape
+ * as the doc created during onboarding (kind:"self"). Callers pair this
+ * with `deletePersonalBinding(oldId)` to drop the previous version —
+ * evault-core has no update mutation.
+ */
+export async function createSelfBindingDoc(
+    gqlUrl: string,
+    ownerEname: string,
+    ownerSignature: OwnerSignature,
+    name: string,
+): Promise<string> {
+    const subject = normalizeEname(ownerEname);
+    const result = await vaultGqlRequest<CreateBindingDocResult>(
+        gqlUrl,
+        ownerEname,
+        CREATE_BINDING_DOC_MUTATION,
+        {
+            input: {
+                subject,
+                type: "self",
+                data: { kind: "self", name },
+                ownerSignature,
+            },
+        },
+    );
+    return unwrapCreate(result);
+}
+
 // ---------------------------------------------------------------------------
 // Hash / validate
 // ---------------------------------------------------------------------------

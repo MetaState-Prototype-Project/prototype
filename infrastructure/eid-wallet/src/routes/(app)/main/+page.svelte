@@ -19,6 +19,7 @@ let cachedEname: string | undefined;
 let cachedIsFake: boolean | undefined;
 let cachedLegalId: LegalIdDoc | null = null;
 let cachedDisplayName: string | undefined;
+let cachedSelfDocId: string | undefined;
 let cachedSocialBindingCount = 0;
 let cachedSocialBindingPreview: SocialBindingDisplay[] = [];
 let hasEverLoaded = false;
@@ -42,13 +43,19 @@ import {
     fetchSocialBindings,
     resolveVaultUri,
 } from "$lib/utils";
+import { getCanonicalBindingDocString } from "$lib/utils/bindingDocHash";
 import { replaceAll as replaceAllPersonal } from "$lib/stores/personalBinding";
-import { loadPersonalBindings } from "$lib/utils/personalBinding";
+import {
+    createSelfBindingDoc,
+    deletePersonalBinding,
+    loadPersonalBindings,
+} from "$lib/utils/personalBinding";
 import { getContext, onDestroy, onMount, tick } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
 import { fly } from "svelte/transition";
 import AppsMarketplace from "./components/AppsMarketplace.svelte";
 import BindingDocuments from "./components/BindingDocuments.svelte";
+import EditNameSheet from "./components/EditNameSheet.svelte";
 import ENameCard from "./components/ENameCard.svelte";
 import EVaultCard from "./components/EVaultCard.svelte";
 import Greeting from "./components/Greeting.svelte";
@@ -93,6 +100,13 @@ let legalId = $state<LegalIdDoc | null>(cachedLegalId);
 // registration. Never gets overwritten by KYC the way userController.user.name
 // does, so this stays as the user's chosen handle on the home greeting.
 let displayName = $state<string | undefined>(cachedDisplayName);
+// MetaEnvelope id of the current self-binding doc. Captured at load so the
+// edit flow can delete the old doc after writing a new one — evault-core has
+// no update mutation, so the only way to "rename" is create-then-delete.
+let selfDocId = $state<string | undefined>(cachedSelfDocId);
+let editNameOpen = $state(false);
+let editNameSaving = $state(false);
+let editNameError = $state<string | null>(null);
 let kycOpen = $state(false);
 let eVaultInfoOpen = $state(false);
 let bindingDocsInfoOpen = $state(false);
@@ -147,35 +161,130 @@ async function loadBindingDocuments(): Promise<void> {
             body: JSON.stringify({
                 query: `query {
                     bindingDocuments(first: 50) {
-                        edges { node { parsed } }
+                        edges { node { id parsed } }
                     }
                 }`,
             }),
         });
 
         const json = await res.json();
-        const edges: { node: { parsed: ParsedBindingDoc | null } }[] =
-            json?.data?.bindingDocuments?.edges ?? [];
+        const edges: {
+            node: { id: string; parsed: ParsedBindingDoc | null };
+        }[] = json?.data?.bindingDocuments?.edges ?? [];
 
-        const parsedDocs = edges
-            .map((e) => e.node.parsed)
-            .filter((p): p is ParsedBindingDoc => p !== null);
+        const docs = edges
+            .map((e) => ({ id: e.node.id, parsed: e.node.parsed }))
+            .filter(
+                (d): d is { id: string; parsed: ParsedBindingDoc } =>
+                    d.parsed !== null,
+            );
 
-        const idDoc = parsedDocs.find((p) => p.type === "id_document");
-        legalId = idDoc ? toLegalIdDoc(idDoc) : null;
+        const idDocEntry = docs.find((d) => d.parsed.type === "id_document");
+        legalId = idDocEntry ? toLegalIdDoc(idDocEntry.parsed) : null;
         cachedLegalId = legalId;
 
-        const selfDoc = parsedDocs.find((p) => p.type === "self");
-        const selfName = selfDoc?.data?.name;
+        const selfDocEntry = docs.find((d) => d.parsed.type === "self");
+        const selfName = selfDocEntry?.parsed.data?.name;
         if (typeof selfName === "string" && selfName.trim()) {
             displayName = selfName.trim();
             cachedDisplayName = displayName;
         }
+        selfDocId = selfDocEntry?.id;
+        cachedSelfDocId = selfDocId;
     } catch (err) {
         console.warn("[main] Failed to load binding documents:", err);
     }
 
     await loadSocialBindings();
+}
+
+// Edit the display name by writing a new self-binding doc and deleting the
+// old one. evault-core exposes no update mutation, so this create+delete
+// pair is the only path. If the delete fails we leave the orphan in place —
+// the next load picks the most-recent self doc by timestamp anyway.
+async function handleEditNameSave(newName: string): Promise<void> {
+    if (!globalState) {
+        editNameError = "Wallet not ready.";
+        return;
+    }
+    const trimmed = newName.trim();
+    if (!trimmed) {
+        editNameError = "Please enter a name.";
+        return;
+    }
+    if (trimmed === displayName) {
+        editNameOpen = false;
+        return;
+    }
+
+    editNameSaving = true;
+    editNameError = null;
+
+    try {
+        const vault = await globalState.vaultController.vault;
+        if (!vault?.uri || !vault?.ename) {
+            throw new Error("No eVault available");
+        }
+        const ownerEname = vault.ename.startsWith("@")
+            ? vault.ename
+            : `@${vault.ename}`;
+        const gqlUrl = new URL("/graphql", vault.uri).toString();
+
+        const data = { kind: "self", name: trimmed };
+        const canonical = getCanonicalBindingDocString({
+            subject: ownerEname,
+            type: "self",
+            data,
+        });
+        const signature = await globalState.keyService.sign(canonical);
+        const ownerSignature = {
+            signer: ownerEname,
+            signature,
+            timestamp: new Date().toISOString(),
+        };
+
+        const newId = await createSelfBindingDoc(
+            gqlUrl,
+            ownerEname,
+            ownerSignature,
+            trimmed,
+        );
+
+        const oldId = selfDocId;
+        displayName = trimmed;
+        cachedDisplayName = trimmed;
+        selfDocId = newId;
+        cachedSelfDocId = newId;
+
+        // Mirror to userController so accordions/cards that still read from
+        // there stay consistent until their own loaders re-run.
+        if (userData) {
+            userData = { ...userData, name: trimmed };
+            cachedUserData = userData;
+            globalState.userController.user = userData as Record<string, string>;
+        }
+
+        if (oldId && oldId !== newId) {
+            try {
+                await deletePersonalBinding(gqlUrl, ownerEname, oldId);
+            } catch (err) {
+                console.warn(
+                    "[main] Couldn't delete old self-binding; load dedupe will handle it",
+                    err,
+                );
+            }
+        }
+
+        editNameOpen = false;
+    } catch (err) {
+        console.error("[main] Edit name failed:", err);
+        editNameError =
+            err instanceof Error
+                ? err.message
+                : "Couldn't save your new name. Please try again.";
+    } finally {
+        editNameSaving = false;
+    }
 }
 
 // Hydrate the personalBinding store from the caller's vault so the
@@ -741,6 +850,10 @@ async function refreshBindings(): Promise<void> {
                     name={displayName ?? (userData?.name as string) ?? ""}
                     {notificationCount}
                     {tourActive}
+                    onedit={() => {
+                        editNameError = null;
+                        editNameOpen = true;
+                    }}
                 />
             </div>
         {/if}
@@ -869,6 +982,14 @@ async function refreshBindings(): Promise<void> {
     bind:isOpen={socialDrawerOpen}
     {globalState}
     onbound={handleSocialBound}
+/>
+
+<EditNameSheet
+    bind:isOpen={editNameOpen}
+    currentName={displayName ?? (userData?.name as string) ?? ""}
+    saving={editNameSaving}
+    error={editNameError}
+    onsave={handleEditNameSave}
 />
 
 <InfoDrawer bind:isOpen={eVaultInfoOpen} title="What is eVault?">
