@@ -214,9 +214,7 @@ export class EVaultService {
 	/**
 	 * Get binding documents for a specific eVault by evaultId
 	 */
-	static async getBindingDocuments(
-		evaultId: string
-	): Promise<{
+	static async getBindingDocuments(evaultId: string): Promise<{
 		documents: BindingDocument[];
 		socialConnections: SocialConnection[];
 		eName: string;
