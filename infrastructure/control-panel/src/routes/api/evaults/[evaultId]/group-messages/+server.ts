@@ -99,21 +99,24 @@ export const GET: RequestHandler = async ({ params, url }) => {
 		const hintByBucket = new Map<string, Map<string, number>>();
 		const userRowsForProbe = userRegistryRowsForProbe(registryRows);
 		const probeRequestCache = new Map<string, string | null>();
-		const { displayName: senderDisplayName, ename: senderEname } = await resolveSenderRowFields({
-			bucketKey: filterBucket,
-			allVaults,
-			registryEnameLookup,
-			token,
-			dashboardNameByKey,
-			hintByBucket,
-			userRowsForProbe,
-			probeRequestCache
-		});
+		const { displayName: senderDisplayName, ename: senderEname } = await resolveSenderRowFields(
+			{
+				bucketKey: filterBucket,
+				allVaults,
+				registryEnameLookup,
+				token,
+				dashboardNameByKey,
+				hintByBucket,
+				userRowsForProbe,
+				probeRequestCache
+			}
+		);
 
 		const manifest = await fetchGroupManifestOrFallbackParsed(vault, token);
-		const manifestRec = manifest && typeof manifest === 'object' && !Array.isArray(manifest)
-			? (manifest as Record<string, unknown>)
-			: null;
+		const manifestRec =
+			manifest && typeof manifest === 'object' && !Array.isArray(manifest)
+				? (manifest as Record<string, unknown>)
+				: null;
 		const groupDisplayNameRaw = manifestRec?.name;
 		const groupDisplayName =
 			typeof groupDisplayNameRaw === 'string' && groupDisplayNameRaw.trim()

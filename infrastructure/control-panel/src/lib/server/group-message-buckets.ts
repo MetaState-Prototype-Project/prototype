@@ -8,8 +8,7 @@ export function normalizeW3id(s: string): string {
 	return s.trim().replace(/^@+/u, '').toLowerCase();
 }
 
-const UUID_RE =
-	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function isLikelyUuid(s: string): boolean {
 	return UUID_RE.test(s.trim());
@@ -63,10 +62,7 @@ export function buildRegistryEnameLookup(vaults: RegistryVault[]): Map<string, s
 	return map;
 }
 
-function firstNonEmptyStringField(
-	parsed: Record<string, unknown>,
-	keys: string[]
-): string | null {
+function firstNonEmptyStringField(parsed: Record<string, unknown>, keys: string[]): string | null {
 	for (const k of keys) {
 		const v = parsed[k];
 		if (typeof v === 'string' && v.trim().length > 0) {
@@ -77,7 +73,9 @@ function firstNonEmptyStringField(
 }
 
 /** Raw sender id from payload (UUID / legacy), not used as the aggregation key when registry resolves. */
-export function rawMessageSenderId(parsed: Record<string, unknown> | null | undefined): string | null {
+export function rawMessageSenderId(
+	parsed: Record<string, unknown> | null | undefined
+): string | null {
 	if (!parsed || typeof parsed !== 'object') {
 		return null;
 	}
@@ -149,7 +147,9 @@ export function senderBucketKey(
 	return NO_SENDER_BUCKET;
 }
 
-export function previewMessageBody(parsed: Record<string, unknown> | undefined): string | undefined {
+export function previewMessageBody(
+	parsed: Record<string, unknown> | undefined
+): string | undefined {
 	if (!parsed) {
 		return undefined;
 	}
@@ -208,9 +208,7 @@ export function findSenderVaultForBucket(
 		}
 	}
 
-	return (
-		vaults.find((x) => x.ename === trimmed || x.ename.toLowerCase() === lower) ?? null
-	);
+	return vaults.find((x) => x.ename === trimmed || x.ename.toLowerCase() === lower) ?? null;
 }
 
 /** Segment for `/evaults/[id]` — matches client list `id === evault || ename`. */

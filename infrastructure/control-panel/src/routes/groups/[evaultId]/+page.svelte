@@ -114,8 +114,8 @@
 				<p class="mt-1 text-sm text-gray-600">
 					Scanned {stats.messagesScanned} message envelope(s):{' '}
 					<span class="font-medium text-gray-800">{withSender}</span>
-					with a sender id or resolvable <code class="text-xs">ename</code> (bucketed in the table
-					below),
+					with a sender id or resolvable <code class="text-xs">ename</code> (bucketed in
+					the table below),
 					<span class="font-medium text-gray-800">{withoutSender}</span>
 					with no sender in the payload (system / null).
 				</p>
@@ -136,8 +136,9 @@
 			<div class="border-b border-gray-200 px-5 py-3">
 				<h2 class="text-lg font-semibold text-gray-900">Messages by sender</h2>
 				<p class="text-sm text-gray-500">
-					Real name comes from each sender’s user vault (same fields as the dashboard). eName is the
-					W3ID when we can match the registry; otherwise the raw sender id from the message.
+					Real name comes from each sender’s user vault (same fields as the dashboard).
+					eName is the W3ID when we can match the registry; otherwise the raw sender id
+					from the message.
 				</p>
 			</div>
 			<div class="overflow-x-auto">
@@ -145,9 +146,12 @@
 					<table class="min-w-full divide-y divide-gray-200 text-sm">
 						<thead class="bg-gray-50">
 							<tr>
-								<th class="px-4 py-2 text-left font-medium text-gray-600">Real name</th>
+								<th class="px-4 py-2 text-left font-medium text-gray-600"
+									>Real name</th
+								>
 								<th class="px-4 py-2 text-left font-medium text-gray-600">eName</th>
-								<th class="px-4 py-2 text-right font-medium text-gray-600">Count</th>
+								<th class="px-4 py-2 text-right font-medium text-gray-600">Count</th
+								>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-gray-100">
@@ -156,8 +160,12 @@
 									<td class="px-4 py-2 text-gray-900">
 										{#if row.evaultPageId}
 											<a
-												href="/evaults/{encodeURIComponent(row.evaultPageId)}"
-												class="font-medium text-blue-600 hover:underline">{row.displayName}</a>
+												href="/evaults/{encodeURIComponent(
+													row.evaultPageId
+												)}"
+												class="font-medium text-blue-600 hover:underline"
+												>{row.displayName}</a
+											>
 										{:else}
 											{row.displayName}
 										{/if}
@@ -165,10 +173,12 @@
 									<td class="px-4 py-2 font-mono text-gray-900">{row.ename}</td>
 									<td class="px-4 py-2 text-right font-medium">
 										<a
-											href="/groups/{encodeURIComponent(evaultId)}/messages?bucket={encodeURIComponent(
-												row.bucketKey
-											)}"
-											class="text-blue-600 hover:underline">{row.messageCount}</a>
+											href="/groups/{encodeURIComponent(
+												evaultId
+											)}/messages?bucket={encodeURIComponent(row.bucketKey)}"
+											class="text-blue-600 hover:underline"
+											>{row.messageCount}</a
+										>
 									</td>
 								</tr>
 							{/each}

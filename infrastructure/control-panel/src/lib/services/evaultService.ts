@@ -216,7 +216,11 @@ export class EVaultService {
 	 */
 	static async getBindingDocuments(
 		evaultId: string
-	): Promise<{ documents: BindingDocument[]; socialConnections: SocialConnection[]; eName: string }> {
+	): Promise<{
+		documents: BindingDocument[];
+		socialConnections: SocialConnection[];
+		eName: string;
+	}> {
 		try {
 			const response = await fetch(
 				`/api/evaults/${encodeURIComponent(evaultId)}/binding-documents`

@@ -124,8 +124,7 @@ function collectLookupKeys(...parts: (string | null | undefined)[]): string[] {
 export function userRegistryRowsForProbe(rows: RegistryEvaultRow[]): RegistryEvaultRow[] {
 	return rows.filter(
 		(r) =>
-			r.type === 'user' &&
-			!(typeof r.name === 'string' && /platform$/i.test(r.name.trim()))
+			r.type === 'user' && !(typeof r.name === 'string' && /platform$/i.test(r.name.trim()))
 	);
 }
 
@@ -231,10 +230,7 @@ async function resolveSenderDisplayName(
 	return bucketKey;
 }
 
-function firstNonEmptyStringField(
-	parsed: Record<string, unknown>,
-	keys: string[]
-): string | null {
+function firstNonEmptyStringField(parsed: Record<string, unknown>, keys: string[]): string | null {
 	for (const k of keys) {
 		const v = parsed[k];
 		if (typeof v === 'string' && v.trim().length > 0) {
@@ -244,7 +240,9 @@ function firstNonEmptyStringField(
 	return null;
 }
 
-export function displayHintFromMessage(parsed: Record<string, unknown> | null | undefined): string | null {
+export function displayHintFromMessage(
+	parsed: Record<string, unknown> | null | undefined
+): string | null {
 	if (!parsed || typeof parsed !== 'object') {
 		return null;
 	}
@@ -315,9 +313,9 @@ export async function resolveSenderRowFields(
 	const v = findSenderVaultForBucket(bucketKey, registryEnameLookup, allVaults);
 	const peeledBucket = unwrapRelationIdDeep(bucketKey.trim());
 	const enameFromPeel = peeledBucket
-		? registryEnameLookup.get(peeledBucket) ??
+		? (registryEnameLookup.get(peeledBucket) ??
 			registryEnameLookup.get(peeledBucket.toLowerCase()) ??
-			registryEnameLookup.get(normalizeW3id(peeledBucket))
+			registryEnameLookup.get(normalizeW3id(peeledBucket)))
 		: undefined;
 	const enameCol =
 		v?.ename?.trim() ??
