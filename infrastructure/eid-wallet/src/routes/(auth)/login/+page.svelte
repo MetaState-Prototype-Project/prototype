@@ -62,15 +62,22 @@
         isError = false;
         isPostAuthLoading = true;
 
-        const ok = await globalState.securityController.verifyPin(currentPin);
-        if (!ok) {
+        try {
+            const ok = await globalState.securityController.verifyPin(currentPin);
+            if (!ok) {
+                isError = true;
+                pin = "";
+                return;
+            }
+
+            await continueAfterSuccessfulAuth(globalState);
+        } catch (e) {
+            console.error("PIN verification failed", e);
             isError = true;
             pin = "";
+        } finally {
             isPostAuthLoading = false;
-            return;
         }
-
-        await continueAfterSuccessfulAuth(globalState);
     }
 
     $effect(() => {
