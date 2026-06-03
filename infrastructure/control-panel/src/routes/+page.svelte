@@ -466,8 +466,8 @@
 </script>
 
 {#snippet ENameWithType(value: unknown)}
-	{@const item = (value as { ename?: string; type?: 'user' | 'group' | 'unknown' } | null) ??
-		null}
+	{@const item =
+		(value as { ename?: string; type?: 'user' | 'group' | 'unknown' } | null) ?? null}
 	{@const ename = item?.ename || 'N/A'}
 	{@const type = item?.type ?? 'unknown'}
 	<div class="flex items-center gap-2 whitespace-nowrap">

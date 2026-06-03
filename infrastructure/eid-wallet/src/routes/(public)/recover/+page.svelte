@@ -1136,7 +1136,7 @@ onMount(() => {
                     strokeWidth={2}
                 />
             </button>
-            <div class="flex flex-col w-full items-center">
+            <div class="flex flex-col w-full items-center pl-12 sm:pl-0">
                 <h3 class="font-semibold leading-none">Restore DigitalSelf</h3>
             </div>
         </header>

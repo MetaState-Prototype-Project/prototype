@@ -28,7 +28,9 @@
 	const sliceHref = (bucketKey: string) =>
 		`/groups/${encodeURIComponent(groupEvaultId)}/messages?bucket=${encodeURIComponent(bucketKey)}`;
 
-	const pieLayout = pie<DonutSlice>().value((d) => d.value).sort(null);
+	const pieLayout = pie<DonutSlice>()
+		.value((d) => d.value)
+		.sort(null);
 </script>
 
 <g transform="translate({$width / 2},{$height / 2})">
@@ -42,10 +44,11 @@
 		{#if d}
 			<a
 				href={sliceHref(a.data.bucketKey)}
-				class="cursor-pointer outline-none transition-opacity hover:opacity-90 focus-visible:opacity-90"
+				class="cursor-pointer transition-opacity outline-none hover:opacity-90 focus-visible:opacity-90"
 			>
 				<path {d} fill={a.data.color} stroke="#fff" stroke-width="1.5" class="outline-none">
-					<title>{a.data.label} — {a.data.sub}: {a.data.value} messages (open list)</title>
+					<title>{a.data.label} — {a.data.sub}: {a.data.value} messages (open list)</title
+					>
 				</path>
 			</a>
 		{/if}

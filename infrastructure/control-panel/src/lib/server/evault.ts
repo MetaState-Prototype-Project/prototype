@@ -177,7 +177,8 @@ class EvaultService {
 			}
 		});
 
-		const allEdges: Array<{ node: { id: string; parsed: Record<string, unknown> | null } }> = [];
+		const allEdges: Array<{ node: { id: string; parsed: Record<string, unknown> | null } }> =
+			[];
 		let afterCursor: string | null = null;
 
 		do {

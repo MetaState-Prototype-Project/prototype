@@ -23,7 +23,10 @@ class CacheService {
 	private db: any | null = null;
 	private isInitialized = false;
 	/** Server-only: MetaEnvelope id (message sender global id) → resolved display name; reduces cross-vault probes. */
-	private senderProfileDisplayByGlobalId = new Map<string, { value: string; expiresAt: number }>();
+	private senderProfileDisplayByGlobalId = new Map<
+		string,
+		{ value: string; expiresAt: number }
+	>();
 
 	constructor() {
 		// Only initialize on the server side

@@ -1,9 +1,6 @@
 <script lang="ts">
 	import { LayerCake, Svg } from 'layercake';
-	import {
-		GROUP_NO_SENDER_BUCKET_KEY,
-		type GroupSenderRow
-	} from '$lib/services/evaultService';
+	import { GROUP_NO_SENDER_BUCKET_KEY, type GroupSenderRow } from '$lib/services/evaultService';
 	import GroupDonutArcs from './GroupDonutArcs.svelte';
 
 	interface Props {
@@ -127,7 +124,8 @@
 								{#if s.evaultPageId}
 									<a
 										href="/evaults/{encodeURIComponent(s.evaultPageId)}"
-										class="text-blue-600 hover:underline">{s.label}</a>
+										class="text-blue-600 hover:underline">{s.label}</a
+									>
 								{:else}
 									{s.label}
 								{/if}
@@ -135,8 +133,10 @@
 							<div class="truncate font-mono text-xs text-gray-500">{s.sub}</div>
 						</div>
 						<div class="shrink-0 text-right text-gray-700 tabular-nums">
-							<a href={messagesListHref(s.bucketKey)} class="text-blue-600 hover:underline"
-								>{s.value}</a>
+							<a
+								href={messagesListHref(s.bucketKey)}
+								class="text-blue-600 hover:underline">{s.value}</a
+							>
 							<span class="text-gray-400">({pct}%)</span>
 						</div>
 					</li>

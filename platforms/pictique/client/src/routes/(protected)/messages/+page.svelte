@@ -53,41 +53,44 @@
 			const newMessages = data.chats
 				.filter((c) => c.participants.length >= 2)
 				.map((c) => {
-				const members = c.participants.filter((u) => u.id !== userData.id);
-				const memberNames = members.map((m) => m.name ?? m.handle ?? m.ename);
-				const isGroup = members.length > 1;
+					const members = c.participants.filter((u) => u.id !== userData.id);
+					const memberNames = members.map((m) => m.name ?? m.handle ?? m.ename);
+					const isGroup = members.length > 1;
 
-				// Use group avatar for groups, user avatar for direct messages
-				const avatar = isGroup
-					? '/images/group.png'
-					: members[0]?.avatarUrl ||
-						'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/icons/people-fill.svg';
+					// Use group avatar for groups, user avatar for direct messages
+					const avatar = isGroup
+						? '/images/group.png'
+						: members[0]?.avatarUrl ||
+							'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/icons/people-fill.svg';
 
-				// For groups (3+ people), prioritize the group name, fallback to member names
-				// For direct messages (2 people), always use the other person's name, never the group name
-				const displayName = isGroup
-					? c.name || memberNames.join(', ') // Group name first, then member names
-					: members[0]?.name || members[0]?.handle || members[0]?.ename || 'Unknown User';
+					// For groups (3+ people), prioritize the group name, fallback to member names
+					// For direct messages (2 people), always use the other person's name, never the group name
+					const displayName = isGroup
+						? c.name || memberNames.join(', ') // Group name first, then member names
+						: members[0]?.name ||
+							members[0]?.handle ||
+							members[0]?.ename ||
+							'Unknown User';
 
-				// Trim system message prefix from preview text
-				let previewText = c.latestMessage?.text ?? 'No message yet';
-				if (
-					typeof previewText === 'string' &&
-					previewText.startsWith('$$system-message$$')
-				) {
-					previewText = previewText.replace('$$system-message$$', '').trim();
-				}
+					// Trim system message prefix from preview text
+					let previewText = c.latestMessage?.text ?? 'No message yet';
+					if (
+						typeof previewText === 'string' &&
+						previewText.startsWith('$$system-message$$')
+					) {
+						previewText = previewText.replace('$$system-message$$', '').trim();
+					}
 
-				return {
-					id: c.id,
-					avatar,
-					username: displayName,
-					unread: c.latestMessage ? !c.latestMessage.isRead : false,
-					text: previewText,
-					handle: displayName,
-					name: displayName
-				};
-			});
+					return {
+						id: c.id,
+						avatar,
+						username: displayName,
+						unread: c.latestMessage ? !c.latestMessage.isRead : false,
+						text: previewText,
+						handle: displayName,
+						name: displayName
+					};
+				});
 
 			// Append or replace messages based on pagination
 			if (append) {

@@ -14,7 +14,7 @@ import {
     verificaitonId,
 } from "../store";
 
-let error: string | undefined;
+let error = $state<string | undefined>(undefined);
 
 let video: HTMLVideoElement;
 let canvas1: HTMLCanvasElement;
@@ -263,7 +263,7 @@ onMount(() => {
                 </p>
             </div>
             <div class="relative flex flex-col items-center justify-center">
-                <!-- svelte-ignore a11y-media-has-caption -->
+                <!-- svelte-ignore a11y_media_has_caption -->
                 <video
                     bind:this={video}
                     autoplay

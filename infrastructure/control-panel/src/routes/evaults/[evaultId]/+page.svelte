@@ -165,7 +165,8 @@
 					Details
 				</button>
 				<button
-					class="border-b-2 px-1 py-2 text-sm font-medium {selectedTab === 'binding-documents'
+					class="border-b-2 px-1 py-2 text-sm font-medium {selectedTab ===
+					'binding-documents'
 						? 'border-blue-500 text-blue-600'
 						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}"
 					onclick={() => selectTab('binding-documents')}
@@ -266,11 +267,17 @@
 						<div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
 							<h2 class="text-lg font-semibold">Photographs</h2>
 							{#if photoDocuments.length === 0}
-								<p class="mt-2 text-sm text-slate-500">No photograph binding documents.</p>
+								<p class="mt-2 text-sm text-slate-500">
+									No photograph binding documents.
+								</p>
 							{:else}
 								<div class="mt-4 space-y-4">
 									{#each photoDocuments as doc}
-										{@const photoSrc = typeof doc.data?.photoBlob === 'string' && doc.data.photoBlob ? doc.data.photoBlob : null}
+										{@const photoSrc =
+											typeof doc.data?.photoBlob === 'string' &&
+											doc.data.photoBlob
+												? doc.data.photoBlob
+												: null}
 										<div class="rounded-md border border-slate-200 p-3">
 											<p class="text-xs text-slate-500">ID: {doc.id}</p>
 											{#if photoSrc}
@@ -280,7 +287,9 @@
 													alt="Binding"
 												/>
 											{:else}
-												<div class="mt-2 flex max-h-[100px] w-full items-center justify-center rounded bg-slate-100 text-sm text-slate-500">
+												<div
+													class="mt-2 flex max-h-[100px] w-full items-center justify-center rounded bg-slate-100 text-sm text-slate-500"
+												>
 													No image
 												</div>
 											{/if}
@@ -293,7 +302,9 @@
 						<div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
 							<h2 class="text-lg font-semibold">ID Document</h2>
 							{#if idDocuments.length === 0}
-								<p class="mt-2 text-sm text-slate-500">No id_document binding documents.</p>
+								<p class="mt-2 text-sm text-slate-500">
+									No id_document binding documents.
+								</p>
 							{:else}
 								<table class="mt-4 w-full text-left text-sm">
 									<thead class="bg-slate-50 text-slate-600">
@@ -306,9 +317,15 @@
 									<tbody>
 										{#each idDocuments as doc}
 											<tr class="border-t border-slate-200">
-												<td class="px-3 py-2">{getDataValue(doc.data, 'vendor')}</td>
-												<td class="px-3 py-2">{getDataValue(doc.data, 'reference')}</td>
-												<td class="px-3 py-2">{getDataValue(doc.data, 'name')}</td>
+												<td class="px-3 py-2"
+													>{getDataValue(doc.data, 'vendor')}</td
+												>
+												<td class="px-3 py-2"
+													>{getDataValue(doc.data, 'reference')}</td
+												>
+												<td class="px-3 py-2"
+													>{getDataValue(doc.data, 'name')}</td
+												>
 											</tr>
 										{/each}
 									</tbody>
@@ -319,7 +336,9 @@
 						<div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
 							<h2 class="text-lg font-semibold">Self Binding</h2>
 							{#if selfDocuments.length === 0}
-								<p class="mt-2 text-sm text-slate-500">No self binding documents.</p>
+								<p class="mt-2 text-sm text-slate-500">
+									No self binding documents.
+								</p>
 							{:else}
 								<table class="mt-4 w-full text-left text-sm">
 									<thead class="bg-slate-50 text-slate-600">
@@ -331,7 +350,9 @@
 									<tbody>
 										{#each selfDocuments as doc}
 											<tr class="border-t border-slate-200">
-												<td class="px-3 py-2">{getDataValue(doc.data, 'name')}</td>
+												<td class="px-3 py-2"
+													>{getDataValue(doc.data, 'name')}</td
+												>
 												<td class="px-3 py-2">{doc.subject}</td>
 											</tr>
 										{/each}
@@ -345,14 +366,19 @@
 						<div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
 							<h2 class="text-lg font-semibold">Social Connections</h2>
 							{#if socialConnections.length === 0}
-								<p class="mt-2 text-sm text-slate-500">No social connections found.</p>
+								<p class="mt-2 text-sm text-slate-500">
+									No social connections found.
+								</p>
 							{:else}
 								<div class="mt-4 space-y-3">
 									{#each socialConnections as connection}
 										<div class="rounded-md border border-slate-200 p-3">
-											<p class="font-medium text-gray-900">{connection.name}</p>
+											<p class="font-medium text-gray-900">
+												{connection.name}
+											</p>
 											<p class="text-sm text-slate-600">
-												Witness eName: {connection.witnessEName || 'Unknown'}
+												Witness eName: {connection.witnessEName ||
+													'Unknown'}
 											</p>
 											{#if connection.relationDescription}
 												<p class="mt-2 text-sm text-slate-600 italic">

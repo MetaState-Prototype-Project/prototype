@@ -73,7 +73,11 @@ type SenderRow = {
 	evaultPageId: string | null;
 };
 
-async function mapInChunks<T, R>(items: T[], chunkSize: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+async function mapInChunks<T, R>(
+	items: T[],
+	chunkSize: number,
+	fn: (item: T) => Promise<R>
+): Promise<R[]> {
 	const out: R[] = [];
 	for (let i = 0; i < items.length; i += chunkSize) {
 		const chunk = items.slice(i, i + chunkSize);
@@ -166,8 +170,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
 		if (!manifest) {
 			return json(
 				{
-					error:
-						'Could not load group manifest from this vault (not a group eVault, unreachable, or auth failed).'
+					error: 'Could not load group manifest from this vault (not a group eVault, unreachable, or auth failed).'
 				},
 				{ status: 400 }
 			);
@@ -230,7 +233,10 @@ export const GET: RequestHandler = async ({ params, url }) => {
 							chatId: parsed?.chatId ?? null,
 							isSystemMessage: parsed?.isSystemMessage ?? null,
 							preview: previewMessageBody(parsed),
-							parsedKeys: parsed && typeof parsed === 'object' ? Object.keys(parsed).sort() : []
+							parsedKeys:
+								parsed && typeof parsed === 'object'
+									? Object.keys(parsed).sort()
+									: []
 						})
 					);
 				}
