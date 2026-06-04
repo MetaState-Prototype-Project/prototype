@@ -542,9 +542,21 @@ const scanFABVisible = $derived(tourStep === null || tourStep === "scan");
 // during earlier steps, and after FINISH.
 $effect(() => {
     if (typeof window === "undefined") return;
-    if (tourStep !== "scan") {
-        scanFABTop = restingScanFABTop();
+    const handleViewPortChange = () => {
+        if (tourStep !== "scan") {
+            scanFABTop = restingScanFABTop();
+        }
     }
+    handleViewPortChange()
+    // Attach listeners for both orientation change and general window resize
+    window.addEventListener("orientationchange", handleViewPortChange);
+    window.addEventListener("resize", handleViewPortChange);
+
+    // Clean up event listeners when the component is unmounted
+    return () => {
+      window.removeEventListener("orientationchange", handleViewPortChange);
+      window.removeEventListener("resize", handleViewPortChange);
+    };
 });
 
 async function maybeShowNotifPrompt(welcomeTourSeen: boolean) {
