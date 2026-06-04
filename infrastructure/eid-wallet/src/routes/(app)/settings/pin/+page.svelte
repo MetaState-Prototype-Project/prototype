@@ -32,11 +32,28 @@ const stepTitle = $derived(
           : "Confirm your new PIN",
 );
 
-function advance() {
-    if (!canSubmit) return;
+async function advance() {
+    if (!canSubmit || submitting) return;
     error = null;
     if (step === "current") {
-        step = "new";
+        if (!globalState) return;
+        submitting = true;
+        try {
+            const ok =
+                await globalState.securityController.verifyPin(currentPin);
+            if (!ok) {
+                error = "That's not your current PIN. Try again.";
+                currentPin = "";
+                return;
+            }
+            step = "new";
+        } catch (err) {
+            console.error("Failed to verify current PIN:", err);
+            error = "Couldn't verify your current PIN. Try again.";
+            currentPin = "";
+        } finally {
+            submitting = false;
+        }
     } else if (step === "new") {
         step = "repeat";
     } else {
@@ -148,7 +165,7 @@ onMount(() => {
             class="w-full uppercase tracking-wide"
             disabled={!canSubmit || submitting}
             callback={advance}
-            blockingClick={step === "repeat"}
+            blockingClick={step !== "new"}
         >
             {step === "repeat" ? "Change PIN" : "Next"}
         </ButtonAction>
