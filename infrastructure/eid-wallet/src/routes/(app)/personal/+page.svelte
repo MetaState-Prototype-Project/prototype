@@ -339,48 +339,59 @@ async function handleKnowledgeSave(data: {
 {/snippet}
 
 {#snippet photosBody()}
-    {#if photosFilled}
+    {#if binding.photos.length > 0 || loading}
         <ul class="flex flex-col gap-3 mt-3">
             {#each binding.photos as photo (photo.id)}
-                <li class="flex items-center gap-3">
-                    <img
-                        src={photo.dataUrl}
-                        alt=""
-                        class="w-10 h-10 rounded-lg object-cover shrink-0"
-                    />
-                    <p
-                        class="flex-1 min-w-0 text-black-900 font-medium truncate"
-                    >
-                        {photo.description || "Photo mark"}
-                    </p>
-                    <button
-                        type="button"
-                        aria-label="Delete photo"
-                        class="text-black-500 active:opacity-60 disabled:opacity-40"
-                        disabled={saving}
-                        onclick={() => handlePhotoDelete(photo)}
-                    >
-                        <HugeiconsIcon
-                            icon={Delete02Icon}
-                            size={20}
-                            strokeWidth={1.8}
+                {#if photo.dataUrl}
+                    <li class="flex items-center gap-3">
+                        <img
+                            src={photo.dataUrl}
+                            alt=""
+                            class="w-10 h-10 rounded-lg object-cover shrink-0"
                         />
-                    </button>
-                    <button
-                        type="button"
-                        aria-label="Edit photo"
-                        class="text-black-500 active:opacity-60 disabled:opacity-40"
-                        disabled={saving}
-                        onclick={() => openPhotoSheet(photo)}
-                    >
-                        <HugeiconsIcon
-                            icon={PencilEdit02Icon}
-                            size={20}
-                            strokeWidth={1.8}
-                        />
-                    </button>
-                </li>
+                        <p class="flex-1 min-w-0 text-black-900 font-medium truncate">
+                            {photo.description || "Photo mark"}
+                        </p>
+                        <button
+                            type="button"
+                            aria-label="Delete photo"
+                            class="text-black-500 active:opacity-60 disabled:opacity-40"
+                            disabled={saving}
+                            onclick={() => handlePhotoDelete(photo)}
+                        >
+                            <HugeiconsIcon icon={Delete02Icon} size={20} strokeWidth={1.8} />
+                        </button>
+                        <button
+                            type="button"
+                            aria-label="Edit photo"
+                            class="text-black-500 active:opacity-60 disabled:opacity-40"
+                            disabled={saving}
+                            onclick={() => openPhotoSheet(photo)}
+                        >
+                            <HugeiconsIcon icon={PencilEdit02Icon} size={20} strokeWidth={1.8} />
+                        </button>
+                    </li>
+                {:else}
+                    <!-- Full-row skeleton while this photo's blob is still loading -->
+                    <li class="flex items-center gap-3" aria-hidden="true">
+                        <div class="w-10 h-10 rounded-lg bg-gray-200 animate-pulse shrink-0"></div>
+                        <div class="flex-1 h-4 bg-gray-200 animate-pulse rounded"></div>
+                        <div class="w-5 h-5 bg-gray-200 animate-pulse rounded"></div>
+                        <div class="w-5 h-5 bg-gray-200 animate-pulse rounded"></div>
+                    </li>
+                {/if}
             {/each}
+            {#if loading && binding.photos.length === 0}
+                <!-- No stubs yet — show placeholder rows until count is known -->
+                {#each [0, 1] as _}
+                    <li class="flex items-center gap-3" aria-hidden="true">
+                        <div class="w-10 h-10 rounded-lg bg-gray-200 animate-pulse shrink-0"></div>
+                        <div class="flex-1 h-4 bg-gray-200 animate-pulse rounded"></div>
+                        <div class="w-5 h-5 bg-gray-200 animate-pulse rounded"></div>
+                        <div class="w-5 h-5 bg-gray-200 animate-pulse rounded"></div>
+                    </li>
+                {/each}
+            {/if}
         </ul>
     {/if}
     {@render addButton("Add photo", () => openPhotoSheet(null))}
@@ -412,6 +423,11 @@ async function handleKnowledgeSave(data: {
         {@render filledRow(binding.parameters.text, "Edit parameters", () => {
             parametersSheetOpen = true;
         })}
+    {:else if loading}
+        <div class="mt-3 flex flex-col gap-2" aria-hidden="true">
+            <div class="h-4 bg-gray-200 animate-pulse rounded w-3/4"></div>
+            <div class="h-4 bg-gray-200 animate-pulse rounded w-1/2"></div>
+        </div>
     {:else}
         {@render addButton("Add description", () => {
             parametersSheetOpen = true;
@@ -424,6 +440,8 @@ async function handleKnowledgeSave(data: {
         {@render filledRow(binding.knowledge.question, "Edit knowledge", () => {
             knowledgeSheetOpen = true;
         })}
+    {:else if loading}
+        <div class="mt-3 h-4 bg-gray-200 animate-pulse rounded w-2/3" aria-hidden="true"></div>
     {:else}
         {@render addButton("Add question", () => {
             knowledgeSheetOpen = true;
@@ -433,9 +451,7 @@ async function handleKnowledgeSave(data: {
 
 <AppNav title="Personal" subtitle="{achieved} of 3 marks achieved" />
 
-{#if loading}
-    <p class="text-black-500 mt-6">Loading…</p>
-{:else if errorMessage}
+{#if errorMessage}
     <p class="text-danger mt-6">{errorMessage}</p>
 {/if}
 
@@ -445,28 +461,26 @@ async function handleKnowledgeSave(data: {
     </p>
 {/if}
 
-{#if !loading}
-    <div class="flex flex-col gap-3 mt-6 pb-8">
-        {@render markCard(
-            photosFilled ? "Personal photos" : "Distinctive photos",
-            "Unique traits: face, tattoos, moles, scars",
-            photosFilled,
-            photosBody,
-        )}
-        {@render markCard(
-            "Personal parameters",
-            "Personal details: date and place of birth, height, eye colour, and other identifying traits",
-            parametersFilled,
-            parametersBody,
-        )}
-        {@render markCard(
-            knowledgeFilled ? "Personal knowledge" : "Unique knowledge",
-            "Set a question that only you know the answer to",
-            knowledgeFilled,
-            knowledgeBody,
-        )}
-    </div>
-{/if}
+<div class="flex flex-col gap-3 mt-6 pb-8">
+    {@render markCard(
+        photosFilled ? "Personal photos" : "Distinctive photos",
+        "Unique traits: face, tattoos, moles, scars",
+        photosFilled,
+        photosBody,
+    )}
+    {@render markCard(
+        "Personal parameters",
+        "Personal details: date and place of birth, height, eye colour, and other identifying traits",
+        parametersFilled,
+        parametersBody,
+    )}
+    {@render markCard(
+        knowledgeFilled ? "Personal knowledge" : "Unique knowledge",
+        "Set a question that only you know the answer to",
+        knowledgeFilled,
+        knowledgeBody,
+    )}
+</div>
 
 <AddPhotoSheet
     isOpen={photoSheetOpen}
