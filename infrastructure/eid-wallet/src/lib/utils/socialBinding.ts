@@ -175,15 +175,29 @@ export async function fetchNameFromVault(
             // Only fetch the two types that carry a display name — avoids
             // downloading photo blobs from the counterparty vault.
             const [idDocData, selfData] = await Promise.all([
-                vaultGqlRequest<BindingDocsResult>(gqlUrl, ownerEname, BINDING_DOCS_BY_TYPE_QUERY, { type: "id_document" }),
-                vaultGqlRequest<BindingDocsResult>(gqlUrl, ownerEname, BINDING_DOCS_BY_TYPE_QUERY, { type: "self" }),
+                vaultGqlRequest<BindingDocsResult>(
+                    gqlUrl,
+                    ownerEname,
+                    BINDING_DOCS_BY_TYPE_QUERY,
+                    { type: "id_document" },
+                ),
+                vaultGqlRequest<BindingDocsResult>(
+                    gqlUrl,
+                    ownerEname,
+                    BINDING_DOCS_BY_TYPE_QUERY,
+                    { type: "self" },
+                ),
             ]);
             edges = [
                 ...(idDocData.bindingDocuments?.edges ?? []),
                 ...(selfData.bindingDocuments?.edges ?? []),
             ];
         } else {
-            const data = await vaultGqlRequest<BindingDocsResult>(gqlUrl, ownerEname, BINDING_DOCS_QUERY);
+            const data = await vaultGqlRequest<BindingDocsResult>(
+                gqlUrl,
+                ownerEname,
+                BINDING_DOCS_QUERY,
+            );
             edges = data.bindingDocuments?.edges ?? [];
         }
         if (debug) {

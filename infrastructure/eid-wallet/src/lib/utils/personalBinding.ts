@@ -350,15 +350,23 @@ export async function loadPersonalParameters(
     type Resp = { bindingDocuments: { edges: BindingDocEdge[] } };
     try {
         const resp = await vaultGqlRequest<Resp>(
-            gqlUrl, ownerEname, PERSONAL_BINDING_BY_TYPE_QUERY, { type: "personal_parameters" },
+            gqlUrl,
+            ownerEname,
+            PERSONAL_BINDING_BY_TYPE_QUERY,
+            { type: "personal_parameters" },
         );
         const edge = pickLatestEdge(resp.bindingDocuments?.edges ?? []);
-        const data = edge?.node.parsed?.data as Record<string, unknown> | undefined;
+        const data = edge?.node.parsed?.data as
+            | Record<string, unknown>
+            | undefined;
         return edge && typeof data?.text === "string"
             ? { metaEnvelopeId: edge.node.id, text: data.text }
             : null;
     } catch (err) {
-        console.warn("[personalBinding] personal_parameters fetch failed:", err);
+        console.warn(
+            "[personalBinding] personal_parameters fetch failed:",
+            err,
+        );
         return null;
     }
 }
@@ -374,10 +382,15 @@ export async function loadPersonalSecurityQuestion(
     type Resp = { bindingDocuments: { edges: BindingDocEdge[] } };
     try {
         const resp = await vaultGqlRequest<Resp>(
-            gqlUrl, ownerEname, PERSONAL_BINDING_BY_TYPE_QUERY, { type: "security_question" },
+            gqlUrl,
+            ownerEname,
+            PERSONAL_BINDING_BY_TYPE_QUERY,
+            { type: "security_question" },
         );
         const edge = pickLatestEdge(resp.bindingDocuments?.edges ?? []);
-        const data = edge?.node.parsed?.data as Record<string, unknown> | undefined;
+        const data = edge?.node.parsed?.data as
+            | Record<string, unknown>
+            | undefined;
         return edge && typeof data?.question === "string"
             ? { metaEnvelopeId: edge.node.id, question: data.question }
             : null;
@@ -399,7 +412,10 @@ export async function loadPersonalPhotographs(
     type Resp = { bindingDocuments: { edges: BindingDocEdge[] } };
     try {
         const resp = await vaultGqlRequest<Resp>(
-            gqlUrl, ownerEname, PERSONAL_BINDING_BY_TYPE_QUERY, { type: "photograph" },
+            gqlUrl,
+            ownerEname,
+            PERSONAL_BINDING_BY_TYPE_QUERY,
+            { type: "photograph" },
         );
         const photographs: LoadedPhotograph[] = [];
         for (const edge of resp.bindingDocuments?.edges ?? []) {
@@ -410,7 +426,8 @@ export async function loadPersonalPhotographs(
             photographs.push({
                 metaEnvelopeId: edge.node.id,
                 photoBlob: d.photoBlob,
-                description: typeof d.description === "string" ? d.description : "",
+                description:
+                    typeof d.description === "string" ? d.description : "",
             });
         }
         return photographs;

@@ -91,11 +91,16 @@ onMount(() => {
             // each settles means text cards appear immediately while photo
             // rows show skeleton placeholders until the blobs arrive.
             const paramsPromise = loadPersonalParameters(gqlUrl, ename).then(
-                (params) => { setParametersLocal(params); },
+                (params) => {
+                    setParametersLocal(params);
+                },
             );
-            const securityPromise = loadPersonalSecurityQuestion(gqlUrl, ename).then(
-                (security) => { setKnowledgeLocal(security); },
-            );
+            const securityPromise = loadPersonalSecurityQuestion(
+                gqlUrl,
+                ename,
+            ).then((security) => {
+                setKnowledgeLocal(security);
+            });
             const photosPromise = loadPersonalPhotographs(gqlUrl, ename).then(
                 (photographs) => {
                     // Keep current params/security; only replace photos.
