@@ -148,48 +148,52 @@ async function loadBindingDocuments(): Promise<void> {
         : `@${vault.ename}`;
     const gqlUrl = new URL("/graphql", vault.uri).toString();
 
-    try {
-        const res = await fetch(gqlUrl, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-ENAME": enameHeader,
-                ...(PUBLIC_EID_WALLET_TOKEN
-                    ? { Authorization: `Bearer ${PUBLIC_EID_WALLET_TOKEN}` }
-                    : {}),
-            },
-            body: JSON.stringify({
-                query: `query {
-                    bindingDocuments(first: 50) {
-                        edges { node { id parsed } }
-                    }
-                }`,
-            }),
+    const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "X-ENAME": enameHeader,
+        ...(PUBLIC_EID_WALLET_TOKEN
+            ? { Authorization: `Bearer ${PUBLIC_EID_WALLET_TOKEN}` }
+            : {}),
+    };
+    const typedQuery = (type: string) =>
+        JSON.stringify({
+            query: `query($type: BindingDocumentType!) {
+                bindingDocuments(type: $type, first: 50) {
+                    edges { node { id parsed } }
+                }
+            }`,
+            variables: { type },
         });
 
-        const json = await res.json();
-        const edges: {
-            node: { id: string; parsed: ParsedBindingDoc | null };
-        }[] = json?.data?.bindingDocuments?.edges ?? [];
+    try {
+        const [idDocRes, selfRes] = await Promise.all([
+            fetch(gqlUrl, { method: "POST", headers, body: typedQuery("id_document") }),
+            fetch(gqlUrl, { method: "POST", headers, body: typedQuery("self") }),
+        ]);
 
-        const docs = edges
-            .map((e) => ({ id: e.node.id, parsed: e.node.parsed }))
-            .filter(
-                (d): d is { id: string; parsed: ParsedBindingDoc } =>
-                    d.parsed !== null,
-            );
+        const parseEdges = async (res: Response) => {
+            const json = await res.json();
+            return (json?.data?.bindingDocuments?.edges ?? []) as {
+                node: { id: string; parsed: ParsedBindingDoc | null };
+            }[];
+        };
 
-        const idDocEntry = docs.find((d) => d.parsed.type === "id_document");
-        legalId = idDocEntry ? toLegalIdDoc(idDocEntry.parsed) : null;
+        const [idDocEdges, selfEdges] = await Promise.all([
+            parseEdges(idDocRes),
+            parseEdges(selfRes),
+        ]);
+
+        const idDocEntry = idDocEdges.find((e) => e.node.parsed?.type === "id_document");
+        legalId = idDocEntry?.node.parsed ? toLegalIdDoc(idDocEntry.node.parsed) : null;
         cachedLegalId = legalId;
 
-        const selfDocEntry = docs.find((d) => d.parsed.type === "self");
-        const selfName = selfDocEntry?.parsed.data?.name;
+        const selfEntry = selfEdges.find((e) => e.node.parsed?.type === "self");
+        const selfName = selfEntry?.node.parsed?.data?.name;
         if (typeof selfName === "string" && selfName.trim()) {
             displayName = selfName.trim();
             cachedDisplayName = displayName;
         }
-        selfDocId = selfDocEntry?.id;
+        selfDocId = selfEntry?.node.id;
         cachedSelfDocId = selfDocId;
     } catch (err) {
         console.warn("[main] Failed to load binding documents:", err);
@@ -385,6 +389,8 @@ async function loadSocialBindings(): Promise<void> {
                         counterVaultUri,
                         counterpartyEname,
                         counterpartyEname,
+                        false,
+                        { nameOnly: true },
                     );
                 } catch {
                     // Resolution failed — fall through with eName as label.

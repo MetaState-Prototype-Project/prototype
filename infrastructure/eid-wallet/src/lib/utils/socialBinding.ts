@@ -113,6 +113,22 @@ const BINDING_DOCS_QUERY = `
     }
 `;
 
+// Typed variant — fetches only the two doc types that carry a display name,
+// so photo blobs from the counterparty vault never travel over the network.
+// Used when the caller only needs a name and nothing else.
+const BINDING_DOCS_BY_TYPE_QUERY = `
+    query($type: BindingDocumentType!) {
+        bindingDocuments(type: $type, first: 10) {
+            edges {
+                node {
+                    id
+                    parsed
+                }
+            }
+        }
+    }
+`;
+
 const USER_PROFILE_QUERY = `
     query GetUserProfile($ontologyId: ID!) {
         metaEnvelopes(filter: { ontologyId: $ontologyId }, first: 1) {
@@ -151,14 +167,25 @@ export async function fetchNameFromVault(
     ownerEname: string,
     fallback: string,
     debug = false,
+    { nameOnly = false }: { nameOnly?: boolean } = {},
 ): Promise<string> {
     try {
-        const data = await vaultGqlRequest<BindingDocsResult>(
-            gqlUrl,
-            ownerEname,
-            BINDING_DOCS_QUERY,
-        );
-        const edges = data.bindingDocuments?.edges ?? [];
+        let edges: BindingDocEdge[];
+        if (nameOnly) {
+            // Only fetch the two types that carry a display name — avoids
+            // downloading photo blobs from the counterparty vault.
+            const [idDocData, selfData] = await Promise.all([
+                vaultGqlRequest<BindingDocsResult>(gqlUrl, ownerEname, BINDING_DOCS_BY_TYPE_QUERY, { type: "id_document" }),
+                vaultGqlRequest<BindingDocsResult>(gqlUrl, ownerEname, BINDING_DOCS_BY_TYPE_QUERY, { type: "self" }),
+            ]);
+            edges = [
+                ...(idDocData.bindingDocuments?.edges ?? []),
+                ...(selfData.bindingDocuments?.edges ?? []),
+            ];
+        } else {
+            const data = await vaultGqlRequest<BindingDocsResult>(gqlUrl, ownerEname, BINDING_DOCS_QUERY);
+            edges = data.bindingDocuments?.edges ?? [];
+        }
         if (debug) {
             console.debug("[fetchNameFromVault] binding docs fetched", {
                 docsCount: edges.length,
@@ -253,7 +280,7 @@ const DELETE_META_ENVELOPE_MUTATION = `
 
 const SOCIAL_BINDING_DOCS_QUERY = `
     query {
-        bindingDocuments(first: 50) {
+        bindingDocuments(type: social_connection, first: 50) {
             edges {
                 node {
                     id
