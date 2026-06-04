@@ -111,6 +111,10 @@ let kycOpen = $state(false);
 let eVaultInfoOpen = $state(false);
 let bindingDocsInfoOpen = $state(false);
 let socialDrawerOpen = $state(false);
+// True while loadBindingDocuments + loadPersonalIntoStore are still in flight.
+// Starts as false on re-entries (cached data paints instantly) and true only
+// on first-ever mount where nothing is cached yet.
+let bindingDocsLoading = $state(!hasEverLoaded);
 
 // Accordion shows N resolved names; total comes from the full count.
 const SOCIAL_PREVIEW_COUNT = 5;
@@ -759,8 +763,12 @@ onMount(() => {
         ename = vaultData?.ename;
         cachedEname = ename;
 
-        loadBindingDocuments();
-        loadPersonalIntoStore();
+        void Promise.allSettled([
+            loadBindingDocuments(),
+            loadPersonalIntoStore(),
+        ]).then(() => {
+            bindingDocsLoading = false;
+        });
 
         // Welcome-tour gate — local Tauri Store read, no network needed.
         const seen = await gs.hasSeenWelcomeTour;
@@ -919,16 +927,37 @@ async function refreshBindings(): Promise<void> {
                         ? { y: 30, duration: 600 }
                         : { duration: 0 }}
                 >
-                    <BindingDocuments
-                        {legalId}
-                        socialBindingCount={socialBindingCount}
-                        socialBindingPreview={socialBindingPreview}
-                        onlegalid={openKycFlow}
-                        onpersonal={() => goto("/personal")}
-                        onsocialinvite={openSocialDrawer}
-                        onsocialfulllist={openSocialFullList}
-                        oninfo={() => (bindingDocsInfoOpen = true)}
-                    />
+                    {#if bindingDocsLoading}
+                        <section class="bg-white rounded-2xl p-4 shadow-card">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="h-5 w-36 bg-gray-200 animate-pulse rounded"></div>
+                                <div class="w-6 h-6 bg-gray-200 animate-pulse rounded-full"></div>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                {#each [0, 1, 2] as _}
+                                    <div class="rounded-3xl bg-gray-100 px-3 py-4 flex items-center gap-3">
+                                        <div class="w-10 h-10 rounded-full bg-gray-200 animate-pulse shrink-0"></div>
+                                        <div class="flex-1 flex flex-col gap-1.5">
+                                            <div class="h-4 bg-gray-200 animate-pulse rounded w-3/4"></div>
+                                            <div class="h-3 bg-gray-200 animate-pulse rounded w-1/2"></div>
+                                        </div>
+                                        <div class="w-16 h-8 bg-gray-200 animate-pulse rounded-full shrink-0"></div>
+                                    </div>
+                                {/each}
+                            </div>
+                        </section>
+                    {:else}
+                        <BindingDocuments
+                            {legalId}
+                            socialBindingCount={socialBindingCount}
+                            socialBindingPreview={socialBindingPreview}
+                            onlegalid={openKycFlow}
+                            onpersonal={() => goto("/personal")}
+                            onsocialinvite={openSocialDrawer}
+                            onsocialfulllist={openSocialFullList}
+                            oninfo={() => (bindingDocsInfoOpen = true)}
+                        />
+                    {/if}
                     <Lasso size="xl" active={tourStep === "binding-docs"} />
                 </div>
             {/if}
