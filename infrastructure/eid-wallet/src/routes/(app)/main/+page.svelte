@@ -545,6 +545,15 @@ $effect(() => {
     if (tourStep !== "scan") {
         scanFABTop = restingScanFABTop();
     }
+    // Attach listeners for both orientation change and general window resize
+    window.addEventListener("orientationchange", () => scanFABTop = restingScanFABTop());
+    window.addEventListener("resize", () => scanFABTop = restingScanFABTop());
+
+    // Clean up event listeners when the component is unmounted
+    return () => {
+      window.removeEventListener("orientationchange", () => scanFABTop = restingScanFABTop());
+      window.removeEventListener("resize", () => scanFABTop = restingScanFABTop());
+    };
 });
 
 async function maybeShowNotifPrompt(welcomeTourSeen: boolean) {
