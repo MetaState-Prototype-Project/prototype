@@ -340,73 +340,169 @@ function pickLatestEdge(edges: BindingDocEdge[]): BindingDocEdge | null {
 }
 
 /**
- * Pull personal-flow binding docs from the caller's vault, one typed query
- * per kind, in parallel. Single-instance types (parameters, security_question)
- * are deduplicated by picking the latest signature timestamp so stale docs
- * from a failed-delete edit don't surface the old value.
+ * Fetch personal_parameters only. Tiny response — returns in milliseconds
+ * regardless of how many photos the user has.
+ */
+export async function loadPersonalParameters(
+    gqlUrl: string,
+    ownerEname: string,
+): Promise<LoadedPersonalParameters | null> {
+    type Resp = { bindingDocuments: { edges: BindingDocEdge[] } };
+    try {
+        const resp = await vaultGqlRequest<Resp>(
+            gqlUrl, ownerEname, PERSONAL_BINDING_BY_TYPE_QUERY, { type: "personal_parameters" },
+        );
+        const edge = pickLatestEdge(resp.bindingDocuments?.edges ?? []);
+        const data = edge?.node.parsed?.data as Record<string, unknown> | undefined;
+        return edge && typeof data?.text === "string"
+            ? { metaEnvelopeId: edge.node.id, text: data.text }
+            : null;
+    } catch (err) {
+        console.warn("[personalBinding] personal_parameters fetch failed:", err);
+        return null;
+    }
+}
+
+/**
+ * Fetch security_question only. Tiny response — returns in milliseconds
+ * regardless of how many photos the user has.
+ */
+export async function loadPersonalSecurityQuestion(
+    gqlUrl: string,
+    ownerEname: string,
+): Promise<LoadedSecurityQuestion | null> {
+    type Resp = { bindingDocuments: { edges: BindingDocEdge[] } };
+    try {
+        const resp = await vaultGqlRequest<Resp>(
+            gqlUrl, ownerEname, PERSONAL_BINDING_BY_TYPE_QUERY, { type: "security_question" },
+        );
+        const edge = pickLatestEdge(resp.bindingDocuments?.edges ?? []);
+        const data = edge?.node.parsed?.data as Record<string, unknown> | undefined;
+        return edge && typeof data?.question === "string"
+            ? { metaEnvelopeId: edge.node.id, question: data.question }
+            : null;
+    } catch (err) {
+        console.warn("[personalBinding] security_question fetch failed:", err);
+        return null;
+    }
+}
+
+/**
+ * Fetch photographs with full base64 blobs. Response size scales with the
+ * user's photo count and size — always call this independently so it never
+ * blocks the text-only cards (parameters, security question).
+ */
+export async function loadPersonalPhotographs(
+    gqlUrl: string,
+    ownerEname: string,
+): Promise<LoadedPhotograph[]> {
+    type Resp = { bindingDocuments: { edges: BindingDocEdge[] } };
+    try {
+        const resp = await vaultGqlRequest<Resp>(
+            gqlUrl, ownerEname, PERSONAL_BINDING_BY_TYPE_QUERY, { type: "photograph" },
+        );
+        const photographs: LoadedPhotograph[] = [];
+        for (const edge of resp.bindingDocuments?.edges ?? []) {
+            const parsed = edge.node.parsed;
+            if (parsed?.type !== "photograph") continue;
+            const d = parsed.data as Record<string, unknown>;
+            if (typeof d.photoBlob !== "string") continue;
+            photographs.push({
+                metaEnvelopeId: edge.node.id,
+                photoBlob: d.photoBlob,
+                description: typeof d.description === "string" ? d.description : "",
+            });
+        }
+        return photographs;
+    } catch (err) {
+        console.warn("[personalBinding] photographs fetch failed:", err);
+        return [];
+    }
+}
+
+/**
+ * Convenience wrapper that awaits all three types together. Use this only
+ * when the caller needs a single settled result. For /personal, prefer
+ * calling loadPersonalParameters, loadPersonalSecurityQuestion, and
+ * loadPersonalPhotographs independently and updating the store as each
+ * resolves so text cards appear immediately without waiting for photo blobs.
  */
 export async function loadPersonalBindings(
     gqlUrl: string,
     ownerEname: string,
     { skipPhotoBlobs = false }: { skipPhotoBlobs?: boolean } = {},
 ): Promise<LoadedPersonalBindings> {
+    if (skipPhotoBlobs) {
+        return _loadPersonalBindingsCountOnly(gqlUrl, ownerEname);
+    }
+    const [parameters, securityQuestion, photographs] = await Promise.all([
+        loadPersonalParameters(gqlUrl, ownerEname),
+        loadPersonalSecurityQuestion(gqlUrl, ownerEname),
+        loadPersonalPhotographs(gqlUrl, ownerEname),
+    ]);
+    return { photographs, parameters, securityQuestion };
+}
+
+/** Count-only variant used by the home screen accordion (skipPhotoBlobs path). */
+async function _loadPersonalBindingsCountOnly(
+    gqlUrl: string,
+    ownerEname: string,
+): Promise<LoadedPersonalBindings> {
     type Resp = { bindingDocuments: { edges: BindingDocEdge[] } };
     const empty: Resp = { bindingDocuments: { edges: [] } };
-    const [photosResult, paramsResult, securityResult] = await Promise.allSettled([
-        vaultGqlRequest<Resp>(
-            gqlUrl,
-            ownerEname,
-            // When only count matters (e.g. home screen accordion), omit
-            // `parsed` so base64 blobs never travel over the network.
-            skipPhotoBlobs ? PERSONAL_PHOTO_IDS_QUERY : PERSONAL_BINDING_BY_TYPE_QUERY,
-            { type: "photograph" },
-        ),
-        vaultGqlRequest<Resp>(
-            gqlUrl,
-            ownerEname,
-            PERSONAL_BINDING_BY_TYPE_QUERY,
-            { type: "personal_parameters" },
-        ),
-        vaultGqlRequest<Resp>(
-            gqlUrl,
-            ownerEname,
-            PERSONAL_BINDING_BY_TYPE_QUERY,
-            { type: "security_question" },
-        ),
-    ]);
-    if (photosResult.status === "rejected")
-        console.warn("[personalBinding] photograph fetch failed:", photosResult.reason);
-    if (paramsResult.status === "rejected")
-        console.warn("[personalBinding] personal_parameters fetch failed:", paramsResult.reason);
-    if (securityResult.status === "rejected")
-        console.warn("[personalBinding] security_question fetch failed:", securityResult.reason);
-    const [photosResp, paramsResp, securityResp] = [
-        photosResult.status === "fulfilled" ? photosResult.value : empty,
-        paramsResult.status === "fulfilled" ? paramsResult.value : empty,
-        securityResult.status === "fulfilled" ? securityResult.value : empty,
-    ];
 
-    const photographs: LoadedPhotograph[] = [];
-    for (const edge of photosResp.bindingDocuments?.edges ?? []) {
-        if (skipPhotoBlobs) {
-            // No `parsed` in response — store a stub so the count is correct.
-            photographs.push({
-                metaEnvelopeId: edge.node.id,
-                photoBlob: "",
-                description: "",
-            });
-            continue;
-        }
-        const parsed = edge.node.parsed;
-        if (parsed?.type !== "photograph") continue;
-        const d = parsed.data as Record<string, unknown>;
-        if (typeof d.photoBlob !== "string") continue;
-        photographs.push({
-            metaEnvelopeId: edge.node.id,
-            photoBlob: d.photoBlob,
-            description: typeof d.description === "string" ? d.description : "",
-        });
-    }
+    const [photosResult, paramsResult, securityResult] =
+        await Promise.allSettled([
+            vaultGqlRequest<Resp>(
+                gqlUrl,
+                ownerEname,
+                PERSONAL_PHOTO_IDS_QUERY,
+                { type: "photograph" },
+            ),
+            vaultGqlRequest<Resp>(
+                gqlUrl,
+                ownerEname,
+                PERSONAL_BINDING_BY_TYPE_QUERY,
+                { type: "personal_parameters" },
+            ),
+            vaultGqlRequest<Resp>(
+                gqlUrl,
+                ownerEname,
+                PERSONAL_BINDING_BY_TYPE_QUERY,
+                { type: "security_question" },
+            ),
+        ]);
+
+    if (photosResult.status === "rejected")
+        console.warn(
+            "[personalBinding] photograph count failed:",
+            photosResult.reason,
+        );
+    if (paramsResult.status === "rejected")
+        console.warn(
+            "[personalBinding] personal_parameters fetch failed:",
+            paramsResult.reason,
+        );
+    if (securityResult.status === "rejected")
+        console.warn(
+            "[personalBinding] security_question fetch failed:",
+            securityResult.reason,
+        );
+
+    const photosResp =
+        photosResult.status === "fulfilled" ? photosResult.value : empty;
+    const paramsResp =
+        paramsResult.status === "fulfilled" ? paramsResult.value : empty;
+    const securityResp =
+        securityResult.status === "fulfilled" ? securityResult.value : empty;
+
+    const photographs: LoadedPhotograph[] = (
+        photosResp.bindingDocuments?.edges ?? []
+    ).map((edge) => ({
+        metaEnvelopeId: edge.node.id,
+        photoBlob: "",
+        description: "",
+    }));
 
     const paramsEdge = pickLatestEdge(paramsResp.bindingDocuments?.edges ?? []);
     const paramsData = paramsEdge?.node.parsed?.data as
@@ -414,10 +510,7 @@ export async function loadPersonalBindings(
         | undefined;
     const parameters: LoadedPersonalParameters | null =
         paramsEdge && typeof paramsData?.text === "string"
-            ? {
-                  metaEnvelopeId: paramsEdge.node.id,
-                  text: paramsData.text,
-              }
+            ? { metaEnvelopeId: paramsEdge.node.id, text: paramsData.text }
             : null;
 
     const securityEdge = pickLatestEdge(

@@ -18,7 +18,9 @@ import {
     createSecurityQuestion,
     deletePersonalBinding,
     hashSecurityAnswerRemote,
-    loadPersonalBindings,
+    loadPersonalParameters,
+    loadPersonalPhotographs,
+    loadPersonalSecurityQuestion,
 } from "$lib/utils/personalBinding";
 import { Delete02Icon, PencilEdit02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
@@ -82,33 +84,46 @@ onMount(() => {
                 : `@${vault.ename}`;
             gqlUrl = new URL("/graphql", vault.uri).toString();
 
-            const loaded = await loadPersonalBindings(gqlUrl, ename);
-            replaceAll({
-                photos: loaded.photographs.map((p, i) => ({
-                    id: `${p.metaEnvelopeId}-${i}`,
-                    metaEnvelopeId: p.metaEnvelopeId,
-                    dataUrl: p.photoBlob,
-                    description: p.description,
-                    source: "camera" as const,
-                })),
-                parameters: loaded.parameters
-                    ? {
-                          metaEnvelopeId: loaded.parameters.metaEnvelopeId,
-                          text: loaded.parameters.text,
-                      }
-                    : null,
-                knowledge: loaded.securityQuestion
-                    ? {
-                          metaEnvelopeId:
-                              loaded.securityQuestion.metaEnvelopeId,
-                          question: loaded.securityQuestion.question,
-                      }
-                    : null,
-            });
+            // Fire all three requests in parallel but handle each
+            // independently. Parameters and security_question are tiny
+            // responses that arrive in milliseconds. Photographs carry full
+            // base64 blobs and can take much longer. Updating the store as
+            // each settles means text cards appear immediately while photo
+            // rows show skeleton placeholders until the blobs arrive.
+            const paramsPromise = loadPersonalParameters(gqlUrl, ename).then(
+                (params) => { setParametersLocal(params); },
+            );
+            const securityPromise = loadPersonalSecurityQuestion(gqlUrl, ename).then(
+                (security) => { setKnowledgeLocal(security); },
+            );
+            const photosPromise = loadPersonalPhotographs(gqlUrl, ename).then(
+                (photographs) => {
+                    // Keep current params/security; only replace photos.
+                    const current = $personalBinding;
+                    replaceAll({
+                        ...current,
+                        photos: photographs.map((p, i) => ({
+                            id: `${p.metaEnvelopeId}-${i}`,
+                            metaEnvelopeId: p.metaEnvelopeId,
+                            dataUrl: p.photoBlob,
+                            description: p.description,
+                            source: "camera" as const,
+                        })),
+                    });
+                },
+            );
+
+            // Reveal the UI as soon as text data is ready — don't wait for
+            // photo blobs. The photo section shows skeleton rows until
+            // photosPromise settles.
+            await Promise.allSettled([paramsPromise, securityPromise]);
+            loading = false;
+
+            // Let photos finish in the background.
+            void photosPromise;
         } catch (err) {
             console.error("[personal] load failed", err);
             errorMessage = "Couldn't load personal binding documents.";
-        } finally {
             loading = false;
         }
     })();
