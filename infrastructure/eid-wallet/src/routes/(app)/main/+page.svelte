@@ -290,40 +290,50 @@ async function handleEditNameSave(newName: string): Promise<void> {
 // Hydrate the personalBinding store from the caller's vault so the
 // /main accordion reflects the user's marks on a cold reload — without
 // this they only appear after a round trip through /personal.
+// Deduplicated: if a fetch is already in-flight (photo blobs can be large),
+// subsequent callers share that same promise instead of stacking new requests.
+let _personalStoreLoadPromise: Promise<void> | null = null;
+
 async function loadPersonalIntoStore(): Promise<void> {
-    if (!globalState) return;
-    const vault = await globalState.vaultController.vault;
-    if (!vault?.uri || !vault?.ename) return;
-    const callerEname = vault.ename.startsWith("@")
-        ? vault.ename
-        : `@${vault.ename}`;
-    const gqlUrl = new URL("/graphql", vault.uri).toString();
-    try {
-        const loaded = await loadPersonalBindings(gqlUrl, callerEname);
-        replaceAllPersonal({
-            photos: loaded.photographs.map((p, i) => ({
-                id: `${p.metaEnvelopeId}-${i}`,
-                metaEnvelopeId: p.metaEnvelopeId,
-                dataUrl: p.photoBlob,
-                description: p.description,
-                source: "camera" as const,
-            })),
-            parameters: loaded.parameters
-                ? {
-                      metaEnvelopeId: loaded.parameters.metaEnvelopeId,
-                      text: loaded.parameters.text,
-                  }
-                : null,
-            knowledge: loaded.securityQuestion
-                ? {
-                      metaEnvelopeId: loaded.securityQuestion.metaEnvelopeId,
-                      question: loaded.securityQuestion.question,
-                  }
-                : null,
-        });
-    } catch (err) {
-        console.warn("[main] Failed to load personal bindings:", err);
-    }
+    if (_personalStoreLoadPromise) return _personalStoreLoadPromise;
+    _personalStoreLoadPromise = (async () => {
+        if (!globalState) return;
+        const vault = await globalState.vaultController.vault;
+        if (!vault?.uri || !vault?.ename) return;
+        const callerEname = vault.ename.startsWith("@")
+            ? vault.ename
+            : `@${vault.ename}`;
+        const gqlUrl = new URL("/graphql", vault.uri).toString();
+        try {
+            const loaded = await loadPersonalBindings(gqlUrl, callerEname, { skipPhotoBlobs: true });
+            replaceAllPersonal({
+                photos: loaded.photographs.map((p, i) => ({
+                    id: `${p.metaEnvelopeId}-${i}`,
+                    metaEnvelopeId: p.metaEnvelopeId,
+                    dataUrl: p.photoBlob,
+                    description: p.description,
+                    source: "camera" as const,
+                })),
+                parameters: loaded.parameters
+                    ? {
+                          metaEnvelopeId: loaded.parameters.metaEnvelopeId,
+                          text: loaded.parameters.text,
+                      }
+                    : null,
+                knowledge: loaded.securityQuestion
+                    ? {
+                          metaEnvelopeId: loaded.securityQuestion.metaEnvelopeId,
+                          question: loaded.securityQuestion.question,
+                      }
+                    : null,
+            });
+        } catch (err) {
+            console.warn("[main] Failed to load personal bindings:", err);
+        }
+    })().finally(() => {
+        _personalStoreLoadPromise = null;
+    });
+    return _personalStoreLoadPromise;
 }
 
 async function loadSocialBindings(): Promise<void> {
@@ -743,8 +753,8 @@ onMount(() => {
         ename = vaultData?.ename;
         cachedEname = ename;
 
-        await loadBindingDocuments();
-        await loadPersonalIntoStore();
+        loadBindingDocuments();
+        loadPersonalIntoStore();
 
         // Welcome-tour gate — local Tauri Store read, no network needed.
         const seen = await gs.hasSeenWelcomeTour;

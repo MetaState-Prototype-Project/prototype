@@ -74,6 +74,21 @@ export const PERSONAL_BINDING_BY_TYPE_QUERY = `
     }
 `;
 
+// Lightweight variant that omits `parsed` — the base64 photoBlob is not
+// sent over the wire. Only the IDs come back, giving us the count without
+// the cost of transferring image data.
+const PERSONAL_PHOTO_IDS_QUERY = `
+    query LoadPersonalPhotoIds($type: BindingDocumentType!) {
+        bindingDocuments(type: $type, first: 100) {
+            edges {
+                node {
+                    id
+                }
+            }
+        }
+    }
+`;
+
 interface OwnerSignature {
     signer: string;
     signature: string;
@@ -333,13 +348,17 @@ function pickLatestEdge(edges: BindingDocEdge[]): BindingDocEdge | null {
 export async function loadPersonalBindings(
     gqlUrl: string,
     ownerEname: string,
+    { skipPhotoBlobs = false }: { skipPhotoBlobs?: boolean } = {},
 ): Promise<LoadedPersonalBindings> {
     type Resp = { bindingDocuments: { edges: BindingDocEdge[] } };
-    const [photosResp, paramsResp, securityResp] = await Promise.all([
+    const empty: Resp = { bindingDocuments: { edges: [] } };
+    const [photosResult, paramsResult, securityResult] = await Promise.allSettled([
         vaultGqlRequest<Resp>(
             gqlUrl,
             ownerEname,
-            PERSONAL_BINDING_BY_TYPE_QUERY,
+            // When only count matters (e.g. home screen accordion), omit
+            // `parsed` so base64 blobs never travel over the network.
+            skipPhotoBlobs ? PERSONAL_PHOTO_IDS_QUERY : PERSONAL_BINDING_BY_TYPE_QUERY,
             { type: "photograph" },
         ),
         vaultGqlRequest<Resp>(
@@ -355,9 +374,29 @@ export async function loadPersonalBindings(
             { type: "security_question" },
         ),
     ]);
+    if (photosResult.status === "rejected")
+        console.warn("[personalBinding] photograph fetch failed:", photosResult.reason);
+    if (paramsResult.status === "rejected")
+        console.warn("[personalBinding] personal_parameters fetch failed:", paramsResult.reason);
+    if (securityResult.status === "rejected")
+        console.warn("[personalBinding] security_question fetch failed:", securityResult.reason);
+    const [photosResp, paramsResp, securityResp] = [
+        photosResult.status === "fulfilled" ? photosResult.value : empty,
+        paramsResult.status === "fulfilled" ? paramsResult.value : empty,
+        securityResult.status === "fulfilled" ? securityResult.value : empty,
+    ];
 
     const photographs: LoadedPhotograph[] = [];
     for (const edge of photosResp.bindingDocuments?.edges ?? []) {
+        if (skipPhotoBlobs) {
+            // No `parsed` in response — store a stub so the count is correct.
+            photographs.push({
+                metaEnvelopeId: edge.node.id,
+                photoBlob: "",
+                description: "",
+            });
+            continue;
+        }
         const parsed = edge.node.parsed;
         if (parsed?.type !== "photograph") continue;
         const d = parsed.data as Record<string, unknown>;
