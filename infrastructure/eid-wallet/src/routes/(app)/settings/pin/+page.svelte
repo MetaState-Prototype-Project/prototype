@@ -55,6 +55,11 @@ async function advance() {
             submitting = false;
         }
     } else if (step === "new") {
+        if (newPin === currentPin) {
+            error = "Your new PIN must be different from your current PIN.";
+            newPin = "";
+            return;
+        }
         step = "repeat";
     } else {
         void submit();
