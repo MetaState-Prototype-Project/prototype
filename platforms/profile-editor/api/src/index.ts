@@ -1,104 +1,78 @@
-import "reflect-metadata";
-import express from "express";
 import cors from "cors";
-import { config } from "dotenv";
-import path from "path";
-
-config({ path: path.resolve(__dirname, "../../../../.env") });
-
-import { AppDataSource } from "./database/data-source";
-import { AuthController } from "./controllers/AuthController";
-import { ProfileController } from "./controllers/ProfileController";
-import { DiscoveryController } from "./controllers/DiscoveryController";
-import { WebhookController } from "./controllers/WebhookController";
-import { EVaultProfileService } from "./services/EVaultProfileService";
-import { RegistryService } from "./services/RegistryService";
-import { authMiddleware, authGuard } from "./middleware/auth";
-import { fileProxyUpload } from "./controllers/FileProxyController";
-import { EVaultSyncService } from "./services/EVaultSyncService";
-import { adapter } from "./web3adapter/watchers/subscriber";
+import express from "express";
+import { AaasClient } from "./aaas";
+import { AuthController } from "./controllers/auth";
+import { DiscoverController } from "./controllers/discover";
+import { fileUpload } from "./controllers/files";
+import { ProfileController } from "./controllers/profile";
+import { env } from "./env";
+import { EvaultWriter } from "./evault";
+import { authGuard, authMiddleware } from "./middleware/auth";
+import {
+    educationSchema,
+    loginSchema,
+    profilePatchSchema,
+    skillsSchema,
+    socialLinksSchema,
+    validate,
+    workExperienceSchema,
+} from "./schemas";
 
 const app = express();
-const PORT = process.env.PROFILE_EDITOR_API_PORT || 3007;
-
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
-const registryService = new RegistryService();
-const evaultService = new EVaultProfileService(registryService);
+// W3DS-native: reads from AaaS, writes to eVault. No database.
+const aaas = new AaasClient();
+const evault = new EvaultWriter();
+const auth = new AuthController(aaas);
+const profile = new ProfileController(aaas, evault);
+const discover = new DiscoverController(aaas);
 
-const authController = new AuthController(evaultService);
-const profileController = new ProfileController(evaultService);
-const discoveryController = new DiscoveryController();
-const webhookController = new WebhookController(adapter);
+// Public auth + discovery
+app.get("/api/auth/offer", auth.getOffer);
+app.post("/api/auth", validate(loginSchema), auth.login);
+app.get("/api/auth/sessions/:id", auth.sseStream);
+app.get("/api/discover", discover.discover);
 
-// Webhook route (no auth, receives eVault events)
-app.post("/api/webhook", webhookController.handleWebhook);
-
-// Public auth routes
-app.get("/api/auth/offer", authController.getOffer);
-app.post("/api/auth", authController.login);
-app.get("/api/auth/sessions/:id", authController.sseStream);
-
-// Public discovery routes
-app.get("/api/discover", discoveryController.discover);
-
-// Public profile view + file proxy routes (authMiddleware is optional here — populates req.user if logged in)
-app.get("/api/profiles/:ename", profileController.getPublicProfile);
-app.get(
-	"/api/profiles/:ename/avatar",
-	authMiddleware,
-	profileController.getProfileAvatar,
-);
-app.get(
-	"/api/profiles/:ename/banner",
-	authMiddleware,
-	profileController.getProfileBanner,
-);
-app.get(
-	"/api/profiles/:ename/cv",
-	authMiddleware,
-	profileController.getProfileCv,
-);
-app.get(
-	"/api/profiles/:ename/video",
-	authMiddleware,
-	profileController.getProfileVideo,
-);
-
-// Protected routes
+// Auth populates req.user when a token is present
 app.use(authMiddleware);
 
-app.post("/api/files", authGuard, ...fileProxyUpload);
+app.get("/api/profiles/:ename", authGuard, profile.getPublicProfile);
+app.post("/api/files", authGuard, ...fileUpload(evault));
 
-app.get("/api/profile", authGuard, profileController.getProfile);
-app.patch("/api/profile", authGuard, profileController.updateProfile);
-app.put(
-	"/api/profile/work-experience",
-	authGuard,
-	profileController.updateWorkExperience,
+app.get("/api/profile", authGuard, profile.getProfile);
+app.patch(
+    "/api/profile",
+    authGuard,
+    validate(profilePatchSchema),
+    profile.updateProfile,
 );
-app.put("/api/profile/education", authGuard, profileController.updateEducation);
-app.put("/api/profile/skills", authGuard, profileController.updateSkills);
 app.put(
-	"/api/profile/social-links",
-	authGuard,
-	profileController.updateSocialLinks,
+    "/api/profile/work-experience",
+    authGuard,
+    validate(workExperienceSchema),
+    profile.updateWorkExperience,
+);
+app.put(
+    "/api/profile/education",
+    authGuard,
+    validate(educationSchema),
+    profile.updateEducation,
+);
+app.put(
+    "/api/profile/skills",
+    authGuard,
+    validate(skillsSchema),
+    profile.updateSkills,
+);
+app.put(
+    "/api/profile/social-links",
+    authGuard,
+    validate(socialLinksSchema),
+    profile.updateSocialLinks,
 );
 
-AppDataSource.initialize()
-	.then(() => {
-		console.log("Database connection established");
-
-		const syncService = new EVaultSyncService(evaultService);
-		profileController.setSyncService(syncService);
-		syncService.start(5 * 60 * 1000);
-
-		app.listen(PORT, () => {
-			console.log(`Profile Editor API running on port ${PORT}`);
-		});
-	})
-	.catch((error: any) => {
-		console.error("Database connection failed:", error);
-		process.exit(1);
-	});
+app.listen(env.port, () => {
+    console.log(`Profile Editor API running on port ${env.port}`);
+});
