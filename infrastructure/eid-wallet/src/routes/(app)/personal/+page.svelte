@@ -189,7 +189,8 @@ onMount(() => {
                     const localPendingIds = new Set(
                         localPending.map((p) => p.metaEnvelopeId),
                     );
-                    const allCached = await getCachedPhotosForEname(currentEname);
+                    const allCached =
+                        await getCachedPhotosForEname(currentEname);
                     await Promise.all(
                         allCached
                             .filter(
