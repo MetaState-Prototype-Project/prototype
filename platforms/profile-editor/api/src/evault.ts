@@ -29,21 +29,4 @@ export class EvaultWriter {
         }
         return this.client.storeMetaEnvelope(envelope);
     }
-
-    /**
-     * Upload a file to the eVault's blob storage and return its public URL —
-     * that URL is what gets stored in the profile (images as URIs, no blobs).
-     */
-    async uploadBlob(
-        ename: string,
-        file: { filename: string; contentType: string; base64: string },
-    ): Promise<string> {
-        const result = await this.client.uploadFile(ename, {
-            filename: file.filename,
-            contentType: file.contentType,
-            content: file.base64,
-            acl: ["*"],
-        });
-        return result.publicUrl;
-    }
 }

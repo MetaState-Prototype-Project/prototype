@@ -39,7 +39,7 @@ app.get("/api/discover", discover.discover);
 app.use(authMiddleware);
 
 app.get("/api/profiles/:ename", authGuard, profile.getPublicProfile);
-app.post("/api/files", authGuard, ...fileUpload(evault));
+app.post("/api/files", authGuard, ...fileUpload);
 
 app.get("/api/profile", authGuard, profile.getProfile);
 app.patch(

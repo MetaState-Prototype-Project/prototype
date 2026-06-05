@@ -32,5 +32,13 @@ export const env = {
     // Bearer key (aaas_…) used to read /api/packets — required for all reads.
     awarenessApiKey: required("AWARENESS_API_KEY"),
 
+    // File-manager stores uploaded blobs; profiles store the returned public
+    // URL. The JWT secret MUST match the file-manager's FILE_MANAGER_JWT_SECRET.
+    fileManagerBaseUrl: optional(
+        "PUBLIC_FILE_MANAGER_BASE_URL",
+        "https://file-manager.w3ds.metastate.foundation",
+    ),
+    fileManagerJwtSecret: process.env.FILE_MANAGER_JWT_SECRET,
+
     nodeEnv: optional("NODE_ENV", "development"),
 } as const;
