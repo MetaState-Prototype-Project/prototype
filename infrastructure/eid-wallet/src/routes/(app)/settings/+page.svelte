@@ -8,9 +8,9 @@ import {
     subscribe as subscribeLanguage,
 } from "$lib/stores/language";
 import { clearAllNotifications } from "$lib/stores/notifications";
-import { clearAllCachedPhotos } from "$lib/utils/photoCache";
 import { BottomSheet, ButtonAction } from "$lib/ui";
 import { PinIcon, PrivacyIcon } from "$lib/ui/icons";
+import { clearAllCachedPhotos } from "$lib/utils/photoCache";
 import { isPermissionGranted } from "@choochmeque/tauri-plugin-notifications-api";
 import { FaceIdIcon, Notification02Icon } from "@hugeicons/core-free-icons";
 import { checkStatus } from "@tauri-apps/plugin-biometric";
