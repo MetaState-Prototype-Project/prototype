@@ -8,6 +8,13 @@ import { logger } from "./logging";
 import { fromGlobal, toGlobal } from "./mapper/mapper";
 import type { IMapping } from "./mapper/mapper.types";
 
+export { EVaultClient } from "./evault/evault";
+export type {
+	MetaEnvelope,
+	UploadFileInput,
+	UploadFileResult,
+} from "./evault/evault";
+
 /**
  * Standalone function to spin up an eVault
  * @param registryUrl - URL of the registry service
