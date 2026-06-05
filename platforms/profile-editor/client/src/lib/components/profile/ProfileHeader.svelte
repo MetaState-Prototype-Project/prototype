@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { ProfileData } from '$lib/stores/profile';
 	import { updateProfile } from '$lib/stores/profile';
-	import { uploadFile } from '$lib/utils/file-manager';
+	import { resolveAssetUrl, uploadFile } from '$lib/utils/file-manager';
 	import { toast } from 'svelte-sonner';
 	import { Card, CardContent } from '@metastate-foundation/ui/card';
 	import { Button } from '@metastate-foundation/ui/button';
@@ -26,9 +26,10 @@
 	let bannerBroken = $state(false);
 	let avatarBroken = $state(false);
 
-	// avatar/banner are public CDN URLs (eVault blob) — render directly.
-	let avatarSrc = $derived(avatarPreview ?? profile.professional.avatar ?? null);
-	let bannerSrc = $derived(bannerPreview ?? profile.professional.banner ?? null);
+	// New uploads are public eVault-blob URLs; legacy profiles stored a bare
+	// file-manager id. resolveAssetUrl renders either.
+	let avatarSrc = $derived(avatarPreview ?? resolveAssetUrl(profile.professional.avatar));
+	let bannerSrc = $derived(bannerPreview ?? resolveAssetUrl(profile.professional.banner));
 
 	async function handleAvatarUpload(e: Event) {
 		const input = e.target as HTMLInputElement;

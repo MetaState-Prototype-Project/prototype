@@ -1,18 +1,22 @@
 <script lang="ts">
 	import type { ProfileSearchResult } from '$lib/stores/discovery';
+	import { resolveAssetUrl } from '$lib/utils/file-manager';
 	import { Card, CardContent } from '@metastate-foundation/ui/card';
 	import { Avatar, AvatarImage, AvatarFallback } from '@metastate-foundation/ui/avatar';
 	import { Badge } from '@metastate-foundation/ui/badge';
 
 	let { result }: { result: ProfileSearchResult } = $props();
+
+	// New uploads are public eVault-blob URLs; legacy ones are file-manager ids.
+	let avatarUrl = $derived(resolveAssetUrl(result.avatar));
 </script>
 
 <a href="/profile/{result.ename}" class="block">
 	<Card class="h-full transition-shadow hover:shadow-md">
 		<CardContent class="flex flex-col items-center p-5 text-center">
 			<Avatar class="mb-3 h-16 w-16">
-				{#if result.avatar}
-					<AvatarImage src={result.avatar} alt={result.name} />
+				{#if avatarUrl}
+					<AvatarImage src={avatarUrl} alt={result.name} />
 				{/if}
 				<AvatarFallback class="text-xl font-bold">
 					{(result.name || result.ename || '?')[0]?.toUpperCase()}
