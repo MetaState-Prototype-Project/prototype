@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { updateProfile } from '$lib/stores/profile';
-	import { uploadFile, getProfileAssetUrl } from '$lib/utils/file-manager';
+	import { uploadFile } from '$lib/utils/file-manager';
 	import { toast } from 'svelte-sonner';
 	import { Card, CardContent, CardHeader, CardTitle } from '@metastate-foundation/ui/card';
 	import { Button } from '@metastate-foundation/ui/button';
@@ -24,7 +24,7 @@
 		cvProgress = 0;
 		try {
 			const result = await uploadFile(file, (p) => { cvProgress = p; });
-			await updateProfile({ cvFileId: result.id });
+			await updateProfile({ cvFileId: result.publicUrl });
 			toast.success('CV uploaded');
 		} catch {
 			toast.error('Failed to upload CV');
@@ -42,7 +42,7 @@
 		videoProgress = 0;
 		try {
 			const result = await uploadFile(file, (p) => { videoProgress = p; });
-			await updateProfile({ videoIntroFileId: result.id });
+			await updateProfile({ videoIntroFileId: result.publicUrl });
 			toast.success('Video introduction uploaded');
 		} catch {
 			toast.error('Failed to upload video');
@@ -90,17 +90,17 @@
 					{#if cvFileId}
 						<div class="mb-2 overflow-hidden rounded border">
 							<object
-								data={getProfileAssetUrl(ename, 'cv')}
+								data={cvFileId}
 								type="application/pdf"
 								class="h-48 w-full"
 							>
-								<a href={getProfileAssetUrl(ename, 'cv')} target="_blank" rel="noopener noreferrer" class="flex items-center justify-center h-48 text-sm text-muted-foreground hover:underline">
+								<a href={cvFileId} target="_blank" rel="noopener noreferrer" class="flex items-center justify-center h-48 text-sm text-muted-foreground hover:underline">
 									Download CV
 								</a>
 							</object>
 						</div>
 						<div class="flex items-center gap-2">
-							<Button variant="link" size="sm" href={getProfileAssetUrl(ename, 'cv')} class="h-auto p-0">Download CV</Button>
+							<Button variant="link" size="sm" href={cvFileId} class="h-auto p-0">Download CV</Button>
 							{#if editable}
 								<Button variant="link" size="sm" class="h-auto p-0 text-destructive" onclick={removeCv}>Remove</Button>
 							{/if}
@@ -135,16 +135,16 @@
 						<div class="mb-2 overflow-hidden rounded border">
 							<!-- svelte-ignore a11y_media_has_caption -->
 							<video
-								src={getProfileAssetUrl(ename, 'video')}
+								src={videoIntroFileId}
 								controls
 								preload="metadata"
 								class="h-48 w-full bg-black"
 							>
-								<a href={getProfileAssetUrl(ename, 'video')} target="_blank" rel="noopener noreferrer">Download Video</a>
+								<a href={videoIntroFileId} target="_blank" rel="noopener noreferrer">Download Video</a>
 							</video>
 						</div>
 						<div class="flex items-center gap-2">
-							<Button variant="link" size="sm" href={getProfileAssetUrl(ename, 'video')} class="h-auto p-0">Download Video</Button>
+							<Button variant="link" size="sm" href={videoIntroFileId} class="h-auto p-0">Download Video</Button>
 							{#if editable}
 								<Button variant="link" size="sm" class="h-auto p-0 text-destructive" onclick={removeVideo}>Remove</Button>
 							{/if}
