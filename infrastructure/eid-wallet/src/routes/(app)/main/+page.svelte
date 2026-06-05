@@ -111,6 +111,10 @@ let kycOpen = $state(false);
 let eVaultInfoOpen = $state(false);
 let bindingDocsInfoOpen = $state(false);
 let socialDrawerOpen = $state(false);
+// True while loadBindingDocuments + loadPersonalIntoStore are still in flight.
+// Starts as false on re-entries (cached data paints instantly) and true only
+// on first-ever mount where nothing is cached yet.
+let bindingDocsLoading = $state(!hasEverLoaded);
 
 // Accordion shows N resolved names; total comes from the full count.
 const SOCIAL_PREVIEW_COUNT = 5;
@@ -148,48 +152,52 @@ async function loadBindingDocuments(): Promise<void> {
         : `@${vault.ename}`;
     const gqlUrl = new URL("/graphql", vault.uri).toString();
 
-    try {
-        const res = await fetch(gqlUrl, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-ENAME": enameHeader,
-                ...(PUBLIC_EID_WALLET_TOKEN
-                    ? { Authorization: `Bearer ${PUBLIC_EID_WALLET_TOKEN}` }
-                    : {}),
-            },
-            body: JSON.stringify({
-                query: `query {
-                    bindingDocuments(first: 50) {
-                        edges { node { id parsed } }
-                    }
-                }`,
-            }),
+    const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "X-ENAME": enameHeader,
+        ...(PUBLIC_EID_WALLET_TOKEN
+            ? { Authorization: `Bearer ${PUBLIC_EID_WALLET_TOKEN}` }
+            : {}),
+    };
+    const typedQuery = (type: string) =>
+        JSON.stringify({
+            query: `query($type: BindingDocumentType!) {
+                bindingDocuments(type: $type, first: 50) {
+                    edges { node { id parsed } }
+                }
+            }`,
+            variables: { type },
         });
 
-        const json = await res.json();
-        const edges: {
-            node: { id: string; parsed: ParsedBindingDoc | null };
-        }[] = json?.data?.bindingDocuments?.edges ?? [];
+    try {
+        const [idDocRes, selfRes] = await Promise.all([
+            fetch(gqlUrl, { method: "POST", headers, body: typedQuery("id_document") }),
+            fetch(gqlUrl, { method: "POST", headers, body: typedQuery("self") }),
+        ]);
 
-        const docs = edges
-            .map((e) => ({ id: e.node.id, parsed: e.node.parsed }))
-            .filter(
-                (d): d is { id: string; parsed: ParsedBindingDoc } =>
-                    d.parsed !== null,
-            );
+        const parseEdges = async (res: Response) => {
+            const json = await res.json();
+            return (json?.data?.bindingDocuments?.edges ?? []) as {
+                node: { id: string; parsed: ParsedBindingDoc | null };
+            }[];
+        };
 
-        const idDocEntry = docs.find((d) => d.parsed.type === "id_document");
-        legalId = idDocEntry ? toLegalIdDoc(idDocEntry.parsed) : null;
+        const [idDocEdges, selfEdges] = await Promise.all([
+            parseEdges(idDocRes),
+            parseEdges(selfRes),
+        ]);
+
+        const idDocEntry = idDocEdges.find((e) => e.node.parsed?.type === "id_document");
+        legalId = idDocEntry?.node.parsed ? toLegalIdDoc(idDocEntry.node.parsed) : null;
         cachedLegalId = legalId;
 
-        const selfDocEntry = docs.find((d) => d.parsed.type === "self");
-        const selfName = selfDocEntry?.parsed.data?.name;
+        const selfEntry = selfEdges.find((e) => e.node.parsed?.type === "self");
+        const selfName = selfEntry?.node.parsed?.data?.name;
         if (typeof selfName === "string" && selfName.trim()) {
             displayName = selfName.trim();
             cachedDisplayName = displayName;
         }
-        selfDocId = selfDocEntry?.id;
+        selfDocId = selfEntry?.node.id;
         cachedSelfDocId = selfDocId;
     } catch (err) {
         console.warn("[main] Failed to load binding documents:", err);
@@ -290,40 +298,50 @@ async function handleEditNameSave(newName: string): Promise<void> {
 // Hydrate the personalBinding store from the caller's vault so the
 // /main accordion reflects the user's marks on a cold reload — without
 // this they only appear after a round trip through /personal.
+// Deduplicated: if a fetch is already in-flight (photo blobs can be large),
+// subsequent callers share that same promise instead of stacking new requests.
+let _personalStoreLoadPromise: Promise<void> | null = null;
+
 async function loadPersonalIntoStore(): Promise<void> {
-    if (!globalState) return;
-    const vault = await globalState.vaultController.vault;
-    if (!vault?.uri || !vault?.ename) return;
-    const callerEname = vault.ename.startsWith("@")
-        ? vault.ename
-        : `@${vault.ename}`;
-    const gqlUrl = new URL("/graphql", vault.uri).toString();
-    try {
-        const loaded = await loadPersonalBindings(gqlUrl, callerEname);
-        replaceAllPersonal({
-            photos: loaded.photographs.map((p, i) => ({
-                id: `${p.metaEnvelopeId}-${i}`,
-                metaEnvelopeId: p.metaEnvelopeId,
-                dataUrl: p.photoBlob,
-                description: p.description,
-                source: "camera" as const,
-            })),
-            parameters: loaded.parameters
-                ? {
-                      metaEnvelopeId: loaded.parameters.metaEnvelopeId,
-                      text: loaded.parameters.text,
-                  }
-                : null,
-            knowledge: loaded.securityQuestion
-                ? {
-                      metaEnvelopeId: loaded.securityQuestion.metaEnvelopeId,
-                      question: loaded.securityQuestion.question,
-                  }
-                : null,
-        });
-    } catch (err) {
-        console.warn("[main] Failed to load personal bindings:", err);
-    }
+    if (_personalStoreLoadPromise) return _personalStoreLoadPromise;
+    _personalStoreLoadPromise = (async () => {
+        if (!globalState) return;
+        const vault = await globalState.vaultController.vault;
+        if (!vault?.uri || !vault?.ename) return;
+        const callerEname = vault.ename.startsWith("@")
+            ? vault.ename
+            : `@${vault.ename}`;
+        const gqlUrl = new URL("/graphql", vault.uri).toString();
+        try {
+            const loaded = await loadPersonalBindings(gqlUrl, callerEname, { skipPhotoBlobs: true });
+            replaceAllPersonal({
+                photos: loaded.photographs.map((p, i) => ({
+                    id: `${p.metaEnvelopeId}-${i}`,
+                    metaEnvelopeId: p.metaEnvelopeId,
+                    dataUrl: p.photoBlob,
+                    description: p.description,
+                    source: "camera" as const,
+                })),
+                parameters: loaded.parameters
+                    ? {
+                          metaEnvelopeId: loaded.parameters.metaEnvelopeId,
+                          text: loaded.parameters.text,
+                      }
+                    : null,
+                knowledge: loaded.securityQuestion
+                    ? {
+                          metaEnvelopeId: loaded.securityQuestion.metaEnvelopeId,
+                          question: loaded.securityQuestion.question,
+                      }
+                    : null,
+            });
+        } catch (err) {
+            console.warn("[main] Failed to load personal bindings:", err);
+        }
+    })().finally(() => {
+        _personalStoreLoadPromise = null;
+    });
+    return _personalStoreLoadPromise;
 }
 
 async function loadSocialBindings(): Promise<void> {
@@ -375,6 +393,8 @@ async function loadSocialBindings(): Promise<void> {
                         counterVaultUri,
                         counterpartyEname,
                         counterpartyEname,
+                        false,
+                        { nameOnly: true },
                     );
                 } catch {
                     // Resolution failed — fall through with eName as label.
@@ -743,8 +763,12 @@ onMount(() => {
         ename = vaultData?.ename;
         cachedEname = ename;
 
-        await loadBindingDocuments();
-        await loadPersonalIntoStore();
+        void Promise.allSettled([
+            loadBindingDocuments(),
+            loadPersonalIntoStore(),
+        ]).then(() => {
+            bindingDocsLoading = false;
+        });
 
         // Welcome-tour gate — local Tauri Store read, no network needed.
         const seen = await gs.hasSeenWelcomeTour;
@@ -903,16 +927,37 @@ async function refreshBindings(): Promise<void> {
                         ? { y: 30, duration: 600 }
                         : { duration: 0 }}
                 >
-                    <BindingDocuments
-                        {legalId}
-                        socialBindingCount={socialBindingCount}
-                        socialBindingPreview={socialBindingPreview}
-                        onlegalid={openKycFlow}
-                        onpersonal={() => goto("/personal")}
-                        onsocialinvite={openSocialDrawer}
-                        onsocialfulllist={openSocialFullList}
-                        oninfo={() => (bindingDocsInfoOpen = true)}
-                    />
+                    {#if bindingDocsLoading}
+                        <section class="bg-white rounded-2xl p-4 shadow-card">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="h-5 w-36 bg-gray-200 animate-pulse rounded"></div>
+                                <div class="w-6 h-6 bg-gray-200 animate-pulse rounded-full"></div>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                {#each [0, 1, 2] as _}
+                                    <div class="rounded-3xl bg-gray-100 px-3 py-4 flex items-center gap-3">
+                                        <div class="w-10 h-10 rounded-full bg-gray-200 animate-pulse shrink-0"></div>
+                                        <div class="flex-1 flex flex-col gap-1.5">
+                                            <div class="h-4 bg-gray-200 animate-pulse rounded w-3/4"></div>
+                                            <div class="h-3 bg-gray-200 animate-pulse rounded w-1/2"></div>
+                                        </div>
+                                        <div class="w-16 h-8 bg-gray-200 animate-pulse rounded-full shrink-0"></div>
+                                    </div>
+                                {/each}
+                            </div>
+                        </section>
+                    {:else}
+                        <BindingDocuments
+                            {legalId}
+                            socialBindingCount={socialBindingCount}
+                            socialBindingPreview={socialBindingPreview}
+                            onlegalid={openKycFlow}
+                            onpersonal={() => goto("/personal")}
+                            onsocialinvite={openSocialDrawer}
+                            onsocialfulllist={openSocialFullList}
+                            oninfo={() => (bindingDocsInfoOpen = true)}
+                        />
+                    {/if}
                     <Lasso size="xl" active={tourStep === "binding-docs"} />
                 </div>
             {/if}

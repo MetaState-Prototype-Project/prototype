@@ -18,8 +18,15 @@ import {
     createSecurityQuestion,
     deletePersonalBinding,
     hashSecurityAnswerRemote,
-    loadPersonalBindings,
+    loadPersonalParameters,
+    loadPersonalPhotographs,
+    loadPersonalSecurityQuestion,
 } from "$lib/utils/personalBinding";
+import {
+    deleteCachedPhoto,
+    getCachedPhotosForEname,
+    setCachedPhoto,
+} from "$lib/utils/photoCache";
 import { Delete02Icon, PencilEdit02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import { type Snippet, getContext, onMount } from "svelte";
@@ -29,6 +36,11 @@ import AddPhotoSheet from "./components/AddPhotoSheet.svelte";
 
 const binding = $derived($personalBinding);
 const achieved = $derived(marksAchieved(binding));
+const sortedPhotos = $derived(
+    [...binding.photos].sort((a, b) =>
+        (a.metaEnvelopeId ?? a.id).localeCompare(b.metaEnvelopeId ?? b.id),
+    ),
+);
 const photosFilled = $derived(binding.photos.length > 0);
 const parametersFilled = $derived(
     !!binding.parameters && binding.parameters.text.trim().length > 0,
@@ -45,6 +57,11 @@ let knowledgeSheetOpen = $state(false);
 let loading = $state(true);
 let saving = $state(false);
 let errorMessage = $state<string | null>(null);
+
+// IDs of photos the user explicitly deleted during this session.
+// Prevents the background server fetch from re-adding them to the store
+// and cache if it resolves after the delete (server hasn't propagated yet).
+const locallyDeletedIds = new Set<string>();
 
 const getGlobalState = getContext<() => GlobalState | undefined>("globalState");
 let globalState: GlobalState | undefined = $state(undefined);
@@ -82,33 +99,120 @@ onMount(() => {
                 : `@${vault.ename}`;
             gqlUrl = new URL("/graphql", vault.uri).toString();
 
-            const loaded = await loadPersonalBindings(gqlUrl, ename);
-            replaceAll({
-                photos: loaded.photographs.map((p, i) => ({
-                    id: `${p.metaEnvelopeId}-${i}`,
-                    metaEnvelopeId: p.metaEnvelopeId,
-                    dataUrl: p.photoBlob,
-                    description: p.description,
-                    source: "camera" as const,
-                })),
-                parameters: loaded.parameters
-                    ? {
-                          metaEnvelopeId: loaded.parameters.metaEnvelopeId,
-                          text: loaded.parameters.text,
-                      }
-                    : null,
-                knowledge: loaded.securityQuestion
-                    ? {
-                          metaEnvelopeId:
-                              loaded.securityQuestion.metaEnvelopeId,
-                          question: loaded.securityQuestion.question,
-                      }
-                    : null,
+            // Show cached photos immediately (IndexedDB read, ~10 ms).
+            // This runs before the network requests so photos are already
+            // in the store when loading = false fires and the UI becomes
+            // visible — no skeleton flash on repeat visits.
+            const cachedPhotos = await getCachedPhotosForEname(ename);
+            if (cachedPhotos.length > 0) {
+                replaceAll({
+                    ...$personalBinding,
+                    photos: cachedPhotos.map((p, i) => ({
+                        id: `${p.metaEnvelopeId}-${i}`,
+                        metaEnvelopeId: p.metaEnvelopeId,
+                        dataUrl: p.dataUrl,
+                        description: p.description,
+                        source: "camera" as const,
+                    })),
+                });
+            }
+
+            // Fire all three network requests in parallel but handle each
+            // independently. Parameters and security_question are tiny
+            // responses (arrive in milliseconds). Photographs carry full
+            // base64 blobs and arrive later — they update the store and
+            // refresh the cache when done.
+            const paramsPromise = loadPersonalParameters(gqlUrl, ename).then(
+                (params) => {
+                    setParametersLocal(params);
+                },
+            );
+            const securityPromise = loadPersonalSecurityQuestion(
+                gqlUrl,
+                ename,
+            ).then((security) => {
+                setKnowledgeLocal(security);
             });
+            const photosPromise = loadPersonalPhotographs(gqlUrl, ename).then(
+                async (photographs) => {
+                    const currentEname = ename;
+                    if (!currentEname) return;
+                    const current = $personalBinding;
+
+                    // Strip photos that the user deleted during this session
+                    // so a slow server response never resurrects them.
+                    const visibleFromServer = photographs.filter(
+                        (p) => !locallyDeletedIds.has(p.metaEnvelopeId),
+                    );
+                    const visibleIds = new Set(
+                        visibleFromServer.map((p) => p.metaEnvelopeId),
+                    );
+
+                    // Photos in the store not in the server response were
+                    // uploaded after this fetch started — keep them.
+                    const localPending = current.photos.filter(
+                        (p) =>
+                            p.dataUrl &&
+                            p.metaEnvelopeId !== null &&
+                            !visibleIds.has(p.metaEnvelopeId) &&
+                            !locallyDeletedIds.has(p.metaEnvelopeId),
+                    );
+
+                    replaceAll({
+                        ...current,
+                        photos: [
+                            ...visibleFromServer.map((p, i) => ({
+                                id: `${p.metaEnvelopeId}-${i}`,
+                                metaEnvelopeId: p.metaEnvelopeId,
+                                dataUrl: p.photoBlob,
+                                description: p.description,
+                                source: "camera" as const,
+                            })),
+                            ...localPending,
+                        ],
+                    });
+
+                    // Refresh cache for server photos (excluding deleted ones).
+                    await Promise.all(
+                        visibleFromServer.map((p) =>
+                            setCachedPhoto({
+                                metaEnvelopeId: p.metaEnvelopeId,
+                                dataUrl: p.photoBlob,
+                                description: p.description,
+                                ename: currentEname,
+                            }),
+                        ),
+                    );
+
+                    // Remove stale cache entries: not on server, not locally
+                    // pending, and not already removed via deleteCachedPhoto.
+                    const localPendingIds = new Set(
+                        localPending.map((p) => p.metaEnvelopeId),
+                    );
+                    const allCached =
+                        await getCachedPhotosForEname(currentEname);
+                    await Promise.all(
+                        allCached
+                            .filter(
+                                (p) =>
+                                    !visibleIds.has(p.metaEnvelopeId) &&
+                                    !localPendingIds.has(p.metaEnvelopeId),
+                            )
+                            .map((p) => deleteCachedPhoto(p.metaEnvelopeId)),
+                    );
+                },
+            );
+
+            // Reveal the UI as soon as text data is ready. If we already had
+            // cached photos they're showing; otherwise the photo section
+            // shows skeleton rows until photosPromise settles.
+            await Promise.allSettled([paramsPromise, securityPromise]);
+            loading = false;
+
+            void photosPromise;
         } catch (err) {
             console.error("[personal] load failed", err);
             errorMessage = "Couldn't load personal binding documents.";
-        } finally {
             loading = false;
         }
     })();
@@ -179,12 +283,20 @@ async function handlePhotoSave(data: {
             description: data.description,
             source: data.source,
         });
+        void setCachedPhoto({
+            metaEnvelopeId: id,
+            dataUrl: data.dataUrl,
+            description: data.description,
+            ename: ename ?? "",
+        });
         editingPhoto = null;
 
         if (oldId) {
+            locallyDeletedIds.add(oldId);
             try {
                 await deletePersonalBinding(gqlUrl, ename, oldId);
                 removePhotoLocal(oldId);
+                void deleteCachedPhoto(oldId);
             } catch (err) {
                 console.warn(
                     "[personal] couldn't delete stale photo, will dedupe on next load",
@@ -205,8 +317,10 @@ async function handlePhotoDelete(photo: PhotoMark) {
     saving = true;
     errorMessage = null;
     try {
+        locallyDeletedIds.add(photo.metaEnvelopeId);
         await deletePersonalBinding(gqlUrl, ename, photo.metaEnvelopeId);
         removePhotoLocal(photo.metaEnvelopeId);
+        void deleteCachedPhoto(photo.metaEnvelopeId);
     } catch (err) {
         console.error("[personal] photo delete failed", err);
         errorMessage = "Couldn't delete photo. Try again.";
@@ -339,48 +453,59 @@ async function handleKnowledgeSave(data: {
 {/snippet}
 
 {#snippet photosBody()}
-    {#if photosFilled}
+    {#if binding.photos.length > 0 || loading}
         <ul class="flex flex-col gap-3 mt-3">
-            {#each binding.photos as photo (photo.id)}
-                <li class="flex items-center gap-3">
-                    <img
-                        src={photo.dataUrl}
-                        alt=""
-                        class="w-10 h-10 rounded-lg object-cover shrink-0"
-                    />
-                    <p
-                        class="flex-1 min-w-0 text-black-900 font-medium truncate"
-                    >
-                        {photo.description || "Photo mark"}
-                    </p>
-                    <button
-                        type="button"
-                        aria-label="Delete photo"
-                        class="text-black-500 active:opacity-60 disabled:opacity-40"
-                        disabled={saving}
-                        onclick={() => handlePhotoDelete(photo)}
-                    >
-                        <HugeiconsIcon
-                            icon={Delete02Icon}
-                            size={20}
-                            strokeWidth={1.8}
+            {#each sortedPhotos as photo (photo.id)}
+                {#if photo.dataUrl}
+                    <li class="flex items-center gap-3">
+                        <img
+                            src={photo.dataUrl}
+                            alt=""
+                            class="w-10 h-10 rounded-lg object-cover shrink-0"
                         />
-                    </button>
-                    <button
-                        type="button"
-                        aria-label="Edit photo"
-                        class="text-black-500 active:opacity-60 disabled:opacity-40"
-                        disabled={saving}
-                        onclick={() => openPhotoSheet(photo)}
-                    >
-                        <HugeiconsIcon
-                            icon={PencilEdit02Icon}
-                            size={20}
-                            strokeWidth={1.8}
-                        />
-                    </button>
-                </li>
+                        <p class="flex-1 min-w-0 text-black-900 font-medium truncate">
+                            {photo.description || "Photo mark"}
+                        </p>
+                        <button
+                            type="button"
+                            aria-label="Delete photo"
+                            class="text-black-500 active:opacity-60 disabled:opacity-40"
+                            disabled={saving}
+                            onclick={() => handlePhotoDelete(photo)}
+                        >
+                            <HugeiconsIcon icon={Delete02Icon} size={20} strokeWidth={1.8} />
+                        </button>
+                        <button
+                            type="button"
+                            aria-label="Edit photo"
+                            class="text-black-500 active:opacity-60 disabled:opacity-40"
+                            disabled={saving}
+                            onclick={() => openPhotoSheet(photo)}
+                        >
+                            <HugeiconsIcon icon={PencilEdit02Icon} size={20} strokeWidth={1.8} />
+                        </button>
+                    </li>
+                {:else}
+                    <!-- Full-row skeleton while this photo's blob is still loading -->
+                    <li class="flex items-center gap-3" aria-hidden="true">
+                        <div class="w-10 h-10 rounded-lg bg-gray-200 animate-pulse shrink-0"></div>
+                        <div class="flex-1 h-4 bg-gray-200 animate-pulse rounded"></div>
+                        <div class="w-5 h-5 bg-gray-200 animate-pulse rounded"></div>
+                        <div class="w-5 h-5 bg-gray-200 animate-pulse rounded"></div>
+                    </li>
+                {/if}
             {/each}
+            {#if loading && binding.photos.length === 0}
+                <!-- No stubs yet — show placeholder rows until count is known -->
+                {#each [0, 1] as _}
+                    <li class="flex items-center gap-3" aria-hidden="true">
+                        <div class="w-10 h-10 rounded-lg bg-gray-200 animate-pulse shrink-0"></div>
+                        <div class="flex-1 h-4 bg-gray-200 animate-pulse rounded"></div>
+                        <div class="w-5 h-5 bg-gray-200 animate-pulse rounded"></div>
+                        <div class="w-5 h-5 bg-gray-200 animate-pulse rounded"></div>
+                    </li>
+                {/each}
+            {/if}
         </ul>
     {/if}
     {@render addButton("Add photo", () => openPhotoSheet(null))}
@@ -412,6 +537,11 @@ async function handleKnowledgeSave(data: {
         {@render filledRow(binding.parameters.text, "Edit parameters", () => {
             parametersSheetOpen = true;
         })}
+    {:else if loading}
+        <div class="mt-3 flex flex-col gap-2" aria-hidden="true">
+            <div class="h-4 bg-gray-200 animate-pulse rounded w-3/4"></div>
+            <div class="h-4 bg-gray-200 animate-pulse rounded w-1/2"></div>
+        </div>
     {:else}
         {@render addButton("Add description", () => {
             parametersSheetOpen = true;
@@ -424,6 +554,8 @@ async function handleKnowledgeSave(data: {
         {@render filledRow(binding.knowledge.question, "Edit knowledge", () => {
             knowledgeSheetOpen = true;
         })}
+    {:else if loading}
+        <div class="mt-3 h-4 bg-gray-200 animate-pulse rounded w-2/3" aria-hidden="true"></div>
     {:else}
         {@render addButton("Add question", () => {
             knowledgeSheetOpen = true;
@@ -433,9 +565,7 @@ async function handleKnowledgeSave(data: {
 
 <AppNav title="Personal" subtitle="{achieved} of 3 marks achieved" />
 
-{#if loading}
-    <p class="text-black-500 mt-6">Loading…</p>
-{:else if errorMessage}
+{#if errorMessage}
     <p class="text-danger mt-6">{errorMessage}</p>
 {/if}
 
@@ -445,28 +575,26 @@ async function handleKnowledgeSave(data: {
     </p>
 {/if}
 
-{#if !loading}
-    <div class="flex flex-col gap-3 mt-6 pb-8">
-        {@render markCard(
-            photosFilled ? "Personal photos" : "Distinctive photos",
-            "Unique traits: face, tattoos, moles, scars",
-            photosFilled,
-            photosBody,
-        )}
-        {@render markCard(
-            "Personal parameters",
-            "Personal details: date and place of birth, height, eye colour, and other identifying traits",
-            parametersFilled,
-            parametersBody,
-        )}
-        {@render markCard(
-            knowledgeFilled ? "Personal knowledge" : "Unique knowledge",
-            "Set a question that only you know the answer to",
-            knowledgeFilled,
-            knowledgeBody,
-        )}
-    </div>
-{/if}
+<div class="flex flex-col gap-3 mt-6 pb-8">
+    {@render markCard(
+        photosFilled ? "Personal photos" : "Distinctive photos",
+        "Unique traits: face, tattoos, moles, scars",
+        photosFilled,
+        photosBody,
+    )}
+    {@render markCard(
+        "Personal parameters",
+        "Personal details: date and place of birth, height, eye colour, and other identifying traits",
+        parametersFilled,
+        parametersBody,
+    )}
+    {@render markCard(
+        knowledgeFilled ? "Personal knowledge" : "Unique knowledge",
+        "Set a question that only you know the answer to",
+        knowledgeFilled,
+        knowledgeBody,
+    )}
+</div>
 
 <AddPhotoSheet
     isOpen={photoSheetOpen}
