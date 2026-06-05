@@ -24,7 +24,7 @@ import {
 } from "$lib/utils/personalBinding";
 import {
     deleteCachedPhoto,
-    getAllCachedPhotos,
+    getCachedPhotosForEname,
     setCachedPhoto,
 } from "$lib/utils/photoCache";
 import { Delete02Icon, PencilEdit02Icon } from "@hugeicons/core-free-icons";
@@ -36,6 +36,11 @@ import AddPhotoSheet from "./components/AddPhotoSheet.svelte";
 
 const binding = $derived($personalBinding);
 const achieved = $derived(marksAchieved(binding));
+const sortedPhotos = $derived(
+    [...binding.photos].sort((a, b) =>
+        (a.metaEnvelopeId ?? a.id).localeCompare(b.metaEnvelopeId ?? b.id),
+    ),
+);
 const photosFilled = $derived(binding.photos.length > 0);
 const parametersFilled = $derived(
     !!binding.parameters && binding.parameters.text.trim().length > 0,
@@ -98,7 +103,7 @@ onMount(() => {
             // This runs before the network requests so photos are already
             // in the store when loading = false fires and the UI becomes
             // visible — no skeleton flash on repeat visits.
-            const cachedPhotos = await getAllCachedPhotos();
+            const cachedPhotos = await getCachedPhotosForEname(ename);
             if (cachedPhotos.length > 0) {
                 replaceAll({
                     ...$personalBinding,
@@ -118,13 +123,19 @@ onMount(() => {
             // base64 blobs and arrive later — they update the store and
             // refresh the cache when done.
             const paramsPromise = loadPersonalParameters(gqlUrl, ename).then(
-                (params) => { setParametersLocal(params); },
+                (params) => {
+                    setParametersLocal(params);
+                },
             );
-            const securityPromise = loadPersonalSecurityQuestion(gqlUrl, ename).then(
-                (security) => { setKnowledgeLocal(security); },
-            );
+            const securityPromise = loadPersonalSecurityQuestion(
+                gqlUrl,
+                ename,
+            ).then((security) => {
+                setKnowledgeLocal(security);
+            });
             const photosPromise = loadPersonalPhotographs(gqlUrl, ename).then(
                 async (photographs) => {
+                    if (!ename) return;
                     const current = $personalBinding;
 
                     // Strip photos that the user deleted during this session
@@ -132,12 +143,18 @@ onMount(() => {
                     const visibleFromServer = photographs.filter(
                         (p) => !locallyDeletedIds.has(p.metaEnvelopeId),
                     );
-                    const visibleIds = new Set(visibleFromServer.map((p) => p.metaEnvelopeId));
+                    const visibleIds = new Set(
+                        visibleFromServer.map((p) => p.metaEnvelopeId),
+                    );
 
                     // Photos in the store not in the server response were
                     // uploaded after this fetch started — keep them.
                     const localPending = current.photos.filter(
-                        (p) => p.dataUrl && p.metaEnvelopeId !== null && !visibleIds.has(p.metaEnvelopeId) && !locallyDeletedIds.has(p.metaEnvelopeId),
+                        (p) =>
+                            p.dataUrl &&
+                            p.metaEnvelopeId !== null &&
+                            !visibleIds.has(p.metaEnvelopeId) &&
+                            !locallyDeletedIds.has(p.metaEnvelopeId),
                     );
 
                     replaceAll({
@@ -161,6 +178,7 @@ onMount(() => {
                                 metaEnvelopeId: p.metaEnvelopeId,
                                 dataUrl: p.photoBlob,
                                 description: p.description,
+                                ename: ename,
                             }),
                         ),
                     );
@@ -170,7 +188,7 @@ onMount(() => {
                     const localPendingIds = new Set(
                         localPending.map((p) => p.metaEnvelopeId),
                     );
-                    const allCached = await getAllCachedPhotos();
+                    const allCached = await getCachedPhotosForEname(ename);
                     await Promise.all(
                         allCached
                             .filter(
@@ -267,6 +285,7 @@ async function handlePhotoSave(data: {
             metaEnvelopeId: id,
             dataUrl: data.dataUrl,
             description: data.description,
+            ename: ename ?? "",
         });
         editingPhoto = null;
 
@@ -434,7 +453,7 @@ async function handleKnowledgeSave(data: {
 {#snippet photosBody()}
     {#if binding.photos.length > 0 || loading}
         <ul class="flex flex-col gap-3 mt-3">
-            {#each binding.photos as photo (photo.id)}
+            {#each sortedPhotos as photo (photo.id)}
                 {#if photo.dataUrl}
                     <li class="flex items-center gap-3">
                         <img

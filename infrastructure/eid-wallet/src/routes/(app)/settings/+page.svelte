@@ -8,6 +8,7 @@ import {
     subscribe as subscribeLanguage,
 } from "$lib/stores/language";
 import { clearAllNotifications } from "$lib/stores/notifications";
+import { clearAllCachedPhotos } from "$lib/utils/photoCache";
 import { BottomSheet, ButtonAction } from "$lib/ui";
 import { PinIcon, PrivacyIcon } from "$lib/ui/icons";
 import { isPermissionGranted } from "@choochmeque/tauri-plugin-notifications-api";
@@ -82,6 +83,7 @@ function cancelLogout() {
 async function performLogout() {
     isLogoutDrawerOpen = false;
     clearAllNotifications();
+    await clearAllCachedPhotos();
     if (!globalState) {
         console.error("Cannot logout: global state not ready");
         return;

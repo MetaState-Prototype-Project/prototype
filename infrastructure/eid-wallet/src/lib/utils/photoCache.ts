@@ -17,6 +17,7 @@ export interface CachedPhoto {
     metaEnvelopeId: string;
     dataUrl: string;
     description: string;
+    ename: string;
 }
 
 const store = localforage.createInstance({
@@ -35,6 +36,23 @@ export async function getAllCachedPhotos(): Promise<CachedPhoto[]> {
         return photos;
     } catch {
         return [];
+    }
+}
+
+/** Return cached photos belonging to a specific ename. */
+export async function getCachedPhotosForEname(
+    ename: string,
+): Promise<CachedPhoto[]> {
+    const all = await getAllCachedPhotos();
+    return all.filter((p) => p.ename === ename);
+}
+
+/** Remove all cached photos. Call on logout to prevent cross-user data leaks. */
+export async function clearAllCachedPhotos(): Promise<void> {
+    try {
+        await store.clear();
+    } catch {
+        // non-fatal
     }
 }
 
@@ -66,7 +84,9 @@ export async function replaceAllCachedPhotos(
 ): Promise<void> {
     try {
         await store.clear();
-        await Promise.all(photos.map((p) => store.setItem(p.metaEnvelopeId, p)));
+        await Promise.all(
+            photos.map((p) => store.setItem(p.metaEnvelopeId, p)),
+        );
     } catch {
         // non-fatal
     }
