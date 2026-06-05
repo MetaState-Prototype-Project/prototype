@@ -22,6 +22,11 @@ import {
     loadPersonalPhotographs,
     loadPersonalSecurityQuestion,
 } from "$lib/utils/personalBinding";
+import {
+    deleteCachedPhoto,
+    getAllCachedPhotos,
+    setCachedPhoto,
+} from "$lib/utils/photoCache";
 import { Delete02Icon, PencilEdit02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import { type Snippet, getContext, onMount } from "svelte";
@@ -47,6 +52,11 @@ let knowledgeSheetOpen = $state(false);
 let loading = $state(true);
 let saving = $state(false);
 let errorMessage = $state<string | null>(null);
+
+// IDs of photos the user explicitly deleted during this session.
+// Prevents the background server fetch from re-adding them to the store
+// and cache if it resolves after the delete (server hasn't propagated yet).
+const locallyDeletedIds = new Set<string>();
 
 const getGlobalState = getContext<() => GlobalState | undefined>("globalState");
 let globalState: GlobalState | undefined = $state(undefined);
@@ -84,47 +94,101 @@ onMount(() => {
                 : `@${vault.ename}`;
             gqlUrl = new URL("/graphql", vault.uri).toString();
 
-            // Fire all three requests in parallel but handle each
+            // Show cached photos immediately (IndexedDB read, ~10 ms).
+            // This runs before the network requests so photos are already
+            // in the store when loading = false fires and the UI becomes
+            // visible — no skeleton flash on repeat visits.
+            const cachedPhotos = await getAllCachedPhotos();
+            if (cachedPhotos.length > 0) {
+                replaceAll({
+                    ...$personalBinding,
+                    photos: cachedPhotos.map((p, i) => ({
+                        id: `${p.metaEnvelopeId}-${i}`,
+                        metaEnvelopeId: p.metaEnvelopeId,
+                        dataUrl: p.dataUrl,
+                        description: p.description,
+                        source: "camera" as const,
+                    })),
+                });
+            }
+
+            // Fire all three network requests in parallel but handle each
             // independently. Parameters and security_question are tiny
-            // responses that arrive in milliseconds. Photographs carry full
-            // base64 blobs and can take much longer. Updating the store as
-            // each settles means text cards appear immediately while photo
-            // rows show skeleton placeholders until the blobs arrive.
+            // responses (arrive in milliseconds). Photographs carry full
+            // base64 blobs and arrive later — they update the store and
+            // refresh the cache when done.
             const paramsPromise = loadPersonalParameters(gqlUrl, ename).then(
-                (params) => {
-                    setParametersLocal(params);
-                },
+                (params) => { setParametersLocal(params); },
             );
-            const securityPromise = loadPersonalSecurityQuestion(
-                gqlUrl,
-                ename,
-            ).then((security) => {
-                setKnowledgeLocal(security);
-            });
+            const securityPromise = loadPersonalSecurityQuestion(gqlUrl, ename).then(
+                (security) => { setKnowledgeLocal(security); },
+            );
             const photosPromise = loadPersonalPhotographs(gqlUrl, ename).then(
-                (photographs) => {
-                    // Keep current params/security; only replace photos.
+                async (photographs) => {
                     const current = $personalBinding;
+
+                    // Strip photos that the user deleted during this session
+                    // so a slow server response never resurrects them.
+                    const visibleFromServer = photographs.filter(
+                        (p) => !locallyDeletedIds.has(p.metaEnvelopeId),
+                    );
+                    const visibleIds = new Set(visibleFromServer.map((p) => p.metaEnvelopeId));
+
+                    // Photos in the store not in the server response were
+                    // uploaded after this fetch started — keep them.
+                    const localPending = current.photos.filter(
+                        (p) => p.dataUrl && p.metaEnvelopeId !== null && !visibleIds.has(p.metaEnvelopeId) && !locallyDeletedIds.has(p.metaEnvelopeId),
+                    );
+
                     replaceAll({
                         ...current,
-                        photos: photographs.map((p, i) => ({
-                            id: `${p.metaEnvelopeId}-${i}`,
-                            metaEnvelopeId: p.metaEnvelopeId,
-                            dataUrl: p.photoBlob,
-                            description: p.description,
-                            source: "camera" as const,
-                        })),
+                        photos: [
+                            ...visibleFromServer.map((p, i) => ({
+                                id: `${p.metaEnvelopeId}-${i}`,
+                                metaEnvelopeId: p.metaEnvelopeId,
+                                dataUrl: p.photoBlob,
+                                description: p.description,
+                                source: "camera" as const,
+                            })),
+                            ...localPending,
+                        ],
                     });
+
+                    // Refresh cache for server photos (excluding deleted ones).
+                    await Promise.all(
+                        visibleFromServer.map((p) =>
+                            setCachedPhoto({
+                                metaEnvelopeId: p.metaEnvelopeId,
+                                dataUrl: p.photoBlob,
+                                description: p.description,
+                            }),
+                        ),
+                    );
+
+                    // Remove stale cache entries: not on server, not locally
+                    // pending, and not already removed via deleteCachedPhoto.
+                    const localPendingIds = new Set(
+                        localPending.map((p) => p.metaEnvelopeId),
+                    );
+                    const allCached = await getAllCachedPhotos();
+                    await Promise.all(
+                        allCached
+                            .filter(
+                                (p) =>
+                                    !visibleIds.has(p.metaEnvelopeId) &&
+                                    !localPendingIds.has(p.metaEnvelopeId),
+                            )
+                            .map((p) => deleteCachedPhoto(p.metaEnvelopeId)),
+                    );
                 },
             );
 
-            // Reveal the UI as soon as text data is ready — don't wait for
-            // photo blobs. The photo section shows skeleton rows until
-            // photosPromise settles.
+            // Reveal the UI as soon as text data is ready. If we already had
+            // cached photos they're showing; otherwise the photo section
+            // shows skeleton rows until photosPromise settles.
             await Promise.allSettled([paramsPromise, securityPromise]);
             loading = false;
 
-            // Let photos finish in the background.
             void photosPromise;
         } catch (err) {
             console.error("[personal] load failed", err);
@@ -199,12 +263,19 @@ async function handlePhotoSave(data: {
             description: data.description,
             source: data.source,
         });
+        void setCachedPhoto({
+            metaEnvelopeId: id,
+            dataUrl: data.dataUrl,
+            description: data.description,
+        });
         editingPhoto = null;
 
         if (oldId) {
+            locallyDeletedIds.add(oldId);
             try {
                 await deletePersonalBinding(gqlUrl, ename, oldId);
                 removePhotoLocal(oldId);
+                void deleteCachedPhoto(oldId);
             } catch (err) {
                 console.warn(
                     "[personal] couldn't delete stale photo, will dedupe on next load",
@@ -225,8 +296,10 @@ async function handlePhotoDelete(photo: PhotoMark) {
     saving = true;
     errorMessage = null;
     try {
+        locallyDeletedIds.add(photo.metaEnvelopeId);
         await deletePersonalBinding(gqlUrl, ename, photo.metaEnvelopeId);
         removePhotoLocal(photo.metaEnvelopeId);
+        void deleteCachedPhoto(photo.metaEnvelopeId);
     } catch (err) {
         console.error("[personal] photo delete failed", err);
         errorMessage = "Couldn't delete photo. Try again.";
