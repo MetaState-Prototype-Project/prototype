@@ -84,7 +84,7 @@ export async function replaceAllCachedPhotos(
 ): Promise<void> {
     try {
         await store.clear();
-        await Promise.all(
+        await Promise.allSettled(
             photos.map((p) => store.setItem(p.metaEnvelopeId, p)),
         );
     } catch {
