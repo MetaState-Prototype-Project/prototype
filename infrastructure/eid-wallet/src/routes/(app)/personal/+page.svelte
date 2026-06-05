@@ -135,7 +135,8 @@ onMount(() => {
             });
             const photosPromise = loadPersonalPhotographs(gqlUrl, ename).then(
                 async (photographs) => {
-                    if (!ename) return;
+                    const currentEname = ename;
+                    if (!currentEname) return;
                     const current = $personalBinding;
 
                     // Strip photos that the user deleted during this session
@@ -178,7 +179,7 @@ onMount(() => {
                                 metaEnvelopeId: p.metaEnvelopeId,
                                 dataUrl: p.photoBlob,
                                 description: p.description,
-                                ename: ename,
+                                ename: currentEname,
                             }),
                         ),
                     );
@@ -188,7 +189,7 @@ onMount(() => {
                     const localPendingIds = new Set(
                         localPending.map((p) => p.metaEnvelopeId),
                     );
-                    const allCached = await getCachedPhotosForEname(ename);
+                    const allCached = await getCachedPhotosForEname(currentEname);
                     await Promise.all(
                         allCached
                             .filter(
