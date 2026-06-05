@@ -1,18 +1,19 @@
 {
-	"tableName": "users",
-	"schemaId": "550e8400-e29b-41d4-a716-446655440000",
-	"ownerEnamePath": "ename",
-	"ownedJunctionTables": [],
-	"localToUniversalMap": {
-		"handle": "username",
-		"name": "displayName",
-		"bio": "bio",
-		"ename": "ename",
-		"isVerified": "isVerified",
-		"isPublic": "isPublic",
-		"location": "location",
-		"createdAt": "createdAt",
-		"updatedAt": "updatedAt",
-		"isArchived": "isArchived"
-	}
+    "tableName": "users",
+    "schemaId": "550e8400-e29b-41d4-a716-446655440000",
+    "ownerEnamePath": "ename",
+    "ownedJunctionTables": [],
+    "localToUniversalMap": {
+        "handle": "username",
+        "name": "displayName",
+        "bio": "bio",
+        "avatarUrl": "__file(avatarUrl)",
+        "bannerUrl": "__file(bannerUrl)",
+        "ename": "ename",
+        "isVerified": "isVerified",
+        "location": "location",
+        "createdAt": "createdAt",
+        "updatedAt": "updatedAt",
+        "isArchived": "isArchived"
+    }
 }

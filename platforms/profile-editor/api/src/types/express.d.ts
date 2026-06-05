@@ -1,13 +1,9 @@
-declare global {
-	namespace Express {
-		interface Request {
-			user?: {
-				id: string;
-				ename: string;
-				[key: string]: unknown;
-			};
-		}
-	}
-}
+import type { AuthUser } from "@metastate-foundation/auth";
 
-export {};
+declare global {
+    namespace Express {
+        interface Request {
+            user?: AuthUser;
+        }
+    }
+}

@@ -3,7 +3,7 @@ import { apiClient } from './axios';
 export async function uploadFile(
 	file: File,
 	onProgress?: (progress: number) => void
-): Promise<{ id: string; name: string; mimeType: string; size: number }> {
+): Promise<{ publicUrl: string; name: string; mimeType: string; size: number }> {
 	const formData = new FormData();
 	formData.append('file', file);
 
@@ -18,12 +18,6 @@ export async function uploadFile(
 		}
 	});
 
+	// Backend uploads to eVault blob storage and returns a public CDN URL.
 	return response.data;
-}
-
-export type ProfileAssetType = 'avatar' | 'banner' | 'cv' | 'video';
-
-export function getProfileAssetUrl(ename: string, type: ProfileAssetType): string {
-	const base = apiClient.defaults.baseURL || 'http://localhost:3007';
-	return `${base}/api/profiles/${encodeURIComponent(ename)}/${type}`;
 }
