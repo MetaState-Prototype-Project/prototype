@@ -152,14 +152,14 @@ class NotificationService {
             console.log("Sending notification with payload:", {
                 title: payload.title,
                 body: payload.body,
-                icon: "icons/32x32.png",
+                icon: "ic_notification",
                 sound: "default",
             });
 
             await sendNotification({
                 title: payload.title,
                 body: payload.body,
-                icon: "icons/32x32.png",
+                icon: "ic_notification",
                 sound: "default",
             });
 
