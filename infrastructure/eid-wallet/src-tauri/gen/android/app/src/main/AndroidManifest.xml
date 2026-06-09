@@ -30,6 +30,18 @@
             </intent-filter>
         </activity>
 
+        <!--
+          Notification small icon + tint for Firebase Cloud Messaging. Without
+          these, Android falls back to a generic info-circle glyph in the
+          status bar that reads as an SOS alert.
+        -->
+        <meta-data
+          android:name="com.google.firebase.messaging.default_notification_icon"
+          android:resource="@drawable/ic_notification" />
+        <meta-data
+          android:name="com.google.firebase.messaging.default_notification_color"
+          android:resource="@color/ic_launcher_background" />
+
         <provider
           android:name="androidx.core.content.FileProvider"
           android:authorities="${applicationId}.fileprovider"
