@@ -1,12 +1,17 @@
 <script lang="ts">
 	import { updateProfile } from '$lib/stores/profile';
-	import { uploadFile, getProfileAssetUrl } from '$lib/utils/file-manager';
+	import { resolveAssetUrl, uploadFile } from '$lib/utils/file-manager';
 	import { toast } from 'svelte-sonner';
 	import { Card, CardContent, CardHeader, CardTitle } from '@metastate-foundation/ui/card';
 	import { Button } from '@metastate-foundation/ui/button';
 	import { Progress } from '@metastate-foundation/ui/progress';
 
 	let { ename, cvFileId, videoIntroFileId, editable = false }: { ename: string; cvFileId?: string; videoIntroFileId?: string; editable?: boolean } = $props();
+
+	// New uploads store a public eVault-blob URL; legacy profiles stored a bare
+	// file-manager id. resolveAssetUrl handles both so old CVs/videos still render.
+	let cvUrl = $derived(resolveAssetUrl(cvFileId));
+	let videoUrl = $derived(resolveAssetUrl(videoIntroFileId));
 
 	let uploadingCv = $state(false);
 	let uploadingVideo = $state(false);
@@ -24,7 +29,7 @@
 		cvProgress = 0;
 		try {
 			const result = await uploadFile(file, (p) => { cvProgress = p; });
-			await updateProfile({ cvFileId: result.id });
+			await updateProfile({ cvFileId: result.publicUrl });
 			toast.success('CV uploaded');
 		} catch {
 			toast.error('Failed to upload CV');
@@ -42,7 +47,7 @@
 		videoProgress = 0;
 		try {
 			const result = await uploadFile(file, (p) => { videoProgress = p; });
-			await updateProfile({ videoIntroFileId: result.id });
+			await updateProfile({ videoIntroFileId: result.publicUrl });
 			toast.success('Video introduction uploaded');
 		} catch {
 			toast.error('Failed to upload video');
@@ -87,20 +92,20 @@
 						<h3 class="text-sm font-medium text-foreground">CV / Resume</h3>
 					</div>
 
-					{#if cvFileId}
+					{#if cvUrl}
 						<div class="mb-2 overflow-hidden rounded border">
 							<object
-								data={getProfileAssetUrl(ename, 'cv')}
+								data={cvUrl}
 								type="application/pdf"
 								class="h-48 w-full"
 							>
-								<a href={getProfileAssetUrl(ename, 'cv')} target="_blank" rel="noopener noreferrer" class="flex items-center justify-center h-48 text-sm text-muted-foreground hover:underline">
+								<a href={cvUrl} target="_blank" rel="noopener noreferrer" class="flex items-center justify-center h-48 text-sm text-muted-foreground hover:underline">
 									Download CV
 								</a>
 							</object>
 						</div>
 						<div class="flex items-center gap-2">
-							<Button variant="link" size="sm" href={getProfileAssetUrl(ename, 'cv')} class="h-auto p-0">Download CV</Button>
+							<Button variant="link" size="sm" href={cvUrl} class="h-auto p-0">Download CV</Button>
 							{#if editable}
 								<Button variant="link" size="sm" class="h-auto p-0 text-destructive" onclick={removeCv}>Remove</Button>
 							{/if}
@@ -131,20 +136,20 @@
 						<h3 class="text-sm font-medium text-foreground">Video Introduction</h3>
 					</div>
 
-					{#if videoIntroFileId}
+					{#if videoUrl}
 						<div class="mb-2 overflow-hidden rounded border">
 							<!-- svelte-ignore a11y_media_has_caption -->
 							<video
-								src={getProfileAssetUrl(ename, 'video')}
+								src={videoUrl}
 								controls
 								preload="metadata"
 								class="h-48 w-full bg-black"
 							>
-								<a href={getProfileAssetUrl(ename, 'video')} target="_blank" rel="noopener noreferrer">Download Video</a>
+								<a href={videoUrl} target="_blank" rel="noopener noreferrer">Download Video</a>
 							</video>
 						</div>
 						<div class="flex items-center gap-2">
-							<Button variant="link" size="sm" href={getProfileAssetUrl(ename, 'video')} class="h-auto p-0">Download Video</Button>
+							<Button variant="link" size="sm" href={videoUrl} class="h-auto p-0">Download Video</Button>
 							{#if editable}
 								<Button variant="link" size="sm" class="h-auto p-0 text-destructive" onclick={removeVideo}>Remove</Button>
 							{/if}
