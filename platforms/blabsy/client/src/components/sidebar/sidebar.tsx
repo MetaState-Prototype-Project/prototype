@@ -72,8 +72,8 @@ export function Sidebar(): JSX.Element {
     return (
         <header
             id='sidebar'
-            className='flex shrink-0 w-16 transition-opacity duration-200
-                 lg:max-w-none xl:-mr-4 xl:w-full xl:max-w-xs xl:justify-end xs:w-20 md:w-24 xl:w-72"'
+            className='flex shrink-0 w-0 transition-opacity duration-200
+                 lg:max-w-none xl:-mr-4 xl:w-full xl:max-w-xs xl:justify-end xs:w-20 md:w-24 xl:w-72'
         >
             <Modal
                 className='flex items-start justify-center'
