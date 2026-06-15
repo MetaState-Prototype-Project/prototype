@@ -561,6 +561,7 @@ async function handleSubmitEname() {
         answerInput = "";
         answerError = null;
         lockedUntilLabel = null;
+        showAnswer = false;
         step = "unverified-answer";
     } catch (err: unknown) {
         console.error("[RECOVERY/unverified] eName lookup error:", err);
