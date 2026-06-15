@@ -12,11 +12,11 @@ export function Chat(): JSX.Element {
         return (
             <main className='min-h-full w-full max-w-5xl pt-8 pb-8'>
                 {currentChat ? (
-                    <div className='h-[calc(100vh-6rem)] rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-black'>
+                    <div className='h-[calc(100dvh-6rem)] rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-black'>
                         <ChatWindow />
                     </div>
                 ) : (
-                    <div className='h-[calc(100vh-6rem)] rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-black flex flex-col'>
+                    <div className='h-[calc(100dvh-6rem)] rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-black flex flex-col'>
                         <ChatList />
                     </div>
                 )}
@@ -27,11 +27,11 @@ export function Chat(): JSX.Element {
     // On desktop, show both in grid layout
     return (
         <main className='min-h-full w-full max-w-5xl pt-8'>
-            <div className='grid h-[calc(100vh-4rem)] grid-cols-1 gap-4 md:grid-cols-[350px_1fr]'>
-                <div className='h-[calc(100vh-4rem)] rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-black flex flex-col'>
+            <div className='grid h-[calc(100dvh-4rem)] grid-cols-1 gap-4 md:grid-cols-[350px_1fr]'>
+                <div className='h-[calc(100dvh-4rem)] rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-black flex flex-col'>
                     <ChatList />
                 </div>
-                <div className='h-[calc(100vh-4rem)] rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-black'>
+                <div className='h-[calc(100dvh-4rem)] rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-black'>
                     <ChatWindow />
                 </div>
             </div>
