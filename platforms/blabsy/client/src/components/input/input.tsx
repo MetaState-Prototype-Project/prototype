@@ -81,50 +81,56 @@ export function Input({
 
         const userId = user?.id as string;
 
-        const tweetData: WithFieldValue<Omit<Tweet, 'id'>> = {
-            text: inputValue.trim() || null,
-            parent: isReplying && parent ? parent : null,
-            images: await uploadImages(userId, selectedImages),
-            userLikes: [],
-            createdBy: userId,
-            createdAt: serverTimestamp(),
-            updatedAt: null,
-            userReplies: 0,
-            userRetweets: []
-        };
+        try {
+            const tweetData: WithFieldValue<Omit<Tweet, 'id'>> = {
+                text: inputValue.trim() || null,
+                parent: isReplying && parent ? parent : null,
+                images: await uploadImages(userId, selectedImages),
+                userLikes: [],
+                createdBy: userId,
+                createdAt: serverTimestamp(),
+                updatedAt: null,
+                userReplies: 0,
+                userRetweets: []
+            };
 
-        await sleep(500);
+            await sleep(500);
 
-        const [tweetRef] = await Promise.all([
-            addDoc(tweetsCollection, tweetData),
-            manageTotalTweets('increment', userId),
-            tweetData.images && manageTotalPhotos('increment', userId),
-            isReplying && manageReply('increment', parent?.id as string)
-        ]);
+            const [tweetRef] = await Promise.all([
+                addDoc(tweetsCollection, tweetData),
+                manageTotalTweets('increment', userId),
+                tweetData.images && manageTotalPhotos('increment', userId),
+                isReplying && manageReply('increment', parent?.id as string)
+            ]);
 
-        const { id: tweetId } = await getDoc(tweetRef);
+            const { id: tweetId } = await getDoc(tweetRef);
 
-        if (!modal && !replyModal) {
-            discardTweet();
+            if (!modal && !replyModal) {
+                discardTweet();
+                setLoading(false);
+            }
+
+            if (closeModal) closeModal();
+
+            toast.success(
+                () => (
+                    <span className='flex gap-2'>
+                        Your Blab was sent
+                        <Link
+                            href={`/tweet/${tweetId}`}
+                            className='custom-underline font-bold'
+                        >
+                            View
+                        </Link>
+                    </span>
+                ),
+                { duration: 6000 }
+            );
+        } catch (error) {
+            console.error('Failed to send Blab:', error);
             setLoading(false);
+            toast.error('Failed to send your Blab. Please try again.');
         }
-
-        if (closeModal) closeModal();
-
-        toast.success(
-            () => (
-                <span className='flex gap-2'>
-                    Your Blab was sent
-                    <Link
-                        href={`/tweet/${tweetId}`}
-                        className='custom-underline font-bold'
-                    >
-                        View
-                    </Link>
-                </span>
-            ),
-            { duration: 6000 }
-        );
     };
 
     const handleImageUpload = (
