@@ -1,6 +1,7 @@
 /**
- * Seed the local Firebase emulators with a dev user so you can sign in
- * without the QR / eID-wallet flow. Local-dev only.
+ * Seed the local Firebase emulators with two dev users + a chat between
+ * them (so the messaging UI is reachable), and mint a sign-in token for
+ * the first user — no QR / eID-wallet flow needed. Local-dev only.
  *
  * Prereqs: emulators running (auth :9099, firestore :8080).
  * Run from platforms/blabsy/api:
@@ -14,12 +15,55 @@
  *   http://localhost:8079/dev-login?token=<token>
  */
 import { initializeApp, cert, getApps } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { getAuth, type Auth } from "firebase-admin/auth";
+import { getFirestore, Timestamp, type Firestore } from "firebase-admin/firestore";
 import * as fs from "fs";
 
-const UID = "devuser01";
-const USERNAME = "devuser";
+type SeedUser = { uid: string; username: string; displayName: string };
+
+const USERS: SeedUser[] = [
+    { uid: "devuser01", username: "devuser", displayName: "Dev User" },
+    { uid: "devuser02", username: "devuser2", displayName: "Dev User Two" }
+];
+const SIGN_IN_AS = "devuser01";
+const CHAT_ID = "devchat01";
+const CHAT_NAME = "New1";
+
+async function seedUser(auth: Auth, db: Firestore, { uid, username, displayName }: SeedUser): Promise<void> {
+    // Auth user (idempotent)
+    try {
+        await auth.createUser({ uid, email: `${username}@example.com`, displayName });
+        console.log(`Created auth user ${uid}`);
+    } catch (e: any) {
+        if (e.code === "auth/uid-already-exists" || e.code === "auth/email-already-exists") {
+            console.log(`Auth user ${uid} already exists`);
+        } else throw e;
+    }
+
+    // Firestore user doc — auth-context signs out any uid without one, and the
+    // chat header reads the participants' docs.
+    await db.collection("users").doc(uid).set({
+        id: uid,
+        bio: null,
+        name: displayName,
+        theme: null,
+        accent: null,
+        website: null,
+        location: null,
+        username,
+        photoURL: "/assets/twitter-avatar.jpg",
+        verified: false,
+        following: [],
+        followers: [],
+        createdAt: Timestamp.now(),
+        updatedAt: null,
+        totalTweets: 0,
+        totalPhotos: 0,
+        pinnedTweet: null,
+        coverPhotoURL: null
+    });
+    console.log(`Wrote users/${uid}`);
+}
 
 async function main(): Promise<void> {
     if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_AUTH_EMULATOR_HOST) {
@@ -42,42 +86,24 @@ async function main(): Promise<void> {
     const auth = getAuth();
     const db = getFirestore();
 
-    // Auth user (idempotent)
-    try {
-        await auth.createUser({ uid: UID, email: `${USERNAME}@example.com`, displayName: "Dev User" });
-        console.log(`Created auth user ${UID}`);
-    } catch (e: any) {
-        if (e.code === "auth/uid-already-exists" || e.code === "auth/email-already-exists") {
-            console.log(`Auth user ${UID} already exists`);
-        } else throw e;
-    }
+    for (const u of USERS) await seedUser(auth, db, u);
 
-    // Firestore user doc — auth-context signs out any uid without one.
+    // Chat between the two users so the messaging screen (and its input box)
+    // is reachable. Idempotent via the fixed id. Left without messages to match
+    // the "No messages yet" state in the report.
     const now = Timestamp.now();
-    await db.collection("users").doc(UID).set({
-        id: UID,
-        bio: null,
-        name: "Dev User",
-        theme: null,
-        accent: null,
-        website: null,
-        location: null,
-        username: USERNAME,
-        photoURL: "/assets/twitter-avatar.jpg",
-        verified: false,
-        following: [],
-        followers: [],
+    await db.collection("chats").doc(CHAT_ID).set({
+        id: CHAT_ID,
+        participants: USERS.map((u) => u.uid),
+        name: CHAT_NAME,
+        admins: [],
         createdAt: now,
-        updatedAt: null,
-        totalTweets: 0,
-        totalPhotos: 0,
-        pinnedTweet: null,
-        coverPhotoURL: null
+        updatedAt: now
     });
-    console.log(`Wrote users/${UID}`);
+    console.log(`Wrote chats/${CHAT_ID} (${USERS.map((u) => u.uid).join(", ")})`);
 
-    const token = await auth.createCustomToken(UID);
-    console.log("\nCustom token (sign in at http://localhost:8079/dev-login?token=<token>):\n");
+    const token = await auth.createCustomToken(SIGN_IN_AS);
+    console.log(`\nCustom token for ${SIGN_IN_AS} (sign in at http://localhost:8079/dev-login?token=<token>):\n`);
     console.log(token);
 }
 

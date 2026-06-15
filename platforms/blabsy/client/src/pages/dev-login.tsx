@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '@lib/context/auth-context';
 import { isUsingEmulator } from '@lib/env';
@@ -17,8 +17,15 @@ export default function DevLogin(): JSX.Element {
     const { signInWithCustomToken, user } = useAuth();
     const router = useRouter();
     const [error, setError] = useState<string | null>(null);
+    const attempted = useRef(false);
 
     useEffect(() => {
+        // Attempt sign-in exactly once. signInWithCustomToken changes identity
+        // every render (and a failed attempt re-renders via setError), so the
+        // ref guard prevents an infinite retry loop while keeping the dep listed.
+        if (attempted.current) return;
+        attempted.current = true;
+
         if (!isUsingEmulator) {
             setError('dev-login is only available in emulator mode.');
             return;
