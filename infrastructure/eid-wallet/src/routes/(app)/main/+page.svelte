@@ -124,6 +124,82 @@ let socialBindingPreview = $state<SocialBindingDisplay[]>(
 );
 const verified = $derived(isFake === false || legalId !== null);
 
+// ── Pull-to-refresh ───────────────────────────────────────────────────────────
+const PULL_THRESHOLD = 72;
+const PULL_MAX = 100;
+let pullState = $state<"idle" | "pulling" | "triggered" | "refreshing">("idle");
+let pullDistance = $state(0);
+let _pullStartY = 0;
+let _pullTracking = false;
+
+function getPullScrollTop(): number {
+    const el = document.querySelector("[data-route-wrapper]") as HTMLElement | null;
+    return el?.scrollTop ?? 0;
+}
+
+function onPullTouchStart(e: TouchEvent) {
+    if (tourStep !== null) return;
+    if (pullState === "refreshing") return;
+    if (getPullScrollTop() > 4) return;
+    _pullStartY = e.touches[0].clientY;
+    _pullTracking = true;
+}
+
+function onPullTouchMove(e: TouchEvent) {
+    if (!_pullTracking || pullState === "refreshing") return;
+    const delta = e.touches[0].clientY - _pullStartY;
+    if (delta <= 0) {
+        _pullTracking = false;
+        pullState = "idle";
+        pullDistance = 0;
+        return;
+    }
+    e.preventDefault();
+    pullDistance = Math.min(delta * 0.55, PULL_MAX);
+    pullState = pullDistance >= PULL_THRESHOLD ? "triggered" : "pulling";
+}
+
+function onPullTouchEnd() {
+    if (!_pullTracking) return;
+    _pullTracking = false;
+    if (pullState === "triggered") {
+        pullState = "refreshing";
+        pullDistance = PULL_THRESHOLD;
+        void refreshBindings().finally(() => {
+            pullState = "idle";
+            pullDistance = 0;
+        });
+    } else {
+        pullState = "idle";
+        pullDistance = 0;
+    }
+}
+
+function onPullTouchCancel() {
+    _pullTracking = false;
+    if (pullState !== "refreshing") {
+        pullState = "idle";
+        pullDistance = 0;
+    }
+}
+
+async function loadUserInfo(): Promise<void> {
+    if (!globalState) return;
+    const [userInfo, fake, vaultData] = await Promise.all([
+        globalState.userController.user,
+        globalState.userController.isFake,
+        globalState.vaultController.vault,
+    ]);
+    isFake = fake;
+    cachedIsFake = fake;
+    userData = { ...userInfo, isFake: fake };
+    cachedUserData = userData;
+    if (vaultData?.ename) {
+        ename = vaultData.ename;
+        cachedEname = ename;
+    }
+}
+
 function openKycFlow() {
     kycOpen = true;
 }
@@ -753,15 +829,7 @@ onMount(() => {
 
         profileCreationStatus = gs.vaultController.profileCreationStatus;
 
-        const userInfo = await gs.userController.user;
-        const fake = await gs.userController.isFake;
-        isFake = fake;
-        cachedIsFake = fake;
-        userData = { ...userInfo, isFake: fake };
-        cachedUserData = userData;
-        const vaultData = await gs.vaultController.vault;
-        ename = vaultData?.ename;
-        cachedEname = ename;
+        await loadUserInfo();
 
         void Promise.allSettled([
             loadBindingDocuments(),
@@ -807,6 +875,10 @@ onMount(() => {
     };
     if (typeof document !== "undefined") {
         document.addEventListener("visibilitychange", onVisibility);
+        document.addEventListener("touchstart", onPullTouchStart, { passive: true });
+        document.addEventListener("touchmove", onPullTouchMove, { passive: false });
+        document.addEventListener("touchend", onPullTouchEnd, { passive: true });
+        document.addEventListener("touchcancel", onPullTouchCancel, { passive: true });
     }
 });
 
@@ -817,8 +889,12 @@ onDestroy(() => {
     if (bindingsRefreshInterval) {
         clearInterval(bindingsRefreshInterval);
     }
-    if (typeof document !== "undefined" && onVisibility) {
-        document.removeEventListener("visibilitychange", onVisibility);
+    if (typeof document !== "undefined") {
+        if (onVisibility) document.removeEventListener("visibilitychange", onVisibility);
+        document.removeEventListener("touchstart", onPullTouchStart);
+        document.removeEventListener("touchmove", onPullTouchMove);
+        document.removeEventListener("touchend", onPullTouchEnd);
+        document.removeEventListener("touchcancel", onPullTouchCancel);
     }
     unsubNotifications?.();
 });
@@ -831,6 +907,7 @@ async function refreshBindings(): Promise<void> {
     if (!globalState) return;
     try {
         await Promise.all([
+            loadUserInfo(),
             loadBindingDocuments(),
             loadPersonalIntoStore(),
         ]);
@@ -871,6 +948,37 @@ async function refreshBindings(): Promise<void> {
         </div>
     </div>
 {:else}
+    <!-- Pull-to-refresh indicator: slides in from top as the user drags down from scroll top -->
+    {#if pullState !== "idle"}
+        <div
+            aria-hidden="true"
+            class="fixed left-0 right-0 flex justify-center pointer-events-none z-50"
+            style="top: calc(env(safe-area-inset-top) + {pullDistance - 48}px); transition: {pullState === 'refreshing' ? 'top 200ms ease-out' : 'none'};"
+        >
+            <div class="bg-white rounded-full p-2.5 shadow-md border border-gray-100">
+                {#if pullState === "refreshing"}
+                    <Shadow size={22} color="rgb(142, 82, 255)" />
+                {:else}
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="22"
+                        height="22"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="rgb(142, 82, 255)"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        style="transform: rotate({pullState === 'triggered' ? 180 : 0}deg); transition: transform 200ms ease;"
+                    >
+                        <path d="M12 5v14"/>
+                        <path d="M5 12l7 7 7-7"/>
+                    </svg>
+                {/if}
+            </div>
+        </div>
+    {/if}
+
     <div
         class="relative transition-transform duration-500 ease-out will-change-transform"
         style="padding-bottom: max(16px, env(safe-area-inset-bottom)); transform: translateY(-{tourOffset}px);"
