@@ -13,7 +13,11 @@ import BottomSheet from "$lib/ui/BottomSheet/BottomSheet.svelte";
 import LoadingSheet from "$lib/ui/LoadingSheet/LoadingSheet.svelte";
 import { capitalize } from "$lib/utils";
 import { PERSONAL_BINDING_BY_TYPE_QUERY } from "$lib/utils/personalBinding";
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
+import {
+    ArrowLeft01Icon,
+    ViewIcon,
+    ViewOffIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import {
     Format,
@@ -124,6 +128,9 @@ let enameLoading = $state(false);
 let answerInput = $state("");
 let answerError = $state<string | null>(null);
 let answerLoading = $state(false);
+// The security answer is sensitive — mask it by default, with an eye toggle
+// to reveal (spelling matters, so the user needs to be able to check it).
+let showAnswer = $state(false);
 
 // Question text + envelope id are pulled from the target eVault during
 // handleSubmitEname. The envelope id is the metaEnvelopeId of the
@@ -1337,17 +1344,35 @@ onMount(() => {
             >
                 {securityQuestion} <span class="text-danger">*</span>
             </label>
-            <input
-                id="recover-answer"
-                type="text"
-                bind:value={answerInput}
-                autocomplete="off"
-                autocapitalize="off"
-                autocorrect="off"
-                spellcheck="false"
-                placeholder="Your answer"
-                class="w-full bg-card-alternative rounded-full px-5 py-4 placeholder:text-black-300 outline-none focus:ring-2 focus:ring-primary"
-            />
+            <div class="relative">
+                <input
+                    id="recover-answer"
+                    type={showAnswer ? "text" : "password"}
+                    bind:value={answerInput}
+                    autocomplete="off"
+                    autocapitalize="off"
+                    autocorrect="off"
+                    spellcheck="false"
+                    placeholder="Your answer"
+                    class="w-full bg-card-alternative rounded-full pl-5 pr-14 py-4 placeholder:text-black-300 outline-none focus:ring-2 focus:ring-primary"
+                />
+                <button
+                    type="button"
+                    onclick={() => {
+                        showAnswer = !showAnswer;
+                    }}
+                    aria-label={showAnswer ? "Hide answer" : "Show answer"}
+                    aria-pressed={showAnswer}
+                    class="absolute inset-y-0 right-0 flex items-center pr-5 text-black-500 active:opacity-70"
+                >
+                    <HugeiconsIcon
+                        icon={showAnswer ? ViewOffIcon : ViewIcon}
+                        size={20}
+                        color="currentColor"
+                        strokeWidth={2}
+                    />
+                </button>
+            </div>
             {#if answerError}
                 <p class="text-danger text-sm font-medium" role="alert">
                     {answerError}
