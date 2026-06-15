@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useId } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import cn from 'clsx';
 import { toast } from 'react-hot-toast';
-import { addDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { addDoc, serverTimestamp } from 'firebase/firestore';
 import { tweetsCollection } from '@lib/firebase/collections';
 import {
     manageReply,
@@ -96,14 +96,19 @@ export function Input({
 
             await sleep(500);
 
-            const [tweetRef] = await Promise.all([
-                addDoc(tweetsCollection, tweetData),
+            // Creating the Blab is the canonical "send" — its success defines
+            // success. addDoc returns a ref whose id is available immediately.
+            const tweetRef = await addDoc(tweetsCollection, tweetData);
+
+            // Counter/reply updates are secondary: a failure here must NOT report
+            // the send as failed, or the user retries and duplicates the Blab.
+            await Promise.all([
                 manageTotalTweets('increment', userId),
                 tweetData.images && manageTotalPhotos('increment', userId),
                 isReplying && manageReply('increment', parent?.id as string)
-            ]);
-
-            const { id: tweetId } = await getDoc(tweetRef);
+            ]).catch((error) =>
+                console.error('Blab sent, but a follow-up counter update failed:', error)
+            );
 
             if (!modal && !replyModal) {
                 discardTweet();
@@ -117,7 +122,7 @@ export function Input({
                     <span className='flex gap-2'>
                         Your Blab was sent
                         <Link
-                            href={`/tweet/${tweetId}`}
+                            href={`/tweet/${tweetRef.id}`}
                             className='custom-underline font-bold'
                         >
                             View
