@@ -27,6 +27,7 @@
 
 	const handleClick = async () => {
 		if (typeof callback !== 'function') return;
+		if (disabled) return;
 
 		if (blockingClick) isSubmitting = true;
 		try {

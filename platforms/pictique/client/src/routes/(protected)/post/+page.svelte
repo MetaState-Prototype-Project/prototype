@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { beforeNavigate, goto } from '$app/navigation';
 	import { SettingsTile, UploadedPostView } from '$lib/fragments';
 	import { audience, uploadedImages } from '$lib/store/store.svelte';
 	import { createPost } from '$lib/stores/posts';
@@ -12,9 +12,10 @@
 
 	let caption: string = $state('');
 	let error: string = $state('');
+	let isLeavingPostRoute = false;
 
 	$effect(() => {
-		if (!uploadedImages.value || uploadedImages.value.length === 0) {
+		if (!isLeavingPostRoute && (!uploadedImages.value || uploadedImages.value.length === 0)) {
 			window.history.back();
 		}
 	});
@@ -57,11 +58,22 @@
 		input.value = '';
 	};
 
+	beforeNavigate(({ to }) => {
+		if (!to?.url.pathname.startsWith('/post')) {
+			isLeavingPostRoute = true;
+			if (uploadedImages.value) {
+				revokeImageUrls(uploadedImages.value);
+				uploadedImages.value = null;
+			}
+		}
+	});
+
 	const postSubmissionHandler = async () => {
 		if (!uploadedImages.value) return;
 		const images = uploadedImages.value.map((img) => img.url);
 		try {
 			await createPost(caption, images);
+			goto('/home');
 		} catch (error) {
 			console.error('Failed to create post:', error);
 		}
