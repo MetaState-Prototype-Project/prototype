@@ -1,12 +1,11 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { beforeNavigate, goto } from '$app/navigation';
 	import { SettingsTile, UploadedPostView } from '$lib/fragments';
 	import { audience, uploadedImages } from '$lib/store/store.svelte';
 	import { createPost } from '$lib/stores/posts';
 	import { Button, Textarea } from '$lib/ui';
 	import { revokeImageUrls } from '$lib/utils';
 	import { formatSize, validateFileSize } from '$lib/utils/fileValidation';
-	import { onDestroy } from 'svelte';
 
 	const MAX_TOTAL_SIZE = 5 * 1024 * 1024; // 5MB total
 	const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB per individual image
@@ -58,10 +57,12 @@
 		input.value = '';
 	};
 
-	onDestroy(() => {
-		if (uploadedImages.value) {
-			revokeImageUrls(uploadedImages.value);
-			uploadedImages.value = null;
+	beforeNavigate(({ to }) => {
+		if (!to?.url.pathname.startsWith('/post')) {
+			if (uploadedImages.value) {
+				revokeImageUrls(uploadedImages.value);
+				uploadedImages.value = null;
+			}
 		}
 	});
 
