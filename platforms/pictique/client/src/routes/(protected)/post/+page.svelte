@@ -6,6 +6,7 @@
 	import { Button, Textarea } from '$lib/ui';
 	import { revokeImageUrls } from '$lib/utils';
 	import { formatSize, validateFileSize } from '$lib/utils/fileValidation';
+	import { onDestroy } from 'svelte';
 
 	const MAX_TOTAL_SIZE = 5 * 1024 * 1024; // 5MB total
 	const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB per individual image
@@ -57,11 +58,19 @@
 		input.value = '';
 	};
 
+	onDestroy(() => {
+		if (uploadedImages.value) {
+			revokeImageUrls(uploadedImages.value);
+			uploadedImages.value = null;
+		}
+	});
+
 	const postSubmissionHandler = async () => {
 		if (!uploadedImages.value) return;
 		const images = uploadedImages.value.map((img) => img.url);
 		try {
 			await createPost(caption, images);
+			goto('/home');
 		} catch (error) {
 			console.error('Failed to create post:', error);
 		}
