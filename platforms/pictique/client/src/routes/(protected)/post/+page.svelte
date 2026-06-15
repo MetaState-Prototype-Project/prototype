@@ -12,9 +12,10 @@
 
 	let caption: string = $state('');
 	let error: string = $state('');
+	let isLeavingPostRoute = false;
 
 	$effect(() => {
-		if (!uploadedImages.value || uploadedImages.value.length === 0) {
+		if (!isLeavingPostRoute && (!uploadedImages.value || uploadedImages.value.length === 0)) {
 			window.history.back();
 		}
 	});
@@ -59,6 +60,7 @@
 
 	beforeNavigate(({ to }) => {
 		if (!to?.url.pathname.startsWith('/post')) {
+			isLeavingPostRoute = true;
 			if (uploadedImages.value) {
 				revokeImageUrls(uploadedImages.value);
 				uploadedImages.value = null;
