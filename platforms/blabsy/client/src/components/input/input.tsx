@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useId } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import cn from 'clsx';
 import { toast } from 'react-hot-toast';
-import { addDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { addDoc, serverTimestamp } from 'firebase/firestore';
 import { tweetsCollection } from '@lib/firebase/collections';
 import {
     manageReply,
@@ -81,50 +81,61 @@ export function Input({
 
         const userId = user?.id as string;
 
-        const tweetData: WithFieldValue<Omit<Tweet, 'id'>> = {
-            text: inputValue.trim() || null,
-            parent: isReplying && parent ? parent : null,
-            images: await uploadImages(userId, selectedImages),
-            userLikes: [],
-            createdBy: userId,
-            createdAt: serverTimestamp(),
-            updatedAt: null,
-            userReplies: 0,
-            userRetweets: []
-        };
+        try {
+            const tweetData: WithFieldValue<Omit<Tweet, 'id'>> = {
+                text: inputValue.trim() || null,
+                parent: isReplying && parent ? parent : null,
+                images: await uploadImages(userId, selectedImages),
+                userLikes: [],
+                createdBy: userId,
+                createdAt: serverTimestamp(),
+                updatedAt: null,
+                userReplies: 0,
+                userRetweets: []
+            };
 
-        await sleep(500);
+            await sleep(500);
 
-        const [tweetRef] = await Promise.all([
-            addDoc(tweetsCollection, tweetData),
-            manageTotalTweets('increment', userId),
-            tweetData.images && manageTotalPhotos('increment', userId),
-            isReplying && manageReply('increment', parent?.id as string)
-        ]);
+            // Creating the Blab is the canonical "send" — its success defines
+            // success. addDoc returns a ref whose id is available immediately.
+            const tweetRef = await addDoc(tweetsCollection, tweetData);
 
-        const { id: tweetId } = await getDoc(tweetRef);
+            // Counter/reply updates are secondary: a failure here must NOT report
+            // the send as failed, or the user retries and duplicates the Blab.
+            await Promise.all([
+                manageTotalTweets('increment', userId),
+                tweetData.images && manageTotalPhotos('increment', userId),
+                isReplying && manageReply('increment', parent?.id as string)
+            ]).catch((error) =>
+                console.error('Blab sent, but a follow-up counter update failed:', error)
+            );
 
-        if (!modal && !replyModal) {
-            discardTweet();
+            if (!modal && !replyModal) {
+                discardTweet();
+                setLoading(false);
+            }
+
+            if (closeModal) closeModal();
+
+            toast.success(
+                () => (
+                    <span className='flex gap-2'>
+                        Your Blab was sent
+                        <Link
+                            href={`/tweet/${tweetRef.id}`}
+                            className='custom-underline font-bold'
+                        >
+                            View
+                        </Link>
+                    </span>
+                ),
+                { duration: 6000 }
+            );
+        } catch (error) {
+            console.error('Failed to send Blab:', error);
             setLoading(false);
+            toast.error('Failed to send your Blab. Please try again.');
         }
-
-        if (closeModal) closeModal();
-
-        toast.success(
-            () => (
-                <span className='flex gap-2'>
-                    Your Blab was sent
-                    <Link
-                        href={`/tweet/${tweetId}`}
-                        className='custom-underline font-bold'
-                    >
-                        View
-                    </Link>
-                </span>
-            ),
-            { duration: 6000 }
-        );
     };
 
     const handleImageUpload = (
