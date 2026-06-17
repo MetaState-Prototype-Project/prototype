@@ -36,7 +36,7 @@
 </script>
 
 <div class="flex flex-col gap-4 p-4">
-	<div class="flex items-center gap-4">
+	<div class="flex flex-wrap items-center gap-4">
 		<img
 			src={profileData.avatarUrl ?? '/images/user.png'}
 			onerror={() => {
@@ -45,13 +45,16 @@
 			alt={profileData.username}
 			class="h-20 w-20 rounded-full object-cover"
 		/>
-		<div class="flex-1">
+		<div class="min-w-0 flex-1">
 			<h2 class="text-xl font-semibold">{profileData?.name ?? profileData?.handle}</h2>
 			<p class="text-gray-600">{profileData?.description}</p>
 		</div>
 		{#if variant === 'other'}
-			<div class="flex gap-2">
-				<div style="transform: scale({btnScale.current}); transition: transform 0.2s ease;">
+			<div class="flex w-full gap-2 sm:w-auto">
+				<div
+					class="flex-1 sm:flex-initial"
+					style="transform: scale({btnScale.current}); transition: transform 0.2s ease;"
+				>
 					<Button
 						variant={'primary'}
 						size="sm"
@@ -77,7 +80,12 @@
 						</div>
 					</Button>
 				</div>
-				<Button variant="primary" size="sm" callback={handleMessage}>Message</Button>
+				<Button
+					variant="primary"
+					size="sm"
+					callback={handleMessage}
+					class="flex-1 sm:flex-initial">Message</Button
+				>
 			</div>
 		{/if}
 	</div>
