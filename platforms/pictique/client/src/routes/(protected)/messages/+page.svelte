@@ -18,6 +18,7 @@
 	let openNewGroupModal = $state(false);
 	let searchValue = $state('');
 	let groupName = $state('');
+	let isStartingChat = $state(false);
 	let debounceTimer: NodeJS.Timeout;
 
 	// Pagination and loading state
@@ -189,45 +190,34 @@
 		}, 300);
 	}
 
-	async function createChat() {
-		if (selectedMembers.length === 0) return;
+	function openNewMessageModal() {
+		searchValue = '';
+		searchResults.set([]);
+		openNewChatModal = true;
+	}
 
+	async function startDirectMessage(member: { id: string; name?: string; handle?: string }) {
+		if (isStartingChat) return;
+
+		isStartingChat = true;
 		try {
-			if (selectedMembers.length === 1) {
-				// Create direct message
-				await apiClient.post('/api/chats', {
-					name: allMembers.find((m) => m.id === selectedMembers[0])?.name ?? 'New Chat',
-					participantIds: [selectedMembers[0]]
-				});
-			} else {
-				// Create group chat
-				const groupMembers = allMembers.filter((m) => m.id === selectedMembers[0]);
-				const groupName = groupMembers.map((m) => m.name ?? m.handle ?? m.ename).join(', ');
+			// Omit `name` so the API treats this as a 1-to-1 chat and returns the
+			// existing conversation between these two users instead of duplicating it.
+			const { data: chat } = await apiClient.post<Chat>('/api/chats', {
+				participantIds: [member.id]
+			});
 
-				// Create group chat via API
-				await apiClient.post('/api/chats', {
-					name: groupName,
-					participantIds: selectedMembers,
-					isGroup: true
-				});
-			}
-
-			// Navigate to the new chat instead of hard refresh
-			if (selectedMembers.length === 1) {
-				// For direct messages, we need to find the chat ID
-				// For now, redirect to messages and let the user click on the new chat
-				goto('/messages');
-			} else {
-				// For group chats, redirect to messages
-				goto('/messages');
-			}
-		} catch (err) {
-			console.error('Failed to create chat:', err);
-			alert('Failed to create chat. Please try again.');
-		} finally {
+			heading.set(member.name ?? member.handle ?? 'Chat');
 			openNewChatModal = false;
-			selectedMembers = [];
 			searchValue = '';
+			searchResults.set([]);
+
+			goto(`/messages/${chat.id}`);
+		} catch (err) {
+			console.error('Failed to start chat:', err);
+			alert('Failed to start chat. Please try again.');
+		} finally {
+			isStartingChat = false;
 		}
 	}
 
@@ -261,16 +251,26 @@
 
 <div class="flex">
 	<section class="flex-1 px-4 py-4">
-		<Button
-			variant="secondary"
-			size="sm"
-			callback={() => {
-				openNewGroupModal = true;
-			}}
-			class="mb-4 ml-auto w-min text-nowrap"
-		>
-			New Group
-		</Button>
+		<div class="mb-4 ml-auto flex w-min items-center gap-2">
+			<Button
+				variant="secondary"
+				size="sm"
+				callback={openNewMessageModal}
+				class="w-min text-nowrap"
+			>
+				New Message
+			</Button>
+			<Button
+				variant="secondary"
+				size="sm"
+				callback={() => {
+					openNewGroupModal = true;
+				}}
+				class="w-min text-nowrap"
+			>
+				New Group
+			</Button>
+		</div>
 
 		{#if isLoading && messages.length === 0}
 			<div class="flex items-center justify-center py-8">
@@ -328,7 +328,7 @@
 					class="w-[90vw] max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-xl"
 				>
 					<div class="mb-6 flex items-center justify-between">
-						<h2 class="text-xl font-semibold text-gray-900">Start a New Chat</h2>
+						<h2 class="text-xl font-semibold text-gray-900">New Message</h2>
 						<button
 							onclick={() => (openNewChatModal = false)}
 							class="rounded-full p-2 hover:bg-gray-100"
@@ -365,23 +365,21 @@
 							<div class="text-center text-red-500">{$searchError}</div>
 						{:else if $searchResults.length === 0 && searchValue.trim()}
 							<div class="text-center text-gray-500">No users found</div>
+						{:else if !searchValue.trim()}
+							<div class="py-2 text-center text-sm text-gray-500">
+								Search for someone to start a conversation.
+							</div>
 						{/if}
 
 						{#if $searchResults.length > 0}
-							<div class="max-h-[250px] space-y-3 overflow-y-auto">
+							<div class="max-h-75 space-y-1 overflow-y-auto">
 								{#each $searchResults.filter((m) => m.id !== currentUserId) as member}
-									<label
-										class="flex cursor-pointer items-center space-x-3 rounded-lg p-3 hover:bg-gray-50"
+									<button
+										type="button"
+										onclick={() => startDirectMessage(member)}
+										disabled={isStartingChat}
+										class="flex w-full cursor-pointer items-center space-x-3 rounded-lg p-3 text-left hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
 									>
-										<input
-											type="checkbox"
-											checked={selectedMembers.includes(member.id)}
-											onchange={(e: Event) => {
-												toggleMemberSelection(member.id);
-												return;
-											}}
-											class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-										/>
 										<Avatar src={member.avatarUrl} size="sm" />
 										<div class="flex flex-col">
 											<span class="text-sm font-medium text-gray-900"
@@ -393,40 +391,10 @@
 												>
 											{/if}
 										</div>
-									</label>
+									</button>
 								{/each}
 							</div>
 						{/if}
-
-						{#if selectedMembers.length > 0}
-							<div class="rounded-lg bg-blue-50 p-3">
-								<p class="text-sm text-blue-800">
-									{selectedMembers.length === 1
-										? 'Direct message will be created'
-										: `Group chat with ${selectedMembers.length} members will be created`}
-								</p>
-							</div>
-						{/if}
-
-						<div class="flex justify-end gap-3 pt-4">
-							<Button
-								size="sm"
-								variant="secondary"
-								callback={() => {
-									openNewChatModal = false;
-								}}
-							>
-								Cancel
-							</Button>
-							<Button
-								size="sm"
-								variant="primary"
-								callback={() => createChat()}
-								disabled={selectedMembers.length === 0}
-							>
-								{selectedMembers.length === 1 ? 'Start Chat' : 'Create Group'}
-							</Button>
-						</div>
 					</div>
 				</div>
 			</div>
