@@ -1,5 +1,6 @@
-import { writable } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 import { apiClient } from '$lib/utils/axios';
+import { posts } from '$lib/stores/posts';
 
 export interface Comment {
 	id: string;
@@ -37,6 +38,15 @@ export const createComment = async (postId: string, text: string) => {
 		error.set(null);
 		const response = await apiClient.post('/api/comments', { postId, text });
 		await fetchComments(postId); // Refresh comments after creating
+
+		// Keep the post's comment count (sourced from posts.comments.length) in sync
+		const updatedComments = get(comments);
+		posts.update((existingPosts) =>
+			existingPosts.map((post) =>
+				post.id === postId ? { ...post, comments: updatedComments } : post
+			)
+		);
+
 		return response.data;
 	} catch (err) {
 		error.set(err instanceof Error ? err.message : 'Failed to create comment');
