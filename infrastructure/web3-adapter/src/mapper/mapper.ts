@@ -310,6 +310,30 @@ export async function toGlobal({
 			const [, localPath, alias] = fileMatch;
 			const fileTargetKey = alias ?? localPath;
 			const rawVal = getValueByPath(data, localPath);
+			console.log("[__file/toGlobal] enter", {
+				localKey,
+				localPath,
+				alias,
+				fileTargetKey,
+				rawValType: Array.isArray(rawVal) ? "array" : typeof rawVal,
+				rawValIsNull: rawVal === null,
+				rawValLength: Array.isArray(rawVal)
+					? rawVal.length
+					: typeof rawVal === "string"
+						? rawVal.length
+						: undefined,
+				rawValPreview: Array.isArray(rawVal)
+					? rawVal.map((v) =>
+							typeof v === "string"
+								? `${v.slice(0, 40)}${v.length > 40 ? "…" : ""}`
+								: v,
+						)
+					: typeof rawVal === "string"
+						? `${rawVal.slice(0, 40)}${rawVal.length > 40 ? "…" : ""}`
+						: rawVal,
+				ownerEvault,
+				hasClient: !!evaultClient,
+			});
 			if (evaultClient && ownerEvault) {
 				if (Array.isArray(rawVal)) {
 					result[fileTargetKey] = await Promise.all(
@@ -322,9 +346,24 @@ export async function toGlobal({
 						evaultClient,
 					);
 				}
+				console.log("[__file/toGlobal] result", {
+					fileTargetKey,
+					result: Array.isArray(result[fileTargetKey])
+						? (result[fileTargetKey] as unknown[]).map((v) =>
+								typeof v === "string"
+									? `${v.slice(0, 80)}${v.length > 80 ? "…" : ""}`
+									: v,
+							)
+						: result[fileTargetKey],
+				});
 			} else {
 				// No client/owner available — pass the value through unchanged.
 				result[fileTargetKey] = rawVal;
+				console.log("[__file/toGlobal] passthrough (no client or ownerEvault)", {
+					fileTargetKey,
+					hasClient: !!evaultClient,
+					ownerEvault,
+				});
 			}
 			continue;
 		}

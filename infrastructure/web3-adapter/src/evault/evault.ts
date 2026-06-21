@@ -539,6 +539,11 @@ export class EVaultClient {
 	}
 
 	async storeMetaEnvelope(envelope: MetaEnvelope): Promise<string> {
+		console.log("[EVaultClient.storeMetaEnvelope] enter", {
+			w3id: envelope.w3id,
+			schemaId: envelope.schemaId,
+			payload: JSON.stringify(envelope.data).slice(0, 1000),
+		});
 		return this.withRetry(async () => {
 			if (this.isDisposed) {
 				throw new Error("EVaultClient has been disposed");
@@ -559,6 +564,13 @@ export class EVaultClient {
 					},
 				}),
 			).catch((error) => {
+				console.error("[EVaultClient.storeMetaEnvelope] graphql request threw", {
+					w3id: envelope.w3id,
+					schemaId: envelope.schemaId,
+					payload: JSON.stringify(envelope.data).slice(0, 1000),
+					error: error instanceof Error ? error.message : String(error),
+					rawError: error,
+				});
 				throw new Error(
 					`Failed to store meta envelope: ${error instanceof Error ? error.message : String(error)}`,
 				);
@@ -604,17 +616,31 @@ export class EVaultClient {
 		w3id: string,
 		input: UploadFileInput,
 	): Promise<UploadFileResult> {
+		console.log("[EVaultClient.uploadFile] enter", {
+			w3id,
+			filename: input.filename,
+			contentType: input.contentType,
+			contentLength: input.content?.length ?? 0,
+		});
 		return this.withRetry(async () => {
 			if (this.isDisposed) {
 				throw new Error("EVaultClient has been disposed");
 			}
 
 			const client = await this.ensureClient(w3id).catch((error) => {
+				console.error(
+					"[EVaultClient.uploadFile] ensureClient failed",
+					error,
+				);
 				throw new Error(
 					`Failed to establish client connection: ${error instanceof Error ? error.message : String(error)}`,
 				);
 			});
 
+			console.log("[EVaultClient.uploadFile] sending mutation to eVault", {
+				w3id,
+				endpoint: this.endpoints.get(w3id),
+			});
 			const response = await this.withTimeout(w3id, () =>
 				client.request<UploadFileResponse>(UPLOAD_FILE, {
 					input: {
@@ -625,9 +651,21 @@ export class EVaultClient {
 					},
 				}),
 			).catch((error) => {
+				console.error("[EVaultClient.uploadFile] graphql request threw", {
+					w3id,
+					error: error instanceof Error ? error.message : String(error),
+				});
 				throw new Error(
 					`Failed to upload file: ${error instanceof Error ? error.message : String(error)}`,
 				);
+			});
+
+			console.log("[EVaultClient.uploadFile] graphql response received", {
+				hasUploadFile: !!response?.uploadFile,
+				uri: response?.uploadFile?.uri,
+				metaEnvelopeId: response?.uploadFile?.metaEnvelopeId,
+				publicUrl: response?.uploadFile?.publicUrl,
+				errors: response?.uploadFile?.errors,
 			});
 
 			const result = response?.uploadFile;

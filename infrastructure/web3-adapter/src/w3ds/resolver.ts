@@ -110,20 +110,54 @@ export async function referenceFileValue(
 	ename: string,
 	evaultClient: EVaultClient,
 ): Promise<unknown> {
-	if (typeof value !== "string" || value.length === 0) return value;
+	console.log("[referenceFileValue] called", {
+		valueType: typeof value,
+		valueIsNull: value === null,
+		valueLength: typeof value === "string" ? value.length : undefined,
+		valuePreview:
+			typeof value === "string"
+				? `${value.slice(0, 60)}${value.length > 60 ? "…" : ""}`
+				: value,
+		ename,
+	});
+	if (typeof value !== "string" || value.length === 0) {
+		console.log("[referenceFileValue] passthrough — not a non-empty string");
+		return value;
+	}
 	const str: string = value;
-	if (str.startsWith(`${W3DS_SCHEME}//${W3DS_FILE_HOST}`)) return str;
+	if (str.startsWith(`${W3DS_SCHEME}//${W3DS_FILE_HOST}`)) {
+		console.log("[referenceFileValue] passthrough — already a w3ds URI");
+		return str;
+	}
 
 	const dataUriMatch = str.match(/^data:([^;,]+)(;base64)?,/s);
 	if (!dataUriMatch) {
-		// Not an inline file payload — leave plain URLs / strings as-is.
+		console.log(
+			"[referenceFileValue] passthrough — not a data: URI (plain URL/string)",
+		);
 		return value;
 	}
 
 	const contentType = dataUriMatch[1];
-	return referenceFile(evaultClient, ename, {
-		filename: `file.${extensionForMime(contentType)}`,
+	console.log("[referenceFileValue] uploading data URI to eVault", {
+		ename,
 		contentType,
-		content: str,
+		base64Length: str.length,
 	});
+	try {
+		const uri = await referenceFile(evaultClient, ename, {
+			filename: `file.${extensionForMime(contentType)}`,
+			contentType,
+			content: str,
+		});
+		console.log("[referenceFileValue] upload OK", { uri });
+		return uri;
+	} catch (error) {
+		console.error("[referenceFileValue] upload FAILED", {
+			ename,
+			contentType,
+			error: error instanceof Error ? error.message : String(error),
+		});
+		throw error;
+	}
 }

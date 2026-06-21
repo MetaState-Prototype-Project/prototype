@@ -1188,18 +1188,47 @@ export class GraphQLServer {
                         },
                         context: VaultContext,
                     ) => {
+                        console.log("[evault/storeMetaEnvelope] enter", {
+                            eName: context.eName,
+                            ontology: input.ontology,
+                            acl: input.acl,
+                            payloadPreview: JSON.stringify(input.payload).slice(
+                                0,
+                                1500,
+                            ),
+                            payloadKeys:
+                                input.payload && typeof input.payload === "object"
+                                    ? Object.keys(input.payload)
+                                    : null,
+                        });
                         if (!context.eName) {
                             throw new Error("X-ENAME header is required");
                         }
-                        const result = await this.db.storeMetaEnvelope(
-                            {
+                        let result: Awaited<
+                            ReturnType<typeof this.db.storeMetaEnvelope>
+                        >;
+                        try {
+                            result = await this.db.storeMetaEnvelope(
+                                {
+                                    ontology: input.ontology,
+                                    payload: input.payload,
+                                    acl: input.acl,
+                                },
+                                input.acl,
+                                context.eName,
+                            );
+                        } catch (error) {
+                            console.error("[evault/storeMetaEnvelope] db.storeMetaEnvelope threw", {
+                                eName: context.eName,
                                 ontology: input.ontology,
-                                payload: input.payload,
-                                acl: input.acl,
-                            },
-                            input.acl,
-                            context.eName,
-                        );
+                                payloadPreview: JSON.stringify(
+                                    input.payload,
+                                ).slice(0, 1500),
+                                error: error instanceof Error ? error.message : String(error),
+                                stack: error instanceof Error ? error.stack : undefined,
+                            });
+                            throw error;
+                        }
 
                         // Add parsed field to metaEnvelope for GraphQL response
                         const metaEnvelopeWithParsed = {
@@ -1287,7 +1316,15 @@ export class GraphQLServer {
                         },
                         context: VaultContext,
                     ) => {
+                        console.log("[evault/uploadFile] enter", {
+                            eName: context.eName,
+                            filename: input.filename,
+                            contentType: input.contentType,
+                            contentLength: input.content?.length ?? 0,
+                            acl: input.acl,
+                        });
                         if (!context.eName) {
+                            console.warn("[evault/uploadFile] no eName in context");
                             return {
                                 errors: [
                                     {
@@ -1298,7 +1335,16 @@ export class GraphQLServer {
                             };
                         }
 
-                        if (!StorageService.isConfigured()) {
+                        const storageConfigured = StorageService.isConfigured();
+                        console.log("[evault/uploadFile] storage configured?", {
+                            storageConfigured,
+                            hasEndpoint: !!process.env.DO_SPACES_ENDPOINT,
+                            hasRegion: !!process.env.DO_SPACES_REGION,
+                            hasKey: !!process.env.DO_SPACES_KEY,
+                            hasSecret: !!process.env.DO_SPACES_SECRET,
+                            hasBucket: !!process.env.DO_SPACES_BUCKET,
+                        });
+                        if (!storageConfigured) {
                             return {
                                 errors: [
                                     {
@@ -1325,6 +1371,12 @@ export class GraphQLServer {
                             base64.length > 0 &&
                             base64.length % 4 === 0 &&
                             /^[A-Za-z0-9+/]+={0,2}$/.test(base64);
+                        console.log("[evault/uploadFile] base64 validation", {
+                            base64Length: base64.length,
+                            mod4: base64.length % 4,
+                            isValidBase64,
+                            base64Preview: `${base64.slice(0, 40)}…`,
+                        });
                         if (!isValidBase64) {
                             return {
                                 errors: [
@@ -1363,6 +1415,11 @@ export class GraphQLServer {
                                 input.filename,
                                 objectId,
                             );
+                            console.log("[evault/uploadFile] uploading to object storage", {
+                                key,
+                                bufferBytes: buffer.length,
+                                contentType: input.contentType,
+                            });
                             storage = new StorageService();
                             const publicUrl = await storage.uploadObject({
                                 buffer,
@@ -1370,6 +1427,10 @@ export class GraphQLServer {
                                 key,
                             });
                             uploadedKey = key;
+                            console.log("[evault/uploadFile] object storage upload OK", {
+                                key,
+                                publicUrl,
+                            });
 
                             const payload = {
                                 filename: input.filename,
@@ -1380,6 +1441,10 @@ export class GraphQLServer {
                                 uploadedAt: new Date().toISOString(),
                             };
 
+                            console.log("[evault/uploadFile] storing File meta envelope", {
+                                ontology: FILE_SCHEMA_ID,
+                                eName: context.eName,
+                            });
                             const result = await this.db.storeMetaEnvelope(
                                 {
                                     ontology: FILE_SCHEMA_ID,
@@ -1390,16 +1455,28 @@ export class GraphQLServer {
                                 context.eName,
                             );
 
+                            const uri = buildFileUri(
+                                context.eName,
+                                result.metaEnvelope.id,
+                            );
+                            console.log("[evault/uploadFile] done", {
+                                uri,
+                                metaEnvelopeId: result.metaEnvelope.id,
+                                publicUrl,
+                            });
                             return {
-                                uri: buildFileUri(
-                                    context.eName,
-                                    result.metaEnvelope.id,
-                                ),
+                                uri,
                                 metaEnvelopeId: result.metaEnvelope.id,
                                 publicUrl,
                             };
                         } catch (error) {
-                            console.error("uploadFile failed:", error);
+                            console.error("[evault/uploadFile] FAILED", {
+                                stage: uploadedKey ? "after-object-upload" : "before-object-upload",
+                                uploadedKey,
+                                eName: context.eName,
+                                error: error instanceof Error ? error.message : String(error),
+                                stack: error instanceof Error ? error.stack : undefined,
+                            });
                             // Compensating cleanup: if the blob was uploaded but
                             // a later step (DB write) failed, delete the now
                             // orphaned object so storage does not leak.
@@ -1611,6 +1688,15 @@ export class GraphQLServer {
             graphqlEndpoint: "/graphql",
             graphiql: {
                 defaultQuery: exampleQueries,
+            },
+            // DEBUG: surface the real underlying error in GraphQL responses
+            // instead of Yoga's default "Unexpected error." masking.
+            maskedErrors: false,
+            logging: {
+                debug: (...args: unknown[]) => console.log("[yoga/debug]", ...args),
+                info: (...args: unknown[]) => console.log("[yoga/info]", ...args),
+                warn: (...args: unknown[]) => console.warn("[yoga/warn]", ...args),
+                error: (...args: unknown[]) => console.error("[yoga/error]", ...args),
             },
             context: async ({ request }) => {
                 const authHeader = request.headers.get("authorization") ?? "";
