@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { Settings } from '$lib/icons';
 	import { cn } from '$lib/utils';
@@ -119,7 +120,7 @@
 				'cursor-pointer rounded-full p-2 hover:bg-gray-100 md:hidden',
 				classes.background
 			])}
-			onclick={() => goto('/settings')}
+			onclick={() => goto(resolve('/settings'))}
 			aria-label="Settings"
 		>
 			<Settings size="24px" color="var(--color-black-800)" />
