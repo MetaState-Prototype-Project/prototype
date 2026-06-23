@@ -1,11 +1,13 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { Settings } from '$lib/icons';
 	import { cn } from '$lib/utils';
 	import { ArrowLeft01Icon, ArrowLeft02Icon } from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import { onDestroy } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { heading as headingStore } from '../../../routes/store';
-	import { onDestroy } from 'svelte';
 
 	const { ...restProps }: HTMLAttributes<HTMLElement> = $props();
 
@@ -100,7 +102,7 @@
 				<HugeiconsIcon
 					icon={backButton[variant]}
 					size={24}
-					color="var(--color-black-500)"
+					color="var(--color-black-800)"
 				/>
 			</button>
 		{/if}
@@ -110,6 +112,19 @@
 			</h1>
 		{/if}
 	</span>
+	{#if !route.includes('/settings')}
+		<button
+			type="button"
+			class={cn([
+				'cursor-pointer rounded-full p-2 hover:bg-gray-100 md:hidden',
+				classes.background
+			])}
+			onclick={() => goto('/settings')}
+			aria-label="Settings"
+		>
+			<Settings size="24px" color="var(--color-black-800)" />
+		</button>
+	{/if}
 </header>
 
 <!--

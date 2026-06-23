@@ -20,7 +20,6 @@
 	let ownerId: string | null = $derived(getAuthId());
 	let previousTab = $state('home');
 	let _activeTab = $derived(page.url.pathname);
-	let fullPath = $derived(page.url.pathname);
 
 	let imageInput: HTMLInputElement;
 	let images: FileList | null = $state(null);
@@ -147,7 +146,7 @@
 		onclick={() => handleNavClick('profile')}
 	>
 		<span
-			class={`inline-block w-full rounded-full border p-1 ${activeTab === 'profile' || fullPath.includes('settings') ? 'border-brand-burnt-orange' : 'border-transparent'}`}
+			class={`inline-block w-full rounded-full border p-1 ${activeTab === 'profile' ? 'border-brand-burnt-orange' : 'border-transparent'}`}
 		>
 			<img
 				width="24px"
