@@ -112,7 +112,7 @@
 			</h1>
 		{/if}
 	</span>
-	{#if !route.includes('/settings')}
+	{#if route.includes('/profile') && !route.includes('/settings')}
 		<button
 			type="button"
 			class={cn([
