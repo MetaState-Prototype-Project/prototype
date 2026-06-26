@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "0f9a3cb8-4a9f-4b5f-a1fa-3a4c2eb1f408",
+  "title": "Membership",
+  "oneOf": [
+    {
+      "title": "CanonicalMembership",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "parentType": { "type": "string", "enum": ["company", "project"] },
+        "parentId": { "type": "string" },
+        "parentEName": { "type": "string" },
+        "memberEName": { "type": "string" },
+        "role": { "type": "string", "enum": ["participant", "admin"] },
+        "canonicalOwnerEName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "parentType", "parentId", "parentEName", "memberEName", "role", "canonicalOwnerEName", "createdAt", "updatedAt"],
+      "additionalProperties": false
+    },
+    {
+      "title": "MembershipReference",
+      "type": "object",
+      "properties": {
+        "isReference": { "const": true },
+        "canonicalMembershipId": { "type": "string" },
+        "canonicalOwnerEName": { "type": "string" },
+        "canonicalEnvelopeId": { "type": "string" }
+      },
+      "required": ["isReference", "canonicalMembershipId", "canonicalOwnerEName", "canonicalEnvelopeId"],
+      "additionalProperties": false
+    }
+  ]
+}

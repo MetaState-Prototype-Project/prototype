@@ -8,10 +8,21 @@
       "type": "string",
       "description": "Event title"
     },
+    "id": { "type": "string", "description": "Application-level event identifier" },
+    "userEName": { "type": "string", "description": "eName of the user whose calendar contains the event" },
+    "provider": { "type": "string", "enum": ["google", "manual"] },
+    "externalEventId": { "type": "string" },
+    "calendarId": { "type": "string" },
+    "canonicalOwnerEName": { "type": "string" },
+    "description": { "type": "string" },
+    "location": { "type": "string" },
     "color": {
       "type": "string",
       "description": "Event color (hex or named)"
     },
+    "textColor": { "type": "string" },
+    "providerColorId": { "type": ["string", "null"] },
+    "canEdit": { "type": "boolean" },
     "start": {
       "type": "string",
       "format": "date-time",
@@ -21,7 +32,16 @@
       "type": "string",
       "format": "date-time",
       "description": "Event end time (ISO 8601)"
-    }
+    },
+    "isAllDay": { "type": "boolean" },
+    "status": { "type": "string", "enum": ["confirmed", "tentative", "cancelled"] },
+    "attendees": { "type": "array", "items": { "type": "string" } },
+    "isTransparent": { "type": "boolean" },
+    "htmlLink": { "type": "string", "format": "uri" },
+    "sourceUpdatedAt": { "type": "string", "format": "date-time" },
+    "effectiveAcl": { "type": "array", "items": { "type": "string" } },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
   },
   "required": ["title", "start", "end"],
   "additionalProperties": false

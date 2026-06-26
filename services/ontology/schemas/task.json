@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "0f9a3cb8-4a9f-4b5f-a1fa-3a4c2eb1f401",
+  "title": "Task",
+  "type": "object",
+  "definitions": {
+    "note": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "taskId": { "type": "string" },
+        "authorEName": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "taskId", "authorEName", "content", "createdAt"],
+      "additionalProperties": false
+    },
+    "attachment": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "taskId": { "type": "string" },
+        "fileName": { "type": "string" },
+        "url": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "taskId", "fileName", "url", "createdAt"],
+      "additionalProperties": false
+    },
+    "subtask": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "done": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "done"],
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "id": { "type": "string", "description": "Logical task identifier" },
+    "canonicalOwnerEName": { "type": "string", "description": "eName of the eVault holding this canonical task" },
+    "homeProjectId": { "type": "string" },
+    "relatedProjectIds": { "type": "array", "items": { "type": "string" } },
+    "relatedCompanyIds": { "type": "array", "items": { "type": "string" } },
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "createdBy": { "type": "string", "description": "Reporter eName" },
+    "assignees": { "type": "array", "items": { "type": "string" } },
+    "status": { "type": "string", "enum": ["planned", "in_progress", "done"] },
+    "priority": { "type": "integer", "enum": [0, 1, 2, 3] },
+    "progressPercent": { "type": "number", "minimum": 0, "maximum": 100 },
+    "estimatedHours": { "type": ["number", "null"], "minimum": 0 },
+    "deadline": { "type": ["string", "null"], "format": "date-time" },
+    "blockedByTaskIds": { "type": "array", "items": { "type": "string" } },
+    "blocksTaskIds": { "type": "array", "items": { "type": "string" } },
+    "notes": { "type": "array", "items": { "$ref": "#/definitions/note" } },
+    "attachments": { "type": "array", "items": { "$ref": "#/definitions/attachment" } },
+    "subtasks": { "type": "array", "items": { "$ref": "#/definitions/subtask" } },
+    "effectiveAcl": { "type": "array", "items": { "type": "string" } },
+    "manualAclAdds": { "type": "array", "items": { "type": "string" } },
+    "aiDraftSource": { "type": "string" },
+    "eVaultSyncStatus": { "type": "string", "enum": ["synced", "pending", "failed"] },
+    "eVaultSyncError": { "type": ["string", "null"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "closedAt": { "type": ["string", "null"], "format": "date-time" }
+  },
+  "required": [
+    "id",
+    "canonicalOwnerEName",
+    "homeProjectId",
+    "relatedProjectIds",
+    "relatedCompanyIds",
+    "title",
+    "description",
+    "createdBy",
+    "assignees",
+    "status",
+    "priority",
+    "progressPercent",
+    "estimatedHours",
+    "deadline",
+    "blockedByTaskIds",
+    "blocksTaskIds",
+    "notes",
+    "attachments",
+    "subtasks",
+    "effectiveAcl",
+    "manualAclAdds",
+    "createdAt",
+    "updatedAt",
+    "closedAt"
+  ],
+  "additionalProperties": false
+}
