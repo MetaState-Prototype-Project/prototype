@@ -10,6 +10,7 @@ interface IAuthDrawerProps {
     platform: string | null | undefined;
     hostname: string | null | undefined;
     scannedContent: string | undefined;
+    isFromScan: boolean;
     isSigningRequest: boolean;
     authError: string | null | undefined;
     authLoading: boolean | undefined;
@@ -23,6 +24,7 @@ const {
     platform,
     hostname,
     scannedContent,
+    isFromScan,
     isSigningRequest,
     authError,
     authLoading,
@@ -77,7 +79,11 @@ $effect(() => {
                     <h4
                         class="text-2xl font-medium text-black-900 text-center leading-tight"
                     >
-                        You have scanned the<br />login QR code
+                        {#if isFromScan}
+                            You have scanned the<br />login QR code
+                        {:else}
+                            You have a pending<br />login request
+                        {/if}
                     </h4>
                     <p
                         class="text-lg leading-tight text-black-700 opacity-50 text-center"

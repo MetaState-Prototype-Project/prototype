@@ -25,6 +25,7 @@ const {
     scannedData,
     loading,
     redirect,
+    isFromScan,
     signingData,
     isSigningRequest,
     showSigningSuccess,
@@ -199,6 +200,7 @@ function handleSocialBindingOpenChange(value: boolean) {
     platform={$platform}
     hostname={$hostname}
     scannedContent={$scannedData?.content}
+    isFromScan={$isFromScan}
     isSigningRequest={$isSigningRequest}
     authError={$authError}
     authLoading={$authLoading}
