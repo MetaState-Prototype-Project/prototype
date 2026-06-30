@@ -443,6 +443,33 @@ export async function deleteSocialBindingDoc(
 }
 
 /**
+ * Signers the caller has ALREADY completed a binding with. A completed binding
+ * is a doc subject=@caller that the caller has counter-signed; its originator is
+ * signatures[0].signer. Once bound, any *other* unsigned envelope from that same
+ * signer is a stale leftover — a repeat scan of the caller's QR (before or after
+ * acceptance) or a duplicate the accept-time prune never reached — and must not
+ * re-surface as a fresh "Social Connection Request".
+ */
+function collectBoundSigners(
+    edges: BindingDocEdge[],
+    normalizedCaller: string,
+): Set<string> {
+    const boundSigners = new Set<string>();
+    for (const edge of edges) {
+        const parsed = edge.node.parsed;
+        if (!parsed || parsed.type !== "social_connection") continue;
+        if (parsed.subject !== normalizedCaller) continue;
+        const sigs = Array.isArray(parsed.signatures) ? parsed.signatures : [];
+        const callerSigned = sigs.some((s) => s.signer === normalizedCaller);
+        const originator = sigs[0]?.signer;
+        if (callerSigned && originator && originator !== normalizedCaller) {
+            boundSigners.add(originator);
+        }
+    }
+    return boundSigners;
+}
+
+/**
  * Poll the caller's own eVault for social_connection binding documents
  * that were created by someone else (i.e. the signer wrote a doc about themselves
  * into the requester's vault). Returns docs where subject !== callerEname and
@@ -460,7 +487,10 @@ export async function fetchUnsignedSocialDocs(
         bindingDocuments: { edges: BindingDocEdge[] };
     }>(ownGqlUrl, callerEname, SOCIAL_BINDING_DOCS_QUERY);
 
-    const unsigned = (data.bindingDocuments?.edges ?? []).filter((edge) => {
+    const edges = data.bindingDocuments?.edges ?? [];
+    const boundSigners = collectBoundSigners(edges, normalized);
+
+    const unsigned = edges.filter((edge) => {
         const parsed = edge.node.parsed;
         if (!parsed || parsed.type !== "social_connection") return false;
         // The signer writes subject=@requester into the requester's vault,
@@ -471,7 +501,11 @@ export async function fetchUnsignedSocialDocs(
             ? parsed.signatures
             : [];
         const alreadySigned = signatures.some((s) => s.signer === normalized);
-        return !alreadySigned;
+        if (alreadySigned) return false;
+        // Skip leftover envelopes from a signer the caller is already bound to.
+        const originator = signatures[0]?.signer;
+        if (originator && boundSigners.has(originator)) return false;
+        return true;
     });
 
     // Dedupe by signer: each scan of the requester's QR creates a fresh
@@ -540,6 +574,61 @@ export async function pruneDuplicateUnsignedDocs(
         } catch (err) {
             console.warn(
                 "[socialBinding] failed to prune duplicate doc",
+                edge.node.id,
+                err,
+            );
+        }
+    }
+    return deleted;
+}
+
+/**
+ * Delete leftover unsigned social_connection envelopes addressed to the caller
+ * from signers the caller is ALREADY bound to. These pile up from repeat scans
+ * of the caller's QR (before or after acceptance) and would otherwise re-surface
+ * as duplicate "Social Connection Request" prompts for a contact already added.
+ *
+ * Safe to delete: a completed (caller-counter-signed) binding with the same
+ * signer already exists, so accepting a leftover would only mint a redundant
+ * second binding to the same person. The fully-signed doc is never touched.
+ *
+ * Intended as a one-time cleanup when the invite drawer opens. Returns the
+ * number of envelopes deleted.
+ */
+export async function pruneBoundSignerDocs(
+    ownGqlUrl: string,
+    callerEname: string,
+): Promise<number> {
+    const normalized = callerEname.startsWith("@")
+        ? callerEname
+        : `@${callerEname}`;
+
+    const data = await vaultGqlRequest<{
+        bindingDocuments: { edges: BindingDocEdge[] };
+    }>(ownGqlUrl, callerEname, SOCIAL_BINDING_DOCS_QUERY);
+
+    const edges = data.bindingDocuments?.edges ?? [];
+    const boundSigners = collectBoundSigners(edges, normalized);
+
+    const stale = edges.filter((edge) => {
+        const parsed = edge.node.parsed;
+        if (!parsed || parsed.type !== "social_connection") return false;
+        if (parsed.subject !== normalized) return false;
+        const sigs = Array.isArray(parsed.signatures) ? parsed.signatures : [];
+        // Keep the completed binding itself — only leftovers are stale.
+        if (sigs.some((s) => s.signer === normalized)) return false;
+        const originator = sigs[0]?.signer;
+        return !!originator && boundSigners.has(originator);
+    });
+
+    let deleted = 0;
+    for (const edge of stale) {
+        try {
+            await deleteSocialBindingDoc(ownGqlUrl, callerEname, edge.node.id);
+            deleted += 1;
+        } catch (err) {
+            console.warn(
+                "[socialBinding] failed to prune bound-signer doc",
                 edge.node.id,
                 err,
             );
