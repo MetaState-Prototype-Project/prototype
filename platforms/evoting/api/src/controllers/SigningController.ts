@@ -90,15 +90,36 @@ export class SigningController {
         res.write("data: " + JSON.stringify({ type: "connected", sessionId }) + "\n\n");
 
         // Subscribe to session updates
-        const unsubscribe = this.ensureService().subscribeToSession(sessionId, (data) => {
+        const service = this.ensureService();
+        const unsubscribe = service.subscribeToSession(sessionId, (data) => {
             res.write("data: " + JSON.stringify(data) + "\n\n");
         });
 
-        // Handle client disconnect
+        // Clean up the subscription when the client disconnects. Registered before the
+        // getSession() await below so a disconnect during that await can't slip past
+        // listener registration and leak the subscriber.
         req.on("close", () => {
             unsubscribe();
             res.end();
         });
+
+        // Replay the current terminal state on (re)connect. The completion event is
+        // pushed only once, at callback time. On mobile the browser suspends this SSE
+        // stream while the eID Wallet is foregrounded, so a client that reconnects
+        // after signing would otherwise never learn the vote succeeded (and would show
+        // a misleading error or hang until expiry). Re-emitting is idempotent on the client.
+        try {
+            const session = await service.getSession(sessionId);
+            if (session?.status === "completed") {
+                res.write("data: " + JSON.stringify({ type: "signed", status: "completed", sessionId }) + "\n\n");
+            } else if (session?.status === "security_violation") {
+                res.write("data: " + JSON.stringify({ type: "security_violation", status: "security_violation", error: "eName verification failed", sessionId }) + "\n\n");
+            } else if (session?.status === "expired") {
+                res.write("data: " + JSON.stringify({ type: "expired", status: "expired", sessionId }) + "\n\n");
+            }
+        } catch (error) {
+            console.error("Error replaying signing session status on connect:", error);
+        }
     }
 
     // Handle signed payload callback from eID Wallet

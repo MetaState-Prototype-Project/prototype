@@ -35,6 +35,43 @@ export function SigningInterface({
   const { toast } = useToast();
   const { user } = useAuth();
   const hasCreatedSession = useRef(false);
+  // Guards the completion path so it runs exactly once, whether the "signed" signal
+  // arrives via the live SSE push or via reconciliation after a reconnect.
+  const hasCompleted = useRef(false);
+
+  const finishAsSigned = (voteId?: string) => {
+    if (hasCompleted.current) return;
+    hasCompleted.current = true;
+    setStatus("signed");
+    toast({
+      title: "Vote Signed!",
+      description: "Your vote has been successfully signed and submitted",
+    });
+    onSigningComplete(voteId ?? "");
+  };
+
+  // Re-fetch the authoritative session status. Called when the SSE stream errors and
+  // when the tab regains focus: on mobile, opening the eID Wallet backgrounds this page
+  // and the browser suspends the SSE stream, so the one-shot completion push can be
+  // missed. This recovers the real outcome instead of showing a false error.
+  const reconcileSession = async (sid: string) => {
+    if (!sid || hasCompleted.current) return;
+    try {
+      const session = await pollApi.getSigningSession(sid);
+      if (!session) return;
+      if (session.status === "completed") {
+        finishAsSigned(session.voteId);
+      } else if (session.status === "security_violation") {
+        setStatus("security_violation");
+      } else if (session.status === "expired") {
+        setStatus("expired");
+      }
+    } catch (error) {
+      // Non-fatal: the SSE stream auto-reconnects (and re-emits terminal state), and
+      // the next visibilitychange will retry.
+      console.error("Failed to reconcile signing session:", error);
+    }
+  };
 
   const createSession = async () => {
     if (!user?.id || hasCreatedSession.current || status === "error") {
@@ -77,6 +114,25 @@ export function SigningInterface({
     };
   }, [eventSource]);
 
+  // Recover a completion that landed while we were backgrounded. Mobile browsers
+  // suspend the SSE stream while the eID Wallet is foregrounded, so the one-shot
+  // "signed" push can arrive (and be lost) before we return. Re-check the authoritative
+  // status whenever the tab regains focus/visibility.
+  useEffect(() => {
+    if (!sessionId) return;
+    const recover = () => {
+      if (document.visibilityState === "visible") {
+        reconcileSession(sessionId);
+      }
+    };
+    document.addEventListener("visibilitychange", recover);
+    window.addEventListener("focus", recover);
+    return () => {
+      document.removeEventListener("visibilitychange", recover);
+      window.removeEventListener("focus", recover);
+    };
+  }, [sessionId]);
+
   const startSSEConnection = (sessionId: string) => {
     // Prevent multiple SSE connections
     if (eventSource) {
@@ -98,13 +154,7 @@ export function SigningInterface({
         const data = JSON.parse(e.data);
         
         if (data.type === "signed" && data.status === "completed") {
-          setStatus("signed");
-          
-          toast({
-            title: "Vote Signed!",
-            description: "Your vote has been successfully signed and submitted",
-          });
-          onSigningComplete(data.voteId);
+          finishAsSigned(data.voteId);
         } else if (data.type === "expired") {
           setStatus("expired");
           toast({
@@ -128,7 +178,12 @@ export function SigningInterface({
 
     newEventSource.onerror = (error) => {
       console.error("SSE connection error:", error);
-      setStatus("error");
+      // A dropped SSE stream is NOT a session-creation failure: the session already
+      // exists and the vote may already be signed (opening the eID Wallet backgrounds
+      // this page on mobile, suspending the stream). Reconcile the real status instead
+      // of showing the misleading "Failed to create signing session" error; the browser
+      // also auto-reconnects the stream on its own.
+      reconcileSession(sessionId);
     };
 
     setEventSource(newEventSource);
