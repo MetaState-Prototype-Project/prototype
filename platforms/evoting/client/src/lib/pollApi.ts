@@ -1,4 +1,5 @@
 import { apiClient } from "./apiClient";
+import { isAxiosError } from "axios";
 
 export interface Poll {
   id: string;
@@ -308,8 +309,18 @@ export const pollApi = {
   getSigningSession: async (
     sessionId: string
   ): Promise<{ status: string; voteId?: string } | null> => {
-    const response = await apiClient.get(`/api/signing/sessions/${sessionId}`);
-    return response.data;
+    try {
+      const response = await apiClient.get(`/api/signing/sessions/${sessionId}`);
+      return response.data;
+    } catch (error) {
+      // A 404 means the session no longer exists (expired and cleaned up, or the
+      // API lost its in-memory sessions on restart) — nothing to reconcile, so
+      // return null. Any other error propagates to the caller.
+      if (isAxiosError(error) && error.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
   },
 
   // Delegation methods
