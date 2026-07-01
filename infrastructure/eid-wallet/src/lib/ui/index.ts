@@ -9,3 +9,4 @@ export { default as Toast } from "./Toast/Toast.svelte";
 export { default as CameraPermissionDialog } from "./CameraPermissionDialog/CameraPermissionDialog.svelte";
 export { default as PlatformAppCard } from "./PlatformAppCard/PlatformAppCard.svelte";
 export { default as ContactCard } from "./ContactCard/ContactCard.svelte";
+export { default as CopyableEName } from "./CopyableEName/CopyableEName.svelte";

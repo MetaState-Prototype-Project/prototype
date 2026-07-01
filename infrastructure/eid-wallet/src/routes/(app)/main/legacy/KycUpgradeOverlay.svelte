@@ -13,6 +13,7 @@ import {
     PUBLIC_PROVISIONER_URL,
 } from "$env/static/public";
 import type { GlobalState } from "$lib/global";
+import { CopyableEName } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { capitalize } from "$lib/utils";
 import axios from "axios";
@@ -481,16 +482,10 @@ async function handleUpgrade() {
                 eVault.
             </p>
             {#if duplicateEName}
-                <div class="rounded-xl bg-gray-50 border border-gray-200 p-4">
-                    <p class="text-xs text-black-500 mb-1">
-                        Your existing eVault eName
-                    </p>
-                    <p
-                        class="font-mono text-sm font-medium text-black-900 break-all"
-                    >
-                        {duplicateEName}
-                    </p>
-                </div>
+                <CopyableEName
+                    ename={duplicateEName}
+                    label="Your existing eVault eName"
+                />
                 <p class="text-sm text-black-500">
                     Use the eName above to recover access to your existing
                     eVault instead.
