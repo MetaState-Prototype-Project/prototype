@@ -302,6 +302,16 @@ export const pollApi = {
     return response.data;
   },
 
+  // Get a signing session's current status. Used to reconcile after the SSE stream
+  // drops (e.g. the mobile browser suspended it while the eID Wallet was foregrounded),
+  // so a completion that happened while disconnected is still picked up.
+  getSigningSession: async (
+    sessionId: string
+  ): Promise<{ status: string; voteId?: string } | null> => {
+    const response = await apiClient.get(`/api/signing/sessions/${sessionId}`);
+    return response.data;
+  },
+
   // Delegation methods
 
   // Check if a poll can have delegation

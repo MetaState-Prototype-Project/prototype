@@ -90,9 +90,28 @@ export class SigningController {
         res.write("data: " + JSON.stringify({ type: "connected", sessionId }) + "\n\n");
 
         // Subscribe to session updates
-        const unsubscribe = this.ensureService().subscribeToSession(sessionId, (data) => {
+        const service = this.ensureService();
+        const unsubscribe = service.subscribeToSession(sessionId, (data) => {
             res.write("data: " + JSON.stringify(data) + "\n\n");
         });
+
+        // Replay the current terminal state on (re)connect. The completion event is
+        // pushed only once, at callback time. On mobile the browser suspends this SSE
+        // stream while the eID Wallet is foregrounded, so a client that reconnects
+        // after signing would otherwise never learn the vote succeeded (and would show
+        // a misleading error or hang until expiry). Re-emitting is idempotent on the client.
+        try {
+            const session = await service.getSession(sessionId);
+            if (session?.status === "completed") {
+                res.write("data: " + JSON.stringify({ type: "signed", status: "completed", sessionId }) + "\n\n");
+            } else if (session?.status === "security_violation") {
+                res.write("data: " + JSON.stringify({ type: "security_violation", status: "security_violation", error: "eName verification failed", sessionId }) + "\n\n");
+            } else if (session?.status === "expired") {
+                res.write("data: " + JSON.stringify({ type: "expired", status: "expired", sessionId }) + "\n\n");
+            }
+        } catch (error) {
+            console.error("Error replaying signing session status on connect:", error);
+        }
 
         // Handle client disconnect
         req.on("close", () => {
