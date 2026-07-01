@@ -95,6 +95,14 @@ export class SigningController {
             res.write("data: " + JSON.stringify(data) + "\n\n");
         });
 
+        // Clean up the subscription when the client disconnects. Registered before the
+        // getSession() await below so a disconnect during that await can't slip past
+        // listener registration and leak the subscriber.
+        req.on("close", () => {
+            unsubscribe();
+            res.end();
+        });
+
         // Replay the current terminal state on (re)connect. The completion event is
         // pushed only once, at callback time. On mobile the browser suspends this SSE
         // stream while the eID Wallet is foregrounded, so a client that reconnects
@@ -112,12 +120,6 @@ export class SigningController {
         } catch (error) {
             console.error("Error replaying signing session status on connect:", error);
         }
-
-        // Handle client disconnect
-        req.on("close", () => {
-            unsubscribe();
-            res.end();
-        });
     }
 
     // Handle signed payload callback from eID Wallet
