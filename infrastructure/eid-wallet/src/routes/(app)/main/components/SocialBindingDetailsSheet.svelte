@@ -58,9 +58,13 @@ function close() {
 
         <div class="flex justify-center">
             <span
-                class="inline-flex items-center rounded-full bg-success-200 px-3 py-1 text-sm font-semibold text-black-900"
+                class="inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold {contact.pending
+                    ? 'bg-amber-100 text-amber-800'
+                    : 'bg-success-200 text-black-900'}"
             >
-                {roleLabel(contact.role)}
+                {contact.pending
+                    ? "Awaiting confirmation"
+                    : roleLabel(contact.role)}
             </span>
         </div>
 
@@ -72,6 +76,11 @@ function close() {
                     <div class="flex-1 min-w-0">
                         <p class="font-semibold text-black-900 text-sm">
                             {binding.role === "sent" ? "Sent" : "Received"}
+                            {#if !binding.mutuallySigned}
+                                <span class="font-normal text-amber-600"
+                                    >· Awaiting confirmation</span
+                                >
+                            {/if}
                         </p>
                         {#if binding.relationDescription}
                             <p

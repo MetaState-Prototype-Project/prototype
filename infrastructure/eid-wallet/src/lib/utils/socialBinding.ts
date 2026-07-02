@@ -624,6 +624,137 @@ export async function fetchSocialBindings(
 }
 
 // ---------------------------------------------------------------------------
+// Reconciling scanner-side ("sent") mirrors against the source of truth
+// ---------------------------------------------------------------------------
+
+/**
+ * True status of a scanner-initiated ("sent") binding, determined by reading
+ * the primary doc in the counterparty's vault — the source of truth. The
+ * scanner only holds a single-signature mirror; the real doc lives in the
+ * counterparty's vault.
+ *
+ * - `confirmed`: the counterparty counter-signed (doc has 2 signatures).
+ * - `pending`:   the counterparty hasn't acted yet (doc has 1 signature).
+ * - `declined`:  the counterparty declined and deleted the doc (it's gone).
+ */
+export type SentBindingStatus = "confirmed" | "pending" | "declined";
+
+/**
+ * Read the counterparty's vault to determine the true status of a binding the
+ * caller initiated by scanning. Reuses the same cross-vault read path as
+ * fetchNameFromVault (X-ENAME scopes the query to the counterparty's data).
+ *
+ * Throws if the counterparty vault can't be resolved or reached — callers MUST
+ * treat a throw as "unknown" and leave the local mirror untouched, so a
+ * transient network error never deletes a still-valid binding.
+ */
+export async function fetchSentBindingStatus(
+    selfEname: string,
+    counterpartyEname: string,
+): Promise<SentBindingStatus> {
+    const normalizedSelf = selfEname.startsWith("@")
+        ? selfEname
+        : `@${selfEname}`;
+    const normalizedCounter = counterpartyEname.startsWith("@")
+        ? counterpartyEname
+        : `@${counterpartyEname}`;
+
+    const foreignGqlUrl = await resolveVaultUri(normalizedCounter);
+    const data = await vaultGqlRequest<{
+        bindingDocuments: { edges: BindingDocEdge[] };
+    }>(foreignGqlUrl, normalizedCounter, SOCIAL_BINDING_DOCS_QUERY);
+
+    // The primary doc has subject=@counterparty (they are the party who must
+    // counter-sign) and lists both parties. Repeat scans can leave more than
+    // one matching doc, so treat any 2-signature match as confirmation.
+    const matches = (data.bindingDocuments?.edges ?? []).filter((edge) => {
+        const parsed = edge.node.parsed;
+        if (!parsed || parsed.type !== "social_connection") return false;
+        if (parsed.subject !== normalizedCounter) return false;
+        const parties = Array.isArray(parsed.data?.parties)
+            ? (parsed.data.parties as string[])
+            : [];
+        return parties.includes(normalizedSelf);
+    });
+
+    if (matches.length === 0) return "declined";
+    const anyConfirmed = matches.some((edge) => {
+        const sigs = edge.node.parsed?.signatures;
+        return Array.isArray(sigs) && sigs.length >= 2;
+    });
+    return anyConfirmed ? "confirmed" : "pending";
+}
+
+/**
+ * Fetch the caller's social bindings and reconcile every scanner-initiated
+ * ("sent") mirror that isn't yet mutually signed against the counterparty's
+ * vault (the source of truth):
+ *
+ * - counterparty counter-signed  → mark the mirror mutually signed.
+ * - counterparty declined (gone) → drop it from the list AND delete the now
+ *   orphaned local mirror, so a rejected binding stops showing as successful
+ *   (the whole point of this reconcile — see issue #990).
+ * - still pending / unreachable  → keep it as an unconfirmed (pending) binding.
+ *
+ * A confirmed or already-mutually-signed binding needs no remote read.
+ */
+export async function fetchReconciledSocialBindings(
+    ownGqlUrl: string,
+    callerEname: string,
+): Promise<SocialBindingSummary[]> {
+    const summaries = await fetchSocialBindings(ownGqlUrl, callerEname);
+
+    const reconciled = await Promise.all(
+        summaries.map(async (summary) => {
+            // Only scanner-initiated mirrors that aren't yet mutually signed
+            // need a remote check; everything else is already authoritative.
+            if (summary.role !== "sent" || summary.mutuallySigned) {
+                return summary;
+            }
+            try {
+                const status = await fetchSentBindingStatus(
+                    callerEname,
+                    summary.counterpartyEname,
+                );
+                if (status === "confirmed") {
+                    return { ...summary, mutuallySigned: true };
+                }
+                if (status === "declined") {
+                    // The counterparty rejected the request and deleted their
+                    // copy — remove our orphaned mirror so it stops showing as
+                    // a successful binding, then drop it from this list.
+                    void deleteSocialBindingDoc(
+                        ownGqlUrl,
+                        callerEname,
+                        summary.docId,
+                    ).catch((err) =>
+                        console.warn(
+                            "[socialBinding] failed to delete declined mirror",
+                            summary.docId,
+                            err,
+                        ),
+                    );
+                    return null;
+                }
+                // pending — keep it as an unconfirmed binding.
+                return summary;
+            } catch (err) {
+                // Couldn't reach the counterparty vault — treat as unknown and
+                // keep the mirror; never delete on a transient failure.
+                console.warn(
+                    "[socialBinding] could not reconcile sent binding with",
+                    summary.counterpartyEname,
+                    err,
+                );
+                return summary;
+            }
+        }),
+    );
+
+    return reconciled.filter((s): s is SocialBindingSummary => s !== null);
+}
+
+// ---------------------------------------------------------------------------
 // Scanner-side mirror write
 // ---------------------------------------------------------------------------
 
