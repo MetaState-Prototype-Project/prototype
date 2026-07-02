@@ -305,6 +305,34 @@ const SOCIAL_BINDING_DOCS_QUERY = `
     }
 `;
 
+// Paginated variant for fetchSentBindingStatus, which must walk every page
+// before concluding a doc is gone (see there).
+const SOCIAL_BINDING_DOCS_PAGE_QUERY = `
+    query($after: String) {
+        bindingDocuments(type: social_connection, first: 100, after: $after) {
+            edges {
+                node {
+                    id
+                    parsed
+                }
+            }
+            pageInfo {
+                hasNextPage
+                endCursor
+            }
+        }
+    }
+`;
+
+// Named so fetchSentBindingStatus can annotate `data` and avoid a circular
+// inference error (TS7022) from reassigning the cursor inside the paging loop.
+interface SocialBindingDocsPage {
+    bindingDocuments: {
+        edges: BindingDocEdge[];
+        pageInfo: { hasNextPage: boolean; endCursor: string | null };
+    };
+}
+
 export interface CreateBindingDocResult {
     createBindingDocument: {
         metaEnvelopeId: string | null;
@@ -660,29 +688,44 @@ export async function fetchSentBindingStatus(
         : `@${counterpartyEname}`;
 
     const foreignGqlUrl = await resolveVaultUri(normalizedCounter);
-    const data = await vaultGqlRequest<{
-        bindingDocuments: { edges: BindingDocEdge[] };
-    }>(foreignGqlUrl, normalizedCounter, SOCIAL_BINDING_DOCS_QUERY);
 
-    // The primary doc has subject=@counterparty (they are the party who must
-    // counter-sign) and lists both parties. Repeat scans can leave more than
-    // one matching doc, so treat any 2-signature match as confirmation.
-    const matches = (data.bindingDocuments?.edges ?? []).filter((edge) => {
-        const parsed = edge.node.parsed;
-        if (!parsed || parsed.type !== "social_connection") return false;
-        if (parsed.subject !== normalizedCounter) return false;
-        const parties = Array.isArray(parsed.data?.parties)
-            ? (parsed.data.parties as string[])
-            : [];
-        return parties.includes(normalizedSelf);
-    });
+    // The primary doc has subject=@counterparty and lists both parties; any
+    // 2-signature match means confirmed (repeat scans can leave several). Only
+    // conclude "declined" — which deletes the mirror — after all pages are checked.
+    let after: string | null = null;
+    let sawMatch = false;
+    do {
+        const data: SocialBindingDocsPage =
+            await vaultGqlRequest<SocialBindingDocsPage>(
+                foreignGqlUrl,
+                normalizedCounter,
+                SOCIAL_BINDING_DOCS_PAGE_QUERY,
+                { after: after ?? undefined },
+            );
 
-    if (matches.length === 0) return "declined";
-    const anyConfirmed = matches.some((edge) => {
-        const sigs = edge.node.parsed?.signatures;
-        return Array.isArray(sigs) && sigs.length >= 2;
-    });
-    return anyConfirmed ? "confirmed" : "pending";
+        const connection = data.bindingDocuments;
+        for (const edge of connection?.edges ?? []) {
+            const parsed = edge.node.parsed;
+            if (!parsed || parsed.type !== "social_connection") continue;
+            if (parsed.subject !== normalizedCounter) continue;
+            const parties = Array.isArray(parsed.data?.parties)
+                ? (parsed.data.parties as string[])
+                : [];
+            if (!parties.includes(normalizedSelf)) continue;
+
+            sawMatch = true;
+            // A 2-signature match is terminal — the counterparty counter-signed.
+            const sigs = parsed.signatures;
+            if (Array.isArray(sigs) && sigs.length >= 2) return "confirmed";
+        }
+
+        const pageInfo = connection?.pageInfo;
+        after = pageInfo?.hasNextPage ? (pageInfo?.endCursor ?? null) : null;
+    } while (after !== null);
+
+    // No matching doc on any page → the counterparty deleted it (declined).
+    // Otherwise we only ever saw single-signature matches → still pending.
+    return sawMatch ? "pending" : "declined";
 }
 
 /**
