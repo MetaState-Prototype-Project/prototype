@@ -88,7 +88,7 @@ $effect(() => {
                             : 'text-black-900'}"
                     >
                         {success
-                            ? "Binding signed!"
+                            ? "Request sent"
                             : "You have scanned a\nsocial binding QR code"}
                     </h4>
                     <p class="text-sm leading-relaxed text-black-500 text-center">

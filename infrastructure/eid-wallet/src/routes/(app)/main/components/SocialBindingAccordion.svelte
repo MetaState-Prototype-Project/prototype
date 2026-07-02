@@ -16,6 +16,12 @@ export interface SocialBindingDisplay {
      */
     role: "sent" | "received" | "both";
     /**
+     * True when no binding with this contact is mutually signed yet — every
+     * doc is still awaiting the counterparty's counter-signature. Confirmed
+     * (mutually signed) bindings clear this even if others are still pending.
+     */
+    pending: boolean;
+    /**
      * Underlying per-doc summaries kept around so the details bottom sheet
      * can list them without re-fetching.
      */

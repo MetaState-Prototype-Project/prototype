@@ -5,7 +5,7 @@ import { ChevronIcon } from "$lib/ui/icons";
 import {
     type SocialBindingSummary,
     fetchNameFromVault,
-    fetchSocialBindings,
+    fetchReconciledSocialBindings,
     resolveVaultUri,
 } from "$lib/utils";
 import { getContext, onMount } from "svelte";
@@ -51,7 +51,10 @@ async function init() {
             : `@${vault.ename}`;
         const gqlUrl = new URL("/graphql", vault.uri).toString();
 
-        const summaries = await fetchSocialBindings(gqlUrl, callerEname);
+        const summaries = await fetchReconciledSocialBindings(
+            gqlUrl,
+            callerEname,
+        );
 
         // Group by counterparty so each person shows once with a combined
         // role label, matching the home-screen accordion.
@@ -76,6 +79,7 @@ async function init() {
                             : hasSent
                               ? "sent"
                               : "received";
+                    const pending = !group.some((b) => b.mutuallySigned);
 
                     let name = counterpartyEname;
                     try {
@@ -92,6 +96,7 @@ async function init() {
                         counterpartyEname,
                         counterpartyName: name,
                         role,
+                        pending,
                         bindings: group,
                     };
                 },
@@ -153,6 +158,11 @@ const subtitle = $derived(
                     </p>
                     <p class="text-black-500 leading-tight">
                         {roleLabel(contact.role)}
+                        {#if contact.pending}
+                            <span class="text-amber-600"
+                                >· Awaiting confirmation</span
+                            >
+                        {/if}
                     </p>
                 </div>
                 <ChevronIcon
