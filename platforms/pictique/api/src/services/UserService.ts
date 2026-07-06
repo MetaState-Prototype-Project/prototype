@@ -399,7 +399,11 @@ export class UserService {
             await this.userRepository.save(following);
         }
 
-        return follower;
+        // follower.following and following.followers now reference each
+        // other, so the loaded entities aren't safe to JSON-serialize
+        // directly. Return the freshly updated target profile instead,
+        // using the same safe shape getProfileById already builds.
+        return this.getProfileById(followingId, followerId);
     };
 
     async getProfileById(userId: string, viewerId?: string) {

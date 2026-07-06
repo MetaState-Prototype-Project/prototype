@@ -53,8 +53,8 @@
 		if (!profile || profile.isFollowing || followPending) return;
 		followPending = true;
 		try {
-			await apiClient.post(`/api/users/${profileId}/follow`);
-			profile = { ...profile, isFollowing: true, followers: profile.followers + 1 };
+			const response = await apiClient.post<userProfile>(`/api/users/${profileId}/follow`);
+			profile = response.data;
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to follow user';
 		} finally {
