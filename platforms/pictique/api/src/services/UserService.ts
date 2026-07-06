@@ -358,46 +358,51 @@ export class UserService {
             throw new Error("Cannot follow yourself");
         }
 
-        const follower = await this.userRepository.findOne({
-            where: { id: followerId },
-            relations: ["following"],
+        // Both sides are read, checked, and (if needed) written inside one
+        // transaction so a failure partway through can't leave one join
+        // table updated and the other not.
+        await this.userRepository.manager.transaction(async (manager) => {
+            const follower = await manager.findOne(User, {
+                where: { id: followerId },
+                relations: ["following"],
+            });
+
+            const following = await manager.findOne(User, {
+                where: { id: followingId },
+                relations: ["followers"],
+            });
+
+            if (!follower || !following) {
+                throw new Error("User not found");
+            }
+
+            if (!follower.following) {
+                follower.following = [];
+            }
+            if (!following.followers) {
+                following.followers = [];
+            }
+
+            // The two sides are backed by separate join tables and can drift
+            // out of sync (e.g. a prior write that only landed on one side),
+            // so each side is checked and repaired independently rather than
+            // assuming one side being present implies the other is too.
+            const missingFromFollowing = !follower.following.some(
+                (user) => user.id === followingId,
+            );
+            const missingFromFollowers = !following.followers.some(
+                (user) => user.id === followerId,
+            );
+
+            if (missingFromFollowing) {
+                follower.following.push(following);
+                await manager.save(follower);
+            }
+            if (missingFromFollowers) {
+                following.followers.push(follower);
+                await manager.save(following);
+            }
         });
-
-        const following = await this.userRepository.findOne({
-            where: { id: followingId },
-            relations: ["followers"],
-        });
-
-        if (!follower || !following) {
-            throw new Error("User not found");
-        }
-
-        if (!follower.following) {
-            follower.following = [];
-        }
-        if (!following.followers) {
-            following.followers = [];
-        }
-
-        // The two sides are backed by separate join tables and can drift out
-        // of sync (e.g. a prior write that only landed on one side), so each
-        // side is checked and repaired independently rather than assuming
-        // one side being present implies the other is too.
-        const missingFromFollowing = !follower.following.some(
-            (user) => user.id === followingId,
-        );
-        const missingFromFollowers = !following.followers.some(
-            (user) => user.id === followerId,
-        );
-
-        if (missingFromFollowing) {
-            follower.following.push(following);
-            await this.userRepository.save(follower);
-        }
-        if (missingFromFollowers) {
-            following.followers.push(follower);
-            await this.userRepository.save(following);
-        }
 
         // follower.following and following.followers now reference each
         // other, so the loaded entities aren't safe to JSON-serialize
