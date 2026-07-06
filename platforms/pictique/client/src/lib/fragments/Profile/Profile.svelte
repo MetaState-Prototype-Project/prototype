@@ -12,16 +12,14 @@
 		handleFollow,
 		handleSinglePost,
 		handleMessage,
-		isFollowing = $bindable(false),
-		didFollowed = $bindable(false)
+		followPending = false
 	}: {
 		variant: 'user' | 'other';
 		profileData: userProfile;
 		handleSinglePost: (post: PostData) => void;
 		handleFollow: () => Promise<void>;
 		handleMessage: () => Promise<void>;
-		isFollowing: boolean;
-		didFollowed: boolean;
+		followPending?: boolean;
 	} = $props();
 
 	let imgPosts = $derived(profileData.posts.filter((e) => e.imgUris && e.imgUris.length > 0));
@@ -59,15 +57,15 @@
 						variant={'primary'}
 						size="sm"
 						callback={wrappedFollow}
-						class="min-w-[110px] transition-all duration-500 {didFollowed
+						class="min-w-[110px] transition-all duration-500 {profileData.isFollowing
 							? 'opacity-80'
 							: ''}"
 					>
 						<div class="flex items-center justify-center gap-2">
-							{#if didFollowed}
+							{#if profileData.isFollowing}
 								<HugeiconsIcon icon={Tick01Icon} size={16} />
 								<span>Following</span>
-							{:else if isFollowing}
+							{:else if followPending}
 								<span class="flex gap-0.5">
 									<span class="animate-bounce">.</span>
 									<span class="animate-bounce [animation-delay:0.2s]">.</span>
@@ -96,11 +94,11 @@
 			<p class="text-gray-600">Posts</p>
 		</div>
 		<div>
-			<p class="font-semibold">{0}</p>
+			<p class="font-semibold">{profileData.followers}</p>
 			<p class="text-gray-600">Followers</p>
 		</div>
 		<div>
-			<p class="font-semibold">{0}</p>
+			<p class="font-semibold">{profileData.following}</p>
 			<p class="text-gray-600">Following</p>
 		</div>
 	</div>

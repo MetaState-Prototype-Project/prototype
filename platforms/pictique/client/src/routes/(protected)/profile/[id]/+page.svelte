@@ -27,8 +27,7 @@
 	let error = $state<string | null>(null);
 	let loading = $state(true);
 	let ownerId: string | null = $derived(getAuthId());
-	let isFollowing = $state(false);
-	let didFollowed = $state(false);
+	let followPending = $state(false);
 	let ownerProfile = $derived.by(async () => {
 		if (ownerId) {
 			const response = await apiClient.get<userProfile>(`/api/users/${ownerId}`);
@@ -51,21 +50,15 @@
 	}
 
 	async function handleFollow() {
+		if (!profile || profile.isFollowing || followPending) return;
+		followPending = true;
 		try {
-			isFollowing = true;
-			const response = await apiClient.post(`/api/users/${profileId}/follow`);
-			if (response) {
-				didFollowed = true;
-				setTimeout(async () => {
-					await fetchProfile();
-					didFollowed = false;
-				}, 1000);
-			}
+			await apiClient.post(`/api/users/${profileId}/follow`);
+			profile = { ...profile, isFollowing: true, followers: profile.followers + 1 };
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to follow user';
-			didFollowed = false;
 		} finally {
-			isFollowing = false;
+			followPending = false;
 		}
 	}
 
@@ -106,8 +99,7 @@
 		</div>
 	{:else if profile}
 		<Profile
-			bind:isFollowing
-			bind:didFollowed
+			{followPending}
 			variant={ownerId === profileId ? 'user' : 'other'}
 			profileData={profile}
 			handleSinglePost={(post) => handlePostClick(post)}

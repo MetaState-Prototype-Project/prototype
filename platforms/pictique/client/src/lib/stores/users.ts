@@ -46,7 +46,7 @@ export const searchUsers = async (query: string) => {
 
 export const followUser = async (followingId: string) => {
 	try {
-		await apiClient.post('/api/users/follow', { followingId });
+		await apiClient.post(`/api/users/${followingId}/follow`);
 		return true;
 	} catch (err) {
 		console.error('Failed to follow user:', err);

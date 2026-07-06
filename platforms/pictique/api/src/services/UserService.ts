@@ -354,6 +354,10 @@ export class UserService {
     };
 
     followUser = async (followerId: string, followingId: string) => {
+        if (followerId === followingId) {
+            throw new Error("Cannot follow yourself");
+        }
+
         const follower = await this.userRepository.findOne({
             where: { id: followerId },
             relations: ["following"],
@@ -361,6 +365,7 @@ export class UserService {
 
         const following = await this.userRepository.findOne({
             where: { id: followingId },
+            relations: ["followers"],
         });
 
         if (!follower || !following) {
@@ -370,27 +375,48 @@ export class UserService {
         if (!follower.following) {
             follower.following = [];
         }
-
-        // Check if already following
-        if (follower.following.some((user) => user.id === followingId)) {
-            return follower;
+        if (!following.followers) {
+            following.followers = [];
         }
 
-        follower.following.push(following);
-        return await this.userRepository.save(follower);
+        // The two sides are backed by separate join tables and can drift out
+        // of sync (e.g. a prior write that only landed on one side), so each
+        // side is checked and repaired independently rather than assuming
+        // one side being present implies the other is too.
+        const missingFromFollowing = !follower.following.some(
+            (user) => user.id === followingId,
+        );
+        const missingFromFollowers = !following.followers.some(
+            (user) => user.id === followerId,
+        );
+
+        if (missingFromFollowing) {
+            follower.following.push(following);
+            await this.userRepository.save(follower);
+        }
+        if (missingFromFollowers) {
+            following.followers.push(follower);
+            await this.userRepository.save(following);
+        }
+
+        return follower;
     };
 
-    async getProfileById(userId: string) {
+    async getProfileById(userId: string, viewerId?: string) {
         const user = await this.userRepository.findOne({
             where: { id: userId },
+            relations: {
+                followers: true,
+                following: true,
+            },
             select: {
                 id: true,
                 handle: true,
                 name: true,
                 avatarUrl: true,
-                followers: true,
-                following: true,
                 description: true,
+                followers: { id: true },
+                following: { id: true },
             },
         });
 
@@ -402,8 +428,16 @@ export class UserService {
             order: { createdAt: "DESC" },
         });
 
+        const followers = user.followers ?? [];
+        const following = user.following ?? [];
+
         return {
             ...user,
+            followers: followers.length,
+            following: following.length,
+            isFollowing: viewerId
+                ? followers.some((follower) => follower.id === viewerId)
+                : false,
             totalPosts: posts.length,
             posts: posts.map((post) => ({
                 id: post.id,

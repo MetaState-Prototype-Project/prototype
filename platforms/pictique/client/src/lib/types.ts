@@ -66,6 +66,7 @@ export type userProfile = {
 	totalPosts: number;
 	followers: number;
 	following: number;
+	isFollowing: boolean;
 	posts: PostData[];
 	username: string;
 };

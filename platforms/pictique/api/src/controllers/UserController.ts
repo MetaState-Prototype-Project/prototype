@@ -20,7 +20,7 @@ export class UserController {
                 return res.status(400).json({ error: "User ID is required" });
             }
 
-            const profile = await this.userService.getProfileById(id);
+            const profile = await this.userService.getProfileById(id, req.user?.id);
             if (!profile) {
                 return res.status(404).json({ error: "User not found" });
             }
