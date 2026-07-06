@@ -336,7 +336,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 setTimeout(async () => {
                     try {
                         let globalId = await this.adapter.mappingDb.getGlobalId(
-                            entity.id
+                            parentEntity.id
                         );
                         globalId = globalId ?? "";
 
@@ -348,7 +348,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                         console.log(
                             "sending packet for global Id",
                             globalId,
-                            entity.id
+                            parentEntity.id
                         );
 
                         const tableName = `${junctionInfo.entity.toLowerCase()}s`;
