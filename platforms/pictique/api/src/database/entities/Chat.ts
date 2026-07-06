@@ -22,7 +22,7 @@ export class Chat {
     @OneToMany(() => Message, (e) => e.chat)
     messages!: Message[];
 
-    @ManyToMany(() => User)
+    @ManyToMany(() => User, (user) => user.chats)
     @JoinTable({
         name: "chat_participants",
         joinColumn: { name: "chat_id", referencedColumnName: "id" },
