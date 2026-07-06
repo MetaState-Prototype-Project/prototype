@@ -5,7 +5,7 @@
 	import { selectedPost } from '$lib/store/store.svelte';
 	import { comments as commentsStore, createComment, fetchComments } from '$lib/stores/comments';
 	import { toggleLike } from '$lib/stores/posts';
-	import type { PostData, userProfile } from '$lib/types';
+	import type { Chat, PostData, userProfile } from '$lib/types';
 	import { Modal } from '$lib/ui';
 	import { apiClient, getAuthId } from '$lib/utils/axios';
 	import { onMount } from 'svelte';
@@ -71,14 +71,14 @@
 
 	async function handleMessage() {
 		try {
-			await apiClient.post('/api/chats/', {
-				name: profile?.username,
+			// Omit `name` so the API treats this as a 1-to-1 chat and returns the
+			// existing conversation between these two users instead of duplicating it.
+			const { data: chat } = await apiClient.post<Chat>('/api/chats', {
 				participantIds: [profileId]
 			});
-			goto('/messages');
-			await fetchProfile(); // Refresh profile to update follower count
+			goto(`/messages/${chat.id}`);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to follow user';
+			error = err instanceof Error ? err.message : 'Failed to message user';
 		}
 	}
 
