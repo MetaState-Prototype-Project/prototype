@@ -437,6 +437,7 @@ export class UserService {
 
         return {
             ...user,
+            username: user.handle,
             followers: followers.length,
             following: following.length,
             isFollowing: viewerId
