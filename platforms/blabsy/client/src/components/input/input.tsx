@@ -117,13 +117,14 @@ export function Input({
 
             if (closeModal) closeModal();
 
-            toast.success(
+            const toastId = toast.success(
                 () => (
                     <span className='flex gap-2'>
                         Your Blab was sent
                         <Link
                             href={`/tweet/${tweetRef.id}`}
                             className='custom-underline font-bold'
+                            onClick={() => toast.dismiss(toastId)}
                         >
                             View
                         </Link>
