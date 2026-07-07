@@ -48,7 +48,9 @@
 	// tracked as real state so the root `/settings` page renders through the
 	// exact same variant path as every other top-level page, rather than
 	// showing back-button markup that's merely hidden with CSS on desktop.
-	let isDesktop = $state(true);
+	let isDesktop = $state(
+		typeof window !== 'undefined' ? window.matchMedia('(min-width: 768px)').matches : true
+	);
 
 	$effect(() => {
 		const query = window.matchMedia('(min-width: 768px)');

@@ -1,8 +1,9 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 
 	onMount(() => {
-		goto('/settings/account/username', { replaceState: true });
+		goto(resolve('/settings/account/username'), { replaceState: true });
 	});
 </script>
