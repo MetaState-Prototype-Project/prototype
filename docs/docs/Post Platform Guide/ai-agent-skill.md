@@ -2,11 +2,21 @@
 sidebar_position: 7
 ---
 
-# AI Agent Skill (Claude Code, Codex, Cursor, Copilot, Windsurf, Aider)
+# AI Agent Skill
 
 This repo ships a packaged **W3DS knowledge skill** under `skills/w3ds/` that you can load into your AI coding assistant so it stops guessing ontology UUIDs, mapping directives, and GraphQL field names. It's grounded in the docs you're reading now.
 
 Every agent tool has its own convention for repo-level context (skills, rules, `AGENTS.md`, `.cursorrules`, etc.). Install instructions below cover the ones people actually use. Pick your tool — or copy the fallback pattern for anything else.
+
+:::note Windows users
+
+Command blocks are labeled **macOS / Linux (bash)** and **Windows (PowerShell)** where they differ. If you use **WSL** or **Git Bash**, the bash commands work verbatim — skip the PowerShell variants.
+
+- Paths written `~/.foo/bar` also work in PowerShell (`~` resolves to `$HOME` = `%USERPROFILE%`).
+- Symlinks on Windows require either an **Administrator** PowerShell session **or** [Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/developer-mode-features-and-debugging) enabled in Settings.
+- Forward slashes in paths are accepted by `npx`, `node`, `aider`, and most cross-platform CLIs on Windows — only PowerShell-native cmdlets prefer backslashes.
+
+:::
 
 ## What's in the skill
 
@@ -33,8 +43,18 @@ npx skills add MetaState-Prototype-Project/prototype@w3ds -g -y
 
 If you already have the metastate repo checked out:
 
+**macOS / Linux (bash):**
+
 ```bash
 ln -s "$(pwd)/skills/w3ds" ~/.claude/skills/w3ds
+```
+
+**Windows (PowerShell, Administrator or Developer Mode):**
+
+```powershell
+New-Item -ItemType SymbolicLink `
+  -Path   "$HOME\.claude\skills\w3ds" `
+  -Target "$PWD\skills\w3ds"
 ```
 
 Edits under `skills/w3ds/` take effect on the next skill invocation — no re-symlink.
@@ -49,13 +69,15 @@ When working on W3DS code, load `skills/w3ds/SKILL.md` from the metastate repo (
 
 Restart Claude Code after any install method. Verify with a question like *"how do I write a webhook controller for a W3DS post-platform?"* — the skill should be picked up.
 
-## OpenAI Codex CLI (`AGENTS.md`)
+## OpenAI Codex CLI
 
 Codex CLI reads `AGENTS.md` from the repo root and `~/.codex/AGENTS.md` for user-level context.
 
 ### Project-scoped
 
-Copy the skill content into `AGENTS.md` at the root of the project you're building on W3DS:
+Copy the skill content into `AGENTS.md` at the root of the project you're building on W3DS.
+
+**macOS / Linux (bash):**
 
 ```bash
 cat skills/w3ds/SKILL.md > AGENTS.md
@@ -66,18 +88,38 @@ for f in skills/w3ds/reference/*.md; do
 done
 ```
 
-Or, if `AGENTS.md` already exists, append the skill as a section:
+**Windows (PowerShell):**
+
+```powershell
+Get-Content skills/w3ds/SKILL.md | Set-Content AGENTS.md
+Add-Content AGENTS.md "`n`n---`n"
+Get-ChildItem skills/w3ds/reference/*.md | ForEach-Object {
+  Add-Content AGENTS.md "`n## $($_.BaseName)`n"
+  Get-Content $_.FullName | Add-Content AGENTS.md
+}
+```
+
+Or, if `AGENTS.md` already exists, append the skill as a section.
+
+**macOS / Linux (bash):**
 
 ```bash
 echo -e "\n\n# W3DS reference\n" >> AGENTS.md
 cat skills/w3ds/SKILL.md skills/w3ds/reference/*.md >> AGENTS.md
 ```
 
+**Windows (PowerShell):**
+
+```powershell
+Add-Content AGENTS.md "`n`n# W3DS reference`n"
+Get-Content skills/w3ds/SKILL.md, skills/w3ds/reference/*.md | Add-Content AGENTS.md
+```
+
 ### User-scoped
 
 Put the same concatenated content in `~/.codex/AGENTS.md` if you want it available in every project you touch.
 
-## Cursor (`.cursor/rules/`)
+## Cursor
 
 Cursor uses `.cursor/rules/*.mdc` files. Each rule file has YAML frontmatter controlling when it activates.
 
@@ -101,7 +143,9 @@ alwaysApply: false
 <paste contents of skills/w3ds/reference/*.md here, each under a section header>
 ```
 
-Or generate it with:
+Or generate it.
+
+**macOS / Linux (bash):**
 
 ```bash
 mkdir -p .cursor/rules
@@ -124,30 +168,75 @@ mkdir -p .cursor/rules
 } > .cursor/rules/w3ds.mdc
 ```
 
+**Windows (PowerShell):**
+
+```powershell
+New-Item -ItemType Directory -Force -Path .cursor/rules | Out-Null
+$out = '.cursor/rules/w3ds.mdc'
+
+@'
+---
+description: W3DS (Web 3 Data Spaces) knowledge — eVault GraphQL, Web3 Adapter, w3ds://auth, w3ds://sign, mapping directives, ontology UUIDs
+globs:
+  - "**/*.ts"
+  - "**/*.tsx"
+  - "**/mapping*.json"
+alwaysApply: false
+---
+
+'@ | Set-Content $out
+
+Get-Content skills/w3ds/SKILL.md | Select-Object -Skip 5 | Add-Content $out
+Get-ChildItem skills/w3ds/reference/*.md | ForEach-Object {
+  Add-Content $out "`n---`n`n# $($_.BaseName)`n"
+  Get-Content $_.FullName | Add-Content $out
+}
+```
+
 Set `alwaysApply: true` if you want the rule loaded for every request instead of matching on globs.
 
-## GitHub Copilot (`.github/copilot-instructions.md`)
+## GitHub Copilot
 
 Copilot reads `.github/copilot-instructions.md` for repo-level guidance.
+
+**macOS / Linux (bash):**
 
 ```bash
 mkdir -p .github
 cat skills/w3ds/SKILL.md skills/w3ds/reference/*.md > .github/copilot-instructions.md
 ```
 
+**Windows (PowerShell):**
+
+```powershell
+New-Item -ItemType Directory -Force -Path .github | Out-Null
+Get-Content skills/w3ds/SKILL.md, skills/w3ds/reference/*.md |
+  Set-Content .github/copilot-instructions.md
+```
+
 Commit the file. Copilot picks it up automatically for repositories that have it enabled in settings (Copilot → Chat → *Instructions*).
 
-## Windsurf (`.windsurfrules`)
+## Windsurf
 
-Windsurf reads `.windsurfrules` at the repo root:
+Windsurf reads `.windsurfrules` at the repo root.
+
+**macOS / Linux (bash):**
 
 ```bash
 cat skills/w3ds/SKILL.md skills/w3ds/reference/*.md > .windsurfrules
 ```
 
-For user-level rules, put the same content in `~/.codeium/windsurf/memories/global_rules.md`.
+**Windows (PowerShell):**
 
-## Aider (`CONVENTIONS.md` + `--read`)
+```powershell
+Get-Content skills/w3ds/SKILL.md, skills/w3ds/reference/*.md | Set-Content .windsurfrules
+```
+
+For user-level rules, put the same content in:
+- macOS / Linux: `~/.codeium/windsurf/memories/global_rules.md`
+- Windows: `$HOME\.codeium\windsurf\memories\global_rules.md`
+
+## Aider
 
 Aider doesn't auto-load a file, but you can pin it:
 
@@ -167,10 +256,18 @@ aider --read CONVENTIONS.md
 
 These agents accept some form of system-prompt or context-injection. The simplest universal pattern:
 
-1. Concatenate the skill into one markdown file:
+1. Concatenate the skill into one markdown file.
+
+   **macOS / Linux (bash):**
 
    ```bash
    cat skills/w3ds/SKILL.md skills/w3ds/reference/*.md > w3ds-context.md
+   ```
+
+   **Windows (PowerShell):**
+
+   ```powershell
+   Get-Content skills/w3ds/SKILL.md, skills/w3ds/reference/*.md | Set-Content w3ds-context.md
    ```
 
 2. Add `w3ds-context.md` to whatever the agent uses for repo-level context:
