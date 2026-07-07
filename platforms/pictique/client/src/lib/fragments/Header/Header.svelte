@@ -41,12 +41,36 @@
 
 	type Variant = 'primary' | 'secondary' | 'tertiary';
 
+	// Settings is a top-level sidebar destination on desktop, same as Feed or
+	// Search, but on mobile it's only reachable by drilling in from the
+	// Profile page header — so its root page needs the same 'primary' variant
+	// Feed uses on desktop, and 'secondary' (back button) on mobile. This is
+	// tracked as real state so the root `/settings` page renders through the
+	// exact same variant path as every other top-level page, rather than
+	// showing back-button markup that's merely hidden with CSS on desktop.
+	let isDesktop = $state(true);
+
+	$effect(() => {
+		const query = window.matchMedia('(min-width: 768px)');
+		isDesktop = query.matches;
+		const handleChange = (event: MediaQueryListEvent) => {
+			isDesktop = event.matches;
+		};
+		query.addEventListener('change', handleChange);
+		return () => query.removeEventListener('change', handleChange);
+	});
+
 	let variant = $derived.by((): Variant => {
 		if (route === `/messages/${page.params.id}` || route.includes('/post')) {
 			return 'secondary';
 		}
-		if (route.includes('profile')) {
-			return 'tertiary';
+		if (route === '/settings') {
+			return isDesktop ? 'primary' : 'secondary';
+		}
+		// Every page nested under Settings (notifications, account, etc.) is
+		// always a drill-down, on both mobile and desktop.
+		if (route.startsWith('/settings/')) {
+			return 'secondary';
 		}
 		return 'primary';
 	});
