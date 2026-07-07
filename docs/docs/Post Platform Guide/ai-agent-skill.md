@@ -6,7 +6,7 @@ sidebar_position: 7
 
 This repo ships a packaged **W3DS knowledge skill** under `skills/w3ds/` that you can load into your AI coding assistant so it stops guessing ontology UUIDs, mapping directives, and GraphQL field names. It's grounded in the docs you're reading now.
 
-Every agent tool has its own convention for repo-level context (skills, rules, `AGENTS.md`, `.cursorrules`, etc.). Install instructions below cover the ones people actually use. Pick your tool — or copy the fallback pattern for anything else.
+The easiest install for every supported agent is the [`npx skills`](https://skills.sh) CLI — it targets Claude Code, Codex, Cursor, GitHub Copilot, Windsurf, OpenCode, Cline, Gemini, and 60+ others. Manual per-tool instructions are further down if you'd rather bypass the CLI or your agent isn't supported yet.
 
 :::note Windows users
 
@@ -29,17 +29,72 @@ Command blocks are labeled **macOS / Linux (bash)** and **Windows (PowerShell)**
 - `reference/wallet.md` — eID Wallet, wallet-sdk, key delegation
 - `reference/dev-setup.md` — `pnpm dev:core` + debugging playbook
 
-## Claude Code
+## Install with `npx skills` (all tools)
 
-### Option A — skills CLI (recommended)
+The [skills CLI](https://skills.sh) auto-detects the AI coding agents you have installed and configures each of them. Works cross-platform (macOS / Linux / Windows PowerShell / WSL).
+
+### Recommended
 
 ```bash
-npx skills add MetaState-Prototype-Project/prototype@w3ds -g -y
+npx skills add MetaState-Prototype-Project/prototype@w3ds
 ```
 
-`-g` installs globally to `~/.claude/skills/`. Drop `-g` for a project-local install.
+The CLI detects your installed agents and prompts for which to target. Default install is **project-local** (committed with your project, shared with your team); pass `-g` for a global install.
 
-### Option B — symlink from a local clone
+### Pick a specific tool
+
+Skip the prompt with `-a, --agent`:
+
+```bash
+# Claude Code
+npx skills add MetaState-Prototype-Project/prototype@w3ds -a claude-code
+
+# OpenAI Codex CLI
+npx skills add MetaState-Prototype-Project/prototype@w3ds -a codex
+
+# Cursor
+npx skills add MetaState-Prototype-Project/prototype@w3ds -a cursor
+
+# GitHub Copilot
+npx skills add MetaState-Prototype-Project/prototype@w3ds -a copilot
+
+# Windsurf
+npx skills add MetaState-Prototype-Project/prototype@w3ds -a windsurf
+
+# OpenCode
+npx skills add MetaState-Prototype-Project/prototype@w3ds -a opencode
+
+# Every supported agent installed on your machine
+npx skills add MetaState-Prototype-Project/prototype@w3ds --all
+```
+
+Full agent list at [skills.sh](https://skills.sh) (Gemini, Cline, Roo, Zed, Goose, Kilo, VS Code, etc. are all supported).
+
+### Common flags
+
+- `-g` — install globally to `~/<agent-dir>/skills/` (default: project-local `./<agent-dir>/skills/`).
+- `-a, --agent <name>` — target one or more specific agents (repeatable / space-separated).
+- `--all` — install to every supported agent detected on your machine.
+- `--copy` — copy files instead of symlinking.
+- `-y, --yes` — skip confirmation prompts.
+
+### Use without installing
+
+Load the skill into a single session without touching your filesystem:
+
+```bash
+# Pipe the generated prompt into your agent
+npx skills use MetaState-Prototype-Project/prototype@w3ds | claude
+
+# Or start any supported agent interactively with the skill loaded
+npx skills use MetaState-Prototype-Project/prototype@w3ds --agent cursor
+```
+
+## Claude Code (manual)
+
+If you'd rather not use the CLI, or you want to hack on the skill locally:
+
+### Option A — symlink from a local clone
 
 If you already have the metastate repo checked out:
 
@@ -59,7 +114,7 @@ New-Item -ItemType SymbolicLink `
 
 Edits under `skills/w3ds/` take effect on the next skill invocation — no re-symlink.
 
-### Option C — project-scoped `CLAUDE.md`
+### Option B — project-scoped `CLAUDE.md`
 
 Add a line to your project's `CLAUDE.md`:
 
@@ -69,7 +124,9 @@ When working on W3DS code, load `skills/w3ds/SKILL.md` from the metastate repo (
 
 Restart Claude Code after any install method. Verify with a question like *"how do I write a webhook controller for a W3DS post-platform?"* — the skill should be picked up.
 
-## OpenAI Codex CLI
+## OpenAI Codex CLI (manual)
+
+Simplest install is `npx skills add MetaState-Prototype-Project/prototype@w3ds -a codex` from the section above. Everything below is for when you want to author `AGENTS.md` by hand.
 
 Codex CLI reads `AGENTS.md` from the repo root and `~/.codex/AGENTS.md` for user-level context.
 
@@ -119,7 +176,9 @@ Get-Content skills/w3ds/SKILL.md, skills/w3ds/reference/*.md | Add-Content AGENT
 
 Put the same concatenated content in `~/.codex/AGENTS.md` if you want it available in every project you touch.
 
-## Cursor
+## Cursor (manual)
+
+Simplest install is `npx skills add MetaState-Prototype-Project/prototype@w3ds -a cursor` from the section above. Everything below is for when you want a hand-tuned `.mdc` file.
 
 Cursor uses `.cursor/rules/*.mdc` files. Each rule file has YAML frontmatter controlling when it activates.
 
@@ -195,7 +254,9 @@ Get-ChildItem skills/w3ds/reference/*.md | ForEach-Object {
 
 Set `alwaysApply: true` if you want the rule loaded for every request instead of matching on globs.
 
-## GitHub Copilot
+## GitHub Copilot (manual)
+
+Simplest install is `npx skills add MetaState-Prototype-Project/prototype@w3ds -a copilot` from the section above. Everything below is for when you want to write `.github/copilot-instructions.md` yourself.
 
 Copilot reads `.github/copilot-instructions.md` for repo-level guidance.
 
@@ -216,7 +277,9 @@ Get-Content skills/w3ds/SKILL.md, skills/w3ds/reference/*.md |
 
 Commit the file. Copilot picks it up automatically for repositories that have it enabled in settings (Copilot → Chat → *Instructions*).
 
-## Windsurf
+## Windsurf (manual)
+
+Simplest install is `npx skills add MetaState-Prototype-Project/prototype@w3ds -a windsurf` from the section above. Everything below is for when you want to write `.windsurfrules` yourself.
 
 Windsurf reads `.windsurfrules` at the repo root.
 
@@ -254,7 +317,7 @@ aider --read CONVENTIONS.md
 
 ## Continue.dev, Cline, Roo, and others
 
-These agents accept some form of system-prompt or context-injection. The simplest universal pattern:
+Cline, Roo, Continue.dev, Gemini, Zed, Goose, Kilo, and dozens more are all supported by `npx skills` — try `-a <name>` from the [main install section](#install-with-npx-skills-all-tools) first. If your agent isn't supported yet or you want to bypass the CLI, use this universal pattern:
 
 1. Concatenate the skill into one markdown file.
 
@@ -288,11 +351,11 @@ If your tool isn't listed above, the pattern is always the same:
 
 The skill mirrors the docs. When docs change, pull the latest metastate `main` and:
 
-- **Claude Code (skills CLI):** `npx skills update`
-- **Claude Code (symlink):** nothing — edits take effect immediately.
-- **Copy-based installs (Cursor, Copilot, Windsurf, Codex, Aider):** re-run the concatenation command from the section above.
+- **`npx skills` install (any agent):** `npx skills update` — updates every installed skill across every agent.
+- **Symlink install (Claude Code):** nothing — edits take effect immediately.
+- **Manual copy install (Cursor, Copilot, Windsurf, Codex, Aider):** re-run the concatenation command from the relevant section above.
 
-If you're building on a fork, add a repo hook or a pre-commit step that re-runs the concatenation so the copy in your project stays fresh.
+If you're building on a fork and shipping the manual copy, add a repo hook or pre-commit step that re-runs the concatenation so the copy in your project stays fresh.
 
 ## Contributing
 
