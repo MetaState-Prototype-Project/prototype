@@ -40,7 +40,7 @@ import { isPermissionGranted } from "@choochmeque/tauri-plugin-notifications-api
 import { openAppSettings } from "@tauri-apps/plugin-barcode-scanner";
 import {
     fetchNameFromVault,
-    fetchSocialBindings,
+    fetchReconciledSocialBindings,
     resolveVaultUri,
 } from "$lib/utils";
 import { getCanonicalBindingDocString } from "$lib/utils/bindingDocHash";
@@ -430,7 +430,10 @@ async function loadSocialBindings(): Promise<void> {
     const gqlUrl = new URL("/graphql", vault.uri).toString();
 
     try {
-        const bindings = await fetchSocialBindings(gqlUrl, callerEname);
+        const bindings = await fetchReconciledSocialBindings(
+            gqlUrl,
+            callerEname,
+        );
 
         // Group by counterparty. The same person can show up across multiple
         // docs (one for each direction the binding was scanned in); we want
@@ -460,6 +463,7 @@ async function loadSocialBindings(): Promise<void> {
                         : hasSent
                           ? "sent"
                           : "received";
+                const pending = !group.some((b) => b.mutuallySigned);
 
                 let name = counterpartyEname;
                 try {
@@ -480,6 +484,7 @@ async function loadSocialBindings(): Promise<void> {
                     counterpartyEname,
                     counterpartyName: name,
                     role,
+                    pending,
                     bindings: group,
                 };
             }),
