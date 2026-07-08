@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "0f9a3cb8-4a9f-4b5f-a1fa-3a4c2eb1f404",
+  "title": "ContributorCapacity",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "description": "Capacity record identifier" },
+    "personEName": { "type": "string", "description": "eName of the contributor" },
+    "weeklyW3dsHoursBudget": { "type": "number", "minimum": 0, "description": "Hours available per week" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "required": ["id", "personEName", "weeklyW3dsHoursBudget", "createdAt", "updatedAt"],
+  "additionalProperties": false
+}

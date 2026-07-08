@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "0f9a3cb8-4a9f-4b5f-a1fa-3a4c2eb1f406",
+  "title": "TaskNote",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "taskId": { "type": "string" },
+    "authorEName": { "type": "string" },
+    "content": { "type": "string" },
+    "canonicalOwnerEName": { "type": "string" },
+    "createdAt": { "type": "string", "format": "date-time" }
+  },
+  "required": ["id", "taskId", "authorEName", "content", "canonicalOwnerEName", "createdAt"],
+  "additionalProperties": false
+}

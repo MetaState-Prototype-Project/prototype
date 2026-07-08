@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "0f9a3cb8-4a9f-4b5f-a1fa-3a4c2eb1f409",
+  "title": "CompanyProjectLink",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "companyId": { "type": "string" },
+    "companyEName": { "type": "string" },
+    "projectId": { "type": "string" },
+    "projectEName": { "type": "string" },
+    "canonicalOwnerEName": { "type": "string" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "required": ["id", "companyId", "companyEName", "projectId", "projectEName", "canonicalOwnerEName", "createdAt", "updatedAt"],
+  "additionalProperties": false
+}
