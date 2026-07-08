@@ -6,7 +6,7 @@ import {
 } from "$env/static/public";
 import { AppNav, IdentityCard } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
-import { ButtonAction } from "$lib/ui";
+import { ButtonAction, CopyableEName } from "$lib/ui";
 import {
     addCounterpartySignature,
     capitalize,
@@ -891,16 +891,10 @@ onMount(async () => {
                 eVault.
             </p>
             {#if duplicateEName}
-                <div class="rounded-xl bg-gray-50 border border-gray-200 p-4">
-                    <p class="text-xs text-black-500 mb-1">
-                        Your existing eVault eName
-                    </p>
-                    <p
-                        class="font-mono text-sm font-medium text-black-900 break-all"
-                    >
-                        {duplicateEName}
-                    </p>
-                </div>
+                <CopyableEName
+                    ename={duplicateEName}
+                    label="Your existing eVault eName"
+                />
                 <p class="text-sm text-black-500">
                     Use the eName above to recover access to your existing
                     eVault instead.

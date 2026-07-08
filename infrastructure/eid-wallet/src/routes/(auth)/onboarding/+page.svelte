@@ -9,7 +9,7 @@ import {
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
 import { pendingRecovery } from "$lib/stores/pendingRecovery";
-import { ButtonAction, LoadingSheet } from "$lib/ui";
+import { ButtonAction, CopyableEName, LoadingSheet } from "$lib/ui";
 import { capitalize, getCanonicalBindingDocString } from "$lib/utils";
 import axios from "axios";
 import { GraphQLClient } from "graphql-request";
@@ -1359,14 +1359,10 @@ onMount(async () => {
                 </p>
             {/if}
             {#if duplicateExistingW3id}
-                <div class="rounded-xl bg-gray-50 border border-gray-200 p-3">
-                    <p class="text-xs text-black-500 mb-1">
-                        Existing eVault eName
-                    </p>
-                    <p class="font-mono text-sm break-all">
-                        {duplicateExistingW3id}
-                    </p>
-                </div>
+                <CopyableEName
+                    ename={duplicateExistingW3id}
+                    label="Existing eVault eName"
+                />
             {/if}
             <div class="flex flex-col gap-3 pt-2">
                 <ButtonAction class="w-full" callback={() => goto("/recover")}>
