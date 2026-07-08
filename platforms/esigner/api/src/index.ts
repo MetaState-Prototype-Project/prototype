@@ -62,8 +62,8 @@ app.use(
         credentials: true,
     }),
 );
-app.use(express.json({ limit: "20mb" }));
-app.use(express.urlencoded({ limit: "20mb", extended: true }));
+app.use(express.json({ limit: "250mb" }));
+app.use(express.urlencoded({ limit: "250mb", extended: true }));
 
 // Controllers
 const authController = new AuthController();

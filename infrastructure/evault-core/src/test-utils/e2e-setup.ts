@@ -151,7 +151,7 @@ export async function setupE2ETestServer(
     // Setup Fastify server
     const fastifyServer = fastify({
         logger: false,
-        bodyLimit: 20 * 1024 * 1024, // 20MB, match production limit
+        bodyLimit: 350 * 1024 * 1024, // 350MB, match production limit
     });
     await registerHttpRoutes(fastifyServer, evaultInstance, provisioningService, dbService);
 

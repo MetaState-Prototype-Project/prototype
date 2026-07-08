@@ -177,7 +177,11 @@ const initializeEVault = async (
 
     fastifyServer = fastify({
         logger: true,
-        bodyLimit: 20 * 1024 * 1024, // 20MB (default is 1MB; needed for createMetaEnvelope etc.)
+        // 350MB. Files are uploaded base64-encoded inside the GraphQL JSON body,
+        // which inflates the raw request ~1.37x, so the body limit must exceed the
+        // base64-encoded size of the largest allowed file (250MB binary ≈ 343MB
+        // base64 + JSON overhead). Keep in sync with MAX_FILE_BYTES in graphql-server.ts.
+        bodyLimit: 350 * 1024 * 1024,
     });
 
     // Register CORS plugin with relaxed settings
