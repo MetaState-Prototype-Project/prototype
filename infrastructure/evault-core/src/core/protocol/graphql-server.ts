@@ -1339,13 +1339,14 @@ export class GraphQLServer {
 
                         const buffer = Buffer.from(base64, "base64");
 
-                        const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50 MB
+                        const MAX_FILE_BYTES = 250 * 1024 * 1024; // 250 MB
                         if (buffer.length > MAX_FILE_BYTES) {
+                            const maxMb = Math.round(MAX_FILE_BYTES / (1024 * 1024));
                             return {
                                 errors: [
                                     {
                                         field: "content",
-                                        message: "File exceeds the 50 MB upload limit",
+                                        message: `File exceeds the ${maxMb} MB upload limit`,
                                         code: "FILE_TOO_LARGE",
                                     },
                                 ],

@@ -3,7 +3,7 @@ import { FileService, ReservedFileNameError } from "../services/FileService";
 import multer from "multer";
 import { v4 as uuidv4 } from "uuid";
 
-export const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB limit
+export const MAX_FILE_SIZE = 250 * 1024 * 1024; // 250MB limit
 
 const upload = multer({
     limits: { fileSize: MAX_FILE_SIZE },
