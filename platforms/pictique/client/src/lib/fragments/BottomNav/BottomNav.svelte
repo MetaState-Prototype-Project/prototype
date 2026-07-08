@@ -75,15 +75,21 @@
 			const selectedFiles = Array.from(images);
 			images = null; // To prevent re-triggering the effect and thus making an infinite loop with /post route's effect when the length of uploadedImages goes to 0
 			(async () => {
-				uploadedImages.value = await Promise.all(
-					selectedFiles.map(async (file) => ({
-						url: await readFileAsDataUrl(file),
-						alt: file.name,
-						size: file.size
-					}))
-				);
-				if (uploadedImages.value.length > 0) {
-					goto('/post');
+				try {
+					uploadedImages.value = await Promise.all(
+						selectedFiles.map(async (file) => ({
+							url: await readFileAsDataUrl(file),
+							alt: file.name,
+							size: file.size
+						}))
+					);
+					if (uploadedImages.value.length > 0) {
+						goto('/post');
+					}
+				} catch (error) {
+					console.error('Failed to read selected images:', error);
+					uploadedImages.value = null;
+					alert('Failed to process selected images. Please try again.');
 				}
 			})();
 		}
