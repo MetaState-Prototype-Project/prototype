@@ -24,6 +24,25 @@
 	let imageInput: HTMLInputElement;
 	let images: FileList | null = $state(null);
 
+	// blob: URLs only resolve within the browser tab/session that created
+	// them via URL.createObjectURL — they can't be persisted or viewed later
+	// (e.g. after the post is saved and reloaded from the profile page), so
+	// selected files must be read as base64 data URLs instead, matching the
+	// "Add Photo" flow inside the post composer (post/+page.svelte) and the
+	// desktop create-post modal (CreatePostModal.svelte).
+	function readFileAsDataUrl(file: File): Promise<string> {
+		return new Promise((resolve, reject) => {
+			const reader = new FileReader();
+			reader.onload = (e) => {
+				const result = e.target?.result;
+				if (typeof result === 'string') resolve(result);
+				else reject(new Error('Failed to read file as data URL'));
+			};
+			reader.onerror = () => reject(reader.error ?? new Error('Failed to read file'));
+			reader.readAsDataURL(file);
+		});
+	}
+
 	const handleNavClick = (newTab: string) => {
 		// activeTab = newTab;
 		isNavigatingThroughNav.value = true;
@@ -53,14 +72,20 @@
 			!_activeTab.includes('post/audience')
 		) {
 			if (uploadedImages.value) revokeImageUrls(uploadedImages.value);
-			uploadedImages.value = Array.from(images).map((file) => ({
-				url: URL.createObjectURL(file),
-				alt: file.name
-			}));
+			const selectedFiles = Array.from(images);
 			images = null; // To prevent re-triggering the effect and thus making an infinite loop with /post route's effect when the length of uploadedImages goes to 0
-			if (uploadedImages.value.length > 0) {
-				goto('/post');
-			}
+			(async () => {
+				uploadedImages.value = await Promise.all(
+					selectedFiles.map(async (file) => ({
+						url: await readFileAsDataUrl(file),
+						alt: file.name,
+						size: file.size
+					}))
+				);
+				if (uploadedImages.value.length > 0) {
+					goto('/post');
+				}
+			})();
 		}
 	});
 </script>
