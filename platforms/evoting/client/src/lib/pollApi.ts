@@ -1,4 +1,5 @@
 import { apiClient } from "./apiClient";
+import { isAxiosError } from "axios";
 
 export interface Poll {
   id: string;
@@ -300,6 +301,26 @@ export const pollApi = {
       delegationContext,
     });
     return response.data;
+  },
+
+  // Get a signing session's current status. Used to reconcile after the SSE stream
+  // drops (e.g. the mobile browser suspended it while the eID Wallet was foregrounded),
+  // so a completion that happened while disconnected is still picked up.
+  getSigningSession: async (
+    sessionId: string
+  ): Promise<{ status: string; voteId?: string } | null> => {
+    try {
+      const response = await apiClient.get(`/api/signing/sessions/${sessionId}`);
+      return response.data;
+    } catch (error) {
+      // A 404 means the session no longer exists (expired and cleaned up, or the
+      // API lost its in-memory sessions on restart) — nothing to reconcile, so
+      // return null. Any other error propagates to the caller.
+      if (isAxiosError(error) && error.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
   },
 
   // Delegation methods
