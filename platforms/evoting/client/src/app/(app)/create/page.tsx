@@ -676,15 +676,15 @@ export default function CreatePoll() {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                    <Link href="/" className="flex-1">
-                        <Button
-                            type="button"
-                            className="w-full bg-red-50 text-(--crimson) border-(--crimson) border hover:bg-red-100 transition-all duration-200"
-                        >
+                    <Button
+                        asChild
+                        className="flex-1 bg-red-50 text-(--crimson) border-(--crimson) border hover:bg-red-100 transition-all duration-200"
+                    >
+                        <Link href="/">
                             <X className="w-4 h-4 mr-2" />
                             Cancel
-                        </Button>
-                    </Link>
+                        </Link>
+                    </Button>
                     <Button
                         type="submit"
                         className="flex-1 bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white"
