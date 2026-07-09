@@ -93,6 +93,19 @@ onMount(async () => {
             return;
         }
 
+        // A third-party login deep link opened the app. The root layout has
+        // already stored it and redirected to /login, which runs its own
+        // biometric prompt. If we ALSO prompt here, two native authenticate()
+        // calls race on a cold start — the collision, plus a duplicate
+        // post-auth routine consuming the pending deep link, leaves the user
+        // on /main with the consent screen never shown. Defer to /login as the
+        // single authenticator. The layout writes pendingDeepLink synchronously
+        // and early, so it's reliably visible by the time we reach here.
+        if (sessionStorage.getItem("pendingDeepLink")) {
+            await goto("/login");
+            return;
+        }
+
         // Fire biometric over the splash itself so the prompt isn't competing
         // with the /login slide-in. On success we run the post-auth chores
         // and route straight to /main (no /login flash). On cancel/fail we
