@@ -189,6 +189,12 @@ async function decline() {
                     : `@${vault.ename}`;
                 const gqlUrl = new URL("/graphql", vault.uri).toString();
                 await deleteSocialBindingDoc(gqlUrl, callerEname, docId);
+
+                // The declined request was counted as a (pending) binding on
+                // the home screen; now that it's gone, tell the parent to
+                // re-fetch so the count drops immediately (e.g. 10 → 9)
+                // instead of staying stale until the next manual refresh.
+                onbound?.();
             }
         } catch (err) {
             console.error(
