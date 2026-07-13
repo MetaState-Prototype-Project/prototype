@@ -52,6 +52,11 @@
     "createdBy": { "type": "string", "description": "Reporter eName" },
     "assignees": { "type": "array", "items": { "type": "string" } },
     "status": { "type": "string", "enum": ["planned", "in_progress", "done"] },
+    "intakeStatus": {
+      "type": "string",
+      "enum": ["draft", "ready"],
+      "description": "Cross-application intake state. Missing values are treated as legacy ready tasks unless required task fields are incomplete."
+    },
     "priority": { "type": "integer", "enum": [0, 1, 2, 3] },
     "progressPercent": { "type": "number", "minimum": 0, "maximum": 100 },
     "estimatedHours": { "type": ["number", "null"], "minimum": 0 },
@@ -73,7 +78,6 @@
   "required": [
     "id",
     "canonicalOwnerEName",
-    "homeProjectId",
     "relatedProjectIds",
     "relatedCompanyIds",
     "title",

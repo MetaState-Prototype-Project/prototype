@@ -7,7 +7,13 @@
     "isReference": { "const": true },
     "canonicalTaskId": { "type": "string", "description": "Logical ID of the canonical task" },
     "canonicalOwnerEName": { "type": "string", "description": "eName of the eVault holding the canonical task" },
-    "canonicalEnvelopeId": { "type": "string", "description": "MetaEnvelope ID of the canonical task" }
+    "canonicalEnvelopeId": { "type": "string", "description": "MetaEnvelope ID of the current canonical task" },
+    "referenceType": {
+      "type": "string",
+      "enum": ["canonical-relocation"],
+      "description": "Present when a former canonical Task envelope redirects to a relocated canonical envelope"
+    },
+    "relocatedAt": { "type": "string", "format": "date-time" }
   },
   "required": ["isReference", "canonicalTaskId", "canonicalOwnerEName"],
   "additionalProperties": false
