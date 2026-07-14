@@ -580,29 +580,32 @@ export class VaultController {
         }
     }
 
+    #vaultReadInFlight: Promise<Record<string, string> | undefined> | null =
+        null;
+
     get vault() {
-        return this.#readVaultResilient();
+        // Coalesce concurrent reads so the resume window doesn't spin one
+        // retry loop per caller; cleared on settle so later reads are fresh.
+        if (this.#vaultReadInFlight) return this.#vaultReadInFlight;
+        const read = this.#readVaultResilient().finally(() => {
+            this.#vaultReadInFlight = null;
+        });
+        this.#vaultReadInFlight = read;
+        return read;
     }
 
     /**
-     * Read the persisted vault, distinguishing "no vault" (genuinely logged out
-     * → resolves `undefined` with no throw) from a transient store IPC failure.
+     * Read the persisted vault, distinguishing "no vault" (resolved `undefined`
+     * → genuine logout) from a transient store IPC failure (a throw).
      *
-     * On iOS the `ipc://localhost` custom protocol is briefly torn down right
-     * after the app resumes from background (the WebView logs "IPC custom
-     * protocol failed, Tauri will now use the postMessage interface instead" and
-     * "Fetch API cannot load ipc://localhost/plugin:store|get due to access
-     * control checks"). During that window every `invoke` — including
-     * `plugin:store|get` — throws. The old getter swallowed that throw into
-     * `undefined`, which is indistinguishable from "never logged in", so route
-     * guards (deep-link handler, scan-qr, the app guard) redirected the user to
-     * /login: the intermittent unexpected sign-out.
+     * On iOS the `ipc://localhost` protocol is briefly torn down after the app
+     * resumes from background, so `plugin:store|get` throws. The old getter
+     * swallowed that into `undefined` — indistinguishable from "never logged
+     * in" — so route guards redirected to /login: the intermittent sign-out.
      *
-     * We retry the read on THROW so the resume window passes before we ever
-     * report "no vault". A genuine logout is a resolved-`undefined`, not a
-     * throw, so it returns immediately with no retry penalty. The getter still
-     * never throws and still returns `Record | undefined` — callers are
-     * unchanged.
+     * We retry on THROW so the resume window passes before reporting "no vault".
+     * A genuine logout resolves `undefined` (no throw) and returns immediately.
+     * Still never throws, still returns `Record | undefined` — callers unchanged.
      */
     async #readVaultResilient(): Promise<Record<string, string> | undefined> {
         const maxAttempts = 10;
