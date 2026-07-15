@@ -284,11 +284,13 @@ const ADD_SIGNATURE_MUTATION = `
     }
 `;
 
+// deleteMetaEnvelope returns Boolean! (a scalar) — selecting a subfield on it
+// is a GraphQL validation error, which made every delete throw and silently
+// no-op (e.g. a declined request never got removed and re-surfaced on the next
+// poll). Request the scalar directly, with no selection set.
 const DELETE_META_ENVELOPE_MUTATION = `
     mutation DeleteMetaEnvelope($id: String!) {
-        deleteMetaEnvelope(id: $id) {
-            id
-        }
+        deleteMetaEnvelope(id: $id)
     }
 `;
 
