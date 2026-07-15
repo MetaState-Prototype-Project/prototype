@@ -1,3 +1,11 @@
+<script module lang="ts">
+// Survives navigation, like the home screen's caches: returning to this page
+// paints the last known list immediately instead of showing a full-screen
+// spinner while every contact is re-resolved from scratch.
+let cachedContacts: SocialBindingDisplay[] = [];
+let hasEverLoaded = false;
+</script>
+
 <script lang="ts">
 import { AppNav } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
@@ -16,8 +24,8 @@ import SocialBindingDetailsSheet from "../main/components/SocialBindingDetailsSh
 const getGlobalState = getContext<() => GlobalState | undefined>("globalState");
 
 let globalState: GlobalState | undefined = $state(undefined);
-let contacts = $state<SocialBindingDisplay[]>([]);
-let loaded = $state(false);
+let contacts = $state<SocialBindingDisplay[]>(cachedContacts);
+let loaded = $state(hasEverLoaded);
 
 let detailsContact = $state<SocialBindingDisplay | null>(null);
 let detailsOpen = $state(false);
@@ -84,10 +92,16 @@ async function init() {
                     let name = counterpartyEname;
                     try {
                         const uri = await resolveVaultUri(counterpartyEname);
+                        // nameOnly: fetch just the two doc types that carry a
+                        // display name. Without it this drags every doc out of
+                        // the counterparty's vault — photo blobs included — to
+                        // render a single line of text.
                         name = await fetchNameFromVault(
                             uri,
                             counterpartyEname,
                             counterpartyEname,
+                            false,
+                            { nameOnly: true },
                         );
                     } catch {
                         // fallback to eName
@@ -103,6 +117,8 @@ async function init() {
             ),
         );
         contacts = rows;
+        cachedContacts = rows;
+        hasEverLoaded = true;
     } catch (err) {
         console.warn("[social-bindings] failed to load:", err);
     } finally {
