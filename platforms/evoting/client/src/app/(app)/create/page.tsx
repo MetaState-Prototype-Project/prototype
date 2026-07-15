@@ -658,11 +658,11 @@ export default function CreatePoll() {
                             </div>
                         ))}
                     </div>
-                    <div className="flex justify-end mt-3">
+                    <div className="mt-3">
                         <Button
                             type="button"
                             onClick={addOption}
-                            className="bg-red-50 text-(--crimson) border-(--crimson) border hover:bg-red-100 transition-all duration-200"
+                            className="w-full bg-red-50 text-(--crimson) border-(--crimson) border hover:bg-red-100 transition-all duration-200"
                         >
                             <Plus className="w-4 h-4 mr-1" />
                             Add Option
@@ -676,15 +676,15 @@ export default function CreatePoll() {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                    <Link href="/">
-                        <Button
-                            type="button"
-                            className="flex-1 bg-red-50 text-(--crimson) border-(--crimson) border hover:bg-red-100 transition-all duration-200"
-                        >
+                    <Button
+                        asChild
+                        className="flex-1 bg-red-50 text-(--crimson) border-(--crimson) border hover:bg-red-100 transition-all duration-200"
+                    >
+                        <Link href="/">
                             <X className="w-4 h-4 mr-2" />
                             Cancel
-                        </Button>
-                    </Link>
+                        </Link>
+                    </Button>
                     <Button
                         type="submit"
                         className="flex-1 bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white"
