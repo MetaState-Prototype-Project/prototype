@@ -11,6 +11,7 @@ let hasMountedBefore = false;
 // instead of flashing the white loading splash. The component still kicks
 // off a fresh fetch on mount; the loaders write back into both the
 // component state and these slots so the next visit is also instant.
+import { registerPageCacheReset } from "../cache";
 import type { LegalIdDoc } from "./components/LegalIdAccordion.svelte";
 import type { SocialBindingDisplay } from "./components/SocialBindingAccordion.svelte";
 
@@ -23,6 +24,24 @@ let cachedSelfDocId: string | undefined;
 let cachedSocialBindingCount = 0;
 let cachedSocialBindingPreview: SocialBindingDisplay[] = [];
 let hasEverLoaded = false;
+
+// All of the above is one user's identity, and none of it survives a logout:
+// that's a client-side nav, which never re-evaluates this module, so the next
+// user to onboard on this device would be shown the previous user's name,
+// legal ID and contacts until the first fetch lands. `hasMountedBefore` goes
+// with them — a fresh session should play the entrance animation again.
+registerPageCacheReset(() => {
+    cachedUserData = undefined;
+    cachedEname = undefined;
+    cachedIsFake = undefined;
+    cachedLegalId = null;
+    cachedDisplayName = undefined;
+    cachedSelfDocId = undefined;
+    cachedSocialBindingCount = 0;
+    cachedSocialBindingPreview = [];
+    hasEverLoaded = false;
+    hasMountedBefore = false;
+});
 </script>
 
 <script lang="ts">

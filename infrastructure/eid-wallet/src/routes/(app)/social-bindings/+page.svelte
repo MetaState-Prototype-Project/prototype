@@ -1,9 +1,18 @@
 <script module lang="ts">
+import { registerPageCacheReset } from "../cache";
+
 // Survives navigation, like the home screen's caches: returning to this page
 // paints the last known list immediately instead of showing a full-screen
 // spinner while every contact is re-resolved from scratch.
 let cachedContacts: SocialBindingDisplay[] = [];
 let hasEverLoaded = false;
+
+// It survives logout too — that's a client-side nav — so drop it there, or the
+// next user onboarding on this device gets a first paint of these contacts.
+registerPageCacheReset(() => {
+    cachedContacts = [];
+    hasEverLoaded = false;
+});
 </script>
 
 <script lang="ts">
