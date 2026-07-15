@@ -27,7 +27,6 @@ let hasEverLoaded = false;
 
 <script lang="ts">
 import { goto } from "$app/navigation";
-import { PUBLIC_EID_WALLET_TOKEN } from "$env/static/public";
 import type { GlobalState } from "$lib/global";
 import {
     getUnreadCount,
@@ -42,6 +41,7 @@ import {
     fetchNameFromVault,
     fetchReconciledSocialBindings,
     resolveVaultUri,
+    vaultGqlRequest,
 } from "$lib/utils";
 import { getCanonicalBindingDocString } from "$lib/utils/bindingDocHash";
 import { replaceAll as replaceAllPersonal } from "$lib/stores/personalBinding";
@@ -218,6 +218,12 @@ async function handleKycUpgraded() {
 // LegalIdDoc shape the accordion expects. The doc's `data` may carry fields
 // directly or only a Didit `reference` — we fall back to userController.user
 // (populated by the KYC upgrade) when the binding doc is sparse.
+const TYPED_BINDING_DOCS_QUERY = `query($type: BindingDocumentType!) {
+    bindingDocuments(type: $type, first: 50) {
+        edges { node { id parsed } }
+    }
+}`;
+
 async function loadBindingDocuments(): Promise<void> {
     if (!globalState) return;
     const vault = await globalState.vaultController.vault;
@@ -228,40 +234,37 @@ async function loadBindingDocuments(): Promise<void> {
         : `@${vault.ename}`;
     const gqlUrl = new URL("/graphql", vault.uri).toString();
 
-    const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-        "X-ENAME": enameHeader,
-        ...(PUBLIC_EID_WALLET_TOKEN
-            ? { Authorization: `Bearer ${PUBLIC_EID_WALLET_TOKEN}` }
-            : {}),
+    // vaultGqlRequest rather than a hand-rolled fetch: it throws on both a
+    // non-2xx and a GraphQL-level error (which arrives as HTTP 200 +
+    // {errors, data:null}). The previous inline version checked neither and
+    // fell back to `[]`, which is indistinguishable from "no documents" —
+    // `legalId` was then nulled out and the card silently reverted to its ADD
+    // state. Throwing hands control to the catch below, which leaves the last
+    // good values in place.
+    type TypedDocsResult = {
+        bindingDocuments: {
+            edges: { node: { id: string; parsed: ParsedBindingDoc | null } }[];
+        };
     };
-    const typedQuery = (type: string) =>
-        JSON.stringify({
-            query: `query($type: BindingDocumentType!) {
-                bindingDocuments(type: $type, first: 50) {
-                    edges { node { id parsed } }
-                }
-            }`,
-            variables: { type },
-        });
 
     try {
-        const [idDocRes, selfRes] = await Promise.all([
-            fetch(gqlUrl, { method: "POST", headers, body: typedQuery("id_document") }),
-            fetch(gqlUrl, { method: "POST", headers, body: typedQuery("self") }),
+        const [idDocData, selfData] = await Promise.all([
+            vaultGqlRequest<TypedDocsResult>(
+                gqlUrl,
+                enameHeader,
+                TYPED_BINDING_DOCS_QUERY,
+                { type: "id_document" },
+            ),
+            vaultGqlRequest<TypedDocsResult>(
+                gqlUrl,
+                enameHeader,
+                TYPED_BINDING_DOCS_QUERY,
+                { type: "self" },
+            ),
         ]);
 
-        const parseEdges = async (res: Response) => {
-            const json = await res.json();
-            return (json?.data?.bindingDocuments?.edges ?? []) as {
-                node: { id: string; parsed: ParsedBindingDoc | null };
-            }[];
-        };
-
-        const [idDocEdges, selfEdges] = await Promise.all([
-            parseEdges(idDocRes),
-            parseEdges(selfRes),
-        ]);
+        const idDocEdges = idDocData.bindingDocuments?.edges ?? [];
+        const selfEdges = selfData.bindingDocuments?.edges ?? [];
 
         const idDocEntry = idDocEdges.find((e) => e.node.parsed?.type === "id_document");
         legalId = idDocEntry?.node.parsed ? toLegalIdDoc(idDocEntry.node.parsed) : null;
