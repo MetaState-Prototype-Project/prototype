@@ -343,6 +343,9 @@ export class GraphQLServer {
                         },
                         context: VaultContext,
                     ) => {
+                        console.log(
+                            `[write] createMetaEnvelope ename=${context.eName ?? "<none>"} ontology=${input?.ontology} platform=${context.tokenPayload?.platform ?? "<none>"}`,
+                        );
                         if (!context.eName) {
                             return {
                                 metaEnvelope: null,
@@ -479,6 +482,9 @@ export class GraphQLServer {
                         },
                         context: VaultContext,
                     ) => {
+                        console.log(
+                            `[write] updateMetaEnvelope id=${id} ename=${context.eName ?? "<none>"} ontology=${input?.ontology} platform=${context.tokenPayload?.platform ?? "<none>"}`,
+                        );
                         if (!context.eName) {
                             return {
                                 metaEnvelope: null,
@@ -597,6 +603,9 @@ export class GraphQLServer {
                         { id }: { id: string },
                         context: VaultContext,
                     ) => {
+                        console.log(
+                            `[write] removeMetaEnvelope id=${id} ename=${context.eName ?? "<none>"} platform=${context.tokenPayload?.platform ?? "<none>"}`,
+                        );
                         if (!context.eName) {
                             return {
                                 deletedId: id,
@@ -697,6 +706,9 @@ export class GraphQLServer {
                         },
                         context: VaultContext,
                     ) => {
+                        console.log(
+                            `[write] bulkCreateMetaEnvelopes count=${inputs?.length} skipWebhooks=${!!skipWebhooks} ename=${context.eName ?? "<none>"} platform=${context.tokenPayload?.platform ?? "<none>"}`,
+                        );
                         if (!context.eName) {
                             return {
                                 results: [],
@@ -1188,6 +1200,9 @@ export class GraphQLServer {
                         },
                         context: VaultContext,
                     ) => {
+                        console.log(
+                            `[write] storeMetaEnvelope ename=${context.eName ?? "<none>"} ontology=${input?.ontology} platform=${context.tokenPayload?.platform ?? "<none>"}`,
+                        );
                         if (!context.eName) {
                             throw new Error("X-ENAME header is required");
                         }
@@ -1444,6 +1459,9 @@ export class GraphQLServer {
                         },
                         context: VaultContext,
                     ) => {
+                        console.log(
+                            `[write] updateMetaEnvelopeById id=${id} ename=${context.eName ?? "<none>"} ontology=${input?.ontology} platform=${context.tokenPayload?.platform ?? "<none>"}`,
+                        );
                         if (!context.eName) {
                             throw new Error("X-ENAME header is required");
                         }
@@ -1519,6 +1537,9 @@ export class GraphQLServer {
                         { id }: { id: string },
                         context: VaultContext,
                     ) => {
+                        console.log(
+                            `[write] deleteMetaEnvelope id=${id} ename=${context.eName ?? "<none>"} platform=${context.tokenPayload?.platform ?? "<none>"}`,
+                        );
                         if (!context.eName) {
                             throw new Error("X-ENAME header is required");
                         }
@@ -1558,6 +1579,9 @@ export class GraphQLServer {
                         }: { envelopeId: string; newValue: any },
                         context: VaultContext,
                     ) => {
+                        console.log(
+                            `[write] updateEnvelopeValue envelopeId=${envelopeId} ename=${context.eName ?? "<none>"} platform=${context.tokenPayload?.platform ?? "<none>"} (NOTE: this path does NOT forward to AaaS)`,
+                        );
                         if (!context.eName) {
                             throw new Error("X-ENAME header is required");
                         }
