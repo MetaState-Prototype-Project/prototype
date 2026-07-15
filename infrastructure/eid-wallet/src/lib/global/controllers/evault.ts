@@ -580,19 +580,58 @@ export class VaultController {
         }
     }
 
+    #vaultReadInFlight: Promise<Record<string, string> | undefined> | null =
+        null;
+
     get vault() {
-        return this.#store
-            .get<Record<string, string>>("vault")
-            .then((vault) => {
-                if (!vault) {
+        // Coalesce concurrent reads so the resume window doesn't spin one
+        // retry loop per caller; cleared on settle so later reads are fresh.
+        if (this.#vaultReadInFlight) return this.#vaultReadInFlight;
+        const read = this.#readVaultResilient().finally(() => {
+            this.#vaultReadInFlight = null;
+        });
+        this.#vaultReadInFlight = read;
+        return read;
+    }
+
+    /**
+     * Read the persisted vault, distinguishing "no vault" (resolved `undefined`
+     * → genuine logout) from a transient store IPC failure (a throw).
+     *
+     * On iOS the `ipc://localhost` protocol is briefly torn down after the app
+     * resumes from background, so `plugin:store|get` throws. The old getter
+     * swallowed that into `undefined` — indistinguishable from "never logged
+     * in" — so route guards redirected to /login: the intermittent sign-out.
+     *
+     * We retry on THROW so the resume window passes before reporting "no vault".
+     * A genuine logout resolves `undefined` (no throw) and returns immediately.
+     * Still never throws, still returns `Record | undefined` — callers unchanged.
+     */
+    async #readVaultResilient(): Promise<Record<string, string> | undefined> {
+        const maxAttempts = 10;
+        const retryDelayMs = 200; // ~2s total budget covers the IPC-dead window
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                const vault =
+                    await this.#store.get<Record<string, string>>("vault");
+                return vault ?? undefined;
+            } catch (error) {
+                if (attempt === maxAttempts) {
+                    console.error(
+                        "Failed to get vault after retries (store IPC unavailable):",
+                        error,
+                    );
                     return undefined;
                 }
-                return vault;
-            })
-            .catch((error) => {
-                console.error("Failed to get vault:", error);
-                return undefined;
-            });
+                console.warn(
+                    `[VaultController] vault read failed (attempt ${attempt}/${maxAttempts}), store IPC likely re-initializing after resume — retrying...`,
+                );
+                await new Promise((resolve) =>
+                    setTimeout(resolve, retryDelayMs),
+                );
+            }
+        }
+        return undefined;
     }
 
     // Getters for internal properties
