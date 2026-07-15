@@ -259,6 +259,13 @@ const initializeEVault = async (
     console.log(
         `API Documentation available at http://0.0.0.0:${fastifyPort}/docs`,
     );
+    // Startup marker to verify THIS build (with AaaS forwarding) is the one
+    // actually running, and that the ingest URL was injected from .env.
+    console.log(
+        process.env.AWARENESS_SERVICE_URL
+            ? `[aaas] Awareness connected -> ingesting to ${process.env.AWARENESS_SERVICE_URL}`
+            : `[aaas] Awareness NOT connected -> AWARENESS_SERVICE_URL is unset (webhooks will be skipped)`,
+    );
 };
 
 // Provisioner JWKs — must be on Express (provisioner URL port) for signer URL resolution
