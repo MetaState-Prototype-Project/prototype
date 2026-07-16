@@ -61,13 +61,26 @@ async function page(
   for (const [k, v] of Object.entries(params)) query.set(k, String(v));
   if (cursor) query.set("cursor", cursor);
 
-  const res = await fetch(`${base}/api/packets?${query.toString()}`, {
+  const url = `${base}/api/packets?${query.toString()}`;
+  console.log(`[awareness] GET ${url}`);
+  const res = await fetch(url, {
     headers: { Authorization: `Bearer ${AWARENESS_API_KEY}` },
   });
+  const body = await res.text();
   if (!res.ok) {
+    console.error(
+      `[awareness] ${res.status} ${res.statusText} from /api/packets: ${body.slice(0, 500)}`,
+    );
     throw new Error(`AaaS /api/packets returned ${res.status}`);
   }
-  return (await res.json()) as PacketsResponse;
+  try {
+    return JSON.parse(body) as PacketsResponse;
+  } catch (err) {
+    console.error(
+      `[awareness] failed to parse /api/packets response (first 500 chars): ${body.slice(0, 500)}`,
+    );
+    throw err;
+  }
 }
 
 /** Every packet matching the filters, paged to exhaustion (newest last). */
@@ -88,24 +101,41 @@ async function all(params: Record<string, string | number>): Promise<Packet[]> {
  * local dev without AaaS still works.
  */
 export async function listPlatforms(): Promise<MarketplacePlatform[]> {
-  if (!AWARENESS_API_KEY) return [];
+  if (!AWARENESS_API_KEY) {
+    console.warn(
+      "[awareness] AWARENESS_API_KEY is not set — returning no live platforms",
+    );
+    return [];
+  }
+  console.log(
+    `[awareness] listPlatforms: base=${base} ontology=${USER_ONTOLOGY}`,
+  );
 
   const packets = await all({ ontology: USER_ONTOLOGY });
+  console.log(`[awareness] fetched ${packets.length} packet(s) total`);
 
   // Packets are ordered oldest→newest, so a plain Map keeps the last write.
   const byEname = new Map<string, MarketplacePlatform>();
+  let profileCount = 0;
+  let skippedNoPlatformName = 0;
+  let skippedArchived = 0;
   for (const p of packets) {
     const data = p.data;
     // Isolate platform profiles from ordinary user profiles sharing the
     // ontology; skip archived/inactive platforms.
     if (!data || typeof data.platformName !== "string" || !data.platformName) {
+      skippedNoPlatformName++;
       continue;
     }
-    if (data.isArchived === true || data.isActive === false) continue;
+    if (data.isArchived === true || data.isActive === false) {
+      skippedArchived++;
+      continue;
+    }
 
     const ename = (p.w3id ?? (data.ename as string | undefined)) || "";
     if (!ename) continue;
 
+    profileCount++;
     byEname.set(ename, {
       id: data.platformName,
       name: data.displayName || data.platformName,
@@ -117,5 +147,13 @@ export async function listPlatforms(): Promise<MarketplacePlatform[]> {
     });
   }
 
-  return Array.from(byEname.values());
+  const platforms = Array.from(byEname.values());
+  console.log(
+    `[awareness] platform profiles=${profileCount} (deduped=${platforms.length}), ` +
+      `skipped: non-platform=${skippedNoPlatformName}, archived/inactive=${skippedArchived}`,
+  );
+  console.log(
+    `[awareness] platforms: ${platforms.map((p) => p.id).join(", ") || "(none)"}`,
+  );
+  return platforms;
 }
