@@ -246,6 +246,43 @@ export const openApiDocument = {
                 },
             },
         },
+        "/api/packets/{id}": {
+            get: {
+                tags: ["Query"],
+                summary: "Get a single awareness packet (MetaEnvelope) by ID",
+                description: "Fetch one awareness packet by its MetaEnvelope id.",
+                security: [{ consumerAuth: [] }],
+                parameters: [
+                    {
+                        name: "id",
+                        in: "path",
+                        required: true,
+                        schema: { type: "string" },
+                        description: "MetaEnvelope id",
+                    },
+                ],
+                responses: {
+                    "200": {
+                        description: "The requested packet",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        packet: {
+                                            $ref: "#/components/schemas/Packet",
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "401": { $ref: "#/components/responses/Unauthorized" },
+                    "403": { $ref: "#/components/responses/Forbidden" },
+                    "404": { $ref: "#/components/responses/NotFound" },
+                },
+            },
+        },
         "/api/subscriptions": {
             get: {
                 tags: ["Subscriptions"],
