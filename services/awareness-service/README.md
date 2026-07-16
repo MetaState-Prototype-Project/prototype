@@ -15,7 +15,8 @@ subscription matching and retrying webhook delivery.
 1. **Ingest** — `POST /ingest` receives every awareness packet from evault-core
    (shared-secret auth) and persists it.
 2. **Poll** — `GET /api/packets` lets approved consumers query packet history by
-   ontology, eVault and time range, with cursor pagination.
+   ontology, eVault and time range, with cursor pagination. A single packet can
+   also be fetched directly by its MetaEnvelope id with `GET /api/packets/:id`.
 3. **Subscribe** — `/api/subscriptions` registers webhook subscriptions filtered
    by ontology and eVault. Delivered payloads match the legacy evault-core
    webhook format exactly.

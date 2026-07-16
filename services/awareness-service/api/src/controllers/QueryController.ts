@@ -111,5 +111,15 @@ export function queryRouter(): Router {
         });
     });
 
+    // GET /api/packets/:id - fetch a single awareness packet (MetaEnvelope) by
+    // its id. Not consumer-scoped, mirroring the polling endpoint above.
+    router.get("/api/packets/:id", consumerAuth, async (req, res) => {
+        const packet = await AppDataSource.getRepository(Packet).findOne({
+            where: { id: req.params.id },
+        });
+        if (!packet) return res.status(404).json({ error: "not found" });
+        return res.json({ packet });
+    });
+
     return router;
 }
