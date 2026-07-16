@@ -36,6 +36,9 @@ interface PlatformProfile {
     createdAt: string;
     updatedAt: string;
     isArchived: boolean;
+    url: string;
+    logoUrl: string;
+    category: string;
 }
 
 export class PlatformEVaultService {
@@ -132,6 +135,9 @@ export class PlatformEVaultService {
                 description:
                     "eSigner - Digital signature and document signing platform",
                 version: "1.0.0",
+                url: "https://esigner.w3ds.metastate.foundation",
+                logoUrl: "",
+                category: "Productivity",
             };
 
             await mappingRepository.save(mapping);
@@ -205,6 +211,9 @@ export class PlatformEVaultService {
             createdAt: now,
             updatedAt: now,
             isArchived: false,
+            url: "https://esigner.w3ds.metastate.foundation",
+            logoUrl: "",
+            category: "Productivity",
         };
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {

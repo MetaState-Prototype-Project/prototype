@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,14 +8,42 @@ import { Search, Store, ArrowRight } from "lucide-react";
 import w3dsLogo from "@assets/w3dslogo.svg";
 import appsData from "@/data/apps.json";
 
+type App = {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  logoUrl?: string | null;
+  url?: string;
+  appStoreUrl?: string;
+  playStoreUrl?: string;
+};
+
+const BASE_CATEGORIES = ["Identity", "Social", "Governance", "Wellness", "Finance", "Storage", "Productivity"];
+
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Apps");
 
-  const apps = appsData;
-  const isLoadingApps = false;
+  // Live platforms published to awareness; merged with the curated static list.
+  const { data: platformsData, isLoading: isLoadingApps } = useQuery<{ platforms: App[] }>({
+    queryKey: ["/api/platforms"],
+  });
 
-  const categories = ["All Apps", "Identity", "Social", "Governance", "Wellness", "Finance", "Storage", "Productivity"];
+  const staticApps = appsData as App[];
+  const staticIds = new Set(staticApps.map((a) => a.id.toLowerCase()));
+  const staticNames = new Set(staticApps.map((a) => a.name.toLowerCase()));
+
+  // Static entries win on collision (they carry richer logos/URLs/descriptions).
+  const dynamicApps = (platformsData?.platforms ?? []).filter(
+    (p) => !staticIds.has(p.id.toLowerCase()) && !staticNames.has(p.name.toLowerCase()),
+  );
+  const apps: App[] = [...staticApps, ...dynamicApps];
+
+  const categories = [
+    "All Apps",
+    ...Array.from(new Set([...BASE_CATEGORIES, ...apps.map((a) => a.category)])),
+  ];
 
   const filteredApps = apps.filter(app => {
     const matchesSearch = app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -95,7 +124,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {isLoadingApps ? (
+          {isLoadingApps && apps.length === 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {[...Array(6)].map((_, i) => (
                 <div key={i} className="bg-white rounded-3xl p-8 border border-gray-100 animate-pulse">

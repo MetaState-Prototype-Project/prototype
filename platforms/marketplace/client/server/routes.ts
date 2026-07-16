@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { listPlatforms } from "./aaas";
 
 const EREPUTATION_API_URL = process.env.EREPUTATION_API_URL || "http://localhost:8765";
 
@@ -7,6 +8,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Simple health check endpoint
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", message: "Marketplace server is running" });
+  });
+
+  // Live platform listings pulled from Awareness-as-a-Service. Degrades to an
+  // empty list if AaaS is unavailable or unconfigured, so the static catalog
+  // still renders.
+  app.get("/api/platforms", async (_req, res) => {
+    try {
+      const platforms = await listPlatforms();
+      res.json({ platforms, count: platforms.length });
+    } catch (error: any) {
+      console.error("Error fetching platforms from awareness:", error);
+      res.json({ platforms: [], count: 0, error: error.message });
+    }
   });
 
   // Get platform references from eReputation API

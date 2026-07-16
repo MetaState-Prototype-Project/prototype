@@ -36,6 +36,9 @@ interface PlatformProfile {
     createdAt: string;
     updatedAt: string;
     isArchived: boolean;
+    url: string;
+    logoUrl: string;
+    category: string;
 }
 
 export class PlatformEVaultService {
@@ -132,6 +135,9 @@ export class PlatformEVaultService {
                 description:
                     "DreamSync - AI-powered wishlist matching and collaboration platform",
                 version: "1.0.0",
+                url: "https://dreamsync.w3ds.metastate.foundation",
+                logoUrl: "",
+                category: "Wellness",
             };
 
             await mappingRepository.save(mapping);
@@ -205,6 +211,9 @@ export class PlatformEVaultService {
             createdAt: now,
             updatedAt: now,
             isArchived: false,
+            url: "https://dreamsync.w3ds.metastate.foundation",
+            logoUrl: "",
+            category: "Wellness",
         };
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {

@@ -57,7 +57,14 @@ export default function AppDetailPage() {
   const [, params] = useRoute("/app/:id");
   const appId = params?.id;
 
-  const app = appsData.find(a => a.id === appId);
+  // Live platforms from awareness, used to resolve apps not in the static list.
+  const { data: platformsData, isLoading: platformsLoading } = useQuery<{ platforms: any[] }>({
+    queryKey: ["/api/platforms"],
+  });
+
+  const staticApp = appsData.find(a => a.id === appId);
+  const dynamicApp = platformsData?.platforms?.find((p: any) => p.id === appId);
+  const app: any = staticApp ?? dynamicApp;
   const details = appId ? appDetails[appId] : null;
 
   // Fetch platform references from eReputation
@@ -68,6 +75,14 @@ export default function AppDetailPage() {
 
   const references = (referencesData as any)?.references || [];
 
+
+  if (!app && platformsLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <p className="text-gray-600 font-medium">Loading…</p>
+      </div>
+    );
+  }
 
   if (!app) {
     return (
