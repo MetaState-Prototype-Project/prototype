@@ -36,6 +36,9 @@ interface PlatformProfile {
     createdAt: string;
     updatedAt: string;
     isArchived: boolean;
+    url: string;
+    logoUrl: string;
+    category: string;
 }
 
 export class PlatformEVaultService {
@@ -132,6 +135,9 @@ export class PlatformEVaultService {
                 description:
                     "File Manager - Cloud storage and file management platform",
                 version: "1.0.0",
+                url: "https://file-manager.w3ds.metastate.foundation",
+                logoUrl: "",
+                category: "Storage",
             };
 
             await mappingRepository.save(mapping);
@@ -205,6 +211,9 @@ export class PlatformEVaultService {
             createdAt: now,
             updatedAt: now,
             isArchived: false,
+            url: "https://file-manager.w3ds.metastate.foundation",
+            logoUrl: "",
+            category: "Storage",
         };
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
