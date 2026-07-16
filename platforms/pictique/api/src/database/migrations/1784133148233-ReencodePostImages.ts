@@ -18,63 +18,100 @@ import { MigrationInterface, QueryRunner } from "typeorm";
  */
 export class ReencodePostImages1784133148233 implements MigrationInterface {
 
+    // Number of rows loaded per keyset-paginated batch. Kept modest because
+    // each image payload can be a multi-MB base64 data URL.
+    private static readonly BATCH_SIZE = 200;
+
     public async up(queryRunner: QueryRunner): Promise<void> {
-        const rows: Array<{ id: string; images: string | null }> =
-            await queryRunner.query(
-                `SELECT "id", "images" FROM "posts" WHERE "images" IS NOT NULL`,
+        const batchSize = ReencodePostImages1784133148233.BATCH_SIZE;
+        // Keyset cursor: the all-zero UUID is the lower bound, so `id > cursor`
+        // starts from the first row. Paging by id (never by the mutated
+        // `images` column) means re-encoded rows can't reappear in a later
+        // batch, so the walk always terminates.
+        let cursor = "00000000-0000-0000-0000-000000000000";
+        let batch: Array<{ id: string; images: string | null }>;
+
+        do {
+            batch = await queryRunner.query(
+                `SELECT "id", "images" FROM "posts"
+                 WHERE "images" IS NOT NULL AND "id" > $1
+                 ORDER BY "id" ASC
+                 LIMIT $2`,
+                [cursor, batchSize],
             );
+            if (batch.length === 0) break;
+            cursor = batch[batch.length - 1].id;
 
-        for (const row of rows) {
-            const raw = row.images;
-            if (typeof raw !== "string") continue;
+            const updates: Array<{ id: string; images: string }> = [];
+            for (const row of batch) {
+                if (typeof row.images !== "string") continue;
+                const reencoded = this.reencode(row.images);
+                // `undefined` = already valid JSON, no write needed.
+                if (reencoded !== undefined) {
+                    updates.push({ id: row.id, images: reencoded });
+                }
+            }
 
-            // Empty string is how simple-array encoded an empty array. Left as
-            // "", simple-json would choke on JSON.parse("") — convert to "[]".
-            if (raw === "") {
+            if (updates.length > 0) {
+                // Single bulk UPDATE per batch via a VALUES join, instead of
+                // one round-trip per row.
+                const valuesSql = updates
+                    .map((_, i) => `($${i * 2 + 1}::uuid, $${i * 2 + 2}::text)`)
+                    .join(", ");
+                const params = updates.flatMap((u) => [u.id, u.images]);
                 await queryRunner.query(
-                    `UPDATE "posts" SET "images" = $1 WHERE "id" = $2`,
-                    ["[]", row.id],
+                    `UPDATE "posts" AS p
+                     SET "images" = v.images
+                     FROM (VALUES ${valuesSql}) AS v(id, images)
+                     WHERE p."id" = v.id`,
+                    params,
                 );
-                continue;
             }
+        } while (batch.length === batchSize);
+    }
 
-            // Already migrated (valid JSON array) — leave as-is.
-            if (raw.trimStart().startsWith("[")) {
-                try {
-                    JSON.parse(raw);
-                    continue;
-                } catch {
-                    // Not actually valid JSON; fall through and re-encode.
-                }
+    /**
+     * Convert a single legacy `images` value to its `simple-json` encoding.
+     * Returns the new string to store, or `undefined` when the value is already
+     * a valid JSON array and should be left untouched.
+     */
+    private reencode(raw: string): string | undefined {
+        // Empty string is how simple-array encoded an empty array. Left as "",
+        // simple-json would choke on JSON.parse("") — convert to "[]".
+        if (raw === "") return "[]";
+
+        // Already migrated (valid JSON array) — leave as-is.
+        if (raw.trimStart().startsWith("[")) {
+            try {
+                JSON.parse(raw);
+                return undefined;
+            } catch {
+                // Not actually valid JSON; fall through and re-encode.
             }
-
-            // Reconstruct the array from the legacy comma-joined string.
-            // Walk comma-separated tokens: a base64 data URL got split across
-            // two tokens ("data:<mime>;base64" + "<payload>") by the comma in
-            // its own prefix, so rejoin that pair. Any other value (e.g. a
-            // Firebase/HTTP download URL) contains no internal comma and stands
-            // alone. This recovers pure-data, pure-URL, and mixed posts in any
-            // order.
-            const tokens = raw.split(",");
-            const images: string[] = [];
-            for (let i = 0; i < tokens.length; i++) {
-                const token = tokens[i].trim();
-                if (token === "") continue;
-
-                if (token.startsWith("data:")) {
-                    const payload = (tokens[i + 1] ?? "").trim();
-                    images.push(payload ? `${token},${payload}` : token);
-                    i++; // consume the payload token
-                } else {
-                    images.push(token);
-                }
-            }
-
-            await queryRunner.query(
-                `UPDATE "posts" SET "images" = $1 WHERE "id" = $2`,
-                [JSON.stringify(images), row.id],
-            );
         }
+
+        // Reconstruct the array from the legacy comma-joined string.
+        // Walk comma-separated tokens: a base64 data URL got split across two
+        // tokens ("data:<mime>;base64" + "<payload>") by the comma in its own
+        // prefix, so rejoin that pair. Any other value (e.g. a Firebase/HTTP
+        // download URL) contains no internal comma and stands alone. This
+        // recovers pure-data, pure-URL, and mixed posts in any order.
+        const tokens = raw.split(",");
+        const images: string[] = [];
+        for (let i = 0; i < tokens.length; i++) {
+            const token = tokens[i].trim();
+            if (token === "") continue;
+
+            if (token.startsWith("data:")) {
+                const payload = (tokens[i + 1] ?? "").trim();
+                images.push(payload ? `${token},${payload}` : token);
+                i++; // consume the payload token
+            } else {
+                images.push(token);
+            }
+        }
+
+        return JSON.stringify(images);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
