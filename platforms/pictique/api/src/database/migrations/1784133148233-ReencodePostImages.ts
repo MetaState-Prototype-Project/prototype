@@ -21,12 +21,22 @@ export class ReencodePostImages1784133148233 implements MigrationInterface {
     public async up(queryRunner: QueryRunner): Promise<void> {
         const rows: Array<{ id: string; images: string | null }> =
             await queryRunner.query(
-                `SELECT "id", "images" FROM "posts" WHERE "images" IS NOT NULL AND "images" <> ''`,
+                `SELECT "id", "images" FROM "posts" WHERE "images" IS NOT NULL`,
             );
 
         for (const row of rows) {
             const raw = row.images;
-            if (raw === null || raw === "") continue;
+            if (typeof raw !== "string") continue;
+
+            // Empty string is how simple-array encoded an empty array. Left as
+            // "", simple-json would choke on JSON.parse("") — convert to "[]".
+            if (raw === "") {
+                await queryRunner.query(
+                    `UPDATE "posts" SET "images" = $1 WHERE "id" = $2`,
+                    ["[]", row.id],
+                );
+                continue;
+            }
 
             // Already migrated (valid JSON array) — leave as-is.
             if (raw.trimStart().startsWith("[")) {
