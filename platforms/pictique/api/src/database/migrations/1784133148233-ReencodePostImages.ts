@@ -48,16 +48,27 @@ export class ReencodePostImages1784133148233 implements MigrationInterface {
                 }
             }
 
-            // Split the legacy comma-joined string back into individual URLs.
-            // Only break before a new `data:` URL so the comma inside each data
-            // URL's MIME prefix is preserved.
-            const parts = raw.includes("data:")
-                ? raw.split(/,(?=data:)/)
-                : raw.split(",");
+            // Reconstruct the array from the legacy comma-joined string.
+            // Walk comma-separated tokens: a base64 data URL got split across
+            // two tokens ("data:<mime>;base64" + "<payload>") by the comma in
+            // its own prefix, so rejoin that pair. Any other value (e.g. a
+            // Firebase/HTTP download URL) contains no internal comma and stands
+            // alone. This recovers pure-data, pure-URL, and mixed posts in any
+            // order.
+            const tokens = raw.split(",");
+            const images: string[] = [];
+            for (let i = 0; i < tokens.length; i++) {
+                const token = tokens[i].trim();
+                if (token === "") continue;
 
-            const images = parts
-                .map((p) => p.trim())
-                .filter((p) => p.length > 0);
+                if (token.startsWith("data:")) {
+                    const payload = (tokens[i + 1] ?? "").trim();
+                    images.push(payload ? `${token},${payload}` : token);
+                    i++; // consume the payload token
+                } else {
+                    images.push(token);
+                }
+            }
 
             await queryRunner.query(
                 `UPDATE "posts" SET "images" = $1 WHERE "id" = $2`,
