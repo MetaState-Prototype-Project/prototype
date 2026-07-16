@@ -69,6 +69,7 @@ const { w3id, uri } = data;
 
 **Request fields**
 
+
 | Field | Description |
 | --- | --- |
 | `registryEntropy` | The entropy token from Step 1. |
@@ -84,9 +85,62 @@ const { w3id, uri } = data;
 | `w3id` | The platform's assigned W3ID / eName. |
 | `uri` | The endpoint URI of the newly provisioned eVault. |
 
-### Step 3 — Persist the mapping
+### Step 3 — Write the PlatformProfile into the eVault
 
-Save `w3id` and `uri` locally so the platform can resolve and reuse its eVault on every subsequent boot, and so the existence check in Step 0 short-circuits. Cerberus stores this under the fixed key `cerberus-platform`.
+With the eVault provisioned, write a **PlatformProfile** MetaEnvelope into it. This is the record other participants read to discover your platform — the **Marketplace**, for example, pulls every PlatformProfile from **Awareness-as-a-Service** and renders one card per platform. Its `url`, `logoUrl`, and `category` fields are what drive that card, so fill them in.
+
+The profile is stored under the **User-profile ontology** (`550e8400-e29b-41d4-a716-446655440000`) with a public ACL (`["*"]`). It is distinguished from an ordinary user profile by the presence of a `platformName` field — that is exactly the marker consumers filter on.
+
+```ts
+const now = new Date().toISOString();
+const platformProfile = {
+    platformName: "cerberus",              // stable slug; the discovery marker
+    displayName: "Cerberus Platform",
+    description: "Secure messaging and group management platform",
+    version: "1.0.0",
+    ename: w3id,
+    isActive: true,
+    isArchived: false,
+    createdAt: now,
+    updatedAt: now,
+    url: "https://cerberus.w3ds.metastate.foundation",  // public web app URL
+    logoUrl: "https://cerberus.w3ds.metastate.foundation/logo.png", // absolute logo URL
+    category: "Social",                    // Identity | Social | Governance | Wellness | Finance | Storage | Productivity
+};
+
+// storeMetaEnvelope only needs the X-ENAME header (no Bearer token).
+await client.request(STORE_META_ENVELOPE, {
+    input: {
+        ontology: "550e8400-e29b-41d4-a716-446655440000",
+        payload: platformProfile,
+        acl: ["*"],
+    },
+});
+```
+
+**Profile fields**
+
+| Field | Type | Purpose |
+| --- | --- | --- |
+| `platformName` | string | Stable machine slug and the marker consumers filter on to tell a platform profile apart from a user profile. |
+| `displayName` | string | Human-readable name shown to users. |
+| `description` | string | Short blurb describing the platform. |
+| `version` | string | Platform profile version. |
+| `ename` | string | The platform's own eName (`w3id` from Step 2). |
+| `isActive` | boolean | Whether the platform is live; consumers hide `false`. |
+| `isArchived` | boolean | Soft-delete flag; consumers hide `true`. |
+| `createdAt` / `updatedAt` | string | ISO-8601 timestamps. |
+| `url` | string | **Public web app URL** — where "Open App" links. Required for the platform to be launchable from the Marketplace. |
+| `logoUrl` | string | **Absolute URL** to the platform logo. Leave empty (`""`) to fall back to a placeholder icon. |
+| `category` | string | One of `Identity`, `Social`, `Governance`, `Wellness`, `Finance`, `Storage`, `Productivity` (or a custom value — it becomes a filter chip). |
+
+:::note
+`storeMetaEnvelope` creates a **new** MetaEnvelope each call. To later change a field (e.g. add a `url` that predates this schema), update the existing profile by id with `updateMetaEnvelope(id, …)` — which requires a Bearer token — rather than calling `storeMetaEnvelope` again, otherwise you create a duplicate profile.
+:::
+
+### Step 4 — Persist the mapping
+
+Save `w3id` and `uri` locally so the platform can resolve and reuse its eVault on every subsequent boot, and so the existence check in Step 0 short-circuits. Cerberus stores this under the fixed key `cerberus-platform`. Mirror the same `url`/`logoUrl`/`category` into the locally cached profile data so a later `updatePlatformProfile()` doesn't drop them.
 
 Once persisted, helpers such as `getPlatformEName()` and `getPlatformEVaultUri()` read straight from this mapping.
 
@@ -118,4 +172,5 @@ Requests to the platform eVault are then made against that endpoint with the pla
 1. On boot, check whether the platform eVault already exists — provision only if it doesn't.
 2. Fetch an entropy token from the Registry.
 3. `POST /provision` on the Provisioner with the entropy token, a fresh namespace, a verification id, and the platform public key.
-4. Persist the returned `w3id` and `uri` so the platform can resolve and reuse its eVault on every subsequent boot.
+4. Write a **PlatformProfile** MetaEnvelope (User-profile ontology, `acl: ["*"]`) into the eVault, including `url`, `logoUrl`, and `category` so consumers like the Marketplace can discover and render the platform.
+5. Persist the returned `w3id` and `uri` (and mirror `url`/`logoUrl`/`category`) so the platform can resolve and reuse its eVault on every subsequent boot.
