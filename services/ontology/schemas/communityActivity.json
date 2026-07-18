@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "c0117a17-1b2c-4d3e-8f4a-5b6c7d8e9f01",
+  "title": "CommunityActivity",
+  "type": "object",
+  "description": "A generic, domain-level 'a platform posted something to a community that members see and may respond to'. NOT a presentation container: activityType follows W3C ActivityStreams and carries the meaning; the renderer decides the look. Prefer a more specific ontology when one fits (CalendarEvent, Poll). CommunityActivity is the general case AND the fallback a renderer uses for any envelope it doesn't specifically know but that carries summary + responseOptions. Responses are recorded as separate Relation envelopes (predicate 'respond'), authored by the responder.",
+  "properties": {
+    "id": { "type": "string" },
+    "chatId": { "type": "string", "description": "The chat this activity surfaces in" },
+    "activityType": {
+      "type": "string",
+      "enum": ["announce", "question", "offer", "invite", "acknowledge"],
+      "description": "W3C ActivityStreams verb — the semantics of the activity"
+    },
+    "summary": { "type": "string", "description": "Human-visible headline (domain field, not 'title')" },
+    "description": { "type": "string" },
+    "relatedSubject": {
+      "type": "object",
+      "description": "Optional pointer to the domain object this activity is about",
+      "properties": {
+        "id": { "type": "string" },
+        "ontologyId": { "type": "string" },
+        "canonicalOwnerEName": { "type": "string" },
+        "canonicalEnvelopeId": { "type": ["string", "null"] },
+        "type": { "type": "string" }
+      },
+      "required": ["id"]
+    },
+    "responseOptions": {
+      "type": "array",
+      "description": "Optional choices the reader can respond with. A tap is recorded as a Relation (predicate 'respond', object = this envelope's uri, value = the chosen option value/id). Single mutually-exclusive choice only. Poll/Vote do NOT use this — they model options natively.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "Stable id; group responses by this (or value) for a tally" },
+          "label": { "type": "string", "description": "Human-visible button text" },
+          "value": { "type": "string", "description": "Semantic value recorded in the response (defaults to id)" },
+          "kind": { "type": "string", "enum": ["choice"], "default": "choice" }
+        },
+        "required": ["id", "label"]
+      }
+    },
+    "display": {
+      "type": "object",
+      "description": "Presentation HINTS only — renderers MAY ignore. Keeps UI out of the domain fields",
+      "properties": {
+        "pinned": { "type": "boolean" },
+        "removable": { "type": "boolean" },
+        "category": { "type": "string" }
+      }
+    },
+    "authorEName": { "type": "string", "description": "eName of the producing platform/app" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "isArchived": { "type": "boolean", "default": false }
+  },
+  "required": ["id", "chatId", "activityType", "summary", "createdAt"],
+  "additionalProperties": true
+}
