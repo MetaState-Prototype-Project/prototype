@@ -8,21 +8,52 @@
       "type": "string",
       "description": "Event title"
     },
-    "id": { "type": "string", "description": "Application-level event identifier" },
-    "userEName": { "type": "string", "description": "eName of the user whose calendar contains the event" },
-    "provider": { "type": "string", "enum": ["google", "manual"] },
-    "externalEventId": { "type": "string" },
-    "calendarId": { "type": "string" },
-    "canonicalOwnerEName": { "type": "string" },
-    "description": { "type": "string" },
-    "location": { "type": "string" },
+    "id": {
+      "type": "string",
+      "description": "Application-level event identifier"
+    },
+    "userEName": {
+      "type": "string",
+      "description": "eName of the user whose calendar contains the event"
+    },
+    "provider": {
+      "type": "string",
+      "enum": [
+        "google",
+        "manual"
+      ]
+    },
+    "externalEventId": {
+      "type": "string"
+    },
+    "calendarId": {
+      "type": "string"
+    },
+    "canonicalOwnerEName": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
+    },
     "color": {
       "type": "string",
       "description": "Event color (hex or named)"
     },
-    "textColor": { "type": "string" },
-    "providerColorId": { "type": ["string", "null"] },
-    "canEdit": { "type": "boolean" },
+    "textColor": {
+      "type": "string"
+    },
+    "providerColorId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "canEdit": {
+      "type": "boolean"
+    },
     "start": {
       "type": "string",
       "format": "date-time",
@@ -33,16 +64,82 @@
       "format": "date-time",
       "description": "Event end time (ISO 8601)"
     },
-    "isAllDay": { "type": "boolean" },
-    "status": { "type": "string", "enum": ["confirmed", "tentative", "cancelled"] },
-    "attendees": { "type": "array", "items": { "type": "string" } },
-    "isTransparent": { "type": "boolean" },
-    "htmlLink": { "type": "string", "format": "uri" },
-    "sourceUpdatedAt": { "type": "string", "format": "date-time" },
-    "effectiveAcl": { "type": "array", "items": { "type": "string" } },
-    "createdAt": { "type": "string", "format": "date-time" },
-    "updatedAt": { "type": "string", "format": "date-time" }
+    "isAllDay": {
+      "type": "boolean"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "confirmed",
+        "tentative",
+        "cancelled"
+      ]
+    },
+    "attendees": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "isTransparent": {
+      "type": "boolean"
+    },
+    "htmlLink": {
+      "type": "string",
+      "format": "uri"
+    },
+    "sourceUpdatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "effectiveAcl": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "responseOptions": {
+      "type": "array",
+      "description": "Optional RSVP-style choices a reader can respond with. A tap is recorded as a Relation (predicate 'respond', object = this event's uri, value = chosen). Poll/Vote model options natively and do not use this.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "label"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "choice"
+            ],
+            "default": "choice"
+          }
+        }
+      }
+    }
   },
-  "required": ["title", "start", "end"],
+  "required": [
+    "title",
+    "start",
+    "end"
+  ],
   "additionalProperties": false
 }
