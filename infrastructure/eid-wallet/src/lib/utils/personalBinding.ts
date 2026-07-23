@@ -466,52 +466,30 @@ async function _loadPersonalBindingsCountOnly(
     ownerEname: string,
 ): Promise<LoadedPersonalBindings> {
     type Resp = { bindingDocuments: { edges: BindingDocEdge[] } };
-    const empty: Resp = { bindingDocuments: { edges: [] } };
 
-    const [photosResult, paramsResult, securityResult] =
-        await Promise.allSettled([
-            vaultGqlRequest<Resp>(
-                gqlUrl,
-                ownerEname,
-                PERSONAL_PHOTO_IDS_QUERY,
-                { type: "photograph" },
-            ),
-            vaultGqlRequest<Resp>(
-                gqlUrl,
-                ownerEname,
-                PERSONAL_BINDING_BY_TYPE_QUERY,
-                { type: "personal_parameters" },
-            ),
-            vaultGqlRequest<Resp>(
-                gqlUrl,
-                ownerEname,
-                PERSONAL_BINDING_BY_TYPE_QUERY,
-                { type: "security_question" },
-            ),
-        ]);
-
-    if (photosResult.status === "rejected")
-        console.warn(
-            "[personalBinding] photograph count failed:",
-            photosResult.reason,
-        );
-    if (paramsResult.status === "rejected")
-        console.warn(
-            "[personalBinding] personal_parameters fetch failed:",
-            paramsResult.reason,
-        );
-    if (securityResult.status === "rejected")
-        console.warn(
-            "[personalBinding] security_question fetch failed:",
-            securityResult.reason,
-        );
-
-    const photosResp =
-        photosResult.status === "fulfilled" ? photosResult.value : empty;
-    const paramsResp =
-        paramsResult.status === "fulfilled" ? paramsResult.value : empty;
-    const securityResp =
-        securityResult.status === "fulfilled" ? securityResult.value : empty;
+    // Promise.all, not allSettled: callers feed this straight into a full-store
+    // replace, so substituting an empty result for a failed query is not
+    // graceful degradation — it erases marks the user still has. A partial
+    // result is no safer than none, since the replace overwrites either way.
+    // Rejecting lets the caller keep the last good state. Matches the sibling
+    // path in loadPersonalBindings above.
+    const [photosResp, paramsResp, securityResp] = await Promise.all([
+        vaultGqlRequest<Resp>(gqlUrl, ownerEname, PERSONAL_PHOTO_IDS_QUERY, {
+            type: "photograph",
+        }),
+        vaultGqlRequest<Resp>(
+            gqlUrl,
+            ownerEname,
+            PERSONAL_BINDING_BY_TYPE_QUERY,
+            { type: "personal_parameters" },
+        ),
+        vaultGqlRequest<Resp>(
+            gqlUrl,
+            ownerEname,
+            PERSONAL_BINDING_BY_TYPE_QUERY,
+            { type: "security_question" },
+        ),
+    ]);
 
     const photographs: LoadedPhotograph[] = (
         photosResp.bindingDocuments?.edges ?? []
