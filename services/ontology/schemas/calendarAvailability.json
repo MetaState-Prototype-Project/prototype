@@ -14,11 +14,13 @@
     },
     "startDate": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "description": "Inclusive interval start. Must be earlier than endDate; consumers must enforce this cross-field invariant."
     },
     "endDate": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "description": "Exclusive interval end. Must be later than startDate; consumers must enforce this cross-field invariant."
     },
     "timeZone": {
       "type": "string",
@@ -165,6 +167,13 @@
           "cancelledAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "cancelledAt": {
+            "type": "null"
           }
         }
       }
