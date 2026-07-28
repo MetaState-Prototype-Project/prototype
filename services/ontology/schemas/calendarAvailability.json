@@ -15,12 +15,12 @@
     "startDate": {
       "type": "string",
       "format": "date-time",
-      "description": "Inclusive interval start. Must be earlier than endDate; consumers must enforce this cross-field invariant."
+      "description": "Inclusive interval start. Writers must ensure it is earlier than endDate; readers must reject and report violations for audit attribution."
     },
     "endDate": {
       "type": "string",
       "format": "date-time",
-      "description": "Exclusive interval end. Must be later than startDate; consumers must enforce this cross-field invariant."
+      "description": "Exclusive interval end. Writers must ensure it is later than startDate; readers must reject and report violations for audit attribution."
     },
     "timeZone": {
       "type": "string",
