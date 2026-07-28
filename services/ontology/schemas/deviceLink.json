@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "76a5dae4-0543-4605-97fc-7478a8048d86",
+  "title": "DeviceLink",
+  "description": "Pure reference on the PERSON's vault: maps a device signature hash to the device's w3id. No device description is copied here (rule: canonical + reference, never a copy) — the passport lives on the device's own vault. Lets a fresh install rebuild signature→device mapping without re-provisioning duplicate vaults.",
+  "type": "object",
+  "properties": {
+    "subject": {
+      "type": "string"
+    },
+    "deviceEName": {
+      "type": "string"
+    },
+    "signatureHash": {
+      "type": "string",
+      "description": "sha256 of the normalized signature — the dedup key"
+    },
+    "linkedAt": {
+      "type": "string"
+    },
+    "dedupKey": {
+      "type": "string"
+    },
+    "contentHash": {
+      "type": "string"
+    },
+    "updatedAt": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "subject",
+    "deviceEName",
+    "signatureHash",
+    "dedupKey",
+    "contentHash"
+  ]
+}

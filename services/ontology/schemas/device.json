@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "d8b587d2-fbde-4b7d-87c8-a9b6c4199601",
+  "title": "Device",
+  "description": "A measuring device's passport, living on the DEVICE'S OWN eVault (the device has its own w3id). Health data always lives on the person's vault and references the device by w3id. Ownership can change (device sold) without touching the person's data.",
+  "type": "object",
+  "properties": {
+    "w3id": {
+      "type": "string",
+      "description": "the device's own @-prefixed w3id (self-reference)"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "watch",
+        "phone",
+        "scale",
+        "app",
+        "other"
+      ]
+    },
+    "name": {
+      "type": "string"
+    },
+    "manufacturer": {
+      "type": "string"
+    },
+    "model": {
+      "type": "string"
+    },
+    "hardwareVersion": {
+      "type": "string"
+    },
+    "softwareVersion": {
+      "type": "string"
+    },
+    "serialNumber": {
+      "type": "string"
+    },
+    "ownerEName": {
+      "type": "string",
+      "description": "current owner (@-prefixed eName)"
+    },
+    "signature": {
+      "type": "string",
+      "description": "normalized source signature this passport was created from"
+    },
+    "registeredAt": {
+      "type": "string"
+    },
+    "dedupKey": {
+      "type": "string"
+    },
+    "contentHash": {
+      "type": "string"
+    },
+    "updatedAt": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "w3id",
+    "kind",
+    "ownerEName",
+    "signature",
+    "dedupKey",
+    "contentHash"
+  ]
+}
