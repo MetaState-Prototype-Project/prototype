@@ -80,7 +80,9 @@
       "format": "date-time"
     },
     "delegationAllowed": {
-      "type": "boolean"
+      "type": "boolean",
+      "const": false,
+      "description": "Delegation is not supported in version 1; canonical grants must explicitly store false."
     },
     "canonicalEnvelopeId": {
       "type": "string",
@@ -99,9 +101,6 @@
       "title": "CanonicalAccessGrant",
       "properties": {
         "isReference": {
-          "const": false
-        },
-        "delegationAllowed": {
           "const": false
         }
       },
@@ -258,6 +257,13 @@
           "revokedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "revokedAt": {
+            "type": "null"
           }
         }
       }
