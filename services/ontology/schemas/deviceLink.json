@@ -18,6 +18,10 @@
     "linkedAt": {
       "type": "string"
     },
+    "registeredBy": {
+      "type": "string",
+      "description": "w3id of the platform that created this link"
+    },
     "dedupKey": {
       "type": "string"
     },
