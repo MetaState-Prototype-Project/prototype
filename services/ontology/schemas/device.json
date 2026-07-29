@@ -48,6 +48,10 @@
     "registeredAt": {
       "type": "string"
     },
+    "registeredBy": {
+      "type": "string",
+      "description": "w3id of the platform that provisioned this device vault"
+    },
     "dedupKey": {
       "type": "string"
     },
