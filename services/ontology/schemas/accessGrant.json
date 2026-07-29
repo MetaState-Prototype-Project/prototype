@@ -1,0 +1,273 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "15d24c04-a4f3-4e45-a00e-0123926fbc87",
+  "title": "AccessGrant",
+  "type": "object",
+  "properties": {
+    "isReference": {
+      "type": "boolean"
+    },
+    "grantId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "grantorEName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "granteeType": {
+      "type": "string",
+      "enum": [
+        "ename",
+        "public"
+      ]
+    },
+    "granteeEName": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "resourceType": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "permissions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*:[A-Za-z][A-Za-z0-9]*$"
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "revoked"
+      ]
+    },
+    "validFrom": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "validUntil": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "revokedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "delegationAllowed": {
+      "type": "boolean",
+      "const": false,
+      "description": "Delegation is not supported in version 1; canonical grants must explicitly store false."
+    },
+    "canonicalEnvelopeId": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "isReference",
+    "grantId",
+    "grantorEName",
+    "granteeType",
+    "createdAt"
+  ],
+  "oneOf": [
+    {
+      "title": "CanonicalAccessGrant",
+      "properties": {
+        "isReference": {
+          "const": false
+        }
+      },
+      "required": [
+        "isReference",
+        "grantId",
+        "grantorEName",
+        "granteeType",
+        "granteeEName",
+        "resourceType",
+        "permissions",
+        "status",
+        "validFrom",
+        "validUntil",
+        "createdAt",
+        "updatedAt",
+        "revision",
+        "revokedAt",
+        "delegationAllowed"
+      ],
+      "not": {
+        "required": [
+          "canonicalEnvelopeId"
+        ]
+      }
+    },
+    {
+      "title": "AccessGrantReference",
+      "properties": {
+        "isReference": {
+          "const": true
+        },
+        "granteeType": {
+          "const": "ename"
+        }
+      },
+      "required": [
+        "isReference",
+        "grantId",
+        "grantorEName",
+        "granteeType",
+        "granteeEName",
+        "canonicalEnvelopeId",
+        "createdAt"
+      ],
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "resourceType"
+            ]
+          },
+          {
+            "required": [
+              "permissions"
+            ]
+          },
+          {
+            "required": [
+              "status"
+            ]
+          },
+          {
+            "required": [
+              "validFrom"
+            ]
+          },
+          {
+            "required": [
+              "validUntil"
+            ]
+          },
+          {
+            "required": [
+              "updatedAt"
+            ]
+          },
+          {
+            "required": [
+              "revision"
+            ]
+          },
+          {
+            "required": [
+              "revokedAt"
+            ]
+          },
+          {
+            "required": [
+              "delegationAllowed"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "granteeType": {
+            "const": "ename"
+          }
+        },
+        "required": [
+          "granteeType"
+        ]
+      },
+      "then": {
+        "properties": {
+          "granteeEName": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "granteeType": {
+            "const": "public"
+          }
+        },
+        "required": [
+          "granteeType"
+        ]
+      },
+      "then": {
+        "properties": {
+          "granteeEName": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "isReference": {
+            "const": false
+          },
+          "status": {
+            "const": "revoked"
+          }
+        },
+        "required": [
+          "isReference",
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "revokedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "revokedAt": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,183 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "a92c3675-dbc8-44f6-b24e-520eeadb8864",
+  "title": "CalendarAvailability",
+  "type": "object",
+  "properties": {
+    "availabilityId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ownerEName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "startDate": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Inclusive interval start. Writers must ensure it is earlier than endDate; readers must reject and report violations for audit attribution."
+    },
+    "endDate": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Exclusive interval end. Writers must ensure it is later than startDate; readers must reject and report violations for audit attribution."
+    },
+    "timeZone": {
+      "type": "string",
+      "minLength": 1
+    },
+    "label": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 200
+    },
+    "bookingPolicy": {
+      "type": "string",
+      "enum": [
+        "open",
+        "emailVerified",
+        "eNameRequired"
+      ]
+    },
+    "verificationHoldMinutes": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "maximum": 1440
+    },
+    "maxBookingsPerEmailPerDay": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "maxBookingsPerRequesterPerDay": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "cancelled"
+      ]
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "cancelledAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "availabilityId",
+    "ownerEName",
+    "startDate",
+    "endDate",
+    "timeZone",
+    "label",
+    "bookingPolicy",
+    "verificationHoldMinutes",
+    "maxBookingsPerEmailPerDay",
+    "maxBookingsPerRequesterPerDay",
+    "status",
+    "createdAt",
+    "updatedAt",
+    "revision",
+    "cancelledAt"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "bookingPolicy": {
+            "const": "emailVerified"
+          }
+        },
+        "required": [
+          "bookingPolicy"
+        ]
+      },
+      "then": {
+        "properties": {
+          "verificationHoldMinutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1440
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "bookingPolicy": {
+            "enum": [
+              "open",
+              "eNameRequired"
+            ]
+          }
+        },
+        "required": [
+          "bookingPolicy"
+        ]
+      },
+      "then": {
+        "properties": {
+          "verificationHoldMinutes": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "cancelled"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "cancelledAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "cancelledAt": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}
