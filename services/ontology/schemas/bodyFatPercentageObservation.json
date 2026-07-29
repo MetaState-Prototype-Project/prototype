@@ -23,6 +23,10 @@
         "source": {
           "type": "string"
         },
+        "platform": {
+          "type": "string",
+          "description": "w3id (@eName) of the platform that wrote this envelope — machine-readable authorship; resolve it to read that platform's self-description"
+        },
         "externalId": {
           "type": "string"
         },
