@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "schemaId": "879df524-f062-44eb-9a05-52dc62884e6c",
   "title": "Meal",
-  "description": "One meal. The photo is embedded INSIDE this private envelope (downscaled data URI) — never in public blob storage. nutritionEstimate is STRUCTURALLY an estimate (AI vision output) — readers must present it as an estimate, never as a measured fact.",
+  "description": "One meal. The photo is NOT embedded here: `photo.ref` points at the HealthPhoto envelope that holds the bytes (canonical + reference, never a copy). nutritionEstimate is STRUCTURALLY an estimate (AI vision output, `derivedFrom` names the photo it was read from) — readers must present it as an estimate, never as a measured fact.",
   "type": "object",
   "properties": {
     "subject": {
@@ -64,16 +64,30 @@
         "snack"
       ]
     },
+    "mealTypeSource": {
+      "type": "string",
+      "enum": [
+        "user",
+        "inferred"
+      ],
+      "description": "user = stated by the person; inferred = guessed from local time of day + dish. An inferred type must not be presented as stated."
+    },
     "comment": {
-      "type": "string"
+      "type": "string",
+      "description": "The person's own words, stored verbatim"
     },
     "place": {
       "type": "string"
     },
     "photo": {
       "type": "object",
+      "description": "REFERENCE to the HealthPhoto envelope holding the bytes — never a copy of the image.",
       "properties": {
-        "dataUri": {
+        "ref": {
+          "type": "string",
+          "description": "w3ds://envelope?id=@owner/<metaEnvelopeId>"
+        },
+        "mediaType": {
           "type": "string"
         },
         "width": {
@@ -84,7 +98,7 @@
         }
       },
       "required": [
-        "dataUri"
+        "ref"
       ]
     },
     "nutritionEstimate": {
@@ -136,6 +150,18 @@
         },
         "totalKcal": {
           "type": "number"
+        },
+        "model": {
+          "type": "string",
+          "description": "Estimator identity (model id) — provenance of the estimate itself"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Estimator's stated assumptions/uncertainties"
+        },
+        "derivedFrom": {
+          "type": "string",
+          "description": "w3ds:// reference to the HealthPhoto this estimate was derived from"
         }
       },
       "required": [
