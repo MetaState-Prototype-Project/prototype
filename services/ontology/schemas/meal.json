@@ -93,7 +93,11 @@
       "properties": {
         "method": {
           "type": "string",
-          "const": "ai-vision"
+          "enum": [
+            "ai-vision",
+            "food-log"
+          ],
+          "description": "ai-vision = AI photo analysis; food-log = user-entered food-app values"
         },
         "estimatedAt": {
           "type": "string"
