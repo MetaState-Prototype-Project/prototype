@@ -14,7 +14,7 @@
         "lint": "npx @biomejs/biome lint --write ./src",
         "check-lint": "npx @biomejs/biome lint ./src",
         "tauri": "tauri",
-        "test": "vitest run",
+        "test": "vitest run --project eid-wallet",
         "storybook": "svelte-kit sync && storybook dev -p 6006",
         "build-storybook": "storybook build",
         "build:apk": "npm run tauri android build -- --apk --target aarch64 --target armv7",
