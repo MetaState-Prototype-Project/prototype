@@ -1,0 +1,31 @@
+{
+    "name": "w3ds-oidc-bridge",
+    "version": "0.1.0",
+    "description": "OpenID Connect provider that authenticates with W3DS, so GitW3 can accept W3DS login through Forgejo's native OAuth2 source",
+    "type": "module",
+    "private": true,
+    "main": "./dist/index.js",
+    "scripts": {
+        "dev": "tsx watch src/index.ts",
+        "build": "tsc -p tsconfig.build.json",
+        "start": "node dist/index.js",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "check-types": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@metastate-foundation/auth": "workspace:*",
+        "dotenv": "^16.4.5",
+        "express": "^4.18.2",
+        "jose": "^5.2.2",
+        "qrcode": "^1.5.4"
+    },
+    "devDependencies": {
+        "@types/express": "^4.17.21",
+        "@types/node": "^20.11.24",
+        "@types/qrcode": "^1.5.6",
+        "tsx": "^4.7.1",
+        "typescript": "^5.3.3",
+        "vitest": "^3.0.9"
+    }
+}

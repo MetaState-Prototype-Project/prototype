@@ -1,0 +1,84 @@
+# w3ds-oidc-bridge
+
+An OpenID Connect provider that authenticates people with their W3DS identity.
+
+GitW3 — the MetaState fork of Forgejo — has no plugin API, and the fork is kept at a patch surface of zero so upstream
+security releases merge cleanly. So instead of teaching Forgejo about W3DS, this service speaks a protocol Forgejo
+already understands. Forgejo believes it is talking to an ordinary OIDC provider. The wallet believes it is talking to
+an ordinary W3DS platform. Neither is modified.
+
+This works because OIDC never specifies *how* a provider authenticates someone. Here it is a QR code signed by an eID
+wallet.
+
+**Design:** [docs/superpowers/specs/2026-08-05-w3ds-oidc-bridge-design.md](../../docs/superpowers/specs/2026-08-05-w3ds-oidc-bridge-design.md)
+**Plan:** [docs/superpowers/plans/2026-08-05-w3ds-oidc-bridge-plan.md](../../docs/superpowers/plans/2026-08-05-w3ds-oidc-bridge-plan.md)
+
+## The two contracts
+
+**Wallet side** is fixed by the platforms already in production. The bridge serves a QR encoding
+`w3ds://auth?redirect=…&session=…&platform=gitw3`, built with `buildAuthOffer()` from `@metastate-foundation/auth` so it
+cannot drift from the canonical format. The wallet signs **the session id itself** and POSTs
+`{ ename, session, signature, appVersion }` back. The signature is checked against the Registry.
+
+**Forgejo side** is fixed by `markbates/goth`. The ID token must carry `exp`, an `iss` byte-identical to the discovery
+document, an `aud` matching the client id, a `sub`, and a non-empty `email`. Two of goth's behaviours shape the design
+and are easy to get wrong: it never verifies the ID token signature, and an *absent* `preferred_username` claim panics
+its account-linking page. Both are covered in the spec.
+
+## Endpoints
+
+| Forgejo-facing | |
+|---|---|
+| `GET /.well-known/openid-configuration` | discovery |
+| `GET /authorize` | opens a session, serves the QR page |
+| `POST /token` | code + `code_verifier` → ID token |
+| `GET /userinfo` | served for conformance |
+| `GET /jwks` | public key |
+
+| W3DS-facing | |
+|---|---|
+| `POST /w3ds/callback` | wallet posts ename and signature |
+| `GET /w3ds/events/:session` | SSE; tells the browser when to continue |
+
+## Configuration
+
+Read from the repository root `.env`. Every key without a default is required, and the service refuses to start without
+it rather than failing later.
+
+| Variable | Default | Note |
+|---|---|---|
+| `W3DS_OIDC_PUBLIC_URL` | — | the `issuer`; a trailing slash is stripped, because goth compares it byte for byte |
+| `W3DS_OIDC_PORT` | `4200` | |
+| `W3DS_OIDC_CLIENT_ID` | — | |
+| `W3DS_OIDC_CLIENT_SECRET` | — | |
+| `W3DS_OIDC_REDIRECT_URI` | — | GitW3's callback; compared exactly |
+| `W3DS_OIDC_SIGNING_KEY` | — | ES256 private key, never committed |
+| `W3DS_OIDC_KEY_ID` | — | stable `kid` |
+| `W3DS_OIDC_ALLOW_INSECURE` | `false` | local development only |
+| `W3DS_EMAIL_DOMAIN` | `w3ds.invalid` | synthetic addresses; they never deliver |
+| `W3DS_EXTRA_RESERVED_USERNAMES` | empty | comma-separated, added to Forgejo's reserved list |
+| `W3DS_MIN_WALLET_VERSION` | `0.4.0` | |
+| `PUBLIC_REGISTRY_URL` | — | already in the root `.env` |
+
+### The back channel must be TLS
+
+`W3DS_OIDC_PUBLIC_URL` must be `https://` outside local development. Because goth never verifies the ID token
+signature, TLS plus the client secret is the only thing separating a real ID token from a forged one. The service
+refuses to start on `http://` unless `W3DS_OIDC_ALLOW_INSECURE=true` is set explicitly, so the unsafe case has to be
+chosen rather than inherited.
+
+## Running locally
+
+```bash
+pnpm --filter w3ds-oidc-bridge dev
+```
+
+## Testing without a phone
+
+The [Dev Sandbox](../../infrastructure/dev-sandbox) is a full wallet substitute. Provision an eVault, copy the
+`w3ds://auth` URI from the bridge's QR page, paste it into the sandbox and click **Perform** — it signs the session and
+POSTs to the callback, exercising the whole chain including real signature verification against the Registry.
+
+```bash
+pnpm --filter w3ds-oidc-bridge test
+```
