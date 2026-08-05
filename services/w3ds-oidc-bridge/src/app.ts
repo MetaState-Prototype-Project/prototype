@@ -1,7 +1,7 @@
 import cors from "cors";
 import express, { type Express } from "express";
 import type { BridgeContext } from "./context.js";
-import { createIconHandler } from "./icon.js";
+import { createIconHandler, createTouchIconHandler } from "./icon.js";
 import { createAuthorizeHandler } from "./oidc/authorize.js";
 import { createDiscoveryHandler, createJwksHandler } from "./oidc/discovery.js";
 import { createTokenHandler } from "./oidc/token.js";
@@ -26,6 +26,9 @@ export function createApp(ctx: BridgeContext): Express {
 
     // Pointed at by the authentication source's IconURL in GitW3.
     app.get("/icon.svg", createIconHandler());
+    // Not referenced by anything here — the eID Wallet fetches this path by
+    // convention when it renders the approval screen. See icon.ts.
+    app.get("/apple-touch-icon.png", createTouchIconHandler());
 
     app.get("/.well-known/openid-configuration", createDiscoveryHandler(ctx));
     app.get("/jwks", createJwksHandler(ctx));

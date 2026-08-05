@@ -196,6 +196,24 @@ describe("the login button icon", () => {
         expect(response.headers.get("content-type")).toContain("image/svg+xml");
         expect(await response.text()).toContain("<svg");
     });
+
+    it("is also served as a PNG at the path the wallet looks for", async () => {
+        const response = await fetch(`${bridge.url}/apple-touch-icon.png`);
+        expect(response.status).toBe(200);
+        expect(response.headers.get("content-type")).toContain("image/png");
+
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        // Real PNG bytes, not the SVG under a .png name: the wallet reads
+        // naturalWidth and treats anything under 8px as a failed load, so a file
+        // the decoder rejects would silently fall through to a letter tile.
+        expect(Array.from(bytes.subarray(0, 8))).toEqual([
+            0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+        ]);
+        // Width and height live in the IHDR chunk, at bytes 16-23.
+        const header = new DataView(bytes.buffer, bytes.byteOffset);
+        expect(header.getUint32(16)).toBe(180);
+        expect(header.getUint32(20)).toBe(180);
+    });
 });
 
 describe("authorize", () => {
@@ -292,7 +310,9 @@ describe("authorize", () => {
                     authorizeUrl(bridge.url, { prompt: "login" }),
                 );
                 expect(response.status).toBe(200);
-                expect(await response.text()).toContain("w3ds://auth?redirect=");
+                expect(await response.text()).toContain(
+                    "w3ds://auth?redirect=",
+                );
             });
         });
     });

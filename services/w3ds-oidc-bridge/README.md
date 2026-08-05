@@ -34,11 +34,19 @@ its account-linking page. Both are covered in the spec.
 | `POST /token` | code + `code_verifier` → ID token |
 | `GET /userinfo` | served for conformance |
 | `GET /jwks` | public key |
+| `GET /icon.svg` | the login button mark |
 
 | W3DS-facing | |
 |---|---|
 | `POST /w3ds/callback` | wallet posts ename and signature |
 | `GET /w3ds/events/:session` | SSE; tells the browser when to continue |
+| `GET /apple-touch-icon.png` | the mark again, for the wallet's approval screen |
+
+The wallet resolves the app icon from the **hostname** of the redirect URI — the bridge — rather than from the
+`platform` parameter, and falls back through `/apple-touch-icon.png` and `/favicon.ico` to a letter on a coloured
+square. Serving that path is what stops GitW3 showing up as a bare letter, and it takes effect without a wallet
+release. The hostname is also where the displayed name comes from, so it is worth choosing deliberately:
+`gitw3-login.example` announces itself as "gitw3-login".
 
 ## Configuration
 
