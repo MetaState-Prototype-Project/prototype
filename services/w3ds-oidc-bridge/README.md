@@ -67,10 +67,49 @@ signature, TLS plus the client secret is the only thing separating a real ID tok
 refuses to start on `http://` unless `W3DS_OIDC_ALLOW_INSECURE=true` is set explicitly, so the unsafe case has to be
 chosen rather than inherited.
 
+## Wiring it into GitW3
+
+Add an authentication source: **Site Administration → Authentication Sources → Add**, type OAuth2, provider OpenID
+Connect.
+
+| Field | Value |
+|---|---|
+| Auto Discovery URL | `<bridge>/.well-known/openid-configuration` |
+| Client ID | `W3DS_OIDC_CLIENT_ID` |
+| Client Secret | `W3DS_OIDC_CLIENT_SECRET` |
+| Icon URL | `<bridge>/icon.svg` |
+
+The bridge serves its own button icon, so there is nothing to host separately and the mark can never fall out of step
+with the service. Forgejo renders it inside `<img width=28>`.
+
+Then, in `app.ini`:
+
+```ini
+[oauth2_client]
+ENABLE_AUTO_REGISTRATION = true
+ACCOUNT_LINKING = login
+USERNAME = nickname
+REGISTER_EMAIL_CONFIRM = false
+```
+
+Only the first and last are changes from the defaults, and both matter. Without `ENABLE_AUTO_REGISTRATION` a new W3DS
+user gets no account at all. Without `REGISTER_EMAIL_CONFIRM = false` **in this section** — it inherits `[service]`
+otherwise — every account is created inactive and its activation mail is sent to an address that never delivers, which
+locks the person out permanently.
+
+`ACCOUNT_LINKING` must stay `login`. On `auto`, two eNames that sanitise to the same username let the second person
+into the first person's account.
+
 ## Running locally
 
 ```bash
 pnpm --filter w3ds-oidc-bridge dev
+```
+
+Or as the container:
+
+```bash
+docker build -f docker/Dockerfile.w3ds-oidc-bridge -t w3ds-oidc-bridge .
 ```
 
 ## Testing without a phone

@@ -428,7 +428,9 @@ the symptom is the same: sign-in succeeds, the account exists, and login is refu
 
 The remainder of acceptance criterion 3 is configuration, not code: an OAuth2 authentication source of type OpenID
 Connect, pointed at the bridge's discovery URL, with the source's `IconURL` field
-(`services/auth/source/oauth2/source.go:20`) carrying the W3DS icon on the login button. Nothing in Forgejo is patched,
+(`services/auth/source/oauth2/source.go:20`) pointing at `<bridge>/icon.svg`. Forgejo drops that URL into an
+`<img width=28>` (`services/auth/source/oauth2/providers.go:62`), so the bridge serves its own mark: the browser can
+always reach it, and the icon cannot fall out of step with the service that owns it. Nothing in Forgejo is patched,
 which preserves the fork's zero patch surface.
 
 ## Testing

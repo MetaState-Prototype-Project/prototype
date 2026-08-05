@@ -178,9 +178,14 @@ error rather than starting a half-working server.
 **4.2 `services/w3ds-oidc-bridge/README.md`** — what it is, the two contracts in one paragraph each, the env table, how
 to run it locally, and how to test with the Dev Sandbox. Link the spec rather than restating it.
 
-**4.3 The W3DS button icon.** Acceptance criterion 3 depends on it and nothing else in this plan produces it. It is a
-deliverable, not a config detail. Produce an SVG, serve it from a stable URL, and record that URL for `IconURL` in 5.2.
-Reuse the MetaState mark rather than drawing something new — the same rounded-square convention as the GitW3 logo.
+**4.3 The W3DS button icon.** *Done.* Served by the bridge itself at `/icon.svg`, so the browser can always reach it —
+it is about to be sent to the same origin for `/authorize` — and the mark cannot fall out of step with the service.
+Inlined as a string in `src/icon.ts` rather than kept in `assets/`, because the build is `tsc` alone and a non-TS file
+would not reach `dist/`.
+
+A shield with a key, the same vocabulary as the Nextcloud W3DS login plugin so the button is recognisable to anyone who
+has seen that one, restyled to the MetaState purple and the house convention: 162 viewBox, 32 radius, 9 stroke, white
+on `#8968FF`. Checked at its real 28px display size, not only large.
 
 > **Verify:** the image builds; the container starts with env supplied and serves the discovery document; the icon URL
 > returns an image over HTTPS from a host GitW3 can reach.

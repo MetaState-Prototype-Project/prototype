@@ -130,6 +130,17 @@ describe("jwks", () => {
     });
 });
 
+describe("the login button icon", () => {
+    it("is served as an SVG the browser will render in an img", async () => {
+        // Forgejo drops IconURL straight into <img width=28>, so it has to be an
+        // image type, not a download.
+        const response = await fetch(`${bridge.url}/icon.svg`);
+        expect(response.status).toBe(200);
+        expect(response.headers.get("content-type")).toContain("image/svg+xml");
+        expect(await response.text()).toContain("<svg");
+    });
+});
+
 describe("authorize", () => {
     describe("before the callback is trusted, nothing redirects", () => {
         it("renders a page for an unknown client", async () => {
