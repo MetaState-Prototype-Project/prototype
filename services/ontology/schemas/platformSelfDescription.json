@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "0f9a3cb8-4a9f-4b5f-a1fa-3a4c2eb1f411",
+  "title": "PlatformSelfDescription",
+  "type": "object",
+  "description": "A machine-readable self-description of a W3DS post-platform, stored on the platform's own eVault.",
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string" },
+    "platformName": { "type": "string" },
+    "displayName": { "type": "string" },
+    "format": { "type": "string" },
+    "content": { "type": "string" },
+    "contentSha256": { "type": "string" },
+    "sourceUrl": { "type": "string" },
+    "profileEnvelopeId": { "type": "string" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "required": [
+    "id",
+    "platformName",
+    "displayName",
+    "format",
+    "content",
+    "contentSha256",
+    "profileEnvelopeId",
+    "createdAt",
+    "updatedAt"
+  ]
+}
