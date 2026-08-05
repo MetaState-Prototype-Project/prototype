@@ -130,6 +130,63 @@ describe("jwks", () => {
     });
 });
 
+describe("cross-origin access", () => {
+    // A browser-based wallet posts JSON from its own origin, which triggers a
+    // preflight. Express answers OPTIONS with a bare 200 and no CORS headers, so
+    // without this the browser blocks the request and reports only "Failed to
+    // fetch" — the login hangs with nothing to debug.
+    it("answers the preflight on the wallet callback", async () => {
+        const response = await fetch(`${bridge.url}/w3ds/callback`, {
+            method: "OPTIONS",
+            headers: {
+                origin: "http://localhost:8080",
+                "access-control-request-method": "POST",
+                "access-control-request-headers": "content-type",
+            },
+        });
+
+        expect(response.status).toBeLessThan(300);
+        expect(
+            response.headers.get("access-control-allow-origin"),
+        ).toBeTruthy();
+    });
+
+    it("allows the SSE stream cross-origin too", async () => {
+        const response = await fetch(`${bridge.url}/w3ds/events/nothing`, {
+            headers: { origin: "http://localhost:8080" },
+        });
+        expect(
+            response.headers.get("access-control-allow-origin"),
+        ).toBeTruthy();
+        await response.body?.cancel();
+    });
+
+    it("never allows credentials", async () => {
+        // These endpoints carry no cookie. Allowing credentials with a wildcard
+        // origin is the combination that turns an open endpoint into a CSRF one.
+        const response = await fetch(`${bridge.url}/w3ds/callback`, {
+            method: "OPTIONS",
+            headers: {
+                origin: "http://localhost:8080",
+                "access-control-request-method": "POST",
+            },
+        });
+        expect(
+            response.headers.get("access-control-allow-credentials"),
+        ).toBeNull();
+    });
+
+    it("leaves the OIDC half alone", async () => {
+        // /token and /userinfo are back-channel calls from Forgejo, and
+        // /authorize is a top-level navigation. None of them is ever a
+        // cross-origin fetch, so none of them needs to advertise anything.
+        const response = await fetch(`${bridge.url}/userinfo`, {
+            headers: { origin: "http://evil.example.org" },
+        });
+        expect(response.headers.get("access-control-allow-origin")).toBeNull();
+    });
+});
+
 describe("the login button icon", () => {
     it("is served as an SVG the browser will render in an img", async () => {
         // Forgejo drops IconURL straight into <img width=28>, so it has to be an
@@ -210,6 +267,33 @@ describe("authorize", () => {
         it("preserves state on the way back", async () => {
             const url = await errorFrom({ code_challenge: undefined });
             expect(url.searchParams.get("state")).toBe("the-state");
+        });
+
+        describe("silent authentication", () => {
+            // Forgejo sends prompt=none on its login page to re-authenticate
+            // someone who signed in before, and retries interactively when the
+            // provider says login_required. Rendering the QR page instead strands
+            // them there, and the login page never appears again after a logout.
+            it("refuses prompt=none, because a QR code is interaction", async () => {
+                const url = await errorFrom({ prompt: "none" });
+                expect(url.searchParams.get("error")).toBe("login_required");
+                expect(url.searchParams.get("state")).toBe("the-state");
+            });
+
+            it("refuses it inside a space-separated list too", async () => {
+                const url = await errorFrom({ prompt: "none consent" });
+                expect(url.searchParams.get("error")).toBe("login_required");
+            });
+
+            it("serves the QR page for any other prompt value", async () => {
+                // `login` asks to re-authenticate, which is all this bridge ever
+                // does, so it needs no special handling.
+                const response = await fetch(
+                    authorizeUrl(bridge.url, { prompt: "login" }),
+                );
+                expect(response.status).toBe(200);
+                expect(await response.text()).toContain("w3ds://auth?redirect=");
+            });
         });
     });
 

@@ -59,6 +59,24 @@ export function createAuthorizeHandler(ctx: BridgeContext): RequestHandler {
             res.redirect(url.toString());
         };
 
+        // `prompt=none` asks for authentication with no interaction whatsoever
+        // (OIDC Core §3.1.2.1). The bridge keeps no session of its own — every
+        // login is a fresh QR code someone has to scan — so silent
+        // authentication can never succeed here, and showing the QR page would be
+        // exactly the interaction the parameter forbids.
+        //
+        // Forgejo sends this on its login page to try re-authenticating someone
+        // who has signed in before, and on `login_required` it retries
+        // interactively (routers/web/auth/oauth.go:1012). Answering correctly is
+        // what makes the login page work after a logout; ignoring it strands the
+        // person on a QR page they never asked for.
+        if (param(query.prompt)?.split(/\s+/).includes("none")) {
+            return bounce(
+                "login_required",
+                "This provider cannot authenticate without user interaction",
+            );
+        }
+
         if (param(query.response_type) !== "code") {
             return bounce(
                 "unsupported_response_type",

@@ -69,8 +69,10 @@ chosen rather than inherited.
 
 ## Wiring it into GitW3
 
-Add an authentication source: **Site Administration → Authentication Sources → Add**, type OAuth2, provider OpenID
-Connect.
+Forgejo keeps authentication sources in its database rather than in `app.ini`, so they cannot be declared with the rest
+of the configuration. [`docker/gitw3-register-auth-source.sh`](../../docker/gitw3-register-auth-source.sh) closes that
+gap for deployments — it is idempotent, so it can run on every deploy. By hand it is **Site Administration →
+Authentication Sources → Add**, type OAuth2, provider OpenID Connect.
 
 | Field | Value |
 |---|---|
@@ -100,6 +102,12 @@ locks the person out permanently.
 `ACCOUNT_LINKING` must stay `login`. On `auto`, two eNames that sanitise to the same username let the second person
 into the first person's account.
 
+**Start the bridge before GitW3.** Forgejo fetches the discovery document once, when it registers the authentication
+source at startup. If the bridge is down at that moment the source is not registered at all and the button vanishes
+from the login page until GitW3 is restarted — with a confusing follow-on symptom, because an unregistered source also
+stops Forgejo sending PKCE, and the bridge then rejects the request with `code_challenge is required`. Once registered,
+the source survives a bridge restart.
+
 ## Running locally
 
 ```bash
@@ -111,6 +119,24 @@ Or as the container:
 ```bash
 docker build -f docker/Dockerfile.w3ds-oidc-bridge -t w3ds-oidc-bridge .
 ```
+
+## Deploying it with GitW3
+
+[`docker-compose.gitw3.yml`](../../docker-compose.gitw3.yml) brings up both services with the startup order enforced by
+a healthcheck, applies the four `[oauth2_client]` settings above through `FORGEJO__*` environment variables, and
+registers the authentication source. It is a **candidate** manifest — nothing else in this repository deploys a
+service, so it is a proposal to whoever owns the environment rather than an established convention.
+
+```bash
+docker compose -f docker-compose.gitw3.yml --env-file .env up -d
+docker compose -f docker-compose.gitw3.yml restart gitw3   # first deploy only
+```
+
+The restart is needed once, because the source is created after GitW3 has already read its sources at boot.
+
+One constraint has no workaround: GitW3 exchanges the authorization code over the bridge's **public** hostname, since
+the discovery document publishes absolute URLs. `http://w3ds-oidc-bridge:4200` would fail the issuer comparison, so the
+container has to resolve its own public name.
 
 ## Testing without a phone
 

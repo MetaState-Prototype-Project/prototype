@@ -196,8 +196,32 @@ service, and no workflow in `.github/workflows/` deploys anything. So how servic
 `*.w3ds.metastate.foundation` is out of band and not knowable from this repo.
 
 This must be settled with whoever owns the staging environment before phase 6 starts, and the answer recorded here.
-Until then phase 6 has no starting point. Do not invent a compose entry — nothing would consume it, and it would read
-as a deployment path that works.
+
+`docker-compose.gitw3.yml` is a **candidate**, written to make that conversation concrete: something to accept, adapt
+or reject rather than a list of questions. Its header says as much, so it cannot be mistaken for the house convention.
+It brings up both services with the ordering constraint enforced, and registers the authentication source through
+`docker/gitw3-register-auth-source.sh` — Forgejo keeps sources in its database, so without that step a fresh instance
+needs someone to click through Site Administration before anyone can log in.
+
+Both were verified against the running local instance: the compose file interpolates and validates, and the script's
+create, update and reject branches were each exercised, leaving exactly one source behind.
+
+What it cannot answer, and what the meeting must:
+
+- **Who runs it, and where.** A host with Docker? An orchestrator? The answer decides whether this file is the artifact
+  or just its documentation.
+- **Where the images come from.** GitW3 publishes `ghcr.io/<owner>/gitw3` on `gitw3-v*` tags; the owner changes with the
+  repository transfer, and org packages default to private. Nothing publishes a bridge image at all — the compose file
+  builds it locally, which is a gap, not a design.
+- **Which Registry, and which wallet build.** `PUBLIC_REGISTRY_URL` must name the same Registry the testers' wallets
+  were provisioned against, or every signature fails verification. This decides whether criterion 5 is testable.
+- **Where the two secrets live.** `W3DS_OIDC_CLIENT_SECRET` and `W3DS_OIDC_SIGNING_KEY`. Forgejo supports a `__FILE`
+  suffix on its own settings; the bridge reads only environment variables, so a file-backed secret store needs a small
+  addition on our side.
+- **How the bridge's public hostname resolves from inside GitW3's container.** The discovery document publishes absolute
+  URLs, so the back channel goes out through the public name — there is no internal shortcut. `extra_hosts` is the
+  escape hatch where the network cannot hairpin.
+- **Who terminates TLS.** Non-negotiable for the bridge: goth never verifies the ID token signature.
 
 *Commit: `chore(w3ds-oidc-bridge): dockerfile, service README and button icon`*
 

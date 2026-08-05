@@ -245,14 +245,25 @@ name against a real wallet is to reserve a name that was actually issued.
 | `@_bob` | `@_bob` | `bob` | `_bob@w3ds.invalid` |
 | `@admin` | `@admin` | `""` → linking page | `admin@w3ds.invalid` |
 
-`sub` keeps the full ename. It is the identity — it lands in `external_login_user.external_id` and must never be
-ambiguous. The username is presentation only.
+`sub` keeps the full ename. It is the identity, and it must never be ambiguous; the username is presentation only.
+
+Forgejo stores it as `user.login_name` alongside `user.login_source`, and looks a returning user up by that pair first
+(`routers/web/auth/oauth.go:1615`). `external_login_user` is the *fallback* lookup and is only written on the linking
+path, so an auto-provisioned W3DS account has no row there. Verified: after a first sign-in, `login_name` holds the
+full eName, `@` included, and `external_login_user` is empty.
 
 ### The fallback must be an empty string, never an absent claim
 
 When the sanitiser produces nothing usable, the bridge hands the problem to Forgejo: an absent or empty `nickname`
 routes to `showLinkingLogin` (`routers/web/auth/oauth.go:1118`), the page where the person picks their own username or
 links an existing account. Delegating to upstream machinery keeps the bridge stateless and the experience native.
+
+One caveat found by running it: with `DISABLE_REGISTRATION = true` the linking page renders, but its "Register new
+account" tab has no username field (`templates/user/auth/signup_inner.tmpl:14`), so the person cannot complete the
+fallback themselves. Auto-provisioning still works on such an instance — that path never consults
+`DISABLE_REGISTRATION` — so only the fallback is affected. It stays theoretical in practice: the Provisioner issues
+UUID-shaped eNames, which cannot collide with Forgejo's reserved list, so the fallback is only reachable through
+`W3DS_EXTRA_RESERVED_USERNAMES`, which is an administrator's deliberate act.
 
 **But the claim must be present and empty, not omitted.** Omitting it panics Forgejo on that very page:
 
@@ -343,6 +354,37 @@ With `ACCOUNT_LINKING = auto`, Forgejo looks the account up by name, links it, a
 (`routers/web/auth/auth.go:573-588`). **That is an account takeover.** `auto` is prohibited, and the staging checklist
 verifies it.
 
+### Silent authentication must be refused
+
+Forgejo issues a long-term SSO token tied to the authentication source
+(`routers/web/auth/auth.go:83`). On a later visit to the login page it redirects to
+`/user/oauth2/<source>?prompt=none`, asking to re-authenticate the person with no interaction at all
+(OIDC Core §3.1.2.1).
+
+The bridge keeps no session of its own — every login is a fresh QR code someone has to scan — so silent authentication
+can never succeed, and rendering the QR page would be exactly the interaction the parameter forbids. `prompt=none` gets
+`error=login_required` immediately.
+
+Forgejo already implements the other half: on `login_required` it retries interactively
+(`routers/web/auth/oauth.go:1012`). Answering correctly is what makes the login page work at all for someone who has
+signed in before; ignoring `prompt` strands them on a QR page they did not ask for. This only shows up on the *second*
+login, which is why it survived every single-pass test.
+
+### The W3DS half needs CORS; the OIDC half does not
+
+A native eID Wallet sends no `Origin` and is unaffected. A browser-based one — starting with the Dev Sandbox, which is
+the documented way to test this flow — posts JSON from its own origin, which triggers a preflight. Express answers
+`OPTIONS` with a bare 200 and no CORS headers, so the browser blocks the request and reports only "Failed to fetch":
+the login hangs with nothing in any log to explain it.
+
+`/w3ds/callback` and `/w3ds/events/:session` therefore allow any origin, without credentials. They carry no cookie and
+no ambient authority — the callback is authenticated by the ECDSA signature over the session id, checked against the
+Registry — so refusing an origin would stop no attacker (curl has none) while breaking every wallet that happens to run
+in a browser.
+
+The OIDC endpoints get nothing: `/token` and `/userinfo` are back-channel calls from Forgejo, and `/authorize` is a
+top-level navigation. None is ever a cross-origin fetch.
+
 ### Error responses
 
 An error on `/authorize` is returned to the `redirect_uri` only once that `redirect_uri` has been validated. Unknown
@@ -379,6 +421,21 @@ throws at startup, matching [awareness-service's config](../../../services/aware
 | `W3DS_MIN_WALLET_VERSION` | `0.4.0` | |
 | `W3DS_OIDC_ALLOW_INSECURE` | `false` | local development only; see below |
 | `PUBLIC_REGISTRY_URL` | — | already present in the root `.env` |
+
+### The bridge must be up before GitW3 starts
+
+Forgejo fetches the discovery document **once, at startup**, when it registers the authentication source
+(`services/auth/source/oauth2/init.go:92`). If the bridge is unreachable at that moment the source is not registered at
+all, and it stays gone until GitW3 is restarted — the button disappears from the login page with only a line in the
+log.
+
+The failure that follows is worse than the cause, because it does not point back at it: with the source unregistered,
+`generateCodeChallenge` no longer recognises it as an `openidConnect` provider, so Forgejo stops sending PKCE, and the
+bridge rejects the request with `code_challenge is required`. Observed exactly that way while testing.
+
+So the two services have an ordering dependency: start the bridge first, and restart GitW3 after any deployment that
+takes the bridge down. This is a deployment constraint, not a runtime one — once registered, the source survives a
+bridge restart.
 
 ### The back channel must be TLS
 
@@ -455,6 +512,7 @@ with a real eID Wallet. Debugging happens locally. Four things are checked in st
 else:
 
 - the discovery URL is `https://` and `W3DS_OIDC_ALLOW_INSECURE` is unset;
+- the bridge came up **before** GitW3, and the GitW3 log has no `Unable to register source`;
 - `ACCOUNT_LINKING` is `login`, not `auto`;
 - `REGISTER_EMAIL_CONFIRM` is `false` in `[oauth2_client]`, not inherited from `[service]`;
 - a fresh ename gets an **active** account created, and signing in again reuses it rather than creating a second;
