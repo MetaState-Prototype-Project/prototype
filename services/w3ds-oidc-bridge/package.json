@@ -11,6 +11,9 @@
         "start": "node dist/index.js",
         "test": "vitest run",
         "test:watch": "vitest",
+        "check": "npx @biomejs/biome check ./src && tsc --noEmit",
+        "check-format": "npx @biomejs/biome format ./src",
+        "check-lint": "npx @biomejs/biome lint ./src",
         "check-types": "tsc --noEmit"
     },
     "dependencies": {
