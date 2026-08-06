@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "9a1b2c3d-4e5f-4a60-8b1c-1122334455ff",
+  "title": "PreferredHandlers",
+  "type": "object",
+  "description": "One person's choice of which platform opens which ontology — the W3DS analogue of OS default apps, on their OWN vault (ACL = self). Keyed by ontology schemaId: `handlers[<schemaId>] = {openUrl, platform?}` where `openUrl` is a template another platform may navigate to when the person taps an envelope of that ontology. One envelope per owner; writes merge one key at a time.",
+  "properties": {
+    "id": { "type": "string", "description": "Body id" },
+    "type": { "type": "string", "const": "preferred-handlers" },
+    "handlers": {
+      "type": "object",
+      "description": "schemaId → {openUrl, platform?}",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "openUrl": { "type": "string", "description": "URL template that opens this ontology in the chosen platform" },
+          "platform": { "type": "string", "description": "Human label of the chosen platform (informational)" }
+        },
+        "required": ["openUrl"]
+      }
+    },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "required": ["id", "type", "handlers", "updatedAt"],
+  "additionalProperties": true
+}
