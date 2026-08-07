@@ -778,6 +778,7 @@ export class GraphQLServer {
                                         evaultPublicKey: this.evaultPublicKey,
                                         data: input.payload,
                                         schemaId: input.ontology,
+                                        operation: "create" as const,
                                     };
 
                                     // Fire-and-forget ingest to AaaS
@@ -949,6 +950,7 @@ export class GraphQLServer {
                                 data: result.bindingDocument,
                                 schemaId:
                                     BINDING_DOCUMENT_ONTOLOGY,
+                                operation: "create" as const,
                             };
                             this.notifyAwareness(
                                 webhookPayload,
@@ -1055,6 +1057,7 @@ export class GraphQLServer {
                                 data: result,
                                 schemaId:
                                     BINDING_DOCUMENT_ONTOLOGY,
+                                operation: "update" as const,
                             };
                             this.notifyAwareness(
                                 webhookPayload,
@@ -1239,6 +1242,7 @@ export class GraphQLServer {
                             evaultPublicKey: this.evaultPublicKey,
                             data: input.payload,
                             schemaId: input.ontology,
+                            operation: "create" as const,
                         };
 
                         this.notifyAwareness(
@@ -1492,6 +1496,7 @@ export class GraphQLServer {
                                 evaultPublicKey: this.evaultPublicKey,
                                 data: result.mergedPayload ?? input.payload,
                                 schemaId: input.ontology,
+                                operation: "update" as const,
                             };
 
                             // Fire-and-forget ingest to AaaS

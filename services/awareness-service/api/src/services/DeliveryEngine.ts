@@ -62,9 +62,31 @@ export class DeliveryEngine {
             // A slow or malicious subscription must not block unrelated
             // platforms in the same batch. Each request has its own timeout;
             // drain the claimed batch concurrently so failures are isolated.
-            await Promise.allSettled(
+            const results = await Promise.allSettled(
                 claimed.map((delivery) => this.attemptDelivery(delivery)),
             );
+            const rejected = results
+                .map((result, index) => ({ result, delivery: claimed[index] }))
+                .filter(
+                    (item): item is {
+                        result: PromiseRejectedResult;
+                        delivery: Delivery;
+                    } => item.result.status === "rejected",
+                );
+            for (const { result, delivery } of rejected) {
+                const message =
+                    result.reason instanceof Error
+                        ? result.reason.message
+                        : String(result.reason);
+                await AppDataSource.getRepository(Delivery).update(delivery.id, {
+                    status: "failed",
+                    lastError: message,
+                    nextAttemptAt: new Date(),
+                });
+                console.error(
+                    `[aaas] delivery ${delivery.id} task failed before completion: ${message}`,
+                );
+            }
             this.dbDown = false;
         } catch (err) {
             if (isDbUnavailable(err)) {
@@ -100,7 +122,13 @@ export class DeliveryEngine {
                 // already hit the cap) are terminal and never re-claimed.
                 `id IN (
                     SELECT id FROM deliveries
-                    WHERE status IN ('pending', 'failed')
+                    WHERE (
+                            status IN ('pending', 'failed')
+                            OR (
+                                status = 'delivering'
+                                AND "nextAttemptAt" <= now() - interval '1 minute'
+                            )
+                          )
                       AND attempts < :maxAttempts
                       AND "nextAttemptAt" <= now()
                     ORDER BY "nextAttemptAt"

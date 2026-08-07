@@ -36,31 +36,37 @@ export function adminRouter(): Router {
     });
 
     // Inspect effective targets without exposing webhook signing secrets.
-    router.get("/api/admin/subscriptions", async (req, res) => {
-        const target =
-            typeof req.query.target === "string" ? req.query.target : null;
-        const qb = AppDataSource.getRepository(Subscription)
-            .createQueryBuilder("s")
-            .innerJoin(Consumer, "c", "c.id = s.consumerId")
-            .select([
-                's.id AS "subscriptionId"',
-                's.targetUrl AS "targetUrl"',
-                's.isCatchAll AS "isCatchAll"',
-                's.active AS "active"',
-                's.ontologyFilter AS "ontologyFilter"',
-                's.evaultFilter AS "evaultFilter"',
-                's.createdAt AS "createdAt"',
-                'c.id AS "consumerId"',
-                'c.ename AS "consumerEname"',
-                'c.status AS "consumerStatus"',
-                'c.webhookBaseUrl AS "webhookBaseUrl"',
-            ])
-            .orderBy("s.createdAt", "ASC");
-        if (target) {
-            qb.where("s.targetUrl ILIKE :target", { target: `%${target}%` });
+    router.get("/api/admin/subscriptions", async (req, res, next) => {
+        try {
+            const target =
+                typeof req.query.target === "string" ? req.query.target : null;
+            const qb = AppDataSource.getRepository(Subscription)
+                .createQueryBuilder("s")
+                .innerJoin(Consumer, "c", "c.id = s.consumerId")
+                .select([
+                    's.id AS "subscriptionId"',
+                    's.targetUrl AS "targetUrl"',
+                    's.isCatchAll AS "isCatchAll"',
+                    's.active AS "active"',
+                    's.ontologyFilter AS "ontologyFilter"',
+                    's.evaultFilter AS "evaultFilter"',
+                    's.createdAt AS "createdAt"',
+                    'c.id AS "consumerId"',
+                    'c.ename AS "consumerEname"',
+                    'c.status AS "consumerStatus"',
+                    'c.webhookBaseUrl AS "webhookBaseUrl"',
+                ])
+                .orderBy("s.createdAt", "ASC");
+            if (target) {
+                qb.where("s.targetUrl ILIKE :target", {
+                    target: `%${target}%`,
+                });
+            }
+            const subscriptions = await qb.getRawMany();
+            res.json({ count: subscriptions.length, subscriptions });
+        } catch (error) {
+            next(error);
         }
-        const subscriptions = await qb.getRawMany();
-        res.json({ count: subscriptions.length, subscriptions });
     });
 
     router.post("/api/admin/applications/:id/approve", async (req, res) => {
@@ -132,44 +138,50 @@ export function adminRouter(): Router {
 
     // Definitive end-to-end trace for one awareness packet: every matched
     // subscription, resolved target, owning consumer and delivery outcome.
-    router.get("/api/admin/packets/:id/deliveries", async (req, res) => {
-        const rows = await AppDataSource.getRepository(Delivery)
-            .createQueryBuilder("d")
-            .innerJoin(Subscription, "s", "s.id = d.subscriptionId")
-            .innerJoin(Consumer, "c", "c.id = s.consumerId")
-            .select([
-                'd.id AS "deliveryId"',
-                'd.packetId AS "packetId"',
-                'd.status AS "status"',
-                'd.attempts AS "attempts"',
-                'd.nextAttemptAt AS "nextAttemptAt"',
-                'd.deliveredAt AS "deliveredAt"',
-                'd.lastResponseStatus AS "lastResponseStatus"',
-                'd.lastError AS "lastError"',
-                's.id AS "subscriptionId"',
-                's.targetUrl AS "targetUrl"',
-                's.isCatchAll AS "isCatchAll"',
-                's.active AS "subscriptionActive"',
-                's.ontologyFilter AS "ontologyFilter"',
-                's.evaultFilter AS "evaultFilter"',
-                'c.id AS "consumerId"',
-                'c.ename AS "consumerEname"',
-                'c.status AS "consumerStatus"',
-            ])
-            .where("d.packetId = :packetId", { packetId: req.params.id })
-            .orderBy("d.createdAt", "ASC")
-            .getRawMany();
+    router.get("/api/admin/packets/:id/deliveries", async (req, res, next) => {
+        try {
+            const rows = await AppDataSource.getRepository(Delivery)
+                .createQueryBuilder("d")
+                .innerJoin(Subscription, "s", "s.id = d.subscriptionId")
+                .innerJoin(Consumer, "c", "c.id = s.consumerId")
+                .select([
+                    'd.id AS "deliveryId"',
+                    'd.packetId AS "packetId"',
+                    'd.status AS "status"',
+                    'd.attempts AS "attempts"',
+                    'd.nextAttemptAt AS "nextAttemptAt"',
+                    'd.deliveredAt AS "deliveredAt"',
+                    'd.lastResponseStatus AS "lastResponseStatus"',
+                    'd.lastError AS "lastError"',
+                    's.id AS "subscriptionId"',
+                    's.targetUrl AS "targetUrl"',
+                    's.isCatchAll AS "isCatchAll"',
+                    's.active AS "subscriptionActive"',
+                    's.ontologyFilter AS "ontologyFilter"',
+                    's.evaultFilter AS "evaultFilter"',
+                    'c.id AS "consumerId"',
+                    'c.ename AS "consumerEname"',
+                    'c.status AS "consumerStatus"',
+                ])
+                .where("d.packetId = :packetId", { packetId: req.params.id })
+                .orderBy("d.createdAt", "ASC")
+                .getRawMany();
 
-        const packetExists = await AppDataSource.getRepository(Packet).exists({
-            where: { id: req.params.id },
-        });
+            const packetExists = await AppDataSource.getRepository(
+                Packet,
+            ).exists({
+                where: { id: req.params.id },
+            });
 
-        res.json({
-            packetId: req.params.id,
-            packetExists,
-            deliveryCount: rows.length,
-            deliveries: rows,
-        });
+            res.json({
+                packetId: req.params.id,
+                packetExists,
+                deliveryCount: rows.length,
+                deliveries: rows,
+            });
+        } catch (error) {
+            next(error);
+        }
     });
 
     // Replay re-queues the original delivery and resolves the dead letter.

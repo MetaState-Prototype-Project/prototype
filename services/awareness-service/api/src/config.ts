@@ -11,6 +11,15 @@ function required(name: string): string {
     return value;
 }
 
+function timerInterval(name: string, fallback: number): number {
+    const raw = process.env[name];
+    if (raw === undefined || !/^\d+$/.test(raw)) return fallback;
+    const value = Number(raw);
+    return Number.isSafeInteger(value) && value <= 2_147_483_647
+        ? value
+        : fallback;
+}
+
 export const config = {
     /** Postgres connection string for the AaaS database. */
     databaseUrl: process.env.AWARENESS_DATABASE_URL ?? "",
@@ -33,10 +42,7 @@ export const config = {
         10,
     ),
     /** How often registry platforms are reconciled with catch-all subscriptions. */
-    registrySyncMs: parseInt(
-        process.env.AWARENESS_REGISTRY_SYNC_MS ?? "60000",
-        10,
-    ),
+    registrySyncMs: timerInterval("AWARENESS_REGISTRY_SYNC_MS", 60000),
     /** Public base URL of the AaaS API, used to build W3DS auth callbacks. */
     publicUrl: process.env.AWARENESS_PUBLIC_URL ?? "http://localhost:4100",
     dbCaCert: process.env.DB_CA_CERT,

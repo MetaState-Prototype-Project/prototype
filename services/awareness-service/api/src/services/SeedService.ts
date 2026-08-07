@@ -20,7 +20,9 @@ export class SeedService {
     start(): void {
         if (!config.registryUrl || config.registrySyncMs <= 0) return;
         this.timer = setInterval(() => {
-            void this.syncCatchAll();
+            void this.syncCatchAll().catch((err) => {
+                console.error("[seed] registry reconciliation failed:", err);
+            });
         }, config.registrySyncMs);
         console.log(
             `[seed] registry reconciliation started (poll ${config.registrySyncMs}ms)`,
@@ -63,6 +65,7 @@ export class SeedService {
         const consumerRepo = AppDataSource.getRepository(Consumer);
         const subRepo = AppDataSource.getRepository(Subscription);
         let seeded = 0;
+        const currentTargets = new Map<string, string>();
 
         for (const platformUrl of platforms) {
             let host: string;
@@ -76,6 +79,7 @@ export class SeedService {
             }
 
             const ename = `catchall:${host}`;
+            currentTargets.set(ename, targetUrl);
             let consumer = await consumerRepo.findOne({ where: { ename } });
             if (!consumer) {
                 consumer = consumerRepo.create({
@@ -124,6 +128,30 @@ export class SeedService {
                 existing.ontologyFilter = [];
                 existing.evaultFilter = [];
                 await subRepo.save(existing);
+                seeded += 1;
+            }
+        }
+
+        const managedSubscriptions = await subRepo
+            .createQueryBuilder("s")
+            .innerJoin(Consumer, "c", "c.id = s.consumerId")
+            .addSelect('c.ename', "consumerEname")
+            .where("s.isCatchAll = true")
+            .andWhere("s.active = true")
+            .andWhere("c.ename LIKE :prefix", { prefix: "catchall:%" })
+            .getRawAndEntities();
+
+        for (
+            let index = 0;
+            index < managedSubscriptions.entities.length;
+            index += 1
+        ) {
+            const subscription = managedSubscriptions.entities[index];
+            const ename = managedSubscriptions.raw[index]
+                .consumerEname as string;
+            if (currentTargets.get(ename) !== subscription.targetUrl) {
+                subscription.active = false;
+                await subRepo.save(subscription);
                 seeded += 1;
             }
         }
