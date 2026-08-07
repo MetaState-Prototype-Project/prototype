@@ -59,9 +59,12 @@ export class DeliveryEngine {
         this.running = true;
         try {
             const claimed = await this.claimBatch();
-            for (const delivery of claimed) {
-                await this.attemptDelivery(delivery);
-            }
+            // A slow or malicious subscription must not block unrelated
+            // platforms in the same batch. Each request has its own timeout;
+            // drain the claimed batch concurrently so failures are isolated.
+            await Promise.allSettled(
+                claimed.map((delivery) => this.attemptDelivery(delivery)),
+            );
             this.dbDown = false;
         } catch (err) {
             if (isDbUnavailable(err)) {
@@ -124,7 +127,7 @@ export class DeliveryEngine {
             where: { id: delivery.packetId },
         });
 
-        if (!subscription || !packet) {
+        if (!subscription || (!packet && !delivery.payload)) {
             await this.fail(
                 delivery,
                 subscription,
@@ -134,12 +137,16 @@ export class DeliveryEngine {
             return;
         }
 
-        const payload: AwarenessPayload = {
-            id: packet.id,
-            w3id: packet.w3id,
-            evaultPublicKey: packet.evaultPublicKey,
-            data: packet.data,
-            schemaId: packet.ontology,
+        // New rows carry an immutable snapshot so rapid updates to the same
+        // envelope cannot overwrite an older event before it is delivered.
+        // Fall back to Packet for deliveries created before this column existed.
+        const payload: AwarenessPayload = delivery.payload ?? {
+            id: packet!.id,
+            w3id: packet!.w3id,
+            evaultPublicKey: packet!.evaultPublicKey,
+            data: packet!.data,
+            schemaId: packet!.ontology,
+            operation: packet!.operation,
         };
 
         const headers: Record<string, string> = {

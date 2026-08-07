@@ -41,6 +41,11 @@ export class Delivery {
     @Column({ type: "varchar" })
     contentHash!: string;
 
+    /** Immutable event snapshot; prevents later packet upserts changing this delivery. */
+    @Column({ type: "jsonb", nullable: true })
+    // `any` avoids TypeORM DeepPartial rejecting arbitrary JSON object values.
+    payload!: any;
+
     @Column({ type: "varchar", default: "pending" })
     status!: DeliveryStatus;
 

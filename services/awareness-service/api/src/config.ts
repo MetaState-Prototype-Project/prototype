@@ -32,6 +32,11 @@ export const config = {
         process.env.AWARENESS_DELIVERY_POLL_MS ?? "2000",
         10,
     ),
+    /** How often registry platforms are reconciled with catch-all subscriptions. */
+    registrySyncMs: parseInt(
+        process.env.AWARENESS_REGISTRY_SYNC_MS ?? "60000",
+        10,
+    ),
     /** Public base URL of the AaaS API, used to build W3DS auth callbacks. */
     publicUrl: process.env.AWARENESS_PUBLIC_URL ?? "http://localhost:4100",
     dbCaCert: process.env.DB_CA_CERT,
