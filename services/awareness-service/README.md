@@ -59,7 +59,9 @@ Service**.
 
 ## Backward compatibility
 
-On launch AaaS seeds a catch-all subscription for every platform currently in
-the registry, so existing webhook receivers keep getting every packet at
-`<platform>/api/webhook` with no change. Consumers can later narrow to specific
-ontologies / eVaults.
+On launch and periodically thereafter, AaaS reconciles a catch-all subscription
+for every platform currently in the registry, so existing and newly registered
+webhook receivers keep getting every packet at `<platform>/api/webhook` with no
+change. `AWARENESS_REGISTRY_SYNC_MS` controls the interval (default 60000; set
+to 0 to disable periodic reconciliation). Non-registry consumers can narrow
+their own subscriptions to specific ontologies / eVaults.

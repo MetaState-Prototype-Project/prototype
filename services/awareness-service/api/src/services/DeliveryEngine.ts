@@ -59,8 +59,33 @@ export class DeliveryEngine {
         this.running = true;
         try {
             const claimed = await this.claimBatch();
-            for (const delivery of claimed) {
-                await this.attemptDelivery(delivery);
+            // A slow or malicious subscription must not block unrelated
+            // platforms in the same batch. Each request has its own timeout;
+            // drain the claimed batch concurrently so failures are isolated.
+            const results = await Promise.allSettled(
+                claimed.map((delivery) => this.attemptDelivery(delivery)),
+            );
+            const rejected = results
+                .map((result, index) => ({ result, delivery: claimed[index] }))
+                .filter(
+                    (item): item is {
+                        result: PromiseRejectedResult;
+                        delivery: Delivery;
+                    } => item.result.status === "rejected",
+                );
+            for (const { result, delivery } of rejected) {
+                const message =
+                    result.reason instanceof Error
+                        ? result.reason.message
+                        : String(result.reason);
+                await AppDataSource.getRepository(Delivery).update(delivery.id, {
+                    status: "failed",
+                    lastError: message,
+                    nextAttemptAt: new Date(),
+                });
+                console.error(
+                    `[aaas] delivery ${delivery.id} task failed before completion: ${message}`,
+                );
             }
             this.dbDown = false;
         } catch (err) {
@@ -97,7 +122,13 @@ export class DeliveryEngine {
                 // already hit the cap) are terminal and never re-claimed.
                 `id IN (
                     SELECT id FROM deliveries
-                    WHERE status IN ('pending', 'failed')
+                    WHERE (
+                            status IN ('pending', 'failed')
+                            OR (
+                                status = 'delivering'
+                                AND "nextAttemptAt" <= now() - interval '1 minute'
+                            )
+                          )
                       AND attempts < :maxAttempts
                       AND "nextAttemptAt" <= now()
                     ORDER BY "nextAttemptAt"
@@ -124,7 +155,7 @@ export class DeliveryEngine {
             where: { id: delivery.packetId },
         });
 
-        if (!subscription || !packet) {
+        if (!subscription || (!packet && !delivery.payload)) {
             await this.fail(
                 delivery,
                 subscription,
@@ -134,12 +165,16 @@ export class DeliveryEngine {
             return;
         }
 
-        const payload: AwarenessPayload = {
-            id: packet.id,
-            w3id: packet.w3id,
-            evaultPublicKey: packet.evaultPublicKey,
-            data: packet.data,
-            schemaId: packet.ontology,
+        // New rows carry an immutable snapshot so rapid updates to the same
+        // envelope cannot overwrite an older event before it is delivered.
+        // Fall back to Packet for deliveries created before this column existed.
+        const payload: AwarenessPayload = delivery.payload ?? {
+            id: packet!.id,
+            w3id: packet!.w3id,
+            evaultPublicKey: packet!.evaultPublicKey,
+            data: packet!.data,
+            schemaId: packet!.ontology,
+            operation: packet!.operation,
         };
 
         const headers: Record<string, string> = {

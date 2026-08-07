@@ -141,11 +141,11 @@ AaaS is designed to be dropped in with **zero receiver-side changes**:
 1. **Backfill.** AaaS runs on the same node as evault-core's Neo4j. The
    `backfill` script reads existing MetaEnvelopes straight from the graph and
    seeds the `packets` table (history only — it does not queue deliveries).
-2. **Catch-all seeding.** On every launch, AaaS ensures each platform currently
-   in the registry has an approved consumer and a catch-all subscription
-   pointing at `<platform>/api/webhook`. Existing platforms therefore keep
-   receiving every packet exactly as before, and can later narrow their
-   subscriptions to specific ontologies or eVaults.
+2. **Catch-all reconciliation.** On every launch and once per configured sync
+   interval, AaaS ensures each platform currently in the registry has an
+   approved consumer and an active catch-all subscription pointing at
+   `<platform>/api/webhook`. Existing and newly registered platforms therefore
+   keep receiving every packet exactly as before.
 3. **evault-core switch.** evault-core's `deliverWebhooks`/`getActivePlatforms`
    are removed; a single `notifyAwareness` POST forwards each packet to AaaS.
 
@@ -162,6 +162,7 @@ AaaS is designed to be dropped in with **zero receiver-side changes**:
 | `AAAS_JWT_SECRET` | Signs portal session JWTs |
 | `AWARENESS_MAX_ATTEMPTS` | Delivery attempts before dead-lettering (default 3) |
 | `AWARENESS_DELIVERY_POLL_MS` | Delivery engine poll interval (default 2000) |
+| `AWARENESS_REGISTRY_SYNC_MS` | Registry catch-all reconciliation interval (default 60000; 0 disables periodic sync) |
 | `NEO4J_URI` / `NEO4J_USER` / `NEO4J_PASSWORD` | Standard eVault Neo4j vars — reused by the one-time backfill |
 | `PUBLIC_AWARENESS_API_URL` | (portal) AaaS API base URL |
 
@@ -172,6 +173,6 @@ AaaS is designed to be dropped in with **zero receiver-side changes**:
 pnpm --filter awareness-service-api build
 pnpm --filter awareness-service-api migration:run
 pnpm --filter awareness-service-api backfill        # one-time, from Neo4j
-pnpm --filter awareness-service-api dev             # API (seeds catch-all on launch)
+pnpm --filter awareness-service-api dev             # API (keeps registry catch-alls synced)
 pnpm --filter awareness-portal dev                  # portal
 ```

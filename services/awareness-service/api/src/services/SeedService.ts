@@ -6,13 +6,44 @@ import { config } from "../config";
 
 /**
  * Backward-compat seeding. Before AaaS, evault-core fanned out every webhook to
- * every registered platform. To preserve that behaviour, on launch we ensure
- * each platform currently in the registry has an approved consumer and a
- * catch-all subscription (empty filters) pointing at `<platform>/api/webhook`.
+ * every registered platform. To preserve that behaviour, on launch and at a
+ * configured interval we ensure each platform currently in the registry has
+ * an approved consumer and an active catch-all subscription (empty filters)
+ * pointing at `<platform>/api/webhook`.
  *
- * Idempotent: existing catch-all subscriptions are left untouched.
+ * Idempotent: valid existing catch-all subscriptions are reused.
  */
 export class SeedService {
+    private timer?: NodeJS.Timeout;
+    private syncing = false;
+
+    start(): void {
+        if (!config.registryUrl || config.registrySyncMs <= 0) return;
+        this.timer = setInterval(() => {
+            void this.syncCatchAll().catch((err) => {
+                console.error("[seed] registry reconciliation failed:", err);
+            });
+        }, config.registrySyncMs);
+        console.log(
+            `[seed] registry reconciliation started (poll ${config.registrySyncMs}ms)`,
+        );
+    }
+
+    stop(): void {
+        if (this.timer) clearInterval(this.timer);
+    }
+
+    /** Prevent overlapping registry requests when one reconciliation is slow. */
+    async syncCatchAll(): Promise<{ seeded: number; total: number }> {
+        if (this.syncing) return { seeded: 0, total: 0 };
+        this.syncing = true;
+        try {
+            return await this.seedCatchAll();
+        } finally {
+            this.syncing = false;
+        }
+    }
+
     async seedCatchAll(): Promise<{ seeded: number; total: number }> {
         if (!config.registryUrl) {
             console.warn("[seed] PUBLIC_REGISTRY_URL not set, skipping");
@@ -34,6 +65,7 @@ export class SeedService {
         const consumerRepo = AppDataSource.getRepository(Consumer);
         const subRepo = AppDataSource.getRepository(Subscription);
         let seeded = 0;
+        const currentTargets = new Map<string, string>();
 
         for (const platformUrl of platforms) {
             let host: string;
@@ -47,6 +79,7 @@ export class SeedService {
             }
 
             const ename = `catchall:${host}`;
+            currentTargets.set(ename, targetUrl);
             let consumer = await consumerRepo.findOne({ where: { ename } });
             if (!consumer) {
                 consumer = consumerRepo.create({
@@ -56,6 +89,14 @@ export class SeedService {
                     webhookBaseUrl: platformUrl,
                     approvedAt: new Date(),
                 });
+                await consumerRepo.save(consumer);
+            } else {
+                // Registry-level consumers are managed by this compatibility
+                // sync. Keep them deliverable even if an earlier subscription
+                // or consumer record was disabled.
+                consumer.status = "approved";
+                consumer.webhookBaseUrl = platformUrl;
+                consumer.approvedAt ??= new Date();
                 await consumerRepo.save(consumer);
             }
 
@@ -78,11 +119,45 @@ export class SeedService {
                     }),
                 );
                 seeded += 1;
+            } else if (
+                !existing.active ||
+                existing.ontologyFilter.length > 0 ||
+                existing.evaultFilter.length > 0
+            ) {
+                existing.active = true;
+                existing.ontologyFilter = [];
+                existing.evaultFilter = [];
+                await subRepo.save(existing);
+                seeded += 1;
+            }
+        }
+
+        const managedSubscriptions = await subRepo
+            .createQueryBuilder("s")
+            .innerJoin(Consumer, "c", "c.id = s.consumerId")
+            .addSelect('c.ename', "consumerEname")
+            .where("s.isCatchAll = true")
+            .andWhere("s.active = true")
+            .andWhere("c.ename LIKE :prefix", { prefix: "catchall:%" })
+            .getRawAndEntities();
+
+        for (
+            let index = 0;
+            index < managedSubscriptions.entities.length;
+            index += 1
+        ) {
+            const subscription = managedSubscriptions.entities[index];
+            const ename = managedSubscriptions.raw[index]
+                .consumerEname as string;
+            if (currentTargets.get(ename) !== subscription.targetUrl) {
+                subscription.active = false;
+                await subRepo.save(subscription);
+                seeded += 1;
             }
         }
 
         console.log(
-            `[seed] catch-all seeding done: ${seeded} new of ${platforms.length} platforms`,
+            `[seed] catch-all reconciliation done: ${seeded} changed of ${platforms.length} platforms`,
         );
         return { seeded, total: platforms.length };
     }

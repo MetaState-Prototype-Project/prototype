@@ -60,7 +60,17 @@ export class IngestService {
         // Dedupe deliveries by payload content rather than packet id alone:
         // re-ingesting an updated envelope (new hash) must queue a new delivery,
         // while a retried POST of the same payload (same hash) must not.
-        const hash = contentHash(payload.data ?? null);
+        // The operation is part of the event identity. A delete can carry the
+        // same (often null) data as another event and must still be delivered.
+        const deliveryPayload: AwarenessPayload = {
+            id: payload.id,
+            w3id: payload.w3id ?? null,
+            evaultPublicKey: payload.evaultPublicKey ?? null,
+            data: payload.data ?? null,
+            schemaId: payload.schemaId,
+            operation: payload.operation ?? "create",
+        };
+        const hash = contentHash(deliveryPayload);
 
         const deliveryRepo = AppDataSource.getRepository(Delivery);
         const rows = subscriptions.map((sub) =>
@@ -68,6 +78,7 @@ export class IngestService {
                 subscriptionId: sub.id,
                 packetId: packet.id,
                 contentHash: hash,
+                payload: deliveryPayload,
                 status: "pending",
                 attempts: 0,
                 nextAttemptAt: new Date(),

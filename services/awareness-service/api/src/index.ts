@@ -50,7 +50,9 @@ async function start(): Promise<void> {
 
     // Backward compat: keep every currently-registered platform receiving
     // everything, the same way evault-core's old fanout did.
-    await new SeedService().seedCatchAll();
+    const seedService = new SeedService();
+    await seedService.syncCatchAll();
+    seedService.start();
 
     const deliveryEngine = new DeliveryEngine();
     deliveryEngine.start();

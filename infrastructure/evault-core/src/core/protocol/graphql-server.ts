@@ -113,24 +113,44 @@ export class GraphQLServer {
             return;
         }
 
-        try {
-            await axios.post(
-                new URL(
-                    "/ingest",
-                    process.env.AWARENESS_SERVICE_URL,
-                ).toString(),
-                { ...webhookPayload, requestingPlatform },
-                {
-                    headers: {
-                        "Content-Type": "application/json",
-                        "x-ingest-secret":
-                            process.env.AWARENESS_INGEST_SECRET ?? "",
+        const ingestUrl = new URL(
+            "/ingest",
+            process.env.AWARENESS_SERVICE_URL,
+        ).toString();
+        const maxAttempts = 3;
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+            try {
+                const response = await axios.post(
+                    ingestUrl,
+                    { ...webhookPayload, requestingPlatform },
+                    {
+                        headers: {
+                            "Content-Type": "application/json",
+                            "x-ingest-secret":
+                                process.env.AWARENESS_INGEST_SECRET ?? "",
+                        },
+                        timeout: 5000,
                     },
-                    timeout: 5000,
-                },
-            );
-        } catch (error) {
-            console.log("Awareness ingest delivery failed");
+                );
+                console.log(
+                    `[webhook] AaaS accepted id=${webhookPayload?.id} status=${response.status} attempt=${attempt}`,
+                );
+                return;
+            } catch (error: any) {
+                const status = error?.response?.status ?? "no-response";
+                const code = error?.code ?? "unknown";
+                const message = error?.message ?? "unknown error";
+                console.error(
+                    `[webhook] AaaS ingest failed id=${webhookPayload?.id} status=${status} code=${code} attempt=${attempt}/${maxAttempts}: ${message}`,
+                );
+
+                if (attempt < maxAttempts) {
+                    await new Promise((resolve) =>
+                        setTimeout(resolve, 250 * 2 ** (attempt - 1)),
+                    );
+                }
+            }
         }
     }
 
@@ -388,6 +408,7 @@ export class GraphQLServer {
                                 evaultPublicKey: this.evaultPublicKey,
                                 data: input.payload,
                                 schemaId: input.ontology,
+                                operation: "create" as const,
                             };
 
                             // Fire-and-forget ingest to AaaS
@@ -532,6 +553,7 @@ export class GraphQLServer {
                                 evaultPublicKey: this.evaultPublicKey,
                                 data: result.mergedPayload ?? input.payload,
                                 schemaId: input.ontology,
+                                operation: "update" as const,
                             };
 
                             // Fire-and-forget ingest to AaaS
@@ -756,6 +778,7 @@ export class GraphQLServer {
                                         evaultPublicKey: this.evaultPublicKey,
                                         data: input.payload,
                                         schemaId: input.ontology,
+                                        operation: "create" as const,
                                     };
 
                                     // Fire-and-forget ingest to AaaS
@@ -927,6 +950,7 @@ export class GraphQLServer {
                                 data: result.bindingDocument,
                                 schemaId:
                                     BINDING_DOCUMENT_ONTOLOGY,
+                                operation: "create" as const,
                             };
                             this.notifyAwareness(
                                 webhookPayload,
@@ -1033,6 +1057,7 @@ export class GraphQLServer {
                                 data: result,
                                 schemaId:
                                     BINDING_DOCUMENT_ONTOLOGY,
+                                operation: "update" as const,
                             };
                             this.notifyAwareness(
                                 webhookPayload,
@@ -1217,6 +1242,7 @@ export class GraphQLServer {
                             evaultPublicKey: this.evaultPublicKey,
                             data: input.payload,
                             schemaId: input.ontology,
+                            operation: "create" as const,
                         };
 
                         this.notifyAwareness(
@@ -1470,6 +1496,7 @@ export class GraphQLServer {
                                 evaultPublicKey: this.evaultPublicKey,
                                 data: result.mergedPayload ?? input.payload,
                                 schemaId: input.ontology,
+                                operation: "update" as const,
                             };
 
                             // Fire-and-forget ingest to AaaS
