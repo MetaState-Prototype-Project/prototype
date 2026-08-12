@@ -71,6 +71,21 @@ export function consumerRouter(): Router {
         );
         const deliveries = await AppDataSource.getRepository(Delivery)
             .createQueryBuilder("d")
+            // The `payload` snapshot is deliberately excluded: it is a full
+            // event body per row and nothing here renders it, so selecting it
+            // would drag every matched row's jsonb out of TOAST for nothing.
+            .select([
+                "d.id",
+                "d.subscriptionId",
+                "d.packetId",
+                "d.status",
+                "d.attempts",
+                "d.nextAttemptAt",
+                "d.lastError",
+                "d.lastResponseStatus",
+                "d.createdAt",
+                "d.deliveredAt",
+            ])
             .innerJoin(
                 Subscription,
                 "s",
@@ -78,7 +93,13 @@ export function consumerRouter(): Router {
                 { cid: req.consumer!.id },
             )
             .orderBy("d.createdAt", "DESC")
-            .take(limit)
+            // `limit`, not `take`: with a join present `take` makes TypeORM
+            // wrap the query in a SELECT DISTINCT over an *unbounded* subquery
+            // and apply LIMIT only on the outside, so Postgres materialises and
+            // sorts the consumer's entire delivery history to return 50 rows.
+            // The join is to subscriptions on its primary key and so cannot
+            // duplicate rows, which is the only thing that DISTINCT pass buys.
+            .limit(limit)
             .getMany();
         res.json({ deliveries });
     });
