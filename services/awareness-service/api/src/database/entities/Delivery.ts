@@ -26,6 +26,8 @@ export type DeliveryStatus =
     "packetId",
     "contentHash",
 ])
+// Serves the consumer dashboard's newest-first delivery list.
+@Index("idx_deliveries_subscription_created", ["subscriptionId", "createdAt"])
 export class Delivery {
     @PrimaryGeneratedColumn("uuid")
     id!: string;
