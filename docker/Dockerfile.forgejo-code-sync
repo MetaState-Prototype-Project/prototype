@@ -1,0 +1,42 @@
+FROM node:20-alpine AS base
+RUN apk add --no-cache libc6-compat python3 make g++
+WORKDIR /app
+
+ENV CI=true
+ENV PYTHON=/usr/bin/python3
+RUN ln -sf python3 /usr/bin/python
+
+# ---
+FROM base AS prepare
+RUN npm install -g pnpm@10.25.0 turbo@^2
+COPY . .
+RUN turbo prune forgejo-code-sync --docker
+
+# ---
+FROM base AS builder
+RUN npm install -g pnpm@10.25.0
+# Dependencies first, since they change far less often than the source.
+COPY --from=prepare /app/out/json/ .
+RUN pnpm install --frozen-lockfile
+COPY --from=prepare /app/out/full/ .
+RUN pnpm turbo build --filter=forgejo-code-sync
+
+# ---
+FROM base AS runner
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/pnpm-workspace.yaml ./
+COPY --from=builder /app/pnpm-lock.yaml ./
+
+COPY --from=builder /app/services/forgejo-code-sync/dist ./services/forgejo-code-sync/dist
+COPY --from=builder /app/services/forgejo-code-sync/package.json ./services/forgejo-code-sync/
+COPY --from=builder /app/services/forgejo-code-sync/node_modules ./services/forgejo-code-sync/node_modules
+COPY --from=builder /app/node_modules ./node_modules
+
+WORKDIR /app/services/forgejo-code-sync
+
+# Keep in step with FORGEJO_SYNC_PORT.
+EXPOSE 4300
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:4300/healthz', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)}).on('error', () => process.exit(1))"
+
+CMD ["node", "dist/index.js"]
