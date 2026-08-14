@@ -1,1 +1,3 @@
 .queue/
+.queue-snapshots/
+.repo-envelopes/

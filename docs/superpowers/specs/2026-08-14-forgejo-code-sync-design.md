@@ -243,6 +243,87 @@ not a sign the request is wrong, but it means the actual public/private *enforce
 evault-core's own already-working use of this same pattern against real DO Spaces, not independently re-verified for
 this service's own uploads.
 
+## Repo-owner full snapshot (added 2026-08-15)
+
+Everything above this section is the per-pusher commit+diff sync, unchanged by what follows. This section adds a
+second, independent sync path off the same webhook, built after the first was already live-verified: the repository
+**owner**'s eVault gets the complete repo — every file and folder, not a diff — stored via S3 and **replaced in
+place** on every push. In the owner's own words: "the owner of the repo has the whole repo stored and which just
+replaces whenever anyone makes a commit. And for the individual contributors, the commit along with diff gets stored
+in their evaults." Both paths run off the same `push` webhook delivery; neither is disabled or weakened by the
+other, and one succeeding, skipping, or failing has no bearing on the other's outcome for the same push.
+
+**Owner, not pusher.** `repository.owner.login` (`modules/structs/repo.go:52`, `Owner *User \`json:"owner"\``) is a
+full `User`, same struct as `pusher` — but that is not assumed just because both are `*User`; `modules/structs/user.go:18`
+confirms `UserName string \`json:"login"\`` is the same tag pusher.login already uses. Resolved to an eName with the
+exact same `IdentityResolver` the pusher path already uses (`identity.ts` was already generic over any Forgejo
+username, not pusher-specific — no new identity code needed). A repo pushed to by a collaborator has an owner who
+never touched `git push` for that commit at all; the owner-snapshot sync doesn't care who pushed, only who owns the
+repo.
+
+**Org-owned repos fall out of identity resolution for free, with no separate check.** `GET /api/v1/users/{username}`
+has no user-type filter (`routers/api/v1/user/user.go`'s `GetInfo` — checked directly, gates only on
+`IsUserVisibleToViewer`, not on the account being a person rather than an organization; Forgejo stores organizations
+as rows in the same user table). So calling it with an organization's login succeeds, but an organization never signs
+in through the bridge, so its `login_name` never starts with `@` — `enameFromLoginName` returns `null` for it exactly
+the way it does for an ordinary unlinked password account. **Treated identically, deliberately, not by oversight**:
+an org-owned repo's snapshot sync is skipped, logged the same "no linked eVault" way a personal unlinked account's
+push is.
+
+**Update in place, not one envelope per push.** "Replaces whenever anyone makes a commit" means one `repoSnapshot`
+MetaEnvelope per repo, kept current via `updateMetaEnvelope(id: ID!, input: MetaEnvelopeInput!): UpdateMetaEnvelopePayload!`
+(`infrastructure/evault-core/src/core/protocol/typedefs.ts:335`, resolver at `graphql-server.ts:466`) rather than a
+fresh `createMetaEnvelope` on every push. `evault-core` also has a legacy `updateMetaEnvelopeById(id: String!, ...)`
+mutation (`typedefs.ts:368`) — not used here; the "new" `updateMetaEnvelope` matches `createMetaEnvelope`'s own
+idiomatic payload shape (`{ metaEnvelope { id }, errors { field message code } }`) this service's `writeCommit`
+already relies on, so `EVaultClient.writeRepoSnapshot` could reuse the same error-unwrapping code for both mutations.
+Finding "the existing envelope id for this repo" on a later push needed somewhere to remember it — deliberately
+**not** `evault-core`'s `metaEnvelopes` list query, which has the confirmed, live, currently-unfixed ACL-filtering
+bug this doc's Testing section already documents. Using it to search for this service's own bookkeeping wouldn't hit
+that bug in a security-relevant way (this service already knows the eName and repo it's looking for), but it's an
+unnecessary live dependency on a component with a known correctness bug when a local mapping is simpler and already
+matches `queue.ts`'s own file-per-key persistence style — see `repoEnvelopeStore.ts`.
+
+**Once per push, not once per commit.** A 10-commit push must upload the repo once, not ten times. The webhook
+handler builds at most one `RepoSnapshotTask` per delivery, outside the per-commit loop that builds `CommitSyncTask`s,
+using the push's own `after` field (`modules/structs/hook.go:261`, `After string \`json:"after"\`` — the sha the ref
+points at once the push lands) as the archive's ref, not any individual commit's id — a multi-commit push has several
+of those, and only the final one is "the repo's current state" worth archiving. `after` being the all-zero sha (a
+branch/tag deletion) skips queuing a snapshot task entirely — there is no ref state left to archive.
+
+**The archive endpoint — found and live-verified, not assumed, same discipline that caught the web-router `.diff`
+bug.** `routers/api/v1/api.go:847`: `m.Get("/archive/*", reqRepoReader(unit.TypeCode), repo.GetArchive)`, mounted
+under `m.Group("/repos", ...) { m.Group("/{username}/{reponame}", ...) }` (line 780) — i.e.
+`GET /api/v1/repos/{owner}/{repo}/archive/{ref}.{zip|tar.gz|...}`, the API router, never the web router's own
+separate `/archive` group in `routers/web/web.go:1916`, which this service does not use at all. Confirmed live against
+the real private test repo (`2086ed05-.../forgejo-code-sync-test`), not just read from source: `curl` with
+`Authorization: token <admin token>` → `200` with a real zip archive (`unzip -l` showed the repo's actual files and
+folders); the identical request with no `Authorization` header → `404` (Forgejo's usual anonymous-on-private-repo
+response, not `403`, so as not to leak that the repo exists) — the same auth behaviour as the working `.diff` route,
+not the broken one. Also confirmed with a real commit sha as the ref (not just a branch name), since that's what
+`RepoSnapshotTask.headCommitId` always is: `GET .../archive/8e944efc31f3ff176901ceed8ee2f4fe49ccc42d.zip` → `200`,
+same content as `.../archive/main.zip` at that point in the repo's history. `.zip` was picked over `.tar.gz` (both
+were confirmed working) for no reason beyond it being marginally more universal to extract; nothing about the design
+depends on the choice.
+
+**S3 key and ACL — one object per repo, mirrors visibility the same way diffs already do.** `S3Storage.uploadRepoArchive`
+uploads to a deterministic, collision-free key `repos/{owner}/{repo}.zip` — one per repo, not one per commit or push,
+the same key reused (and overwritten) on every later push, which is what makes "update in place" true at the S3 layer
+too, not just the eVault layer. `isPublic` mirrors `!task.repoPrivate`, the exact same signal `uploadDiff` already
+uses, for the exact same reason: a private repo's full source must not become world-readable via a guessable S3 URL
+just because it's stored as an archive rather than a diff. Same accepted, named limitation as the diff path: if a
+repo's visibility changes between pushes, the already-uploaded archive's ACL does not retroactively change — the next
+push re-uploads (and re-ACLs) it, but nothing re-scans an already-synced repo that hasn't been pushed to again.
+
+**Live-verified end to end**, against the same local MinIO throwaway container and the same `mc anonymous`
+differential-proof technique the diff path's own 2026-08-15 verification note (below, in Testing) used — see that
+section for the full commands and output. Summary: a real two-push sequence against a real public test repo produced
+one `repoSnapshot` envelope (checked directly against Neo4j) whose `id` was identical across both pushes and whose
+`headCommitId`/`snapshotUrl` content updated to match the second push's HEAD; a real push against a real private test
+repo produced an owner-only-ACL'd envelope whose S3 archive was anonymously denied while the public repo's stayed
+anonymously fetchable, at the same bucket, same host, same container; a push from an unlinked, password-registered
+account produced zero envelopes on either sync path, logged as two distinct "skipped" lines, not an error.
+
 ## Architecture
 
 Same shape as the bridge: `services/forgejo-code-sync/`, flat, Express + TypeScript, `.env`-driven required-config
@@ -251,12 +332,18 @@ pattern (`src/config.ts`, throws at startup on anything missing — mirrors
 
 ```
 config.ts        env parsing; throws at startup on anything missing
-identity.ts       pusher username -> eName, admin API call + TTL cache
+identity.ts       pusher/owner username -> eName, admin API call + TTL cache - generic, used by both sync paths
 evault.ts         certify + per-eName GraphQL client (copy of EVaultService.ts's shape), acl derived from Repo.Private
-storage/s3.ts     uploads a diff to the same DO Spaces bucket evault-core uses, ACL mirrors repo visibility
-content.ts        fetch a commit's diff from the API router, upload it via storage/s3.ts, return the S3 URL
-queue.ts          persisted retry queue — see Delivery reliability, below
-webhook/push.ts    verify signature, iterate commits, enqueue
+                   writeCommit (create-only) and writeRepoSnapshot (create-or-update) both live here
+storage/s3.ts     uploads a diff or a repo archive to the same DO Spaces bucket evault-core uses, ACL mirrors repo
+                   visibility - uploadDiff keyed per commit, uploadRepoArchive keyed per repo (overwritten in place)
+content/diff.ts    fetch a commit's diff from the API router, upload it via storage/s3.ts, return the S3 URL
+content/archive.ts fetch a repo archive from the API router at the push's final ref, upload it, return the S3 URL
+repoEnvelopeStore.ts  repoFullName -> envelopeId, so a later push updates the same repoSnapshot envelope in place
+queue.ts          persisted retry queue — see Delivery reliability, below - one instance per task kind
+sync.ts           per-commit drain loop (pusher's eVault)
+snapshotSync.ts    once-per-push drain loop (owner's eVault) - mirrors sync.ts's shape and skip/retry semantics
+webhook/push.ts    verify signature, iterate commits (per-commit tasks), build one snapshot task per delivery
 index.ts          wiring, /healthz
 ```
 
@@ -539,6 +626,94 @@ actually reach `addHook`'s secret-setting branch on a rotation, not just an init
 **Regression suite after this pass: 90 unit tests (was 89) — `pnpm --filter forgejo-code-sync test` — and
 `pnpm --filter forgejo-code-sync check` (Biome + `tsc --noEmit`, including `scripts/`) both still clean.**
 
+**2026-08-15, later the same day: the repo-owner full snapshot (see [that section](#repo-owner-full-snapshot-added-2026-08-15)),
+built and live-verified end to end.** Same local MinIO container and `mc anonymous` technique as the diff-path note
+above, reused rather than re-derived.
+
+**Archive endpoint, found and verified live before any code was written against it** —
+`GET /api/v1/repos/{owner}/{repo}/archive/{ref}.zip`:
+
+```
+$ curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: token <admin token>" \
+    'http://localhost:3001/api/v1/repos/2086ed05-.../forgejo-code-sync-test/archive/main.zip'
+200
+$ curl -sS -o /dev/null -w '%{http_code}' \
+    'http://localhost:3001/api/v1/repos/2086ed05-.../forgejo-code-sync-test/archive/main.zip'   # no auth header
+404
+$ unzip -l archive-priv-auth.zip
+  Archive:  archive-priv-auth.zip
+    8e944efc31f3ff176901ceed8ee2f4fe49ccc42d
+      Length  Name
+           0  forgejo-code-sync-test/
+          26  forgejo-code-sync-test/README.md
+          66  forgejo-code-sync-test/hello.txt
+          49  forgejo-code-sync-test/private-verify.txt
+```
+
+Same result requesting the archive by commit sha instead of branch name (`.../archive/8e944efc....zip`), which is
+what `RepoSnapshotTask.headCommitId` always uses. `.tar.gz` confirmed working identically; `.zip` used going forward.
+
+**First push — envelope created, checked directly against Neo4j:**
+
+```
+[snapshot] 2086ed05-.../forgejo-code-sync-test-public@888848984147 -> envelope 55056a9c-4a7e-576d-883e-378da54016c2
+
+neo4j> MATCH (m:MetaEnvelope {id:'55056a9c-4a7e-576d-883e-378da54016c2'}) RETURN m
+(:MetaEnvelope {acl: ["*"], eName: "@2086ed05-...", ontology: "a9b56118-ac82-4f4e-9f70-77444c1a8f34"})
+# linked Envelope nodes: repo, ref, headCommitId (matches the pushed commit sha), ownerEName, snapshotUrl, updatedAt
+
+$ mc cat 'local/forgejo-sync-test/repos/2086ed05-.../forgejo-code-sync-test-public.zip' | unzip -l -
+  forgejo-code-sync-test-public/README.md
+  forgejo-code-sync-test-public/public-verify.txt
+  forgejo-code-sync-test-public/snapshot-verify.txt   # the file the verification commit itself added
+```
+
+**Second push — same envelope id, content updated, not a second envelope:**
+
+```
+[snapshot] 2086ed05-.../forgejo-code-sync-test-public@0a3991204e55 -> envelope 55056a9c-4a7e-576d-883e-378da54016c2
+#                                                                              ^^^^^^^^ identical to the first push
+
+neo4j> MATCH (m:MetaEnvelope {ontology:'a9b56118-...', eName:'@2086ed05-...'})-[:LINKS_TO]->
+              (e:Envelope {ontology:'repo'}) WHERE e.value = '2086ed05-.../forgejo-code-sync-test-public'
+       RETURN count(m)
+1
+# headCommitId on that same envelope now reads the second push's sha; snapshotUrl is byte-identical (same S3 key)
+
+$ mc cat '.../forgejo-code-sync-test-public.zip' | unzip -p - .../snapshot-verify.txt
+repo-snapshot verification push 1 - 2026-08-14T19:47:38Z
+repo-snapshot verification push 2 - 2026-08-14T19:48:31Z   # both lines present - the object was overwritten, not appended, and the diff-fetch content itself proves it's live
+```
+
+**S3 ACL split, the same differential proof as the diff path, on the repo archive this time:**
+
+```
+# before opening any policy - both denied, MinIO's usual non-honouring of canned ACLs, expected
+$ curl -o /dev/null -w '%{http_code}' '.../repos/.../forgejo-code-sync-test-public.zip'   # 403
+$ curl -o /dev/null -w '%{http_code}' '.../repos/.../forgejo-code-sync-test.zip'           # 403 (private repo)
+
+$ mc anonymous set download 'local/forgejo-sync-test/repos/2086ed05-.../forgejo-code-sync-test-public.zip'
+
+# after - only the public repo's archive opened
+$ curl -o /dev/null -w '%{http_code}' '.../repos/.../forgejo-code-sync-test-public.zip'   # 200, real zip content
+$ curl -o /dev/null -w '%{http_code}' '.../repos/.../forgejo-code-sync-test.zip'           # still 403
+```
+
+**Unlinked owner (and, by the same mechanism, an org-owned repo — see the design section above for why they resolve
+identically) — both sync paths skip cleanly, distinctly from an error, and write nothing:**
+
+```
+[snapshot] plain-test-user/plain-test-repo@11c08c157543 skipped - no linked eVault for owner "plain-test-user"
+[sync] plain-test-user/plain-test-repo@11c08c157543 skipped - no linked eVault for pusher "plain-test-user"
+
+neo4j> MATCH (e:Envelope) WHERE e.value CONTAINS 'plain-test' RETURN count(e)
+0
+```
+`.queue` and `.queue-snapshots` both empty afterward - neither task left pending, retrying, or exhausted.
+
+**Regression suite after this pass: 123 unit tests (was 90) — `pnpm --filter forgejo-code-sync test` — and
+`pnpm --filter forgejo-code-sync check` (Biome + `tsc --noEmit`) both still clean.**
+
 **Staging / real Forgejo.** The local run above substitutes for most of what this note originally asked for. What's
 still genuinely staging-only: TLS termination, a site-admin service account that isn't also someone's personal login,
 and confirming the whole chain behaves the same once `forgejo-code-sync` and GitW3 are not on the same host.
@@ -553,6 +728,7 @@ and confirming the whole chain behaves the same once `forgejo-code-sync` and Git
 | 4 | A commit's diff is preserved regardless of size | uploaded to S3, never inlined into the eVault write — see [What gets written](#what-gets-written) |
 | 5 | Private-repo code is not made world-readable by the act of syncing it | `acl` derived from `Repo.Private` — see known limitation in [Trust model](#trust-model) |
 | 6 | A transient failure (eVault outage, timeout, crash mid-batch) does not silently lose a push's sync | persisted retry queue — see [Delivery reliability](#delivery-reliability-no-safety-net-from-forgejo) |
+| 7 | The repo owner's eVault holds the complete current repo, replaced in place on every push, independent of the pusher's own sync | [Repo-owner full snapshot](#repo-owner-full-snapshot-added-2026-08-15) — one `repoSnapshot` MetaEnvelope per repo, `updateMetaEnvelope` on every push after the first |
 
 ## Open items
 

@@ -1,6 +1,7 @@
 # forgejo-code-sync
 
-Syncs commits pushed to GitW3 into the pushing author's own eVault.
+Syncs commits pushed to GitW3 into the pushing author's own eVault, and keeps a full up-to-date copy of the repo in
+its **owner's** own eVault - two independent sync paths off the same webhook, see [What gets synced](#what-gets-synced).
 
 **Design:** [docs/superpowers/specs/2026-08-14-forgejo-code-sync-design.md](../../docs/superpowers/specs/2026-08-14-forgejo-code-sync-design.md)
 **Plan:** [docs/superpowers/plans/2026-08-14-forgejo-code-sync-plan.md](../../docs/superpowers/plans/2026-08-14-forgejo-code-sync-plan.md)
@@ -35,6 +36,14 @@ never blocks the commit's own metadata from being synced.
 A push from an account with no linked eVault (`login_name` doesn't start with `@`) is skipped silently - the ordinary
 case for most GitW3 accounts, not a failure.
 
+**A second, independent path off the same webhook** writes the repo's complete current state - every file and
+folder, via GitW3's archive endpoint, uploaded to S3 - into the **owner's** own eVault
+(`services/ontology/schemas/repoSnapshot.json`), replaced in place on every push rather than accumulating one
+envelope per push. `repository.owner.login`, not `pusher.login`, is resolved the same way (`IdentityResolver` is
+generic over any Forgejo username); an org-owned repo or an owner with no linked eVault skips the same way an
+unlinked pusher does. See the spec's [Repo-owner full snapshot](../../docs/superpowers/specs/2026-08-14-forgejo-code-sync-design.md#repo-owner-full-snapshot-added-2026-08-15)
+section for the full design and live-verification detail.
+
 ## Delivery reliability
 
 Forgejo has no automatic retry or redelivery of failed webhook deliveries at all - confirmed against GitW3's own
@@ -42,6 +51,10 @@ Forgejo has no automatic retry or redelivery of failed webhook deliveries at all
 (`.queue/` locally - see [Deployment](#deployment)) before the webhook handler responds, and a failed sync is retried
 with exponential backoff rather than dropped. A task that exhausts its retry budget is left on disk in an `exhausted`
 status - logged distinctly from an ordinary skip - rather than silently removed, since it needs a human.
+
+The repo-owner snapshot sync has its own independent queue (`.queue-snapshots/`), same reliability discipline, same
+skip/retry/exhausted semantics - a slow or down eVault delays the owner's snapshot the same way it delays a pusher's
+commit, and neither queue's failure affects the other's.
 
 ## Configuration
 
@@ -95,12 +108,15 @@ automated tests: a real end-to-end run against a live GitW3 + bridge + eVault, w
 the bridge's own README describes for testing without a phone, extended by pushing a commit as the final step - see
 the plan's Phase 6.
 
-**Live verification, done twice, not just planned.** See the spec's Testing section for both passes: the first live
-push (public/private repo, unlinked-account skip, single-webhook regression, plus two GitW3 webhook-provisioning
-traps found only by testing) and the 2026-08-15 follow-up that closed the one gap the first pass left open - a real
-differential proof that a private-repo diff's S3 object is anonymously unreachable while a public one isn't, plus a
-fourth webhook trap (`PATCH /admin/hooks/{id}` silently ignores a secret rotation - fixed in
-`scripts/register-webhook.ts`, which now deletes and recreates instead of patching).
+**Live verification, done three times, not just planned.** See the spec's Testing section for all three passes: the
+first live push (public/private repo, unlinked-account skip, single-webhook regression, plus two GitW3
+webhook-provisioning traps found only by testing); the 2026-08-15 follow-up that closed the one gap the first pass
+left open - a real differential proof that a private-repo diff's S3 object is anonymously unreachable while a public
+one isn't, plus a fourth webhook trap (`PATCH /admin/hooks/{id}` silently ignores a secret rotation - fixed in
+`scripts/register-webhook.ts`, which now deletes and recreates instead of patching); and the same day's repo-owner
+snapshot pass - the archive endpoint found and live-verified before any code was written against it, a real two-push
+sequence proving update-in-place (same envelope id, S3 object content changed), the same S3 ACL differential proof
+applied to a repo archive, and the org/unlinked-owner skip path exercised live.
 
 ## Deployment
 
