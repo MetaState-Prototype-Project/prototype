@@ -15,6 +15,17 @@ import { fileURLToPath } from "node:url";
  * hook when one already points at this service's /webhook URL, and creates
  * one otherwise.
  *
+ * Uses FORGEJO_PROVISIONING_TOKEN, not FORGEJO_ADMIN_TOKEN - confirmed live,
+ * not just from source: /admin/hooks requires AccessTokenScopeCategoryAdmin
+ * (routers/api/v1/api.go:1415, "write:admin" for a create/update), which
+ * FORGEJO_ADMIN_TOKEN deliberately does NOT carry - it only needs
+ * read:user,read:repository for what the running service actually does
+ * forever. Provisioning a webhook is a one-time operator action; the
+ * always-on service should not sit on a credential that could also rewrite
+ * every system webhook, when it never needs to. Falls back to
+ * FORGEJO_ADMIN_TOKEN if the narrower token isn't set, so a single-token
+ * setup still works - just with a wider blast radius than necessary.
+ *
  * Run from the repository root:
  *   pnpm --filter forgejo-code-sync register-webhook
  */
@@ -65,7 +76,9 @@ async function listAllHooks(
 
 async function main(): Promise<void> {
     const forgejoApiUrl = required("FORGEJO_API_URL").replace(/\/+$/, "");
-    const adminToken = required("FORGEJO_ADMIN_TOKEN");
+    const adminToken =
+        process.env.FORGEJO_PROVISIONING_TOKEN?.trim() ||
+        required("FORGEJO_ADMIN_TOKEN");
     const webhookSecret = required("FORGEJO_WEBHOOK_SECRET");
     const publicUrl = required("FORGEJO_SYNC_PUBLIC_URL").replace(/\/+$/, "");
     const webhookUrl = `${publicUrl}/webhook`;
@@ -75,17 +88,37 @@ async function main(): Promise<void> {
         "Content-Type": "application/json",
     };
 
-    // The trap this whole script exists to avoid: `active` defaults to false
-    // (CreateHookOption.Active bool, zero value) if omitted. A request that
-    // omits it still returns 201 with a real hook id - Site Administration
-    // shows it, GET /admin/hooks lists it - but it silently never delivers a
-    // single push. Passed explicitly, every time, on both create and update.
+    // Two traps in the same endpoint, both confirmed live against a running
+    // GitW3, not just from source - neither produces an error, which is what
+    // makes them dangerous.
+    //
+    // 1. `active` defaults to false (CreateHookOption.Active bool, zero
+    //    value) if omitted. Omitting it still returns 201 with a real hook id
+    //    - Site Administration shows it, GET /admin/hooks lists it - but it
+    //    silently never delivers a single push.
+    // 2. POST /admin/hooks creates a "default" webhook, NOT a system one,
+    //    unless config.is_system_webhook is the *string* "true"
+    //    (routers/api/v1/utils/hook.go's addHook: `isSystemWebhook` only
+    //    becomes true when `form.Config["is_system_webhook"]` parses truthy;
+    //    the field isn't in CreateHookOption's documented shape at all, it's
+    //    read out of the free-form `config` map). A default webhook is only
+    //    copied into repos created *after* it's added - it does not apply
+    //    retroactively to existing repos, and GetSystemWebhooks
+    //    (models/webhook/webhook_system.go) filters `is_system_webhook=true`,
+    //    so it is invisible to GET /admin/hooks too. Confirmed by reproducing
+    //    it: without this field, the create call returns 201, but the hook
+    //    never appears in a follow-up GET /admin/hooks and would silently
+    //    miss every already-existing repo - exactly the "sync every push"
+    //    requirement this service exists to satisfy.
+    //
+    // Both are passed explicitly, every time, on both create and update.
     const body = {
         type: "forgejo",
         config: {
             url: webhookUrl,
             content_type: "json",
             secret: webhookSecret,
+            is_system_webhook: "true",
         },
         events: ["push"],
         active: true,

@@ -2,6 +2,13 @@
 
 **Spec:** [2026-08-14-forgejo-code-sync-design.md](../specs/2026-08-14-forgejo-code-sync-design.md)
 
+**Status: Phases 0–5 built and passing (89 tests), Phase 6 run once against a live GitW3 instance.** Tasks 1.5, 4.1
+and 4.2 below describe the *original* cap-then-inline diff design, superseded after that live run found it wrong in
+two ways — see the spec's "What gets written" for the corrected design (diff always uploaded to S3, never inlined;
+fetched from the API router's `git/commits/{sha}.diff`, not the web router's `commit/{sha}.diff`, which doesn't
+authenticate a PAT for a private repo at all). Left as-written below for the historical record of what was actually
+tried and why it changed, rather than silently edited to look right in hindsight.
+
 Rationale lives in the spec; this document is the order of work and how each step is proved. Every task states its
 verification. A task is not done until its verification passes.
 
@@ -184,7 +191,13 @@ step marks the task failed and lets the queue's backoff handle the retry.
 
 ## Phase 4 — Diff fetching
 
-**4.1 `src/content/diff.ts`.** `fetchDiff(repo, sha, token): Promise<{ diff: string } | { diffUrl: string }>` — `GET
+**Superseded — see the status note at the top of this document.** What actually shipped: `fetchDiff(task, eName):
+Promise<string>`, fetching from `GET {FORGEJO_API_URL}/api/v1/repos/{repo}/git/commits/{sha}.diff` (the API router,
+not the web router below — confirmed live that the web router never authenticates a PAT for a private repo), then
+uploading the result to S3 via `storage/s3.ts` and returning that URL. No size cap; throws on any failure instead of
+degrading to a fallback, since there's no longer a lesser fallback to degrade to.
+
+**4.1 `src/content/diff.ts`, as originally planned.** `fetchDiff(repo, sha, token): Promise<{ diff: string } | { diffUrl: string }>` — `GET
 {FORGEJO_API_URL}/{owner}/{repo}/commit/{sha}.diff` with `FORGEJO_ADMIN_TOKEN` (needs `read:repository` per the
 spec's [Trust model](../specs/2026-08-14-forgejo-code-sync-design.md#trust-model)); if the response exceeds
 `FORGEJO_SYNC_DIFF_MAX_BYTES` (checked via `Content-Length` where present, or a streamed byte count where it isn't)
@@ -240,7 +253,8 @@ of `docker/gitw3-register-auth-source.sh` even though the mechanism (REST API, n
     "url": "<this service's /webhook URL>",   // required, validated as a URL
     "content_type": "json",                    // required; only "json" or "form" are valid — "form" would break
                                                 // the raw-body JSON signing this service's verification assumes
-    "secret": "<FORGEJO_WEBHOOK_SECRET>"       // NOT required by the API — omitting it is accepted with 201
+    "secret": "<FORGEJO_WEBHOOK_SECRET>",      // NOT required by the API — omitting it is accepted with 201
+    "is_system_webhook": "true"                // undocumented in CreateHookOption's own shape — see the trap below
   },
   "events": ["push"],              // optional — omitted entirely defaults to exactly ["push"] server-side, but
                                     // pass it explicitly rather than relying on that default
@@ -258,6 +272,19 @@ accepted as absent (`checkCreateHookOption` only requires `url` and `content_typ
 Forgejo signs with an empty key, so `X-Forgejo-Signature` arrives empty and `verifyForgejoSignature` correctly
 rejects every delivery, but from the outside this looks identical to "webhook never configured," not "webhook
 misconfigured," making it slower to diagnose than the `active` trap.
+
+**A third trap, found only by testing against a live instance — this JSON body's own comment above understated it.**
+`POST /admin/hooks` creates a "default" webhook, not a "system" one, unless `config.is_system_webhook` is the
+*string* `"true"` — read out of `CreateHookOption`'s free-form `config` map by
+`routers/api/v1/utils/hook.go`'s `addHook`, not a documented top-level field. Reproduced directly: without it, the
+create call still returns `201`, but the resulting hook (a) is invisible to `GET /admin/hooks` — that endpoint's
+`GetSystemWebhooks` filters `is_system_webhook=true` at the DB layer — and (b) is only copied into repos created
+*after* it's added, never applying retroactively to an existing repo. Both failure modes are silent successes,
+exactly like the `active` trap, and compound with it: a hook that's both inactive and non-system passes every
+naive check (`201` returned, script exits `0`) while doing nothing at all, for two independent reasons. Deleting a
+stray non-system hook created this way has no API or CLI path either — `GetDefaultWebhooks` (the model function that
+would list it) is only called from the web admin UI's own handler, `routers/web/admin/hooks.go`, never exposed over
+`/api/v1/`.
 
 > **Verify:** run against a local GitW3 instance with a real site-admin token — the hook appears in Site
 > Administration → Webhooks **and its Active toggle is on** (not just present in the list); a manual "Test Delivery"
