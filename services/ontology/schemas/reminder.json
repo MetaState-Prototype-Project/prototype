@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "0f9a3cb8-4a9f-4b5f-a1fa-3a4c2eb1f412",
+  "title": "Reminder",
+  "type": "object",
+  "description": "A universal reminder/alarm envelope. It can point to any W3DS subject, not only a task. The timing model is compatible with iCalendar VALARM absolute triggers.",
+  "additionalProperties": true,
+  "required": [
+    "id",
+    "canonicalOwnerEName",
+    "createdBy",
+    "recipientEName",
+    "triggerAt",
+    "action",
+    "summary",
+    "status",
+    "relatedSubject",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "id": { "type": "string" },
+    "canonicalOwnerEName": { "type": "string" },
+    "createdBy": { "type": "string" },
+    "recipientEName": { "type": "string" },
+    "triggerAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Absolute reminder trigger time, equivalent to VALARM TRIGGER;VALUE=DATE-TIME."
+    },
+    "timezone": { "type": "string", "default": "UTC" },
+    "action": {
+      "type": "string",
+      "enum": ["display", "email", "audio"],
+      "default": "display"
+    },
+    "summary": { "type": "string" },
+    "description": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["scheduled", "acknowledged", "dismissed", "cancelled"],
+      "default": "scheduled"
+    },
+    "acknowledgedAt": { "type": ["string", "null"], "format": "date-time" },
+    "snoozedUntil": { "type": ["string", "null"], "format": "date-time" },
+    "standard": {
+      "type": "string",
+      "description": "Optional interoperability hint, for example RFC5545-VALARM."
+    },
+    "triggerKind": {
+      "type": "string",
+      "enum": ["absolute", "relative"],
+      "default": "absolute"
+    },
+    "relatedSubject": {
+      "type": "object",
+      "description": "Structured pointer to the subject. Readers can resolve this to learn whether the subject is a task, event, message, birthday, payment, shopping item, or another W3DS entity.",
+      "required": ["id"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string" },
+        "ontologyId": { "type": "string" },
+        "canonicalOwnerEName": { "type": "string" },
+        "canonicalEnvelopeId": { "type": ["string", "null"] },
+        "type": { "type": "string" }
+      }
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  }
+}

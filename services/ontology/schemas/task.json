@@ -63,23 +63,26 @@
     "deadline": { "type": ["string", "null"], "format": "date-time" },
     "blockedByTaskIds": { "type": "array", "items": { "type": "string" } },
     "blocksTaskIds": { "type": "array", "items": { "type": "string" } },
-    "notes": { "type": "array", "items": { "$ref": "#/definitions/note" } },
-    "attachments": { "type": "array", "items": { "$ref": "#/definitions/attachment" } },
-    "subtasks": { "type": "array", "items": { "$ref": "#/definitions/subtask" } },
-    "effectiveAcl": { "type": "array", "items": { "type": "string" } },
+    "notes": { "type": "array", "items": { "$ref": "#/definitions/note" }, "description": "Deprecated legacy inline copy. New notes are canonical TaskNote envelopes." },
+    "attachments": { "type": "array", "items": { "$ref": "#/definitions/attachment" }, "description": "Deprecated legacy inline copy. New attachments are canonical TaskAttachment envelopes." },
+    "subtasks": { "type": "array", "items": { "$ref": "#/definitions/subtask" }, "description": "Deprecated legacy inline copy. New subtasks are Task envelopes linked through task relations." },
+    "effectiveAcl": { "type": "array", "items": { "type": "string" }, "description": "Deprecated projection. The sole authoritative access list is MetaEnvelope.acl." },
     "manualAclAdds": { "type": "array", "items": { "type": "string" } },
     "aiDraftSource": { "type": "string" },
     "eVaultSyncStatus": { "type": "string", "enum": ["synced", "pending", "failed"] },
     "eVaultSyncError": { "type": ["string", "null"] },
     "createdAt": { "type": "string", "format": "date-time" },
     "updatedAt": { "type": "string", "format": "date-time" },
-    "closedAt": { "type": ["string", "null"], "format": "date-time" }
+    "closedAt": { "type": ["string", "null"], "format": "date-time" },
+    "isDeleted": {
+      "type": "boolean",
+      "default": false,
+      "description": "Soft-delete marker. Readers should hide deleted tasks from ordinary lists while preserving the canonical envelope for references and audit."
+    }
   },
   "required": [
     "id",
     "canonicalOwnerEName",
-    "relatedProjectIds",
-    "relatedCompanyIds",
     "title",
     "description",
     "createdBy",
@@ -87,18 +90,11 @@
     "status",
     "priority",
     "progressPercent",
-    "estimatedHours",
-    "deadline",
     "blockedByTaskIds",
     "blocksTaskIds",
-    "notes",
-    "attachments",
-    "subtasks",
-    "effectiveAcl",
     "manualAclAdds",
     "createdAt",
-    "updatedAt",
-    "closedAt"
+    "updatedAt"
   ],
   "additionalProperties": false
 }
