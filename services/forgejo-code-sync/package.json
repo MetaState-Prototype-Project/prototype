@@ -9,6 +9,7 @@
         "dev": "tsx watch src/index.ts",
         "build": "tsc -p tsconfig.build.json",
         "start": "node dist/index.js",
+        "register-webhook": "tsx scripts/register-webhook.ts",
         "test": "vitest run",
         "test:watch": "vitest",
         "check": "npx @biomejs/biome check ./src && tsc --noEmit",
