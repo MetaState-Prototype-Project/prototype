@@ -95,6 +95,13 @@ automated tests: a real end-to-end run against a live GitW3 + bridge + eVault, w
 the bridge's own README describes for testing without a phone, extended by pushing a commit as the final step - see
 the plan's Phase 6.
 
+**Live verification, done twice, not just planned.** See the spec's Testing section for both passes: the first live
+push (public/private repo, unlinked-account skip, single-webhook regression, plus two GitW3 webhook-provisioning
+traps found only by testing) and the 2026-08-15 follow-up that closed the one gap the first pass left open - a real
+differential proof that a private-repo diff's S3 object is anonymously unreachable while a public one isn't, plus a
+fourth webhook trap (`PATCH /admin/hooks/{id}` silently ignores a secret rotation - fixed in
+`scripts/register-webhook.ts`, which now deletes and recreates instead of patching).
+
 ## Deployment
 
 Inherits the bridge's own unresolved blocker: **no service deployment manifest exists in this repository for a

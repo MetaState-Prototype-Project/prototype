@@ -465,6 +465,80 @@ no protection at all against this specific query, for any certified platform.** 
 fixable from this service, and worse than the single-ID-lookup gap already documented below — raised here rather
 than silently left for someone else to rediscover.
 
+**2026-08-15: the S3 ACL split, closed — and a fourth GitW3 webhook trap, found live.** The previous run above proved
+the AWS SDK call succeeds with and without `ACL: public-read`, but not that anonymous access actually differs, because
+the MinIO instance used didn't honour legacy per-object canned ACLs. This pass closed that gap and re-ran all four
+live-push scenarios end to end against the corrected diff/S3 design.
+
+**S3 ACL split, proven for real this time.** Real DigitalOcean Spaces credentials weren't available for this pass (a
+`decision_gate`-equivalent ask to the operator confirmed this before proceeding) — the fallback the spec already
+called out was used instead: a fresh throwaway MinIO container (`quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z`,
+port `9010`, started with `MINIO_DOMAIN=localhost` so its virtual-hosted-style bucket resolution matches what
+`S3Storage`'s `forcePathStyle: false` client actually sends — without that env var MinIO parses the first path
+segment as the bucket name instead of the Host header, which is a MinIO configuration quirk, not a service bug).
+`S3Storage.uploadDiff` — the service's real code path, not a hand-rolled `PutObjectCommand` — uploaded one object with
+`isPublic: true` and one with `isPublic: false`. Immediately after upload, both were anonymously denied
+(`curl -o /dev/null -w '%{http_code}'` → `403` for both), reproducing the exact "MinIO doesn't honour legacy
+per-object ACLs" limitation this section already named — the AWS SDK call succeeding is not the same as the object
+being open. Only then was `mc anonymous set download local/<bucket>/<public-object-prefix>/` run, scoping the open
+policy to exactly the prefix the public-repo upload used and leaving the private-repo prefix untouched — the closest
+local substitute for what a real per-object canned ACL does on DO Spaces. A second anonymous `curl` after that: the
+public object returned `200` with its real diff content; the private object, at the same bucket, same host, same
+container, was still `403 AccessDenied`. This is a genuine differential proof, not two upload calls both succeeding.
+
+**Four live pushes, all four re-verified against the corrected (S3-always, API-router-diff) design, checked directly
+against Neo4j, not the GraphQL read path** (see the `metaEnvelopes` gap above — still open, still avoided here):
+
+- **Public repo.** Pushed to a fresh throwaway repo (`2086ed05-.../forgejo-code-sync-test-public`, created public)
+  owned by the W3DS-linked test account. `MATCH (m:MetaEnvelope {id:'bb2d7f57-f539-54df-b87f-75616d7a9843'})` returned
+  exactly one node, `acl: ["*"]`, `eName: "@2086ed05-..."`, linked `Envelope` nodes carrying the right `repo`, commit
+  `id`, and a `diffUrl` pointing at the MinIO bucket above. `curl`ing that `diffUrl` anonymously, after opening only
+  its prefix per the ACL proof above, returned `200` with the exact diff text the push produced. A second query,
+  `MATCH (m:MetaEnvelope)-[:LINKS_TO]->(:Envelope {ontology:'id', value:'a460119b...'})  RETURN count(m)`, returned
+  `1` — one envelope for one commit, not three.
+- **Private repo.** Pushed to `2086ed05-.../forgejo-code-sync-test` (already private). Its envelope
+  (`a1e2fe77-b81e-5be9-a055-45199f45157b`) carries `acl: ["@2086ed05-a045-574f-a9e1-2ed1cf44bd75"]` — owner-only, not
+  `["*"]` — confirmed the same way, directly against Neo4j. Its `diffUrl`, anonymously curled with no policy applied
+  to that prefix, returned `403 AccessDenied`; the same object, fetched with the bucket's own credentials
+  (`mc cat local/<bucket>/<key>`), returned the real diff content. Both properties hold on the same object at once:
+  fetchable with credentials, denied without them.
+- **Unlinked account, regression-checked.** Created a plain password-registered GitW3 account
+  (`./gitea admin user create --username plain-test-user ...`, no OAuth2 source). `GET /api/v1/users/plain-test-user`
+  with the admin token omits the `login_name` key from the response JSON entirely — it is not present as `""`. This
+  service's own `IdentityResolver.resolveEname` already handles that correctly (`body.login_name ?? ""` at
+  `src/identity.ts:100`), but every existing unit test only exercised the `{ login_name: "" }` shape, never the
+  key-omitted-entirely shape a real GitW3 actually sends for this account type — a real gap the live response
+  surfaced, not a code defect. Fixed by adding a regression test (`src/identity.test.ts`,
+  "returns null when login_name is absent from the response entirely, not just empty") pinned to that exact shape.
+  Pushing a commit from this account logged `skipped - no linked eVault for pusher "plain-test-user"` — distinct from
+  an error — no `MetaEnvelope` was written (`MATCH (e:Envelope {ontology:'id', value:'5114c29...'}) RETURN count(e)`
+  → `0`), and the on-disk queue directory was empty afterward, not holding a stuck or exhausted task.
+- **Exactly one webhook delivery per push.** `GET /api/v1/admin/hooks` showed exactly one hook throughout this pass,
+  and each push above produced exactly one `MetaEnvelope` (counted directly against Neo4j, per above) — the
+  three-envelopes-for-one-commit regression from the earlier stray-webhook incident did not reappear.
+
+**A fourth GitW3 trap, found only by rotating the webhook secret live, not by re-reading source harder.**
+`scripts/register-webhook.ts`'s "idempotent, updates on redeploy" design (Phase 5.4) assumed `PATCH
+/admin/hooks/{id}` could rotate `config.secret` the same way `POST /admin/hooks` sets it on create. It cannot:
+`routers/api/v1/utils/hook.go`'s `editHook` (the function `PATCH /admin/hooks/{id}` calls) updates `url`,
+`content_type`, `events`, `branch_filter`, and the authorization header from the request's `config` map, but never
+reads `config["secret"]` anywhere in the function — only `addHook` (the `POST` path, line 187,
+`Secret: form.Config["secret"]`) does. Reproduced directly: PATCHing the existing hook with a new
+`FORGEJO_WEBHOOK_SECRET` returned `200`, `GET /admin/hooks` showed nothing wrong (Forgejo never echoes a hook's
+secret back, by design, so there was nothing to check against), and the next real push's delivery came back with
+`is_succeed = 0` and `response_content` `{"status":401,...,"body":"{\"error\":\"invalid signature\"}"}` in
+GitW3's own `hook_task` table — confirmed by computing the HMAC of the actual delivered body with the *new* secret
+and finding it did not match the signature GitW3 actually sent. Exactly the same silent-success shape as the three
+traps this section already documents (`active` defaulting false, the `is_system_webhook` string field, the
+web-router `.diff` endpoint): a `200`/`201` at provisioning time with the real failure only surfacing on the next
+delivery, minutes or days later. **Fixed in `scripts/register-webhook.ts`**: rotating an existing hook's secret now
+deletes it (`DELETE /admin/hooks/{id}`, confirmed to work for a real system hook despite `DeleteHook`'s handler being
+named `DeleteDefaultSystemWebhook`) and recreates it via `POST`, rather than `PATCH`ing in place — the only way to
+actually reach `addHook`'s secret-setting branch on a rotation, not just an initial create.
+
+**Regression suite after this pass: 90 unit tests (was 89) — `pnpm --filter forgejo-code-sync test` — and
+`pnpm --filter forgejo-code-sync check` (Biome + `tsc --noEmit`, including `scripts/`) both still clean.**
+
 **Staging / real Forgejo.** The local run above substitutes for most of what this note originally asked for. What's
 still genuinely staging-only: TLS termination, a site-admin service account that isn't also someone's personal login,
 and confirming the whole chain behaves the same once `forgejo-code-sync` and GitW3 are not on the same host.
