@@ -47,7 +47,9 @@ function makeDeps(overrides: Partial<DrainDeps> = {}): DrainDeps {
 
     const fetchDiff = vi
         .fn()
-        .mockResolvedValue({ diff: "a diff", diffUrl: null });
+        .mockResolvedValue(
+            "https://s3.example.org/diffs/alice/repo/abc123.diff",
+        );
 
     return { queue, identity, evault, fetchDiff, ...overrides };
 }
@@ -140,21 +142,41 @@ describe("processTask", () => {
         expect(task?.status).toBe("retrying");
     });
 
-    it("passes the fetched diff and diffUrl through to the written payload", async () => {
+    it("passes the fetched diffUrl through to the written payload", async () => {
         const id = await queue.enqueue(baseTask);
         const deps = makeDeps({
-            fetchDiff: vi.fn().mockResolvedValue({
-                diff: null,
-                diffUrl: "https://example.org/diff",
-            }),
+            fetchDiff: vi.fn().mockResolvedValue("https://example.org/diff"),
         });
 
         await processTask(id, baseTask, deps);
 
         const call = (deps.evault.writeCommit as ReturnType<typeof vi.fn>).mock
             .calls[0] as [string, CommitEnvelopePayload, string[]];
-        expect(call[1].diff).toBeNull();
         expect(call[1].diffUrl).toBe("https://example.org/diff");
+    });
+
+    it("calls fetchDiff with the task and the resolved eName", async () => {
+        const id = await queue.enqueue(baseTask);
+        const deps = makeDeps();
+
+        await processTask(id, baseTask, deps);
+
+        expect(deps.fetchDiff).toHaveBeenCalledWith(baseTask, "@alice");
+    });
+
+    it("leaves a task in the queue for retry when the diff fetch/upload fails", async () => {
+        const id = await queue.enqueue(baseTask);
+        const deps = makeDeps({
+            fetchDiff: vi.fn().mockRejectedValue(new Error("S3 unreachable")),
+        });
+
+        const outcome = await processTask(id, baseTask, deps);
+
+        expect(outcome.kind).toBe("failed");
+        expect(deps.evault.writeCommit).not.toHaveBeenCalled();
+        const [task] = await queue.list();
+        expect(task?.status).toBe("retrying");
+        expect(task?.lastError).toBe("S3 unreachable");
     });
 
     it("calls onOutcome for every outcome kind", async () => {

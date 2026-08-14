@@ -4,13 +4,15 @@ import type { IdentityResolver } from "./identity.js";
 import type { Queue, QueueTaskStatus } from "./queue.js";
 import type { CommitSyncTask } from "./task.js";
 
-export interface DiffResult {
-    diff: string | null;
-    diffUrl: string | null;
-}
-
-/** Never rejects - a fetch failure degrades to a diffUrl fallback internally, see content/diff.ts. */
-export type DiffFetcher = (task: CommitSyncTask) => Promise<DiffResult>;
+/**
+ * Fetches a commit's diff and uploads it to S3, returning the resulting URL.
+ * Throws on any failure - network, non-2xx, S3 upload - there is no longer a
+ * degraded fallback to return instead; see content/diff.ts.
+ */
+export type DiffFetcher = (
+    task: CommitSyncTask,
+    eName: string,
+) => Promise<string>;
 
 export type DrainOutcome =
     | { kind: "succeeded"; envelopeId: string }
@@ -56,7 +58,7 @@ export async function processTask(
         }
 
         const acl = deriveAcl(task.repoPrivate, eName);
-        const { diff, diffUrl } = await deps.fetchDiff(task);
+        const diffUrl = await deps.fetchDiff(task, eName);
 
         const payload: CommitEnvelopePayload = {
             id: task.commitId,
@@ -68,7 +70,6 @@ export async function processTask(
             added: task.added,
             removed: task.removed,
             modified: task.modified,
-            diff,
             diffUrl,
         };
 

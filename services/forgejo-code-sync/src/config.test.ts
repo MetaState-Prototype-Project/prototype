@@ -8,6 +8,11 @@ const complete: NodeJS.ProcessEnv = {
     FORGEJO_ADMIN_TOKEN: "token",
     PUBLIC_REGISTRY_URL: "https://registry.example.org",
     PUBLIC_EVAULT_SERVER_URI: "https://evault.example.org",
+    DO_SPACES_ENDPOINT: "https://nyc3.digitaloceanspaces.com",
+    DO_SPACES_REGION: "nyc3",
+    DO_SPACES_KEY: "spaces-key",
+    DO_SPACES_SECRET: "spaces-secret",
+    DO_SPACES_BUCKET: "spaces-bucket",
 };
 
 const env = (overrides: NodeJS.ProcessEnv = {}) => ({
@@ -20,7 +25,15 @@ describe("loadConfig", () => {
         const config = loadConfig(env());
         expect(config.webhookSecret).toBe("secret");
         expect(config.port).toBe(4300);
-        expect(config.diffMaxBytes).toBe(131072);
+        expect(config.s3.bucket).toBe("spaces-bucket");
+        expect(config.s3.cdnUrl).toBeUndefined();
+    });
+
+    it("accepts an optional DO_SPACES_CDN_URL", () => {
+        const config = loadConfig(
+            env({ DO_SPACES_CDN_URL: "https://cdn.example.org" }),
+        );
+        expect(config.s3.cdnUrl).toBe("https://cdn.example.org");
     });
 
     describe("required keys", () => {
@@ -31,6 +44,11 @@ describe("loadConfig", () => {
             "FORGEJO_ADMIN_TOKEN",
             "PUBLIC_REGISTRY_URL",
             "PUBLIC_EVAULT_SERVER_URI",
+            "DO_SPACES_ENDPOINT",
+            "DO_SPACES_REGION",
+            "DO_SPACES_KEY",
+            "DO_SPACES_SECRET",
+            "DO_SPACES_BUCKET",
         ];
 
         it.each(keys)("throws naming %s when it is missing", (key) => {
@@ -85,28 +103,6 @@ describe("loadConfig", () => {
         it.each(["nope", "0", "70000", "4300.5"])("rejects %s", (value) => {
             expect(() =>
                 loadConfig(env({ FORGEJO_SYNC_PORT: value })),
-            ).toThrowError(ConfigError);
-        });
-    });
-
-    describe("the diff cap", () => {
-        it("parses a value", () => {
-            expect(
-                loadConfig(env({ FORGEJO_SYNC_DIFF_MAX_BYTES: "1000" }))
-                    .diffMaxBytes,
-            ).toBe(1000);
-        });
-
-        it("accepts 0 (never inline)", () => {
-            expect(
-                loadConfig(env({ FORGEJO_SYNC_DIFF_MAX_BYTES: "0" }))
-                    .diffMaxBytes,
-            ).toBe(0);
-        });
-
-        it.each(["nope", "-1", "1000.5"])("rejects %s", (value) => {
-            expect(() =>
-                loadConfig(env({ FORGEJO_SYNC_DIFF_MAX_BYTES: value })),
             ).toThrowError(ConfigError);
         });
     });

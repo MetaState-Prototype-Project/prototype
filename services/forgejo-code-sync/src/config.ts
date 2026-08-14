@@ -16,10 +16,22 @@ export interface SyncConfig {
      * account has IsAdmin=true, regardless of token scope. See the spec's Trust model.
      */
     forgejoAdminToken: string;
-    /** Diffs larger than this are stored as a diffUrl pointer instead of inlined. */
-    diffMaxBytes: number;
     registryUrl: string;
     evaultServerUri: string;
+    /**
+     * DigitalOcean Spaces (S3-compatible) - the same bucket evault-core's own
+     * StorageService.ts uses. Diffs are uploaded here directly rather than
+     * through evault-core's `uploadFile` GraphQL mutation, which caps at
+     * 250MB; S3 itself has no such ceiling.
+     */
+    s3: {
+        endpoint: string;
+        region: string;
+        accessKeyId: string;
+        secretAccessKey: string;
+        bucket: string;
+        cdnUrl?: string;
+    };
 }
 
 export class ConfigError extends Error {}
@@ -57,27 +69,25 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): SyncConfig {
         );
     }
 
-    const diffMaxBytes = Number(
-        optional(env, "FORGEJO_SYNC_DIFF_MAX_BYTES", "131072"),
-    );
-    if (!Number.isInteger(diffMaxBytes) || diffMaxBytes < 0) {
-        throw new ConfigError(
-            `FORGEJO_SYNC_DIFF_MAX_BYTES must be a non-negative integer: ${env.FORGEJO_SYNC_DIFF_MAX_BYTES}`,
-        );
-    }
-
     return {
         publicUrl: required(env, "FORGEJO_SYNC_PUBLIC_URL").replace(/\/+$/, ""),
         port,
         webhookSecret: required(env, "FORGEJO_WEBHOOK_SECRET"),
         forgejoApiUrl: required(env, "FORGEJO_API_URL").replace(/\/+$/, ""),
         forgejoAdminToken: required(env, "FORGEJO_ADMIN_TOKEN"),
-        diffMaxBytes,
         registryUrl: required(env, "PUBLIC_REGISTRY_URL"),
         evaultServerUri: required(env, "PUBLIC_EVAULT_SERVER_URI").replace(
             /\/+$/,
             "",
         ),
+        s3: {
+            endpoint: required(env, "DO_SPACES_ENDPOINT"),
+            region: required(env, "DO_SPACES_REGION"),
+            accessKeyId: required(env, "DO_SPACES_KEY"),
+            secretAccessKey: required(env, "DO_SPACES_SECRET"),
+            bucket: required(env, "DO_SPACES_BUCKET"),
+            cdnUrl: env.DO_SPACES_CDN_URL?.trim() || undefined,
+        },
     };
 }
 

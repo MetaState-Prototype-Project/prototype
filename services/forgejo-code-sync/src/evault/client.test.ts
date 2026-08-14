@@ -18,8 +18,7 @@ const samplePayload = {
     added: ["a.ts"],
     removed: [],
     modified: [],
-    diff: "diff --git a/a.ts b/a.ts",
-    diffUrl: null,
+    diffUrl: "https://s3.example.org/diffs/alice/repo/abc123.diff",
 };
 
 describe("EVaultClient.writeCommit", () => {

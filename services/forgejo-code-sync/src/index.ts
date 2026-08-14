@@ -6,6 +6,7 @@ import { createDiffFetcher } from "./content/diff.js";
 import { EVaultClient } from "./evault/client.js";
 import { IdentityResolver } from "./identity.js";
 import { Queue } from "./queue.js";
+import { S3Storage } from "./storage/s3.js";
 import { type DrainOutcome, drainOnce } from "./sync.js";
 import type { CommitSyncTask } from "./task.js";
 
@@ -78,10 +79,12 @@ async function main(): Promise<void> {
         publicUrl: config.publicUrl,
     });
 
+    const storage = new S3Storage(config.s3);
+
     const fetchDiff = createDiffFetcher({
         forgejoApiUrl: config.forgejoApiUrl,
         adminToken: config.forgejoAdminToken,
-        maxBytes: config.diffMaxBytes,
+        storage,
     });
 
     const app = createApp({ queue, webhookSecret: config.webhookSecret });
@@ -91,6 +94,7 @@ async function main(): Promise<void> {
         console.log(`  forgejo  ${config.forgejoApiUrl}`);
         console.log(`  registry ${config.registryUrl}`);
         console.log(`  evault   ${config.evaultServerUri}`);
+        console.log(`  s3       ${config.s3.bucket} (${config.s3.endpoint})`);
         console.log(`  queue    ${queueDir}`);
     });
 

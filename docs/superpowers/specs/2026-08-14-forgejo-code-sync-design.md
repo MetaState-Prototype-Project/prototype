@@ -179,9 +179,9 @@ on the recent ontology schemas' convention (see `communityActivity.json`, `calen
 own eVault, `additionalProperties` decided deliberately rather than left implicit.
 
 ```jsonc
-// services/ontology/schemas/codeCommit.json — new
+// services/ontology/schemas/codeCommit.json
 {
-  "schemaId": "<mint one>",
+  "schemaId": "af7b8ea0-365c-414b-8dbb-5c0cdd6a46b8",
   "title": "CodeCommit",
   "properties": {
     "id": { "type": "string", "description": "commit sha" },
@@ -193,26 +193,55 @@ own eVault, `additionalProperties` decided deliberately rather than left implici
     "added": { "type": "array", "items": { "type": "string" } },
     "removed": { "type": "array", "items": { "type": "string" } },
     "modified": { "type": "array", "items": { "type": "string" } },
-    "diff": { "type": ["string", "null"], "description": "unified diff, size-capped" },
-    "diffUrl": { "type": ["string", "null"], "description": "fallback when diff exceeds the cap — GitW3's own compare_url or commit URL, already present in the webhook payload" }
+    "diffUrl": { "type": "string", "description": "the diff's own S3 URL — see below, never inlined" }
   },
-  "required": ["id", "repo", "ref", "message", "authorEName", "committedAt"]
+  "required": ["id", "repo", "ref", "message", "authorEName", "committedAt", "diffUrl"]
 }
 ```
 
-**Diff content, not just metadata** — the "commit/diff records" decision — but inlining every diff unbounded risks
-huge or secret-laden envelopes (a force-pushed history rewrite, a large binary diff, a leaked credential someone
-committed and then "fixed"). The cap-then-fallback shape mirrors `file.json`'s own `data` (inline) vs `url` (pointer)
-split: under some size threshold, fetch and inline the diff text; over it, store `diffUrl` pointing at
-`Repo.CompareURL`/the commit's own GitW3 URL, both already present in the webhook payload at no extra cost.
+**Revised design: the diff is always uploaded to S3, never inlined, and no size cap decides that — a size cap was the
+original design, superseded after live testing found two things wrong with it.** The first draft capped diffs at a
+configurable size (`FORGEJO_SYNC_DIFF_MAX_BYTES`), inlining under the cap and falling back to a link back to GitW3
+above it — mirroring `file.json`'s own `data`-vs-`url` split. Reviewed against an explicit requirement that the diff
+must be preserved regardless of size — including sizes inlining was never going to handle — a cap-then-fallback
+design doesn't fit: eVault's own GraphQL server caps request bodies at 350MB
+(`infrastructure/evault-core/src/index.ts:184`, `bodyLimit: 350 * 1024 * 1024`), and a large blob doesn't belong
+inlined into a graph-database node property well under that ceiling either — which is exactly why `file.json`, the
+one other ontology schema in this codebase modelling large content, has a `url` field in the first place. So instead
+of choosing a cap, every diff is uploaded to the same DigitalOcean Spaces (S3-compatible) bucket
+`infrastructure/evault-core/src/services/StorageService.ts` already uses, and only the resulting URL is written into
+the MetaEnvelope. **Uploaded directly, not through evault-core's own `uploadFile` GraphQL mutation** — that mutation
+exists and is reachable on the same authenticated client this service already builds, but caps at 250MB
+(`MAX_FILE_BYTES`) on top of the same 350MB body limit; going straight to S3 (same bucket, same `DO_SPACES_*`
+credentials, no new secrets) has no such ceiling.
 
-**GitW3-verified, not just by analogy**: the `.diff` suffix exists in GitW3's actual pinned source, not just by
-report from Gitea/GitHub. `routers/web/web.go:1808` registers
-`GET /{owner}/{repo}/commit/{sha:[a-f0-9]{4,64}}.{ext:patch|diff}` → `repo.RawDiff`, gated by `reqRepoCodeReader`
-(`context.RequireRepoReader(unit.TypeCode)`). Two consequences for this service: (1) the route is confirmed to exist
-on this exact codebase, no version-drift risk; (2) it is **not anonymous-readable for a private repo** — fetching a
-private repo's diff needs an authenticated request with code-read access, which is folded into the admin token's
-required scope below.
+**The diff-fetch endpoint was also wrong in the original draft, found only by testing against a live private repo, not
+by re-reading source harder.** The draft cited `routers/web/web.go:1808`'s `GET /{owner}/{repo}/commit/{sha}.diff` —
+real, and gated by `reqRepoCodeReader` in the source, which reads as "needs code-read access, so an admin token
+should satisfy it." Tested directly against a running GitW3 instance: the exact same request, same token, three auth
+forms tried (`Authorization: token`, HTTP Basic, `?token=`), returned `404` on a private repo and `200` on the same
+repo made public. **The web router's `.diff` route does not authenticate a PAT for a private repo at all** — it
+evaluates the request as anonymous regardless of credentials, and Forgejo denies anonymous access to a private repo
+with `404` rather than `403`, to avoid revealing the repo exists. The fix, also confirmed live: fetch from the **API
+router** instead — `GET /api/v1/repos/{owner}/{repo}/git/commits/{sha}.diff`
+(`routers/api/v1/repo/commits.go`'s `DownloadCommitDiffOrPatch`, registered under `/api/v1/repos/{owner}/{repo}/git`
+in `routers/api/v1/api.go`) — same diff content, but on the standard PAT-aware auth chain the admin token already
+proves itself against for the Users API and diff-adjacent calls. Confirmed working on a live private repo with the
+same token that 404'd on the web-router path.
+
+**The S3 object's own ACL must mirror the repo's visibility, for the same reason the envelope's ACL does.** Uploading
+every diff `public-read` regardless of source-repo visibility would recreate, one layer down, exactly the problem
+`deriveAcl` exists to avoid: a private repo's diff would be readable by anyone with the URL, independent of whatever
+ACL the eVault envelope itself carries. `content/diff.ts`'s upload call is `public-read` only when
+`!task.repoPrivate`; a private repo's diff is uploaded with no public ACL, so its URL is not fetchable without the
+bucket's own credentials. There is no presigned-URL-on-read feature built for this — out of scope for this pass;
+retrieving a private diff later needs direct bucket access, not a link a browser can just open. **Not fully verified
+end to end**: the request correctly carries the ACL header (confirmed against a real S3-compatible server, not just
+mocked), but the specific test environment used to check it (a local MinIO instance) doesn't honour legacy per-object
+ACLs the way DigitalOcean Spaces does — this is a known difference between MinIO's and AWS/DO's S3 implementations,
+not a sign the request is wrong, but it means the actual public/private *enforcement* has only been proven against
+evault-core's own already-working use of this same pattern against real DO Spaces, not independently re-verified for
+this service's own uploads.
 
 ## Architecture
 
@@ -224,7 +253,8 @@ pattern (`src/config.ts`, throws at startup on anything missing — mirrors
 config.ts        env parsing; throws at startup on anything missing
 identity.ts       pusher username -> eName, admin API call + TTL cache
 evault.ts         certify + per-eName GraphQL client (copy of EVaultService.ts's shape), acl derived from Repo.Private
-content.ts        fetch a commit's diff, cap-and-inline or fall back to a URL
+storage/s3.ts     uploads a diff to the same DO Spaces bucket evault-core uses, ACL mirrors repo visibility
+content.ts        fetch a commit's diff from the API router, upload it via storage/s3.ts, return the S3 URL
 queue.ts          persisted retry queue — see Delivery reliability, below
 webhook/push.ts    verify signature, iterate commits, enqueue
 index.ts          wiring, /healthz
@@ -243,7 +273,7 @@ index.ts          wiring, /healthz
       │                      ├ pusher.username cached? ────┤ GET /users/:name    │
       │                      │◀─────────────────────────── login_name             │
       │                      ├ login_name starts with @? ─┘ else: skip, dequeue  │
-      │                      ├ fetch diff (cap or URL)                            │
+      │                      ├ fetch diff, upload to S3 ───────────────────────────▶ S3
       │                      ├ certify (cached) ──────────────────────────────────▶
       │                      ├ acl = Repo.Private ? owner-only : ["*"]            │
       │                      ├ createMetaEnvelope(codeCommit, X-ENAME, acl) ─────▶
@@ -378,9 +408,9 @@ What's specific to this service, once a host is known:
 | `FORGEJO_WEBHOOK_SECRET` | HMAC secret configured on the Forgejo system webhook |
 | `FORGEJO_API_URL` | GitW3's base URL, for the admin Users API call |
 | `FORGEJO_ADMIN_TOKEN` | PAT on a **dedicated site-admin service account** created for this service alone (not a shared human admin's token), scopes `read:user,read:repository` — see [Trust model](#trust-model) for why both scopes and the admin flag are required |
-| `FORGEJO_SYNC_DIFF_MAX_BYTES` | inline cap before falling back to `diffUrl` |
 | `PUBLIC_REGISTRY_URL` | already in the root `.env` |
 | `PUBLIC_EVAULT_SERVER_URI` | already used by the calendar platform's `EVaultService.ts` |
+| `DO_SPACES_ENDPOINT`, `DO_SPACES_REGION`, `DO_SPACES_KEY`, `DO_SPACES_SECRET`, `DO_SPACES_BUCKET`, `DO_SPACES_CDN_URL` | already in the root `.env` — the same bucket `infrastructure/evault-core/src/services/StorageService.ts` uses. No service-specific S3 credentials needed |
 
 ## Testing
 
@@ -393,8 +423,10 @@ error; cache hit skips the API call; a 404 evicts the cache entry.
 rejected; a `sha256=`-prefixed value naively compared against the unprefixed header rejected as a regression guard
 for the trap above — same shape as the bridge's `client_secret` tests.
 
-**Unit — `content.ts`.** A diff under the cap is inlined; one over it falls back to `diffUrl` with no diff field
-attempted; a fetch failure degrades to `diffUrl` rather than dropping the commit entirely.
+**Unit — `content.ts`.** Fetches from the API router's `git/commits/{sha}.diff`, not the web router's
+`commit/{sha}.diff` — a regression guard specifically for the trap above. Uploads with `public-read` for a public
+repo, no public ACL for a private one. Throws — does not degrade to a fallback — on a fetch failure, a non-2xx
+response, or an S3 upload failure, since there is no longer a lesser alternative to fall back to.
 
 **Unit — `evault.ts` ACL derivation.** `Repo.Private: true` produces an owner-only `acl`; `false` produces `["*"]`;
 the derivation is a pure function of the payload, independent of the identity lookup.
@@ -408,9 +440,34 @@ with the bridge's own local flow (sign into a local GitW3 via W3DS, which is wha
 `login_name` can be read and a synthetic webhook payload POSTed directly at this service to exercise the full chain
 without needing a live push.
 
-**Staging / real Forgejo.** A real push against a real system webhook, checked against everything flagged unverified
-in this document — see [Open items](#open-items), most of which are exactly the kind of thing that's cheap to check
-once a running GitW3 instance exists and expensive to guess wrong about in this document.
+**Done, not just planned: a real push against a real system webhook, on a live GitW3 instance with a real
+W3DS-linked account.** Registered the system webhook via the provisioning script against a running GitW3
+(`v16.0.2-9`), pushed a real commit to a real repo (public, then flipped private) owned by an account already linked
+through the bridge, and confirmed a `codeCommit` MetaEnvelope landed with the correct `acl` — checked directly
+against Neo4j, not just the GraphQL read path (see the caveat about that read path below). This is what surfaced both
+corrections in this section: the original size-cap design and the web-router diff endpoint. Two operational findings
+from that run, not code defects: Forgejo's `ALLOWED_HOST_LIST` blocks a webhook targeting a loopback address by
+default, which only bites when the target happens to be `localhost` relative to GitW3 (true in this local setup, not
+expected to be true of a real deployment — see [Deployment](#deployment)); and registering more than one webhook
+pointed at this service's URL produces one envelope per delivery received, since the service has no reason to assume
+two separate deliveries describe the same event — an operational hazard (don't register it twice), not something the
+service should paper over with deduplication it can't actually justify.
+
+**A gap found during that same live run, in `evault-core`, not this service, not yet acted on.** Querying
+`metaEnvelopes` with a valid platform-certification token and *any* certified platform's identity — including one
+that was never registered anywhere, just self-certified via the open `/platforms/certification` endpoint — returned
+a private, owner-only-ACL'd envelope in full. Traced to the cause: `graphql-server.ts:237`'s `metaEnvelopes` resolver
+returns a Relay-style connection object (`{edges, pageInfo, totalCount}`), not a bare array, so
+`vault-access-guard.ts`'s `filterEnvelopesByAccess` — the actual ACL check — never runs for it; the middleware's
+array-detection branch only applies to a bare array, and the connection-object branch (`filterACL`) only strips a
+top-level `acl` field, which a connection wrapper doesn't have. **Practical effect: `acl: [eName]` currently provides
+no protection at all against this specific query, for any certified platform.** This is `evault-core`'s bug, not
+fixable from this service, and worse than the single-ID-lookup gap already documented below — raised here rather
+than silently left for someone else to rediscover.
+
+**Staging / real Forgejo.** The local run above substitutes for most of what this note originally asked for. What's
+still genuinely staging-only: TLS termination, a site-admin service account that isn't also someone's personal login,
+and confirming the whole chain behaves the same once `forgejo-code-sync` and GitW3 are not on the same host.
 
 ## Acceptance criteria
 
@@ -419,7 +476,7 @@ once a running GitW3 instance exists and expensive to guess wrong about in this 
 | 1 | A push from a W3DS-linked GitW3 account writes commit records into that person's eVault | webhook → identity resolution → `createMetaEnvelope` |
 | 2 | A push from an account with no linked eVault is skipped without error | `login_name` not starting with `@` → skip, dequeue |
 | 3 | Commit authorship is never taken from unverified git commit metadata | identity resolved from `pusher`, never from `commit.author` |
-| 4 | Large or binary diffs don't produce unbounded eVault writes | size cap + `diffUrl` fallback |
+| 4 | A commit's diff is preserved regardless of size | uploaded to S3, never inlined into the eVault write — see [What gets written](#what-gets-written) |
 | 5 | Private-repo code is not made world-readable by the act of syncing it | `acl` derived from `Repo.Private` — see known limitation in [Trust model](#trust-model) |
 | 6 | A transient failure (eVault outage, timeout, crash mid-batch) does not silently lose a push's sync | persisted retry queue — see [Delivery reliability](#delivery-reliability-no-safety-net-from-forgejo) |
 
@@ -440,10 +497,11 @@ Two things remain genuinely out of scope for this document rather than unresolve
 - **Where the retry queue persists** — depends on the same deployment answer above; noted under
   [Deployment](#deployment) rather than repeated here.
 
-A live smoke test against a real linked account (sign in via the bridge, inspect the resulting `login_name`, push a
-commit) is still worth doing before staging, as ordinary practice — not because the source-chain confirmation above
-is in doubt, but because it's the first time all three repos' behaviour is observed together rather than read
-separately.
+**The live smoke test this section previously called "still worth doing" has been done.** A real linked account,
+signed in via the bridge on a live GitW3 instance, pushed real commits; the resulting envelopes and their ACLs were
+checked directly against Neo4j. See [Testing](#testing) for what that run found — two design corrections (the diff
+storage redesign and the web-router-vs-API-router diff endpoint) and one `evault-core` bug (the `metaEnvelopes`
+list-query ACL gap), none of which surfaced from reading source alone.
 
 ## Verification status
 

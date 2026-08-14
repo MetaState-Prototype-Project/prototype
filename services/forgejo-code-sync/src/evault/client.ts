@@ -28,8 +28,8 @@ export interface CommitEnvelopePayload {
     added: string[];
     removed: string[];
     modified: string[];
-    diff: string | null;
-    diffUrl: string | null;
+    /** The diff's own S3 URL - see content/diff.ts. Never inlined. */
+    diffUrl: string;
 }
 
 interface PlatformTokenResponse {
