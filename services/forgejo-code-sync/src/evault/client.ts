@@ -7,9 +7,27 @@ import { GraphQLClient } from "graphql-request";
  */
 export const CODE_COMMIT_ONTOLOGY_ID = "af7b8ea0-365c-414b-8dbb-5c0cdd6a46b8";
 
+/**
+ * Minted for this service - see services/ontology/schemas/repoSnapshot.json.
+ * One envelope per repo, kept up to date via `writeRepoSnapshot` below rather
+ * than one created per push - see that method's own comment.
+ */
+export const REPO_SNAPSHOT_ONTOLOGY_ID = "a9b56118-ac82-4f4e-9f70-77444c1a8f34";
+
 const CREATE_MUTATION = `
   mutation CreateMetaEnvelope($input: MetaEnvelopeInput!) {
     createMetaEnvelope(input: $input) {
+      metaEnvelope {
+        id
+      }
+      errors { field message code }
+    }
+  }
+`;
+
+const UPDATE_MUTATION = `
+  mutation UpdateMetaEnvelope($id: ID!, $input: MetaEnvelopeInput!) {
+    updateMetaEnvelope(id: $id, input: $input) {
       metaEnvelope {
         id
       }
@@ -30,6 +48,21 @@ export interface CommitEnvelopePayload {
     modified: string[];
     /** The diff's own S3 URL - see content/diff.ts. Never inlined. */
     diffUrl: string;
+}
+
+export interface RepoSnapshotEnvelopePayload {
+    repo: string;
+    ref: string;
+    headCommitId: string;
+    ownerEName: string;
+    /** The repo archive's own S3 URL - see content/archive.ts. Never inlined. */
+    snapshotUrl: string;
+    updatedAt: string;
+}
+
+interface MetaEnvelopeMutationResult {
+    metaEnvelope: { id: string } | null;
+    errors: Array<{ message: string }> | null;
 }
 
 interface PlatformTokenResponse {
@@ -103,6 +136,20 @@ export class EVaultClient {
         });
     }
 
+    private unwrap(
+        mutationName: string,
+        result: MetaEnvelopeMutationResult,
+    ): string {
+        const { metaEnvelope, errors } = result;
+        if (errors?.length) {
+            throw new Error(errors.map((e) => e.message).join("; "));
+        }
+        if (!metaEnvelope) {
+            throw new Error(`${mutationName}: no metaEnvelope returned`);
+        }
+        return metaEnvelope.id;
+    }
+
     /** Writes one commit as a MetaEnvelope into `eName`'s eVault. Returns the new envelope's id. */
     async writeCommit(
         eName: string,
@@ -111,10 +158,7 @@ export class EVaultClient {
     ): Promise<string> {
         const client = await this.getClient(eName);
         const result = await client.request<{
-            createMetaEnvelope: {
-                metaEnvelope: { id: string } | null;
-                errors: Array<{ message: string }> | null;
-            };
+            createMetaEnvelope: MetaEnvelopeMutationResult;
         }>(CREATE_MUTATION, {
             input: {
                 ontology: CODE_COMMIT_ONTOLOGY_ID,
@@ -122,14 +166,38 @@ export class EVaultClient {
                 acl,
             },
         });
+        return this.unwrap("createMetaEnvelope", result.createMetaEnvelope);
+    }
 
-        const { metaEnvelope, errors } = result.createMetaEnvelope;
-        if (errors?.length) {
-            throw new Error(errors.map((e) => e.message).join("; "));
+    /**
+     * Writes a repo's full snapshot into the owner's eVault: creates a new
+     * `repoSnapshot` MetaEnvelope the first time a given repo is seen, then
+     * updates that same envelope in place on every later push - "replaces
+     * whenever anyone makes a commit" (the owner's own words), not one
+     * envelope per push. `existingEnvelopeId` comes from
+     * `RepoEnvelopeStore` (see repoEnvelopeStore.ts), the caller's own record
+     * of which envelope, if any, already holds this repo's snapshot - this
+     * method itself has no way to look that up.
+     */
+    async writeRepoSnapshot(
+        eName: string,
+        payload: RepoSnapshotEnvelopePayload,
+        acl: string[],
+        existingEnvelopeId: string | null,
+    ): Promise<string> {
+        const client = await this.getClient(eName);
+        const input = { ontology: REPO_SNAPSHOT_ONTOLOGY_ID, payload, acl };
+
+        if (existingEnvelopeId) {
+            const result = await client.request<{
+                updateMetaEnvelope: MetaEnvelopeMutationResult;
+            }>(UPDATE_MUTATION, { id: existingEnvelopeId, input });
+            return this.unwrap("updateMetaEnvelope", result.updateMetaEnvelope);
         }
-        if (!metaEnvelope) {
-            throw new Error("createMetaEnvelope: no metaEnvelope returned");
-        }
-        return metaEnvelope.id;
+
+        const result = await client.request<{
+            createMetaEnvelope: MetaEnvelopeMutationResult;
+        }>(CREATE_MUTATION, { input });
+        return this.unwrap("createMetaEnvelope", result.createMetaEnvelope);
     }
 }

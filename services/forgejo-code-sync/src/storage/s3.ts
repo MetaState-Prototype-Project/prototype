@@ -89,4 +89,48 @@ export class S3Storage {
         );
         return `${this.cdnBaseUrl}/${key}`;
     }
+
+    /**
+     * Deterministic object key for a repo's full snapshot - one per repo, not
+     * per commit or per push, since the whole point is that this object gets
+     * overwritten in place on every push rather than accumulating one archive
+     * per commit the way diffs do. See uploadRepoArchive.
+     */
+    static buildArchiveKey(repoFullName: string): string {
+        const [owner = "", repo = ""] = repoFullName.split("/");
+        const safeOwner = owner.replace(/[^\w.-]/g, "_");
+        const safeRepo = repo.replace(/[^\w.-]/g, "_");
+        return `repos/${safeOwner}/${safeRepo}.zip`;
+    }
+
+    /**
+     * Uploads a full repo archive (zip, from GitW3's archive endpoint - see
+     * content/archive.ts) and returns its URL. The same key is reused on every
+     * push for a given repo - this call overwrites whatever was there before,
+     * which is exactly the "replaces whenever anyone makes a commit" behaviour
+     * the owner-eVault snapshot is meant to have. `isPublic` mirrors the same
+     * repo-visibility signal `uploadDiff` uses, for the same reason: a private
+     * repo's full source must not become world-readable via a guessable S3 URL
+     * just because it's stored this way instead of as a diff. As with
+     * `uploadDiff`, there is no retroactive re-ACL if the repo's visibility
+     * changes after this upload - see the spec's Trust model for the
+     * equivalent, already-accepted limitation on the diff path.
+     */
+    async uploadRepoArchive(
+        repoFullName: string,
+        archiveBytes: Buffer,
+        isPublic: boolean,
+    ): Promise<string> {
+        const key = S3Storage.buildArchiveKey(repoFullName);
+        await this.client.send(
+            new PutObjectCommand({
+                Bucket: this.bucket,
+                Key: key,
+                Body: archiveBytes,
+                ContentType: "application/zip",
+                ...(isPublic ? { ACL: "public-read" as const } : {}),
+            }),
+        );
+        return `${this.cdnBaseUrl}/${key}`;
+    }
 }

@@ -2,16 +2,22 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createApp } from "./app.js";
 import { ConfigError, getConfig } from "./config.js";
+import { createArchiveFetcher } from "./content/archive.js";
 import { createDiffFetcher } from "./content/diff.js";
 import { EVaultClient } from "./evault/client.js";
 import { IdentityResolver } from "./identity.js";
 import { Queue } from "./queue.js";
+import { RepoEnvelopeStore } from "./repoEnvelopeStore.js";
+import {
+    type SnapshotDrainOutcome,
+    drainSnapshotsOnce,
+} from "./snapshotSync.js";
 import { S3Storage } from "./storage/s3.js";
 import { type DrainOutcome, drainOnce } from "./sync.js";
-import type { CommitSyncTask } from "./task.js";
+import type { CommitSyncTask, RepoSnapshotTask } from "./task.js";
 
 /**
- * How often the queue is drained. A task's own backoff (queue.ts) governs when
+ * How often the queues are drained. A task's own backoff (queue.ts) governs when
  * an individual retry is due; this just bounds how long a freshly-queued or
  * newly-due task waits before the next sweep picks it up.
  */
@@ -51,6 +57,47 @@ function logOutcome(
     }
 }
 
+/**
+ * Same shape as logOutcome above, deliberately - the owner-snapshot sync's
+ * skip/retry/exhausted outcomes must read exactly as distinctly as the
+ * per-commit sync's do, per the same "never look the same as an error"
+ * requirement the spec's Delivery reliability section states for the
+ * commit path.
+ */
+function logSnapshotOutcome(
+    taskId: string,
+    task: RepoSnapshotTask,
+    outcome: SnapshotDrainOutcome,
+): void {
+    const label = `${task.repoFullName}@${task.headCommitId.slice(0, 12)}`;
+    switch (outcome.kind) {
+        case "succeeded":
+            console.log(
+                `[snapshot] ${label} -> envelope ${outcome.envelopeId}`,
+            );
+            break;
+        case "skipped":
+            // Covers both an ordinary unlinked owner and an org-owned repo -
+            // see snapshotSync.ts's processSnapshotTask for why both fall out
+            // of the same identity resolution with no separate check.
+            console.log(
+                `[snapshot] ${label} skipped - no linked eVault for owner "${task.ownerLogin}"`,
+            );
+            break;
+        case "failed":
+            if (outcome.status === "exhausted") {
+                console.error(
+                    `[snapshot] EXHAUSTED task ${taskId} (${label}), needs attention: ${String(outcome.error)}`,
+                );
+            } else {
+                console.warn(
+                    `[snapshot] ${label} failed, retrying: ${String(outcome.error)}`,
+                );
+            }
+            break;
+    }
+}
+
 async function main(): Promise<void> {
     // Anything wrong with the environment stops the process here, rather than
     // surfacing as a silently-unresolved eName on the first push, when the
@@ -64,9 +111,28 @@ async function main(): Promise<void> {
     // is for local development, next to the package rather than inside src/
     // or dist/ so it survives a rebuild.
     const queueDir = path.resolve(here, "../.queue");
+    // A second, independent queue - see task.ts's RepoSnapshotTask and
+    // webhook/push.ts for why this can't share the commit queue's contents
+    // (different task shape, different granularity - one per push, not one
+    // per commit).
+    const snapshotQueueDir = path.resolve(here, "../.queue-snapshots");
+    // repoFullName -> envelopeId, so a later push updates the same
+    // repoSnapshot envelope in place instead of creating a new one - see
+    // repoEnvelopeStore.ts.
+    const repoEnvelopeStoreDir = path.resolve(here, "../.repo-envelopes");
 
     const queue = new Queue<CommitSyncTask>({ dir: queueDir });
     await queue.init();
+
+    const snapshotQueue = new Queue<RepoSnapshotTask>({
+        dir: snapshotQueueDir,
+    });
+    await snapshotQueue.init();
+
+    const repoEnvelopeStore = new RepoEnvelopeStore({
+        dir: repoEnvelopeStoreDir,
+    });
+    await repoEnvelopeStore.init();
 
     const identity = new IdentityResolver({
         forgejoApiUrl: config.forgejoApiUrl,
@@ -87,7 +153,17 @@ async function main(): Promise<void> {
         storage,
     });
 
-    const app = createApp({ queue, webhookSecret: config.webhookSecret });
+    const fetchArchive = createArchiveFetcher({
+        forgejoApiUrl: config.forgejoApiUrl,
+        adminToken: config.forgejoAdminToken,
+        storage,
+    });
+
+    const app = createApp({
+        queue,
+        snapshotQueue,
+        webhookSecret: config.webhookSecret,
+    });
 
     const server = app.listen(config.port, () => {
         console.log(`forgejo-code-sync listening on :${config.port}`);
@@ -96,19 +172,39 @@ async function main(): Promise<void> {
         console.log(`  evault   ${config.evaultServerUri}`);
         console.log(`  s3       ${config.s3.bucket} (${config.s3.endpoint})`);
         console.log(`  queue    ${queueDir}`);
+        console.log(`  queue    ${snapshotQueueDir} (repo snapshots)`);
     });
 
     // Guards against overlapping drains: if a sweep is still running (e.g. a
     // slow eVault) when the next tick fires, that tick is skipped rather than
     // starting a second pass over the same due tasks - two concurrent drains
     // could otherwise both pick up the same task before either marks it done.
+    // Both queues share one guard and one interval: they're independent
+    // stores, but there's no reason to run two separate timers for what's
+    // conceptually one "drain everything that's due" tick.
     let draining = false;
     const timer = setInterval(() => {
         if (draining) return;
         draining = true;
-        drainOnce({ queue, identity, evault, fetchDiff, onOutcome: logOutcome })
+        Promise.all([
+            drainOnce({
+                queue,
+                identity,
+                evault,
+                fetchDiff,
+                onOutcome: logOutcome,
+            }),
+            drainSnapshotsOnce({
+                queue: snapshotQueue,
+                identity,
+                evault,
+                fetchArchive,
+                store: repoEnvelopeStore,
+                onOutcome: logSnapshotOutcome,
+            }),
+        ])
             .catch((error: unknown) => {
-                console.error("[sync] drainOnce failed:", error);
+                console.error("[sync] drain failed:", error);
             })
             .finally(() => {
                 draining = false;
