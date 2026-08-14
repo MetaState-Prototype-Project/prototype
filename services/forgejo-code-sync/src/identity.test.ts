@@ -60,6 +60,24 @@ describe("IdentityResolver.resolveEname", () => {
         expect(await resolver.resolveEname("bob")).toBeNull();
     });
 
+    it("returns null when login_name is absent from the response entirely, not just empty", async () => {
+        // Confirmed live against a real GitW3 instance, not assumed: Go's
+        // `json:"login_name,omitempty"` means a password-registered account's
+        // GET /users/{username} response omits the key outright rather than
+        // sending `"login_name": ""` - `{ login_name: "" }` above is not the
+        // only shape a "no linked eVault" account actually takes on the wire.
+        const fetchImpl = vi
+            .fn()
+            .mockResolvedValue(jsonResponse(200, { id: 3, login: "bob" }));
+        const resolver = new IdentityResolver({
+            forgejoApiUrl: "https://git.example.org",
+            adminToken: "admin-token",
+            fetchImpl,
+        });
+
+        expect(await resolver.resolveEname("bob")).toBeNull();
+    });
+
     it("does not re-fetch within the TTL", async () => {
         const fetchImpl = vi
             .fn()

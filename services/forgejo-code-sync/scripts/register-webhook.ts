@@ -13,7 +13,9 @@ import { fileURLToPath } from "node:url";
  * scoped instance-wide, exactly what Site Administration's UI would create by
  * hand. Idempotent, so it can run on every deploy: it updates the existing
  * hook when one already points at this service's /webhook URL, and creates
- * one otherwise.
+ * one otherwise - by deleting and recreating rather than PATCHing when one
+ * already exists, since PATCH silently ignores a changed secret (see the
+ * comment above the delete-then-recreate call below).
  *
  * Uses FORGEJO_PROVISIONING_TOKEN, not FORGEJO_ADMIN_TOKEN - confirmed live,
  * not just from source: /admin/hooks requires AccessTokenScopeCategoryAdmin
@@ -127,33 +129,44 @@ async function main(): Promise<void> {
     const hooks = await listAllHooks(forgejoApiUrl, adminToken);
     const existing = hooks.find((h) => h.url === webhookUrl);
 
+    // A fourth trap, found only by testing a secret rotation live, not by
+    // re-reading source harder: `PATCH /admin/hooks/{id}` (editHook,
+    // routers/api/v1/utils/hook.go) updates `url`, `content_type`, events,
+    // branch_filter and the authorization header from `config` - but never
+    // reads `config["secret"]` at all. Reproduced directly: PATCHing an
+    // existing hook with a new FORGEJO_WEBHOOK_SECRET returns 200, and
+    // GET /admin/hooks shows nothing wrong (secret is never echoed back by
+    // any Forgejo API, by design) - but the hook keeps signing with
+    // whatever secret it was *created* with, forever. The next real push's
+    // delivery comes back 401 "invalid signature" against the new secret,
+    // silently, exactly like the `active`/`is_system_webhook` traps above.
+    // So a secret rotation is not a PATCH - it's delete-then-recreate,
+    // since only `addHook` (the POST path) reads `config["secret"]`.
     if (existing) {
         console.log(
-            `updating system webhook (id ${existing.id}) -> ${webhookUrl}`,
+            `secret rotation: deleting + recreating system webhook (id ${existing.id}) -> ${webhookUrl} ` +
+                "(PATCH /admin/hooks/{id} silently ignores config.secret - see comment above)",
         );
-        const res = await fetch(
+        const del = await fetch(
             `${forgejoApiUrl}/api/v1/admin/hooks/${existing.id}`,
-            {
-                method: "PATCH",
-                headers: authHeaders,
-                body: JSON.stringify(body),
-            },
+            { method: "DELETE", headers: authHeaders },
         );
-        if (!res.ok) {
+        if (!del.ok && del.status !== 404) {
             throw new Error(
-                `PATCH /admin/hooks/${existing.id} failed: HTTP ${res.status}`,
+                `DELETE /admin/hooks/${existing.id} failed: HTTP ${del.status}`,
             );
         }
     } else {
         console.log(`creating system webhook -> ${webhookUrl}`);
-        const res = await fetch(`${forgejoApiUrl}/api/v1/admin/hooks`, {
-            method: "POST",
-            headers: authHeaders,
-            body: JSON.stringify(body),
-        });
-        if (!res.ok) {
-            throw new Error(`POST /admin/hooks failed: HTTP ${res.status}`);
-        }
+    }
+
+    const res = await fetch(`${forgejoApiUrl}/api/v1/admin/hooks`, {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+        throw new Error(`POST /admin/hooks failed: HTTP ${res.status}`);
     }
 
     console.log(
