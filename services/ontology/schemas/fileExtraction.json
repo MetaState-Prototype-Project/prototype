@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "3d5b71e2-9c84-4a16-b0f3-6e28d95a7c41",
+  "title": "FileExtraction",
+  "type": "object",
+  "description": "What a machine made of a file — the text read off a photo, the transcript of a recording, the body of a document, or a set of observations about what an image shows. It exists as its own record because the File ontology is closed and has no field for extracted content, and because a reading has provenance of its own: which model produced it, how confidently, and when. The same file may be read more than once, by different models or at different times, and each reading is a separate record rather than an overwrite — a later reading does not make an earlier one untrue about what was believed then. A FileExtraction is always DERIVED: it is evidence about the file, never a fact about the world, and anything asserted on its basis should reference it.",
+  "properties": {
+    "id": { "type": "string", "description": "Stable identifier for this reading" },
+    "kind": {
+      "type": "string",
+      "enum": ["ocr", "transcript", "vision", "extraction"],
+      "description": "How the file was read: text visible in an image (ocr), speech turned to text (transcript), what a picture depicts (vision), or content parsed out of a structured document (extraction)"
+    },
+    "text": {
+      "type": ["string", "null"],
+      "description": "The content verbatim, when the reading IS text — OCR output, a transcript, a document body. Never a summary: the words themselves are what cannot be recovered later without paying to read the file again. Null when the reading is not text."
+    },
+    "observations": {
+      "type": "array",
+      "description": "What the reading claims about the file's contents. One file yields many: a street photo carries a car, a road surface, shop signs, traffic signs, weather, a city. Modelled on schema.org/Observation.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "measuredProperty": { "type": "string", "description": "What is being observed, using an established schema.org property name wherever one exists (vehicle, brand, contentLocation, numberOfFloors). A coined name is acceptable when nothing established fits, but must then be reused rather than re-invented — a synonym makes both observations uncountable." },
+          "observationAbout": { "type": "string", "description": "The THING observed, identified as briefly and stably as it can be — its eName where it has one, otherwise the plain name one would use for it anywhere else ('Finish', 'Utrecht', 'Renault Kangoo'). Never a phrase describing where it appears and never a filename: the reading is already linked to its file, and a locator that changes with every file makes the same thing uncountable, which is the one thing this field exists to prevent." },
+          "valueText": { "type": "string", "description": "What the reading would say about it in words, kept verbatim alongside the reference. A reference can resolve to the wrong thing, and these words are how anyone notices." },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "How sure the model is of THIS observation. Per-observation, not per-reading: a photo can show an unmistakable traffic sign and a barely legible shop front." }
+        },
+        "required": ["measuredProperty", "confidence"]
+      }
+    },
+    "fileRef": {
+      "type": "string",
+      "description": "The file this reading was made from, as its `w3ds://` URI. A reading that pointed at nothing would be a claim about a file the vault does not have, so this is what makes the record meaningful at all — and what lets a reader fetch the bytes and disagree with the reading."
+    },
+    "derivedFrom": {
+      "type": ["string", "null"],
+      "description": "Envelope id of the record this reading was made in the course of capturing — typically the PersonalNote the file was attached to. Null when the file was read on its own. The inverse of PersonalNote.derivedRecords."
+    },
+    "language": { "type": "string", "description": "BCP-47 language of `text`, when it is text" },
+    "model": { "type": "string", "description": "Which model produced this reading. Without it a stale or discredited reading cannot be found and revisited." },
+    "readAt": { "type": "string", "format": "date-time", "description": "When the file was read, which is not when the file was made" },
+    "capturedBy": { "type": "string", "description": "eName of the application that performed the reading" },
+    "isArchived": { "type": "boolean", "default": false }
+  },
+  "required": ["id", "kind", "readAt", "fileRef"],
+  "additionalProperties": true
+}
