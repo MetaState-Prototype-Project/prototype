@@ -1,0 +1,174 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "ede4c610-9e22-4074-9598-82c915058f4f",
+  "title": "EIDSignature",
+  "description": "One participant's eID signature over a signing envelope, always written to the signer's own vault so they can produce it even if the initiator disappears. Carries the signer's own field values inline, because fieldsHash cannot be recomputed without them and verification must not depend on the platform's database. Distinct from the registered Signature ontology (b2c3d4e5-f6a7-8901-bcde-f12345678901), which sets additionalProperties:false and so cannot carry envelopeId, fieldsHash, role or order.",
+  "type": "object",
+  "properties": {
+    "signatureId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "envelopeId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the envelope initiator. Required: this ontology exists so a signer can produce their signature when the initiator is gone, and without this field an envelope found on a vault cannot be tied back to the canonical record without our database — which is exactly the situation the field is for."
+    },
+    "signerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the signer. The registered Signature ontology calls this field publicKey and stores an eName in it in live data; this ontology names it honestly."
+    },
+    "docPlaintextSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 of the original unencrypted PDF, as covered by this signature."
+    },
+    "fieldValues": {
+      "type": "array",
+      "description": "This signer's own field values, exactly as canonicalised into fieldsHash. Present so a third party can recompute fieldsHash a year from now without access to our database. Layout (page, coordinates, widget size) is deliberately absent: it is a product concern and proves nothing.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "fieldId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "signature",
+              "initials",
+              "date",
+              "text",
+              "checkbox",
+              "dropdown"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": [
+              "string",
+              "boolean",
+              "null"
+            ],
+            "description": "For signature and initials this is the SHA-256 of the drawn mark, not the mark itself, so the visual does not leak through an unencrypted envelope."
+          }
+        },
+        "required": [
+          "fieldId",
+          "type",
+          "value"
+        ]
+      }
+    },
+    "fieldsHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 of the canonical JSON of fieldValues."
+    },
+    "fieldSchemaVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Canonicalisation version, so the meaning of fieldsHash stays provable over time."
+    },
+    "signedPayload": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The exact string handed to the wallet and covered by the signature, recorded verbatim so verification never has to reconstruct how it was composed."
+    },
+    "signature": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The signature returned by the eID wallet."
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "signer",
+        "approver"
+      ]
+    },
+    "identityAssurance": {
+      "type": "object",
+      "description": "What the signing platform knew about this person's identity at the moment of the act, read from their own vault. RECORDED, not recomputed: a passport check added a year later does not make an earlier signature better evidence, and an attestation withdrawn since does not make it worse, so a reader of the finished document needs what was true then. IMPORTANT: this is an observation made BY the platform, sitting beside the signature. It is not covered by the signature and must never be presented as a claim the person made. Anyone who does not wish to take it on trust can recompute today's answer from the same vault.",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": [
+            "verified",
+            "attested",
+            "unknown"
+          ],
+          "description": "verified — a licensed identity vendor checked an identity document, and the attestation is signed by an authority whose key is published. attested — no document was checked, but other people have mutually attested to this identity. unknown — nothing at all is known about who holds this eName."
+        },
+        "verifiedName": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The name the vendor checked. Never a name the person stated about themselves."
+        },
+        "verifiedBy": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Which identity vendor performed the check."
+        },
+        "attestations": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "How many other people had mutually attested to this identity at the time."
+        },
+        "authenticatedBy": {
+          "type": "string",
+          "description": "How the person proved, in this act, that they hold the eName. Currently always 'eid-key-signature' — a signature from the key their eID wallet holds. Named explicitly so a reader is not left to assume something weaker or stronger."
+        },
+        "capturedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the observation was made — the moment of signing or sealing."
+        }
+      },
+      "required": [
+        "level",
+        "authenticatedBy",
+        "capturedAt"
+      ]
+    },
+    "order": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Product-level position in the signing order. Signatures remain cryptographically independent of one another."
+    },
+    "signedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "signatureId",
+    "envelopeId",
+    "canonicalOwnerEName",
+    "signerEName",
+    "docPlaintextSha256",
+    "fieldValues",
+    "fieldsHash",
+    "fieldSchemaVersion",
+    "signedPayload",
+    "signature",
+    "signedAt",
+    "createdAt"
+  ]
+}
