@@ -198,9 +198,10 @@
           "enum": [
             "verified",
             "attested",
-            "unknown"
+            "unknown",
+            "unavailable"
           ],
-          "description": "verified — a licensed identity vendor checked an identity document, and the attestation is signed by an authority whose key is published. attested — no document was checked, but other people have mutually attested to this identity. unknown — nothing at all is known about who holds this eName."
+          "description": "verified — a licensed identity vendor checked an identity document, and the attestation is signed by an authority whose key is published. attested — no document was checked, but other people have mutually attested to this identity. unknown — we looked and nothing at all is known about who holds this eName. unavailable — we could not look: their storage did not answer at the time. The last two are deliberately distinct and MUST NOT be collapsed by a reader: 'we found nothing' is an observation about the person, 'we could not ask' is an admission about us. This record is written once beside a signature and read for years, so a momentary failure recorded as 'unknown' would be a permanent false statement about somebody whose identity is in fact established."
         },
         "verifiedName": {
           "type": [
