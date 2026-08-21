@@ -101,6 +101,7 @@ Platforms that participate in W3DS must implement an HTTP endpoint that accepts 
 - **Request**: JSON body as described above.
 - **Behavior**: The platform should (1) use `schemaId` to find the correct mapping from global ontology to local schema, (2) transform `data` from global to local format (e.g. using the [Web3 Adapter](/docs/Infrastructure/Web3-Adapter#fromglobal)'s `fromGlobal`), (3) resolve or create the local entity and store the global-ID-to-local-ID mapping, (4) return HTTP 200 on success.
 - **Idempotency**: Implementors are encouraged to treat the same `id` (global ID) as idempotent (create or update the same local entity) so that duplicate or retried deliveries do not create duplicates.
+- **Unknown ontologies**: Delivery is a broadcast — a platform receives packets for ontologies it has no mapping for, such as the `w3ds-file-v1` envelopes emitted by `uploadFile`. Log and **return HTTP 200**; do not return 4xx. AaaS has no 4xx short-circuit, so an error response is retried and then dead-lettered even though nothing was wrong.
 
 For a step-by-step implementation guide, see the [Webhook Controller Guide](/docs/Post%20Platform%20Guide/webhook-controller) in the Post Platform Guide.
 

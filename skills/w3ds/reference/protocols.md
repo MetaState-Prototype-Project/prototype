@@ -273,8 +273,12 @@ Files uploaded via the eVault `uploadFile` mutation:
 ```
 
 3. The `w3ds://file` URI is built from the owner ename and the File Meta Envelope ID.
+4. An awareness packet is dispatched with `schemaId: "w3ds-file-v1"` and
+   `operation: "create"`, carrying the stored payload as `data`. Subscribe to
+   that ontology to observe uploads; do not mirror the blob as a `File` record
+   just to make it visible in AaaS.
 
-Max size 50 MB decoded. `uploadFile` API signature in [evault.md § File upload](evault.md#file-upload).
+Max size 250 MB decoded. `uploadFile` API signature in [evault.md § File upload](evault.md#file-upload).
 
 ### Dereferencing
 
