@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "47478875-c0cf-4b62-97b3-5b0b62d7f491",
+  "title": "AvailabilityStatus",
+  "type": "object",
+  "description": "A person's self-declared availability ('do not disturb', busy, away), append-only on their OWN vault with a public ACL so any platform can honour it before notifying or calling them. The newest envelope by `since` is the current state; earlier ones are history. `until` makes a state self-expiring; a reader treats an expired state as 'available'. Never written by anyone but the owner.",
+  "properties": {
+    "statusId": { "type": "string", "description": "Body id of this status entry" },
+    "ownerEName": { "type": "string", "description": "@-prefixed eName of the person the status belongs to" },
+    "state": { "type": "string", "enum": ["available", "dnd", "busy", "away"] },
+    "since": { "type": "string", "format": "date-time", "description": "When this state began; newest `since` wins" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "until": { "type": "string", "format": "date-time", "description": "Optional self-expiry; past it the person is available again" },
+    "note": { "type": "string", "description": "Optional human note shown next to the state" },
+    "autoReply": { "type": "string", "description": "Optional text a platform may send back when someone @-mentions the owner while unavailable" }
+  },
+  "required": ["statusId", "ownerEName", "state", "since"],
+  "additionalProperties": true
+}
