@@ -1,0 +1,133 @@
+# GitW3 and the W3DS OIDC bridge — a candidate deployment manifest.
+#
+# Nothing in this repository deploys services today: build.yml builds and tests, docusaurus.yml
+# publishes the docs to GitHub Pages, and docker-compose.databases.yml runs local databases only.
+# How the other platforms reach *.w3ds.metastate.foundation is decided outside this repo, so this
+# file is a proposal rather than the house convention. It runs as written, which makes it
+# something to accept, adapt, or replace — not a list of questions.
+#
+#   docker compose -f docker-compose.gitw3.yml --env-file .env up -d
+#   docker compose -f docker-compose.gitw3.yml restart gitw3   # first deploy only, see below
+#
+# The second line is needed once, because the authentication source is created after GitW3 has
+# already started and Forgejo reads its sources at boot. Later deploys don't need it.
+#
+# TLS terminates in front of this. Both HTTP services bind to the loopback interface, so a
+# reverse proxy on the host reaches them and nothing else does.
+
+name: gitw3
+
+services:
+    # Start order matters, and not only for tidiness: Forgejo fetches the discovery document
+    # once, while registering its authentication sources at startup. If the bridge is down at
+    # that moment the source is skipped entirely, the login button disappears, and the
+    # follow-on symptom misleads — an unregistered source also stops Forgejo sending PKCE, so
+    # the bridge answers `code_challenge is required`. Hence the healthcheck gate below.
+    w3ds-oidc-bridge:
+        build:
+            context: .
+            dockerfile: docker/Dockerfile.w3ds-oidc-bridge
+        image: ${W3DS_OIDC_IMAGE:-w3ds-oidc-bridge:local}
+        container_name: w3ds-oidc-bridge
+        restart: unless-stopped
+        environment:
+            # The OIDC issuer. Must be https:// — the service refuses to start otherwise, and
+            # W3DS_OIDC_ALLOW_INSECURE is deliberately not passed through here. goth never
+            # verifies the ID token signature, so TLS and the client secret are the only things
+            # separating a real token from a forged one.
+            W3DS_OIDC_PUBLIC_URL: ${W3DS_OIDC_PUBLIC_URL:?the bridge's public https:// base URL}
+            W3DS_OIDC_PORT: 4200
+            W3DS_OIDC_CLIENT_ID: ${W3DS_OIDC_CLIENT_ID:?}
+            W3DS_OIDC_CLIENT_SECRET: ${W3DS_OIDC_CLIENT_SECRET:?}
+            # Derived from GITW3_PUBLIC_URL so the two cannot drift. Forgejo sends this value
+            # and the bridge compares it exactly — no prefix matching, no trailing-slash mercy.
+            W3DS_OIDC_REDIRECT_URI: ${GITW3_PUBLIC_URL:?}/user/oauth2/${GITW3_AUTH_SOURCE_NAME:-W3DS}/callback
+            # PKCS#8 PEM. Newlines may be written as literal \n; the service normalises them,
+            # so the key survives a single-line .env entry.
+            W3DS_OIDC_SIGNING_KEY: ${W3DS_OIDC_SIGNING_KEY:?ES256 private key in PKCS#8 PEM}
+            W3DS_OIDC_KEY_ID: ${W3DS_OIDC_KEY_ID:-w3ds-oidc-1}
+            W3DS_EMAIL_DOMAIN: ${W3DS_EMAIL_DOMAIN:-w3ds.invalid}
+            W3DS_EXTRA_RESERVED_USERNAMES: ${W3DS_EXTRA_RESERVED_USERNAMES:-}
+            W3DS_MIN_WALLET_VERSION: ${W3DS_MIN_WALLET_VERSION:-0.4.0}
+            # Signatures are verified against this Registry, so it must be the same one the
+            # wallets on people's phones were provisioned against.
+            PUBLIC_REGISTRY_URL: ${PUBLIC_REGISTRY_URL:?}
+        ports:
+            - "127.0.0.1:${W3DS_OIDC_HOST_PORT:-4200}:4200"
+        # The healthcheck is defined in docker/Dockerfile.w3ds-oidc-bridge.
+
+    gitw3:
+        image: ${GITW3_IMAGE:-ghcr.io/ensombl/gitw3}:${GITW3_VERSION:-latest}
+        container_name: gitw3
+        restart: unless-stopped
+        depends_on:
+            w3ds-oidc-bridge:
+                condition: service_healthy
+        environment:
+            # environment-to-ini runs on every start, so app.ini is regenerated from these on
+            # each deploy — the configuration below is the source of truth, not the volume.
+            FORGEJO__server__ROOT_URL: ${GITW3_PUBLIC_URL:?}
+            FORGEJO__server__DOMAIN: ${GITW3_DOMAIN:?}
+            FORGEJO__server__SSH_DOMAIN: ${GITW3_DOMAIN:?}
+            FORGEJO__server__SSH_PORT: ${GITW3_SSH_PORT:-2222}
+            FORGEJO__server__HTTP_PORT: 3000
+            FORGEJO__security__INSTALL_LOCK: "true"
+
+            # W3DS becomes the only way in. ALLOW_ONLY_EXTERNAL_REGISTRATION closes the password
+            # sign-up page while leaving the link-account page open — that page is the fallback
+            # when an eName cannot yield a usable username, and DISABLE_REGISTRATION would close
+            # it too, turning a rare edge case into a permanent lockout.
+            FORGEJO__service__DISABLE_REGISTRATION: "false"
+            FORGEJO__service__ALLOW_ONLY_EXTERNAL_REGISTRATION: "true"
+
+            FORGEJO__oauth2_client__ENABLE_AUTO_REGISTRATION: "true"
+            # `login` is load-bearing. On `auto`, two eNames that sanitise to the same username
+            # would let the second person into the first person's account.
+            FORGEJO__oauth2_client__ACCOUNT_LINKING: login
+            FORGEJO__oauth2_client__USERNAME: nickname
+            # Must be set *in this section*: it otherwise inherits [service], and an activation
+            # mail sent to a .invalid address never arrives, leaving every account permanently
+            # inactive.
+            FORGEJO__oauth2_client__REGISTER_EMAIL_CONFIRM: "false"
+        volumes:
+            - gitw3_data:/data
+        ports:
+            - "127.0.0.1:${GITW3_HOST_PORT:-3000}:3000"
+            - "${GITW3_SSH_PORT:-2222}:22"
+        healthcheck:
+            test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/healthz"]
+            interval: 15s
+            timeout: 5s
+            retries: 10
+            start_period: 60s
+        # GitW3 exchanges the authorization code with the bridge over its *public* hostname —
+        # the discovery document publishes absolute URLs, so there is no internal shortcut and
+        # `http://w3ds-oidc-bridge:4200` would fail the issuer comparison. The host therefore
+        # needs to resolve and reach its own public name from inside the container. Where the
+        # network cannot hairpin, point it at the reverse proxy directly:
+        # extra_hosts:
+        #     - "${W3DS_OIDC_DOMAIN:-bridge.invalid}:host-gateway"
+
+    # Authentication sources live in Forgejo's database, not in app.ini, so they cannot be
+    # declared above. This one-shot closes that gap and is idempotent — it updates an existing
+    # source rather than adding a second one, so it is safe on every deploy.
+    gitw3-auth-source:
+        image: ${GITW3_IMAGE:-ghcr.io/ensombl/gitw3}:${GITW3_VERSION:-latest}
+        container_name: gitw3-auth-source
+        restart: "no"
+        depends_on:
+            gitw3:
+                condition: service_healthy
+        user: git
+        entrypoint: ["/bin/sh", "/register-auth-source.sh"]
+        environment:
+            GITW3_AUTH_SOURCE_NAME: ${GITW3_AUTH_SOURCE_NAME:-W3DS}
+            W3DS_OIDC_PUBLIC_URL: ${W3DS_OIDC_PUBLIC_URL:?}
+            W3DS_OIDC_CLIENT_ID: ${W3DS_OIDC_CLIENT_ID:?}
+            W3DS_OIDC_CLIENT_SECRET: ${W3DS_OIDC_CLIENT_SECRET:?}
+        volumes:
+            - gitw3_data:/data
+            - ./docker/gitw3-register-auth-source.sh:/register-auth-source.sh:ro
+
+volumes:
+    gitw3_data:
