@@ -147,7 +147,7 @@ mutation UploadFile($input: UploadFileInput!) {
 }
 ```
 
-`UploadFileInput`: `filename` (string), `contentType` (string, MIME), `content` (base64 or `data:` URI), `acl` (array). Decoded size must be ≤ 50 MB. Requires `X-ENAME` and object storage configured on the eVault. Detail on the `w3ds://file` scheme → [protocols.md](protocols.md).
+`UploadFileInput`: `filename` (string), `contentType` (string, MIME), `content` (base64 or `data:` URI), `acl` (array). Decoded size must be ≤ 250 MB. Requires `X-ENAME` and object storage configured on the eVault. Detail on the `w3ds://file` scheme → [protocols.md](protocols.md).
 
 ### Binding documents
 

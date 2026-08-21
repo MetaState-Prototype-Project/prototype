@@ -79,8 +79,12 @@ handleWebhook = async (req: Request, res: Response) => {
             (m: any) => m.schemaId === schemaId
         );
         
+        // Delivery is a broadcast: you will receive ontologies you have no
+        // mapping for (e.g. the w3ds-file-v1 envelopes uploadFile emits). Ack
+        // them with a 200 -- a 4xx here is retried and then dead-lettered.
         if (!mapping) {
-            throw new Error("No mapping found");
+            console.log(`[webhook] skipping unknown schema ${schemaId} for ${globalId}`);
+            return res.status(200).send();
         }
 
         // Convert global to local

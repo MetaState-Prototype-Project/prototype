@@ -43,7 +43,10 @@ export class WebhookController {
             ) as any;
 
             if (!mapping) {
-                throw new Error("No mapping found");
+                console.log(
+                    `[webhook] skipping unknown schema ${schemaId} for ${globalId}`
+                );
+                return res.status(200).send();
             }
 
             // Check if this globalId is already locked (being processed)

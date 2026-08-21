@@ -1417,6 +1417,59 @@ export class GraphQLServer {
                                 context.eName,
                             );
 
+                            // Forward the awareness packet, exactly as every
+                            // other write path does. Without this an uploaded
+                            // blob is invisible to AaaS, which forces consumers
+                            // to mirror it as a second envelope under a
+                            // different ontology just to observe the upload.
+                            //
+                            // `data` is the stored payload verbatim so the
+                            // packet matches what a consumer reads back via
+                            // metaEnvelope(id) or GET /api/packets.
+                            //
+                            // Fire-and-forget: the envelope is already
+                            // committed, so an AaaS outage must not fail the
+                            // upload. Awaiting here would drop into the catch
+                            // block below and delete a blob that is still
+                            // referenced by a live envelope.
+                            const webhookPayload = {
+                                id: result.metaEnvelope.id,
+                                w3id: context.eName,
+                                evaultPublicKey: this.evaultPublicKey,
+                                data: payload,
+                                schemaId: FILE_SCHEMA_ID,
+                                operation: "create" as const,
+                            };
+
+                            this.notifyAwareness(
+                                webhookPayload,
+                                context.tokenPayload?.platform || null,
+                            );
+
+                            // Log envelope operation best-effort (do not fail mutation)
+                            const envelopeHash = computeEnvelopeHash({
+                                id: result.metaEnvelope.id,
+                                ontology: FILE_SCHEMA_ID,
+                                payload,
+                            });
+                            this.db
+                                .appendEnvelopeOperationLog({
+                                    eName: context.eName,
+                                    metaEnvelopeId: result.metaEnvelope.id,
+                                    envelopeHash,
+                                    operation: "create",
+                                    platform:
+                                        context.tokenPayload?.platform ?? null,
+                                    timestamp: new Date().toISOString(),
+                                    ontology: FILE_SCHEMA_ID,
+                                })
+                                .catch((err) =>
+                                    console.error(
+                                        "appendEnvelopeOperationLog (uploadFile) failed:",
+                                        err,
+                                    ),
+                                );
+
                             return {
                                 uri: buildFileUri(
                                     context.eName,

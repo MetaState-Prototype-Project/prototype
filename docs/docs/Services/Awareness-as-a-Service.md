@@ -67,6 +67,18 @@ existing receivers need no changes:
 delivering a packet back to its origin (the ping-pong guard the old fanout
 enforced). It is never persisted or delivered.
 
+### File uploads
+
+The eVault `uploadFile` mutation emits a packet like any other write, stamped
+`schemaId: "w3ds-file-v1"` with the storage payload (`filename`, `contentType`,
+`size`, `blobKey`, `publicUrl`, `uploadedAt`) as `data`. Subscribe to it to
+observe uploads rather than mirroring each blob as a second `File`-ontology
+envelope.
+
+`w3ds-file-v1` is a **slug, not a UUID** — `ontologyFilter` and the
+`?ontology=` query parameter match ontologies as opaque strings, so it must be
+given verbatim.
+
 ## Capabilities
 
 ### 1. Polling query API
@@ -99,6 +111,11 @@ and eVault. Empty filter arrays mean "everything":
 A consumer manages only its own subscriptions (`GET`, `PATCH`, `DELETE`). If a
 subscription has a `secret`, each delivery carries an `x-aaas-signature` header
 (HMAC-SHA256 of the body).
+
+Because catch-all subscriptions receive every ontology, a receiver **must ack
+packets it does not consume with a 200**. There is no 4xx short-circuit in the
+delivery engine: a 400 on an unknown `schemaId` is retried up to
+`AWARENESS_MAX_ATTEMPTS` and then dead-lettered.
 
 ### 3. Retrying delivery + dead-letters
 

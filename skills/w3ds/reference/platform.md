@@ -111,7 +111,12 @@ handleWebhook = async (req: Request, res: Response) => {
     const mapping = Object.values(this.adapter.mapping).find(
       (m: any) => m.schemaId === schemaId,
     );
-    if (!mapping) throw new Error("No mapping found");
+    // Broadcast delivery: ack ontologies you do not consume with a 200.
+    // A 4xx is retried by AaaS and then dead-lettered.
+    if (!mapping) {
+      console.log(`[webhook] skipping unknown schema ${schemaId} for ${globalId}`);
+      return res.status(200).send();
+    }
 
     const local = await this.adapter.fromGlobal({ data: req.body.data, mapping });
 
