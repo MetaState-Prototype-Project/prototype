@@ -1,0 +1,139 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "c693b036-9cd8-45d7-b53f-c5f068ab58b8",
+  "title": "Workout",
+  "description": "A workout/training session. The GPS route lives INSIDE this private envelope (encoded polyline5) — never in public blob storage. avgHeartRate/maxHeartRate/stats are DEVICE-COMPUTED aggregates over the workout window, not copies of series data. dedupKey = provenance-scoped external id.",
+  "type": "object",
+  "properties": {
+    "subject": {
+      "type": "string",
+      "description": "@-prefixed eName of the person this data is about"
+    },
+    "device": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "w3id (@eName) of the measuring device's OWN eVault, where its Device passport lives; null if unknown"
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Import provenance. Vendor identity lives HERE only (source), never in metric keys.",
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string",
+          "description": "w3id (@eName) of the platform that wrote this envelope — machine-readable authorship; resolve it to read that platform's self-description"
+        },
+        "externalId": {
+          "type": "string"
+        },
+        "sourceName": {
+          "type": "string"
+        },
+        "deviceSignature": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "source"
+      ]
+    },
+    "dedupKey": {
+      "type": "string",
+      "description": "Writer's idempotency key, unique within this ontology on the vault"
+    },
+    "contentHash": {
+      "type": "string",
+      "description": "Writer-maintained md5 of the payload; recomputed on every rewrite"
+    },
+    "updatedAt": {
+      "type": "string"
+    },
+    "activityType": {
+      "type": "string",
+      "description": "Open neutral enum: Running, Walking, Cycling, Swimming, …"
+    },
+    "startDate": {
+      "type": "string"
+    },
+    "endDate": {
+      "type": "string"
+    },
+    "durationSec": {
+      "type": "number"
+    },
+    "distanceKm": {
+      "type": "number"
+    },
+    "activeEnergyKcal": {
+      "type": "number"
+    },
+    "avgHeartRate": {
+      "type": "number"
+    },
+    "maxHeartRate": {
+      "type": "number"
+    },
+    "elevationAscendedM": {
+      "type": "number"
+    },
+    "stats": {
+      "type": "object",
+      "description": "Device-computed per-metric aggregates, keyed by neutral metric keys",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "min": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          },
+          "avg": {
+            "type": "number"
+          },
+          "sum": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "route": {
+      "type": "object",
+      "description": "Canonical GPS route, INSIDE the private envelope",
+      "properties": {
+        "format": {
+          "type": "string",
+          "const": "polyline5"
+        },
+        "data": {
+          "type": "string"
+        },
+        "pointCount": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "format",
+        "data",
+        "pointCount"
+      ]
+    }
+  },
+  "required": [
+    "subject",
+    "provenance",
+    "dedupKey",
+    "contentHash",
+    "activityType",
+    "startDate",
+    "endDate",
+    "durationSec"
+  ]
+}
