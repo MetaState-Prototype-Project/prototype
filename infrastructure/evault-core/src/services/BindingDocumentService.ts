@@ -1,4 +1,5 @@
 import axios from "axios";
+import { createHash } from "node:crypto";
 import nacl from "tweetnacl";
 import { verifySignature } from "signature-validator";
 import type { DbService } from "../core/db/db.service";
@@ -272,10 +273,13 @@ export class BindingDocumentService {
                     entry.subject === doc.subject && entry.type === doc.type;
             });
             if (!member) return false;
+            const digest = createHash("sha256")
+                .update(signature.signedPayload, "utf8")
+                .digest("base64url");
             return this.verifyUserPayload(
                 signature.signer,
                 signature.signature,
-                signature.signedPayload,
+                `gitw3:deployment:v1:${digest}`,
             );
         } catch {
             return false;
