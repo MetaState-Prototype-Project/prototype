@@ -15,7 +15,11 @@
         "id_document",
         "photograph",
         "social_connection",
-        "self"
+        "self",
+        "personal_parameters",
+        "security_question",
+        "deployment_key",
+        "software_version"
       ],
       "description": "The type of binding document"
     },
@@ -106,6 +110,24 @@
             "$ref": "#/definitions/SelfData"
           }
         }
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "deployment_key" } },
+        "required": ["type"]
+      },
+      "then": {
+        "properties": { "data": { "$ref": "#/definitions/DeploymentKeyData" } }
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "software_version" } },
+        "required": ["type"]
+      },
+      "then": {
+        "properties": { "data": { "$ref": "#/definitions/SoftwareVersionData" } }
       }
     }
   ],
@@ -200,6 +222,33 @@
       ],
       "additionalProperties": false
     },
+    "DeploymentKeyData": {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "deployment_key" },
+        "deploymentName": { "type": "string", "minLength": 1 },
+        "environment": { "type": "string", "minLength": 1 },
+        "deployerEname": { "type": "string", "pattern": "^@[^\\s]+$" },
+        "platformEname": { "type": "string", "pattern": "^@[^\\s]+$" },
+        "publicKey": { "type": "string", "pattern": "^z.+$" },
+        "algorithm": { "const": "ECDSA_P256" }
+      },
+      "required": ["kind", "deploymentName", "environment", "deployerEname", "platformEname", "publicKey", "algorithm"],
+      "additionalProperties": false
+    },
+    "SoftwareVersionData": {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "software_version" },
+        "platformEname": { "type": "string", "pattern": "^@[^\\s]+$" },
+        "versionEname": { "type": "string", "pattern": "^@[^\\s]+$" },
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$" },
+        "releaseTag": { "type": "string", "minLength": 1 },
+        "commitSha": { "type": "string", "pattern": "^[0-9a-fA-F]{40,64}$" }
+      },
+      "required": ["kind", "platformEname", "versionEname", "version", "releaseTag", "commitSha"],
+      "additionalProperties": false
+    },
     "Signature": {
       "type": "object",
       "properties": {
@@ -215,6 +264,14 @@
           "type": "string",
           "format": "date-time",
           "description": "When the signature was created"
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["document", "bundle"]
+        },
+        "signedPayload": {
+          "type": "string",
+          "description": "Canonical signed payload for a bundle-scoped signature"
         }
       },
       "required": [
