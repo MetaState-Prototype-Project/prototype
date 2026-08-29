@@ -123,6 +123,17 @@
                 </div>
             {/if}
 
+            {#if data.submission.submissionProof.statement.responseToDecision}
+                <div class="mt-6 rounded-2xl border border-brand/20 bg-brand-wash px-4 py-4">
+                    <p class="text-xs font-semibold tracking-wide text-brand uppercase">
+                        Response to the previous decision
+                    </p>
+                    <p class="mt-2 text-sm leading-relaxed whitespace-pre-wrap text-body">
+                        {data.submission.submissionProof.statement.responseToDecision}
+                    </p>
+                </div>
+            {/if}
+
             <div class="mt-6 rounded-2xl bg-positive-wash px-4 py-3">
                 <p class="text-sm font-semibold text-positive">Owner/admin signature verified</p>
                 <p class="mt-1 text-xs text-positive/80">

@@ -34,6 +34,7 @@ export interface PPASubmissionStatement {
     nonce: string;
     previousDecision?: "denied";
     previousDecisionAt?: string;
+    responseToDecision?: string;
 }
 
 /** Portable wallet evidence stored with the PlatformProfile in its eVault. */

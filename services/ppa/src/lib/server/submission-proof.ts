@@ -147,6 +147,16 @@ function parseStatement(value: unknown): PPASubmissionStatement | null {
         statement.previousDecision = "denied";
         statement.previousDecisionAt = previousDecisionAt;
     }
+    const responseToDecision = string(raw.responseToDecision);
+    if (responseToDecision) {
+        if (
+            statement.previousDecision !== "denied" ||
+            Array.from(responseToDecision).length > 2048
+        ) {
+            return null;
+        }
+        statement.responseToDecision = responseToDecision;
+    }
     if (
         statement.type !== STATEMENT_TYPE ||
         statement.schemaVersion !== 1 ||
