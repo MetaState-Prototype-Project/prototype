@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "d4fb2883-dd78-47a2-b5fa-e2df1af268c5",
+  "title": "Domain",
+  "domain": "governance",
+  "type": "object",
+  "description": "An area of data a platform can be granted access to. Every other schema declares the domain it belongs to via its `domain` field, so granting a domain is what decides which record types a platform may touch. The permitted values are the `oneOf` list under `id` — this schema is the published list, not a copy of it.",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable domain id, used in every schema’s `domain` field and in access grants.",
+      "oneOf": [
+        {
+          "const": "identity",
+          "title": "Identity",
+          "description": "Who someone is: profiles, credentials and the documents that bind an identity to a person."
+        },
+        {
+          "const": "communication",
+          "title": "Communication",
+          "description": "Direct and group conversation between people."
+        },
+        {
+          "const": "social",
+          "title": "Social",
+          "description": "Public posting, feeds and things shared with an audience."
+        },
+        {
+          "const": "community",
+          "title": "Community",
+          "description": "Groups, membership and shared community activity."
+        },
+        {
+          "const": "governance",
+          "title": "Governance",
+          "description": "Decision-making: charters, voting, mandates and permissions."
+        },
+        {
+          "const": "finance",
+          "title": "Finance",
+          "description": "Money, accounts, ledgers and currencies."
+        },
+        {
+          "const": "work",
+          "title": "Work",
+          "description": "Organisations, projects and professional activity."
+        },
+        {
+          "const": "productivity",
+          "title": "Productivity",
+          "description": "Tasks, notes, bookmarks and scheduling."
+        },
+        {
+          "const": "storage",
+          "title": "Files & documents",
+          "description": "Stored files and the documents built on them."
+        },
+        {
+          "const": "reputation",
+          "title": "Reputation",
+          "description": "References, endorsements and trust signals."
+        },
+        {
+          "const": "health",
+          "title": "Health",
+          "description": "Health, care and wellbeing records."
+        },
+        {
+          "const": "education",
+          "title": "Education",
+          "description": "Learning, courses, qualifications and training."
+        },
+        {
+          "const": "mobility",
+          "title": "Mobility",
+          "description": "Travel, transport and logistics."
+        },
+        {
+          "const": "energy",
+          "title": "Energy & utilities",
+          "description": "Energy use, metering and utility services."
+        },
+        {
+          "const": "commerce",
+          "title": "Commerce",
+          "description": "Buying, selling, listings and orders."
+        },
+        {
+          "const": "legal",
+          "title": "Legal",
+          "description": "Contracts, signatures, compliance and legal process."
+        },
+        {
+          "const": "property",
+          "title": "Property & housing",
+          "description": "Homes, tenancy, land and the built environment."
+        },
+        {
+          "const": "agriculture",
+          "title": "Food & agriculture",
+          "description": "Farming, food production and supply."
+        },
+        {
+          "const": "media",
+          "title": "Media & culture",
+          "description": "Publishing, broadcast, arts and cultural works."
+        },
+        {
+          "const": "public",
+          "title": "Public services",
+          "description": "Government, civic administration and public sector services."
+        }
+      ]
+    },
+    "label": {
+      "type": "string",
+      "description": "Human-readable name, as shown to reviewers and users."
+    },
+    "description": {
+      "type": "string",
+      "description": "What the domain covers."
+    }
+  },
+  "required": [
+    "id",
+    "label"
+  ],
+  "additionalProperties": false
+}
