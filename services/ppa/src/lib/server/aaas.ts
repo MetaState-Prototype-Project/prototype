@@ -96,21 +96,22 @@ async function all(params: Record<string, string | number>): Promise<Packet[]> {
 
 /**
  * Listing submissions and discovering the messenger both need the whole
- * User-ontology history — every user profile in the ecosystem, not just
- * platforms, because AaaS can only filter by ontology. That is currently ~15MB
- * over four pages and takes the better part of a minute, so the scan is cached
- * and served stale while it refreshes.
+ * User-ontology history — every user profile on the network, not just
+ * platforms, because AaaS can only filter by ontology. A full pass is ~15MB
+ * over several pages and takes the better part of a minute.
  *
- * The TTL must stay comfortably longer than a scan takes. A TTL shorter than
- * the scan expires before the scan that fills it has even finished, so every
- * request starts another full pass and the cache never serves anything.
+ * So the full pass happens once, and every refresh after that asks only for
+ * what arrived since, which is a single small query. That keeps the queue
+ * within seconds of live: a review queue that takes minutes to show a new
+ * submission is not doing its job.
  */
-const FRESH_MS = 5 * 60_000;
-const STALE_MS = 30 * 60_000;
+const FRESH_MS = 20_000;
 
 interface PacketCache {
     at: number;
     packets: Packet[];
+    /** Newest receivedAt seen, the watermark the next refresh reads from. */
+    watermark: string | null;
 }
 
 // Anchored outside the module graph for the same reason as the auth sessions:
@@ -123,16 +124,60 @@ const store = globalThis as typeof globalThis & {
 store[STORE] ??= { cache: null, inflight: null };
 const packetStore = store[STORE];
 
-/** Starts a scan, collapsing concurrent callers onto one in-flight request. */
+function watermarkOf(packets: Packet[]): string | null {
+    let max: string | null = null;
+    for (const p of packets) {
+        if (p.receivedAt && (max === null || p.receivedAt > max)) max = p.receivedAt;
+    }
+    return max;
+}
+
+/** Full pass, or a catch-up from the watermark when we already have one. */
+async function fetchUserPackets(previous: PacketCache | null): Promise<Packet[]> {
+    if (!previous || !previous.watermark) {
+        return all({ ontology: USER_ONTOLOGY });
+    }
+
+    // Inclusive of the watermark, so a packet sharing that timestamp is not
+    // skipped; duplicates are removed by id below.
+    const since = await all({
+        ontology: USER_ONTOLOGY,
+        from: previous.watermark,
+    });
+
+    if (since.length === 0) return previous.packets;
+
+    // AaaS upserts a packet by MetaEnvelope id, so a later copy replaces the
+    // earlier one. Keep order oldest-first: callers rely on last-write-wins.
+    const byId = new Map(previous.packets.map((p) => [p.id, p]));
+    for (const packet of since) byId.set(packet.id, packet);
+    return Array.from(byId.values()).sort((a, b) =>
+        a.receivedAt < b.receivedAt ? -1 : a.receivedAt > b.receivedAt ? 1 : 0,
+    );
+}
+
+/** Starts a refresh, collapsing concurrent callers onto one in-flight request. */
 function refreshUserPackets(): Promise<Packet[]> {
     if (packetStore.inflight) return packetStore.inflight;
+    const previous = packetStore.cache;
     const started = Date.now();
-    packetStore.inflight = all({ ontology: USER_ONTOLOGY })
+    packetStore.inflight = fetchUserPackets(previous)
         .then((packets) => {
-            packetStore.cache = { at: Date.now(), packets };
-            console.log(
-                `[ppa/aaas] scanned ${packets.length} profile packet(s) in ${((Date.now() - started) / 1000).toFixed(1)}s`,
-            );
+            const elapsed = ((Date.now() - started) / 1000).toFixed(1);
+            packetStore.cache = {
+                at: Date.now(),
+                packets,
+                watermark: watermarkOf(packets),
+            };
+            if (!previous) {
+                console.log(
+                    `[ppa/aaas] scanned ${packets.length} profile packet(s) in ${elapsed}s`,
+                );
+            } else if (packets.length !== previous.packets.length) {
+                console.log(
+                    `[ppa/aaas] caught up in ${elapsed}s — ${packets.length - previous.packets.length} new packet(s)`,
+                );
+            }
             return packets;
         })
         .finally(() => {
@@ -141,19 +186,18 @@ function refreshUserPackets(): Promise<Packet[]> {
     return packetStore.inflight;
 }
 
-function allUserPackets(): Promise<Packet[]> {
+async function allUserPackets(): Promise<Packet[]> {
     const cache = packetStore.cache;
     if (!cache) return refreshUserPackets();
-
-    const age = Date.now() - cache.at;
-    if (age < FRESH_MS) return Promise.resolve(cache.packets);
-    if (age < STALE_MS) {
-        // Serve what we have and bring it up to date behind the request, so a
-        // reviewer never waits on the scan once it has run at least once.
-        void refreshUserPackets().catch(() => {});
-        return Promise.resolve(cache.packets);
+    if (Date.now() - cache.at < FRESH_MS) return cache.packets;
+    // The catch-up is cheap, so wait for it rather than serving stale data and
+    // making the reviewer reload twice to see a submission.
+    try {
+        return await refreshUserPackets();
+    } catch (error) {
+        console.error("[ppa/aaas] refresh failed, serving cached packets:", error);
+        return cache.packets;
     }
-    return refreshUserPackets();
 }
 
 /** Drops the cached scan so the next read reflects a just-written change. */
