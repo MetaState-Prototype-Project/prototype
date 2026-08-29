@@ -17,6 +17,7 @@ import {
     type Messenger,
     type PlatformHandle,
     PLATFORM_ACCREDITATION_ONTOLOGY,
+    type PPASubmissionProof,
     type Submission,
     USER_ONTOLOGY,
 } from "./ontology";
@@ -27,6 +28,7 @@ import {
     messengerPlatformName,
 } from "./env";
 import { ontologyDomains } from "./domains";
+import { verifySubmissionProof } from "./submission-proof";
 
 interface Packet {
     id: string;
@@ -290,6 +292,7 @@ export async function listSubmissions(): Promise<Submission[]> {
         }
 
         const requestedOntologies = extractOntologies(data);
+        const declaredDomains = extractRequestedDomains(data);
         // A platform asking for an ontology is asking for its domain.
         const inferredDomains = [
             ...new Set(
@@ -300,10 +303,32 @@ export async function listSubmissions(): Promise<Submission[]> {
         ];
         const requestedDomains = [
             ...new Set([
-                ...extractRequestedDomains(data),
+                ...declaredDomains,
                 ...inferredDomains,
             ]),
         ];
+
+        let submissionProof: PPASubmissionProof | null;
+        try {
+            submissionProof = await verifySubmissionProof(
+                data.submissionProof,
+                data,
+                ename,
+                declaredDomains,
+            );
+        } catch (error) {
+            console.warn(
+                `[ppa/aaas] could not verify the release signature for ${ename}:`,
+                error,
+            );
+            submissionProof = null;
+        }
+        if (!submissionProof) {
+            // A newer unsigned or malformed profile must also evict an older
+            // valid submission rather than leaving stale evidence in review.
+            byEname.delete(ename);
+            continue;
+        }
 
         byEname.set(ename, {
             ename,
@@ -317,8 +342,9 @@ export async function listSubmissions(): Promise<Submission[]> {
             authorEnames: extractAuthors(data, ename),
             requestedOntologies: requestedOntologies,
             requestedDomains: requestedDomains,
+            submissionProof,
             submissionEnvelopeId: packet.id,
-            submittedAt: str(data.updatedAt) || str(data.createdAt) || packet.receivedAt,
+            submittedAt: submissionProof.verifiedAt,
             raw: data,
         });
     }

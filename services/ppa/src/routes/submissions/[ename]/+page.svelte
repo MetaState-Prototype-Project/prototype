@@ -40,6 +40,8 @@
         { label: "Category", value: data.submission.category },
         { label: "Version", value: data.submission.version || "—" },
         { label: "Submitted", value: data.submission.submittedAt.slice(0, 10) },
+        { label: "Signed by", value: data.submission.submissionProof.statement.signerEName },
+        { label: "Repository", value: data.submission.submissionProof.statement.repository },
     ]);
 </script>
 
@@ -120,6 +122,14 @@
                     </p>
                 </div>
             {/if}
+
+            <div class="mt-6 rounded-2xl bg-positive-wash px-4 py-3">
+                <p class="text-sm font-semibold text-positive">Owner/admin signature verified</p>
+                <p class="mt-1 text-xs text-positive/80">
+                    This exact release statement and its Registry-backed wallet proof were read from
+                    the platform's eVault.
+                </p>
+            </div>
 
             <details class="group mt-6 border-t border-line pt-4">
                 <summary

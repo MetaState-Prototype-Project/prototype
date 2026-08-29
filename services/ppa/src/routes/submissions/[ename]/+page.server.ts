@@ -12,6 +12,7 @@ import { storeAccreditation } from "$lib/server/evault";
 import { jwksUri, signAccreditation } from "$lib/server/jwt";
 import { type Accreditation, isAccessLevel } from "$lib/server/ontology";
 import { listDomains, validDomains } from "$lib/server/domains";
+import { submissionSupersedesDecision } from "$lib/server/submission-proof";
 
 export const load: PageServerLoad = async ({ params }) => {
     const ename = decodeURIComponent(params.ename);
@@ -28,6 +29,8 @@ export const load: PageServerLoad = async ({ params }) => {
         throw error(404, "This platform isn't awaiting review.");
     }
 
+    const recordedDecision =
+        decided.get(accreditationKey(ename, submission.version)) ?? null;
     return {
         submission,
         authors: await getAuthors(submission.authorEnames, messenger),
@@ -38,7 +41,13 @@ export const load: PageServerLoad = async ({ params }) => {
             submission.requestedDomains.includes(d.id),
         ),
         currentDecision:
-            decided.get(accreditationKey(ename, submission.version)) ?? null,
+            recordedDecision &&
+            !submissionSupersedesDecision(
+                submission.submissionProof,
+                recordedDecision,
+            )
+                ? recordedDecision
+                : null,
     };
 };
 
