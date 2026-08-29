@@ -4,6 +4,7 @@ import type { Actions, PageServerLoad } from "./$types";
 import {
     accreditationKey,
     currentAccreditations,
+    listAccreditations,
     findMessenger,
     getAuthors,
     listSubmissions,
@@ -17,12 +18,14 @@ import { submissionSupersedesDecision } from "$lib/server/submission-proof";
 export const load: PageServerLoad = async ({ params }) => {
     const ename = decodeURIComponent(params.ename);
 
-    const [submissions, messenger, decided, domains] = await Promise.all([
-        listSubmissions(),
-        findMessenger(),
-        currentAccreditations().catch(() => new Map<string, Accreditation>()),
-        listDomains(),
-    ]);
+    const [submissions, messenger, decided, domains, allDecisions] =
+        await Promise.all([
+            listSubmissions(),
+            findMessenger(),
+            currentAccreditations().catch(() => new Map<string, Accreditation>()),
+            listDomains(),
+            listAccreditations().catch(() => [] as Accreditation[]),
+        ]);
 
     const submission = submissions.find((s) => s.ename === ename);
     if (!submission) {
@@ -31,8 +34,15 @@ export const load: PageServerLoad = async ({ params }) => {
 
     const recordedDecision =
         decided.get(accreditationKey(ename, submission.version)) ?? null;
+    // Every decision ever taken on this platform, oldest first, so the page
+    // can show the exchange rather than only its latest turn.
+    const history = allDecisions
+        .filter((d) => d.platformEName === ename)
+        .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+
     return {
         submission,
+        history,
         authors: await getAuthors(submission.authorEnames, messenger),
         messengerConfigured: messenger !== null,
         domains,
@@ -115,6 +125,10 @@ export const actions: Actions = {
         const accreditationId = randomUUID();
         // A version can be refused and reapply, so name the decision this one
         // replaces instead of leaving the order to be inferred.
+        const applicantResponse =
+            submission.submissionProof.statement.responseToDecision?.trim() || null;
+        const applicantSubmittedAt =
+            submission.submissionProof.statement.issuedAt ?? null;
         const previous =
             (await currentAccreditations().catch(
                 () => new Map<string, Accreditation>(),
@@ -133,6 +147,7 @@ export const actions: Actions = {
                 reviewedByEName: reviewer,
                 submissionEnvelopeId: submission.submissionEnvelopeId,
                 supersedes: previous?.accreditationId ?? null,
+                applicantResponse,
             });
 
             const accreditation: Accreditation = {
@@ -148,6 +163,8 @@ export const actions: Actions = {
                 issuerJwksUri: jwksUri(),
                 submissionEnvelopeId: submission.submissionEnvelopeId,
                 supersedes: previous?.accreditationId ?? null,
+                applicantResponse,
+                applicantSubmittedAt,
                 jws,
                 createdAt: new Date().toISOString(),
             };

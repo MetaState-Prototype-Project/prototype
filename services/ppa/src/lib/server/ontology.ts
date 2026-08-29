@@ -84,6 +84,9 @@ export interface Accreditation {
     level: string | null;
     domains: string[];
     statement: string;
+    /** What the applicant said when reapplying, as it stood at decision time. */
+    applicantResponse: string | null;
+    applicantSubmittedAt: string | null;
     reviewedByEName: string;
     issuerJwksUri: string;
     submissionEnvelopeId: string;

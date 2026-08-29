@@ -61,6 +61,21 @@
       "type": "string",
       "description": "Free-text reasoning from the reviewer, shown to the applicant and covered by the signature"
     },
+    "applicantResponse": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "What the applicant said when reapplying, as it stood when this decision was taken. A platform profile is overwritten on each submission, so without capturing it here the earlier rounds of the exchange are lost."
+    },
+    "applicantSubmittedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "description": "When the submission this decision answers was signed."
+    },
     "reviewedByEName": {
       "type": "string",
       "minLength": 1,
