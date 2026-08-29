@@ -6,6 +6,7 @@ import { AppDataSource } from "./config/database";
 import { generateEntropy, generatePlatformToken, generateKeyBindingCertificate, getJWK } from "./jwt";
 import { UriResolutionService } from "./services/UriResolutionService";
 import { VaultService } from "./services/VaultService";
+import { SoftwareVersionService, SoftwareVersionConflictError, softwareVersionEName } from "./services/SoftwareVersionService";
 
 import fs from "node:fs";
 
@@ -54,6 +55,7 @@ const initializeDatabase = async () => {
 
 // Initialize VaultService
 const vaultService = new VaultService(AppDataSource.getRepository("Vault"));
+const softwareVersionService = new SoftwareVersionService(AppDataSource.getRepository("SoftwareVersion"));
 
 // Initialize UriResolutionService (simplified for multi-tenant architecture)
 const uriResolutionService = new UriResolutionService();
@@ -117,6 +119,51 @@ server.get("/entropy", async (request, reply) => {
         reply.status(500).send({ error: "Failed to generate entropy" });
     }
 });
+
+server.post(
+    "/records/software-versions/preview",
+    { preHandler: checkSharedSecret },
+    async (request, reply) => {
+        try {
+            const { platformEname, version } = request.body as {
+                platformEname?: string;
+                version?: string;
+            };
+            if (!platformEname || !version) {
+                return reply.status(400).send({ error: "platformEname and version are required" });
+            }
+            return { kind: "software_version", ename: softwareVersionEName(platformEname, version.replace(/^v/, "")) };
+        } catch (error) {
+            return reply.status(400).send({ error: error instanceof Error ? error.message : "Invalid software version" });
+        }
+    },
+);
+
+server.post(
+    "/records/software-versions",
+    { preHandler: checkSharedSecret },
+    async (request, reply) => {
+        try {
+            const input = request.body as {
+                platformEname?: string;
+                version?: string;
+                releaseTag?: string;
+                commitSha?: string;
+            };
+            if (!input.platformEname || !input.version || !input.releaseTag || !input.commitSha) {
+                return reply.status(400).send({ error: "platformEname, version, releaseTag, and commitSha are required" });
+            }
+            const record = await softwareVersionService.create(input as Required<typeof input>);
+            return reply.status(201).send({ kind: "software_version", ...record });
+        } catch (error) {
+            if (error instanceof SoftwareVersionConflictError) {
+                return reply.status(409).send({ error: error.message });
+            }
+            server.log.error(error);
+            return reply.status(400).send({ error: error instanceof Error ? error.message : "Failed to create software version" });
+        }
+    },
+);
 
 server.post("/platforms/certification", async (request, reply) => {
     try {
@@ -230,13 +277,18 @@ server.get("/resolve", async (request, reply) => {
 
         const vault = await vaultService.findByEname(w3id);
         if (!vault) {
-            return reply.status(404).send({ error: "Service not found" });
+            const softwareVersion = await softwareVersionService.findByEname(w3id);
+            if (!softwareVersion) {
+                return reply.status(404).send({ error: "Service not found" });
+            }
+            return { kind: "software_version", ...softwareVersion };
         }
 
         // Resolve the URI with health check and Kubernetes fallback
         const resolvedUri = await uriResolutionService.resolveUri(vault.uri);
 
         return {
+            kind: "evault",
             ename: vault.ename,
             uri: resolvedUri,
             evault: vault.evault,

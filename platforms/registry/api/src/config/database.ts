@@ -1,5 +1,6 @@
 import { DataSource } from "typeorm"
 import { Vault } from "../entities/Vault"
+import { SoftwareVersion } from "../entities/SoftwareVersion"
 // Import Verification entity from evault-core if available (shared database)
 import * as dotenv from "dotenv"
 import { join } from "path"
@@ -12,7 +13,7 @@ export const AppDataSource = new DataSource({
     url: process.env.REGISTRY_DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/registry",
     synchronize: false,
     logging: process.env.DB_LOGGING === "true",
-    entities: [Vault],
+    entities: [Vault, SoftwareVersion],
     // Verification entity will be handled by evault-core provisioning service
     migrations: [join(__dirname, "../migrations/*.{ts,js}")],
     migrationsTableName: "migrations",
