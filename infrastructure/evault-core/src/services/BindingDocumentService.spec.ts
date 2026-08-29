@@ -3,6 +3,7 @@ import {
     type StartedNeo4jContainer,
 } from "@testcontainers/neo4j";
 import neo4j, { type Driver } from "neo4j-driver";
+import { createHash } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { DbService } from "../core/db/db.service";
 import { computeEnvelopeHash } from "../core/db/envelope-hash";
@@ -294,6 +295,11 @@ describe("BindingDocumentService (integration)", () => {
 
             expect(deployment.bindingDocument.signatures[0].signedPayload).toBe(signedPayload);
             expect(version.bindingDocument.signatures[0].scope).toBe("bundle");
+            expect(verify).toHaveBeenCalledWith(
+                deployer,
+                "wallet-signature",
+                `gitw3:deployment:v1:${createHash("sha256").update(signedPayload).digest("base64url")}`,
+            );
             verify.mockRestore();
         });
 
