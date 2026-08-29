@@ -3,7 +3,7 @@ import cors from "@fastify/cors";
 import dotenv from "dotenv";
 import fastify from "fastify";
 import { AppDataSource } from "./config/database";
-import { generateEntropy, generatePlatformToken, generateKeyBindingCertificate, getJWK } from "./jwt";
+import { generateEntropy, generatePlatformToken, generateKeyBindingCertificate, getJWK, verifyPlatformToken } from "./jwt";
 import { UriResolutionService } from "./services/UriResolutionService";
 import { VaultService } from "./services/VaultService";
 import { SoftwareVersionService, SoftwareVersionConflictError, softwareVersionEName } from "./services/SoftwareVersionService";
@@ -75,6 +75,18 @@ const checkSharedSecret = async (request: any, reply: any) => {
     }
 };
 
+const checkRegistryWriter = async (request: any, reply: any) => {
+    const authHeader = request.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+        return reply.status(401).send({ error: "Missing or invalid authorization header" });
+    }
+    const token = authHeader.slice("Bearer ".length);
+    if (token === process.env.REGISTRY_SHARED_SECRET) return;
+    if (!(await verifyPlatformToken(token))) {
+        return reply.status(401).send({ error: "Invalid Registry writer token" });
+    }
+};
+
 server.get("/motd", async (request, reply) => {
     return motd;
 });
@@ -122,7 +134,7 @@ server.get("/entropy", async (request, reply) => {
 
 server.post(
     "/records/software-versions/preview",
-    { preHandler: checkSharedSecret },
+    { preHandler: checkRegistryWriter },
     async (request, reply) => {
         try {
             const { platformEname, version } = request.body as {
@@ -141,7 +153,7 @@ server.post(
 
 server.post(
     "/records/software-versions",
-    { preHandler: checkSharedSecret },
+    { preHandler: checkRegistryWriter },
     async (request, reply) => {
         try {
             const input = request.body as {

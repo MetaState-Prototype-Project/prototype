@@ -66,6 +66,20 @@ export async function generatePlatformToken(platform: string): Promise<string> {
   return token;
 }
 
+export async function verifyPlatformToken(token: string): Promise<string | null> {
+  await initializeKeys();
+  try {
+    const { payload } = await import("jose").then(({ jwtVerify }) =>
+      jwtVerify(token, publicKey, { algorithms: ["ES256"] })
+    );
+    return typeof payload.platform === "string" && payload.platform.trim()
+      ? payload.platform
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 // Generate and sign a JWT binding ename and publicKey together
 export async function generateKeyBindingCertificate(
   ename: string,
