@@ -1,60 +1,70 @@
 {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "schemaId": "c20e9437-02a4-4917-8cee-de35dabbdb6a",
-    "title": "Reference",
-    "type": "object",
-    "properties": {
-        "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "The unique identifier for the reference"
-        },
-        "targetType": {
-            "type": "string",
-            "description": "Type of target (e.g. user, group, platform)"
-        },
-        "targetId": {
-            "type": "string",
-            "description": "ID of the entity being referenced"
-        },
-        "targetName": {
-            "type": "string",
-            "description": "Display name of the target"
-        },
-        "content": {
-            "type": "string",
-            "description": "Text content of the reference"
-        },
-        "referenceType": {
-            "type": "string",
-            "description": "Type of reference (e.g. general, professional)"
-        },
-        "numericScore": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 5,
-            "description": "Optional 1-5 score"
-        },
-        "authorId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID of the user who wrote the reference"
-        },
-        "signature": {
-            "type": "string",
-            "description": "Signature over the reference (e.g. W3DS or platform signature)"
-        },
-        "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When the reference was created"
-        },
-        "updatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When the reference was last updated"
-        }
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "c20e9437-02a4-4917-8cee-de35dabbdb6a",
+  "title": "Reference",
+  "domain": "reputation",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The unique identifier for the reference"
     },
-    "required": ["id", "targetType", "targetId", "targetName", "content", "referenceType", "authorId", "createdAt"],
-    "additionalProperties": false
+    "targetType": {
+      "type": "string",
+      "description": "Type of target (e.g. user, group, platform)"
+    },
+    "targetId": {
+      "type": "string",
+      "description": "ID of the entity being referenced"
+    },
+    "targetName": {
+      "type": "string",
+      "description": "Display name of the target"
+    },
+    "content": {
+      "type": "string",
+      "description": "Text content of the reference"
+    },
+    "referenceType": {
+      "type": "string",
+      "description": "Type of reference (e.g. general, professional)"
+    },
+    "numericScore": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "Optional 1-5 score"
+    },
+    "authorId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "ID of the user who wrote the reference"
+    },
+    "signature": {
+      "type": "string",
+      "description": "Signature over the reference (e.g. W3DS or platform signature)"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the reference was created"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the reference was last updated"
+    }
+  },
+  "required": [
+    "id",
+    "targetType",
+    "targetId",
+    "targetName",
+    "content",
+    "referenceType",
+    "authorId",
+    "createdAt"
+  ],
+  "additionalProperties": false
 }
