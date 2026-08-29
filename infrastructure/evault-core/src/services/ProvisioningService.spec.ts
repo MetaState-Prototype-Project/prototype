@@ -154,6 +154,17 @@ describe("ProvisioningService", () => {
     };
 
     describe("provisionEVault - success path", () => {
+        it("previews the exact eName later provisioned", async () => {
+            const request = await createValidRequest();
+            mockedAxios.post.mockResolvedValueOnce({ status: 201, data: { success: true } });
+
+            const preview = await provisioningService.previewEVault(request);
+            const provisioned = await provisioningService.provisionEVault(request);
+
+            expect(preview.success).toBe(true);
+            expect(preview.w3id).toBe(provisioned.w3id);
+        });
+
         it("should successfully provision eVault with valid demo code", async () => {
             const request = await createValidRequest();
 
