@@ -17,12 +17,20 @@
         history = [],
         submission,
         domains = [],
+        submissionHistory = [],
         pendingResponse = null,
         pendingAt = null,
     }: {
         history?: any[];
         submission: { version: string; displayName: string; ename: string };
         domains?: Domain[];
+        submissionHistory?: Array<{
+            statement: {
+                version: string;
+                issuedAt: string;
+                responseToDecision?: string;
+            };
+        }>;
         pendingResponse?: string | null;
         pendingAt?: string | null;
     } = $props();
@@ -34,15 +42,33 @@
      */
     let turns = $derived.by(() => {
         const out: Turn[] = [];
+        const applicantTurns = new Set<string>();
+        const addApplicantTurn = (body: string, at: string, version: string) => {
+            const key = `${version}\u0000${at}\u0000${body}`;
+            if (!body || applicantTurns.has(key)) return;
+            applicantTurns.add(key);
+            out.push({
+                side: "applicant",
+                at,
+                version,
+                body,
+                who: submission.displayName,
+            });
+        };
+        for (const proof of submissionHistory) {
+            addApplicantTurn(
+                proof.statement.responseToDecision?.trim() ?? "",
+                proof.statement.issuedAt,
+                proof.statement.version,
+            );
+        }
         for (const d of history) {
             if (d.applicantResponse) {
-                out.push({
-                    side: "applicant",
-                    at: d.applicantSubmittedAt ?? d.createdAt,
-                    version: d.platformVersion,
-                    body: d.applicantResponse,
-                    who: submission.displayName,
-                });
+                addApplicantTurn(
+                    d.applicantResponse,
+                    d.applicantSubmittedAt ?? d.createdAt,
+                    d.platformVersion,
+                );
             }
             out.push({
                 side: "association",
@@ -57,13 +83,11 @@
         }
         // The turn currently awaiting a reply is not in any decision yet.
         if (pendingResponse) {
-            out.push({
-                side: "applicant",
-                at: pendingAt ?? new Date().toISOString(),
-                version: submission.version,
-                body: pendingResponse,
-                who: submission.displayName,
-            });
+            addApplicantTurn(
+                pendingResponse,
+                pendingAt ?? new Date().toISOString(),
+                submission.version,
+            );
         }
         // Sort rather than trusting insertion order: the pending turn is
         // appended last but was written before the reply it precedes. The sort

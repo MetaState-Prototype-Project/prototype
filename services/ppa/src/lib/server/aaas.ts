@@ -28,7 +28,10 @@ import {
     messengerPlatformName,
 } from "./env";
 import { ontologyDomains } from "./domains";
-import { verifySubmissionProof } from "./submission-proof";
+import {
+    verifySubmissionHistory,
+    verifySubmissionProof,
+} from "./submission-proof";
 
 interface Packet {
     id: string;
@@ -374,6 +377,18 @@ export async function listSubmissions(): Promise<Submission[]> {
             continue;
         }
 
+        const submissionHistory = await verifySubmissionHistory(
+            data.submissionHistory,
+            data,
+            ename,
+        );
+        if (!submissionHistory.some((proof) => proof.payload === submissionProof.payload)) {
+            submissionHistory.push(submissionProof);
+            submissionHistory.sort((a, b) =>
+                a.statement.issuedAt.localeCompare(b.statement.issuedAt),
+            );
+        }
+
         byEname.set(ename, {
             ename,
             platformName: str(data.platformName),
@@ -387,6 +402,7 @@ export async function listSubmissions(): Promise<Submission[]> {
             requestedOntologies: requestedOntologies,
             requestedDomains: requestedDomains,
             submissionProof,
+            submissionHistory,
             submissionEnvelopeId: packet.id,
             submittedAt: submissionProof.verifiedAt,
             raw: data,

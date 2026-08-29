@@ -150,6 +150,7 @@
             history={data.history}
             submission={data.submission}
             domains={data.domains}
+            submissionHistory={data.submission.submissionHistory}
             pendingResponse={data.submission.submissionProof.statement.responseToDecision ?? null}
             pendingAt={data.submission.submissionProof.statement.issuedAt ?? null}
         />

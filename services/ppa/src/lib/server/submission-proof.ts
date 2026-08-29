@@ -290,6 +290,40 @@ export async function verifySubmissionProof(
     return (await verifyWalletSignature(proof)) ? proof : null;
 }
 
+/** Independently verifies every historical signed submission retained by a platform. */
+export async function verifySubmissionHistory(
+    value: unknown,
+    profile: Record<string, unknown>,
+    ename: string,
+): Promise<PPASubmissionProof[]> {
+    if (!Array.isArray(value)) return [];
+    const verified: PPASubmissionProof[] = [];
+    const seen = new Set<string>();
+    for (const rawProof of value.slice(0, 100)) {
+        if (!rawProof || typeof rawProof !== "object") continue;
+        const statement = parseStatement(
+            (rawProof as Record<string, unknown>).statement,
+        );
+        if (!statement) continue;
+        const proof = await verifySubmissionProof(
+            rawProof,
+            {
+                ...profile,
+                version: statement.version,
+                submissionVersion: statement.version,
+            },
+            ename,
+            statement.domains,
+        );
+        if (!proof || seen.has(proof.payload)) continue;
+        seen.add(proof.payload);
+        verified.push(proof);
+    }
+    return verified.sort((a, b) =>
+        a.statement.issuedAt.localeCompare(b.statement.issuedAt),
+    );
+}
+
 export function submissionSupersedesDecision(
     proof: PPASubmissionProof,
     decision: { decision: "granted" | "denied"; createdAt: string },

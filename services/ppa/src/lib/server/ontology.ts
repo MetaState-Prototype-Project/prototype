@@ -68,6 +68,8 @@ export interface Submission {
     requestedDomains: string[];
     /** Independently verified owner/admin release signature from the platform eVault. */
     submissionProof: PPASubmissionProof;
+    /** Append-only signed applications and replies retained by the platform. */
+    submissionHistory: PPASubmissionProof[];
     submissionEnvelopeId: string;
     submittedAt: string;
     /** The untouched PlatformProfile payload, shown behind a disclosure. */
