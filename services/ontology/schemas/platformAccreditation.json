@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "e1749947-5a10-4973-b9fa-230d8714c36a",
+  "title": "PlatformAccreditation",
+  "domain": "governance",
+  "type": "object",
+  "description": "A decision issued by the Post Platforms Association (PPA) on a platform application for network access. The record is stored in the eVault of the platform it is about, with a public ACL, so it travels with that platform and anyone can read it. The association owns no vault of its own: its identity is a signing key, and the `jws` field carries the whole decision as a self-contained ES256 JWS that verifies against `issuerJwksUri` without trusting the eVault, the PPA app, or the platform holding it. Records are append-only and scoped to one platform version: the newest record for a given platform and version is the one in force, and a new version starts unaccredited.",
+  "properties": {
+    "accreditationId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable id for this decision; also the `jti` claim of `jws`"
+    },
+    "platformEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the platform eVault the decision is about"
+    },
+    "platformName": {
+      "type": "string",
+      "description": "The platform's stable slug, copied from its PlatformProfile at decision time"
+    },
+    "platformVersion": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The platform version this decision covers. A decision is valid for one version only: publishing a new version requires a new decision."
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "granted",
+        "denied"
+      ],
+      "description": "Whether access was granted or refused"
+    },
+    "level": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "L1",
+        "L2",
+        "L3",
+        "L4",
+        "L5",
+        null
+      ],
+      "description": "Access level granted; null when decision is 'denied'"
+    },
+    "domains": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "description": "Domain ids the platform is granted access to, from the association domain list. Each ontology declares the domain it belongs to, so granting a domain grants that domain’s data. Empty when the decision is a denial."
+    },
+    "statement": {
+      "type": "string",
+      "description": "Free-text reasoning from the reviewer, shown to the applicant and covered by the signature"
+    },
+    "reviewedByEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the PPA admin who made the decision"
+    },
+    "issuerJwksUri": {
+      "type": "string",
+      "format": "uri",
+      "description": "Where to fetch the JWK set that verifies `jws` — the association is identified by this key, not by an eVault."
+    },
+    "submissionEnvelopeId": {
+      "type": "string",
+      "description": "MetaEnvelope id of the PlatformProfile submission this decision reviewed"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "superseded"
+      ],
+      "description": "'superseded' marks a decision replaced by a later one for the same platform"
+    },
+    "jws": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Compact ES256 JWS over the decision, verifiable against issuerJwksUri"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "accreditationId",
+    "platformEName",
+    "platformVersion",
+    "decision",
+    "domains",
+    "reviewedByEName",
+    "issuerJwksUri",
+    "jws",
+    "createdAt"
+  ],
+  "additionalProperties": false
+}

@@ -16,9 +16,49 @@ app.use(express.json());
 
 // Schema directory path
 const SCHEMAS_DIR = path.join(__dirname, '../schemas');
+// The domain list is published as an ordinary schema, so it is versioned,
+// browsable and fetchable like every other type rather than living in a file
+// of its own.
+const DOMAIN_SCHEMA_TITLE = 'Domain';
 
 // In-memory schema index
 let schemaIndex = new Map();
+
+// The domains every schema belongs to, and that platforms are granted access
+// to one by one. Loaded once at boot alongside the schemas.
+let domains = [];
+let domainsById = new Map();
+
+/**
+ * Reads the domain list out of the Domain schema's enum. Each permitted value
+ * carries its own title and description, which is the JSON Schema way to give
+ * an enum human-readable labels.
+ */
+function loadDomains() {
+    const schema = Array.from(schemaIndex.values()).find(
+        (s) => s.title === DOMAIN_SCHEMA_TITLE
+    );
+    const options = schema?.properties?.id?.oneOf;
+    domains = Array.isArray(options)
+        ? options
+              .filter((o) => typeof o.const === 'string')
+              .map((o) => ({
+                  id: o.const,
+                  label: o.title || o.const,
+                  description: o.description || ''
+              }))
+        : [];
+    domainsById = new Map(domains.map((d) => [d.id, d]));
+    console.log(
+        `Loaded ${domains.length} domains from the ${DOMAIN_SCHEMA_TITLE} schema`
+    );
+}
+
+/** A schema's domain, resolved to its full record for display. */
+function domainOf(schema) {
+    if (!schema || !schema.domain) return null;
+    return domainsById.get(schema.domain) || { id: schema.domain, label: schema.domain, description: '' };
+}
 
 // Load all schemas into memory
 async function loadSchemas() {
@@ -39,6 +79,7 @@ async function loadSchemas() {
         }
         
         console.log(`Loaded ${schemaIndex.size} schemas`);
+        loadDomains();
     } catch (error) {
         console.error('Error loading schemas:', error);
         throw error;
@@ -49,14 +90,17 @@ async function loadSchemas() {
 function getSchemaList(q) {
     const list = Array.from(schemaIndex.entries()).map(([id, schema]) => ({
         id,
-        title: schema.title == null ? '' : String(schema.title)
+        title: schema.title == null ? '' : String(schema.title),
+        domain: domainOf(schema)
     }));
     if (!q || typeof q !== 'string' || q.trim() === '') return list;
     const lower = q.toLowerCase().trim();
+    // Searching a domain name finds everything in that domain.
     return list.filter(
         (s) =>
             (s.title || '').toLowerCase().includes(lower) ||
-            (s.id || '').toLowerCase().includes(lower)
+            (s.id || '').toLowerCase().includes(lower) ||
+            (s.domain ? `${s.domain.id} ${s.domain.label}`.toLowerCase().includes(lower) : false)
     );
 }
 
@@ -82,7 +126,9 @@ app.get('/', async (req, res) => {
         res.render('index', {
             schemas,
             searchQuery,
-            selectedSchema
+            selectedSchema,
+            selectedDomain: domainOf(selectedSchema),
+            domains
         });
     } catch (error) {
         console.error('Error rendering ontology viewer:', error);
@@ -102,7 +148,9 @@ app.get('/schema/:uuid', async (req, res) => {
         res.render('index', {
             schemas,
             searchQuery: '',
-            selectedSchema
+            selectedSchema,
+            selectedDomain: domainOf(selectedSchema),
+            domains
         });
     } catch (error) {
         console.error('Error rendering schema page:', error);
@@ -131,13 +179,36 @@ app.get('/schemas', async (req, res) => {
     try {
         const schemas = Array.from(schemaIndex.entries()).map(([id, schema]) => ({
             id,
-            title: schema.title
+            title: schema.title,
+            domain: schema.domain || null
         }));
         
         res.json(schemas);
     } catch (error) {
         res.status(500).json({ error: 'Internal server error' });
     }
+});
+
+// The domain list: what a platform can be granted access to, and what every
+// schema is tagged with. Consumed by the Post Platforms Association.
+app.get('/domains', async (req, res) => {
+    const schema = Array.from(schemaIndex.values()).find(
+        (s) => s.title === DOMAIN_SCHEMA_TITLE
+    );
+    res.json({ schemaId: schema ? schema.schemaId : null, domains });
+});
+
+// Which schemas fall under one domain — the practical question when deciding
+// whether to grant a platform access to it.
+app.get('/domains/:id/schemas', async (req, res) => {
+    const domain = domainsById.get(req.params.id);
+    if (!domain) {
+        return res.status(404).json({ error: 'Domain not found' });
+    }
+    const schemas = Array.from(schemaIndex.entries())
+        .filter(([, schema]) => schema.domain === domain.id)
+        .map(([id, schema]) => ({ id, title: schema.title }));
+    res.json({ domain, schemas });
 });
 
 // Start server

@@ -1,93 +1,94 @@
 {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "schemaId": "550e8400-e29b-41d4-a716-446655440001",
-    "title": "SocialMediaPost",
-    "type": "object",
-    "properties": {
-        "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "The unique identifier for the post"
-        },
-        "authorId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "The ID of the user who created the post"
-        },
-        "content": {
-            "type": "string",
-            "description": "The main text content of the post"
-        },
-        "mediaUrls": {
-            "type": "array",
-            "items": {
-                "type": "string",
-                "format": "uri"
-            },
-            "description": "Array of URLs to media attachments (images, videos, etc.)"
-        },
-        "parentPostId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "ID of the parent post if this is a reply"
-        },
-        "hashtags": {
-            "type": "array",
-            "items": {
-                "type": "string"
-            },
-            "description": "Array of hashtags used in the post"
-        },
-        "likeCount": {
-            "type": "integer",
-            "minimum": 0,
-            "description": "Number of likes on the post"
-        },
-        "likedBy": {
-            "type": "array",
-            "items": {
-                "type": "string"
-            },
-            "description": "Number of likes on the post"
-        },
-        "replyCount": {
-            "type": "integer",
-            "minimum": 0,
-            "description": "Number of replies to the post"
-        },
-        "repostCount": {
-            "type": "integer",
-            "minimum": 0,
-            "description": "Number of times the post has been reposted"
-        },
-        "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When the post was created"
-        },
-        "updatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When the post was last updated"
-        },
-        "isArchived": {
-            "type": "boolean",
-            "description": "Whether the post is archived"
-        },
-        "visibility": {
-            "type": "string",
-            "enum": [
-                "public",
-                "private",
-                "followers"
-            ],
-            "description": "The visibility level of the post"
-        }
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "550e8400-e29b-41d4-a716-446655440001",
+  "title": "SocialMediaPost",
+  "domain": "social",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The unique identifier for the post"
     },
-    "required": [
-        "id",
-        "authorId",
-        "createdAt"
-    ],
-    "additionalProperties": false
+    "authorId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The ID of the user who created the post"
+    },
+    "content": {
+      "type": "string",
+      "description": "The main text content of the post"
+    },
+    "mediaUrls": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      },
+      "description": "Array of URLs to media attachments (images, videos, etc.)"
+    },
+    "parentPostId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "ID of the parent post if this is a reply"
+    },
+    "hashtags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Array of hashtags used in the post"
+    },
+    "likeCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of likes on the post"
+    },
+    "likedBy": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Number of likes on the post"
+    },
+    "replyCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of replies to the post"
+    },
+    "repostCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of times the post has been reposted"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the post was created"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the post was last updated"
+    },
+    "isArchived": {
+      "type": "boolean",
+      "description": "Whether the post is archived"
+    },
+    "visibility": {
+      "type": "string",
+      "enum": [
+        "public",
+        "private",
+        "followers"
+      ],
+      "description": "The visibility level of the post"
+    }
+  },
+  "required": [
+    "id",
+    "authorId",
+    "createdAt"
+  ],
+  "additionalProperties": false
 }
