@@ -235,6 +235,30 @@ function extractOntologies(data: Record<string, unknown>): string[] {
 }
 
 /**
+ * The application domains a platform selected from the published domain
+ * ontology. `requestedDomains` is the submission-facing name; `domains` is
+ * accepted because it is also part of the PlatformProfile itself.
+ */
+function extractRequestedDomains(data: Record<string, unknown>): string[] {
+    const selfDescription = data.selfDescription as
+        | { domains?: unknown }
+        | undefined;
+    const candidates = [
+        data.requestedDomains,
+        data.domains,
+        selfDescription?.domains,
+    ];
+    for (const candidate of candidates) {
+        if (!Array.isArray(candidate)) continue;
+        const ids = candidate
+            .map((v) => (typeof v === "string" ? v.trim() : ""))
+            .filter(Boolean);
+        if (ids.length > 0) return [...new Set(ids)];
+    }
+    return [];
+}
+
+/**
  * Every platform currently asking for access, deduped by eName. Packets arrive
  * oldest first, so a plain Map keeps the last write — a platform that has since
  * cleared `inSubmission` correctly drops out of the queue.
@@ -267,12 +291,18 @@ export async function listSubmissions(): Promise<Submission[]> {
 
         const requestedOntologies = extractOntologies(data);
         // A platform asking for an ontology is asking for its domain.
-        const requestedDomains = [
+        const inferredDomains = [
             ...new Set(
                 requestedOntologies
                     .map((id) => ontologyDomain.get(id))
                     .filter((d): d is string => Boolean(d)),
             ),
+        ];
+        const requestedDomains = [
+            ...new Set([
+                ...extractRequestedDomains(data),
+                ...inferredDomains,
+            ]),
         ];
 
         byEname.set(ename, {
