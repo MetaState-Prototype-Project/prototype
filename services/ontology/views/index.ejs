@@ -59,6 +59,34 @@
         .schema-list .link-view:hover { text-decoration: underline; }
         .schema-list .link-raw { color: #6b7280; text-decoration: none; font-size: 0.875rem; }
         .schema-list .link-raw:hover { text-decoration: underline; }
+        .domain-badge {
+            display: inline-block;
+            padding: 0.125rem 0.5rem;
+            border-radius: 999px;
+            background: #ede9fe;
+            color: #5b21b6;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+            text-decoration: none;
+        }
+        .domain-badge:hover { background: #ddd6fe; }
+        .domain-badge.is-untagged { background: #f3f4f6; color: #6b7280; }
+        .domain-filters { margin: 0 0 1rem; display: flex; flex-wrap: wrap; gap: 0.375rem; }
+        .domain-filters .domain-badge { font-weight: 500; }
+        .domain-note { color: #6b7280; font-size: 0.875rem; margin: 0 0 0.5rem; }
+        .enum-values { display: flex; flex-wrap: wrap; gap: 0.375rem; margin-top: 0.375rem; }
+        .enum-value {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 0.375rem;
+            padding: 0.125rem 0.5rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            background: #fff;
+        }
+        .enum-value code { font-size: 0.7rem; color: #6b7280; }
 
         /* Drawer */
         .drawer-overlay {
@@ -141,6 +169,18 @@
             <button type="submit">Search</button>
         </form>
 
+        <h2>Domains</h2>
+        <p class="domain-note">
+            Every schema belongs to one domain. Platforms are granted access a
+            domain at a time, so this is what a grant actually covers.
+        </p>
+        <div class="domain-filters">
+            <a class="domain-badge" href="/">All</a>
+            <% domains.forEach(function(d) { %>
+                <a class="domain-badge" href="/?q=<%= encodeURIComponent(d.label) %>" title="<%= d.description %>"><%= d.label %></a>
+            <% }); %>
+        </div>
+
         <h2>Schemas</h2>
         <ul class="schema-list">
             <% if (schemas.length === 0) { %>
@@ -149,6 +189,11 @@
                 <% schemas.forEach(function(s) { %>
                     <li>
                         <span class="title"><%= s.title %></span>
+                        <% if (s.domain) { %>
+                            <a class="domain-badge" href="/?q=<%= encodeURIComponent(s.domain.label) %>" title="<%= s.domain.description %>"><%= s.domain.label %></a>
+                        <% } else { %>
+                            <span class="domain-badge is-untagged">No domain</span>
+                        <% } %>
                         <span class="id"><%= s.id %></span>
                         <a href="/schemas/<%= s.id %>" target="_blank" rel="noopener" class="link-raw">Raw JSON</a>
                         <a href="#" class="link-view" data-schema-id="<%= s.id %>">View</a>
@@ -167,6 +212,14 @@
         </div>
         <div class="drawer-content" id="drawerContent">
             <% if (selectedSchema) { %>
+                <% if (selectedDomain) { %>
+                    <p><strong>Domain:</strong>
+                        <a class="domain-badge" href="/?q=<%= encodeURIComponent(selectedDomain.label) %>"><%= selectedDomain.label %></a>
+                        <% if (selectedDomain.description) { %>
+                            <br><span class="domain-note"><%= selectedDomain.description %></span>
+                        <% } %>
+                    </p>
+                <% } %>
                 <p><strong>Schema ID:</strong> <code><%= selectedSchema.schemaId %></code></p>
                 <div class="raw-link"><a href="/schemas/<%= selectedSchema.schemaId %>" target="_blank" rel="noopener">Raw JSON</a></div>
                 <% if (selectedSchema.required && selectedSchema.required.length) { %>
@@ -183,15 +236,26 @@
                                 <tr>
                                     <td><code><%= name %></code></td>
                                     <td class="type-cell">
-                                        <% if (prop.oneOf) { %>one of (<%= prop.oneOf.length %> alternatives)<% } else if (prop.anyOf) { %>any of (<%= prop.anyOf.length %>)<% } else if (prop.allOf) { %>all of (<%= prop.allOf.length %>)<% } else { %><%= Array.isArray(prop.type) ? prop.type.join(' | ') : (prop.type || '-') %><%= prop.format ? ' (' + (prop.format) + ')' : '' %><% } %>
+                                        <% if (prop.oneOf && prop.oneOf.every(function(o){ return o.const !== undefined; })) { %>enum (<%= prop.oneOf.length %> values)<% } else if (prop.oneOf) { %>one of (<%= prop.oneOf.length %> alternatives)<% } else if (prop.anyOf) { %>any of (<%= prop.anyOf.length %>)<% } else if (prop.allOf) { %>all of (<%= prop.allOf.length %>)<% } else { %><%= Array.isArray(prop.type) ? prop.type.join(' | ') : (prop.type || '-') %><%= prop.format ? ' (' + (prop.format) + ')' : '' %><% } %>
                                     </td>
-                                    <td><%= prop.description || '-' %></td>
+                                    <td>
+                                        <%= prop.description || '-' %>
+                                        <% if (prop.oneOf && prop.oneOf.every(function(o){ return o.const !== undefined; })) { %>
+                                            <div class="enum-values">
+                                                <% prop.oneOf.forEach(function(o) { %>
+                                                    <span class="enum-value" title="<%= o.description || '' %>">
+                                                        <%= o.title || o.const %><code><%= o.const %></code>
+                                                    </span>
+                                                <% }); %>
+                                            </div>
+                                        <% } %>
+                                    </td>
                                 </tr>
                             <% }); %>
                         </tbody>
                     </table>
                     <% Object.entries(selectedSchema.properties).forEach(function([name, prop]) { %>
-                        <% if (prop.oneOf && prop.oneOf.length) { %>
+                        <% if (prop.oneOf && prop.oneOf.length && !prop.oneOf.every(function(o){ return o.const !== undefined; })) { %>
                             <div class="schema-oneof">
                                 <h4><code><%= name %></code> — one of:</h4>
                                 <% prop.oneOf.forEach(function(alt, idx) { %>
@@ -296,7 +360,22 @@
             document.getElementById('drawerClose').addEventListener('click', closeDrawer);
             overlay.addEventListener('click', closeDrawer);
 
+            function isValueEnum(prop) {
+                return !!prop.oneOf && prop.oneOf.length > 0 &&
+                    prop.oneOf.every(function(o) { return o.const !== undefined; });
+            }
+            function enumValuesHtml(prop) {
+                if (!isValueEnum(prop)) return '';
+                var h = '<div class="enum-values">';
+                prop.oneOf.forEach(function(o) {
+                    h += '<span class="enum-value" title="' + escapeHtml(o.description || '') + '">' +
+                        escapeHtml(o.title || String(o.const)) +
+                        '<code>' + escapeHtml(String(o.const)) + '</code></span>';
+                });
+                return h + '</div>';
+            }
             function propTypeStr(prop) {
+                if (isValueEnum(prop)) return 'enum (' + prop.oneOf.length + ' values)';
                 if (prop.oneOf) return 'one of (' + prop.oneOf.length + ' alternatives)';
                 if (prop.anyOf) return 'any of (' + prop.anyOf.length + ')';
                 if (prop.allOf) return 'all of (' + prop.allOf.length + ')';
@@ -316,8 +395,27 @@
                 if (alt.required && alt.required.length) h += '<p class="alt-desc"><strong>Required:</strong> ' + escapeHtml(alt.required.join(', ')) + '</p>';
                 return h;
             }
+            var DOMAINS = <%- JSON.stringify(domains) %>;
+
+            function domainOf(id) {
+                for (var i = 0; i < DOMAINS.length; i++) {
+                    if (DOMAINS[i].id === id) return DOMAINS[i];
+                }
+                return id ? { id: id, label: id, description: '' } : null;
+            }
+
             function renderSchemaDetail(schema) {
-                var html = '<p><strong>Schema ID:</strong> <code>' + escapeHtml(schema.schemaId) + '</code></p>';
+                var html = '';
+                var domain = domainOf(schema.domain);
+                if (domain) {
+                    html += '<p><strong>Domain:</strong> <a class="domain-badge" href="/?q=' +
+                        encodeURIComponent(domain.label) + '">' + escapeHtml(domain.label) + '</a>';
+                    if (domain.description) {
+                        html += '<br><span class="domain-note">' + escapeHtml(domain.description) + '</span>';
+                    }
+                    html += '</p>';
+                }
+                html += '<p><strong>Schema ID:</strong> <code>' + escapeHtml(schema.schemaId) + '</code></p>';
                 html += '<div class="raw-link"><a href="/schemas/' + escapeHtml(schema.schemaId) + '" target="_blank" rel="noopener">Raw JSON</a></div>';
                 if (schema.required && schema.required.length) {
                     html += '<p><strong>Required:</strong> ' + escapeHtml(schema.required.join(', ')) + '</p>';
@@ -327,7 +425,7 @@
                     for (var propName in schema.properties) {
                         var prop = schema.properties[propName];
                         var typeStr = propTypeStr(prop);
-                        html += '<tr><td><code>' + escapeHtml(propName) + '</code></td><td class="type-cell">' + escapeHtml(typeStr) + '</td><td>' + escapeHtml(prop.description || '-') + '</td></tr>';
+                        html += '<tr><td><code>' + escapeHtml(propName) + '</code></td><td class="type-cell">' + escapeHtml(typeStr) + '</td><td>' + escapeHtml(prop.description || '-') + enumValuesHtml(prop) + '</td></tr>';
                     }
                     html += '</tbody></table>';
                     var labels = { oneOf: 'one of', anyOf: 'any of', allOf: 'all of' };
