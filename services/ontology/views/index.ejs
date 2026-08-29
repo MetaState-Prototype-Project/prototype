@@ -1,3 +1,9 @@
+<%
+    // Tolerate a caller that does not supply the domain data: the viewer is
+    // useful without it, and a missing local is not worth a 500.
+    var domainList = (typeof domains !== 'undefined' && Array.isArray(domains)) ? domains : [];
+    var domainOfSelected = (typeof selectedDomain !== 'undefined') ? selectedDomain : null;
+%>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -169,6 +175,7 @@
             <button type="submit">Search</button>
         </form>
 
+        <% if (domainList.length) { %>
         <h2>Domains</h2>
         <p class="domain-note">
             Every schema belongs to one domain. Platforms are granted access a
@@ -176,10 +183,11 @@
         </p>
         <div class="domain-filters">
             <a class="domain-badge" href="/">All</a>
-            <% domains.forEach(function(d) { %>
+            <% domainList.forEach(function(d) { %>
                 <a class="domain-badge" href="/?q=<%= encodeURIComponent(d.label) %>" title="<%= d.description %>"><%= d.label %></a>
             <% }); %>
         </div>
+        <% } %>
 
         <h2>Schemas</h2>
         <ul class="schema-list">
@@ -191,7 +199,7 @@
                         <span class="title"><%= s.title %></span>
                         <% if (s.domain) { %>
                             <a class="domain-badge" href="/?q=<%= encodeURIComponent(s.domain.label) %>" title="<%= s.domain.description %>"><%= s.domain.label %></a>
-                        <% } else { %>
+                        <% } else if (domainList.length) { %>
                             <span class="domain-badge is-untagged">No domain</span>
                         <% } %>
                         <span class="id"><%= s.id %></span>
@@ -212,11 +220,11 @@
         </div>
         <div class="drawer-content" id="drawerContent">
             <% if (selectedSchema) { %>
-                <% if (selectedDomain) { %>
+                <% if (domainOfSelected) { %>
                     <p><strong>Domain:</strong>
-                        <a class="domain-badge" href="/?q=<%= encodeURIComponent(selectedDomain.label) %>"><%= selectedDomain.label %></a>
-                        <% if (selectedDomain.description) { %>
-                            <br><span class="domain-note"><%= selectedDomain.description %></span>
+                        <a class="domain-badge" href="/?q=<%= encodeURIComponent(domainOfSelected.label) %>"><%= domainOfSelected.label %></a>
+                        <% if (domainOfSelected.description) { %>
+                            <br><span class="domain-note"><%= domainOfSelected.description %></span>
                         <% } %>
                     </p>
                 <% } %>
@@ -395,7 +403,7 @@
                 if (alt.required && alt.required.length) h += '<p class="alt-desc"><strong>Required:</strong> ' + escapeHtml(alt.required.join(', ')) + '</p>';
                 return h;
             }
-            var DOMAINS = <%- JSON.stringify(domains) %>;
+            var DOMAINS = <%- JSON.stringify(domainList) %>;
 
             function domainOf(id) {
                 for (var i = 0; i < DOMAINS.length; i++) {
