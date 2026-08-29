@@ -67,7 +67,7 @@
 {:else}
     <ul class="mt-8 space-y-3">
         {#each data.accreditations as record (record.accreditationId)}
-            <li class="card p-6">
+            <li class="card p-6 {record.inForce ? '' : 'opacity-60'}">
                 <div class="flex flex-wrap items-start gap-3">
                     <StatusPill decision={record.decision} level={record.level} />
                     <div class="min-w-0 flex-1">
@@ -79,7 +79,12 @@
                         </p>
                         <p class="mono-block truncate">{record.platformEName}</p>
                     </div>
-                    <p class="text-xs text-faint">{record.createdAt.slice(0, 10)}</p>
+                    <div class="text-right">
+                        <p class="text-xs text-faint">{record.createdAt.slice(0, 10)}</p>
+                        {#if !record.inForce}
+                            <p class="mt-1 text-xs text-faint">Replaced</p>
+                        {/if}
+                    </div>
                 </div>
 
                 {#if record.domains?.length}

@@ -104,6 +104,12 @@ export const actions: Actions = {
 
         const level = decision === "granted" ? (rawLevel as string) : null;
         const accreditationId = randomUUID();
+        // A version can be refused and reapply, so name the decision this one
+        // replaces instead of leaving the order to be inferred.
+        const previous =
+            (await currentAccreditations().catch(
+                () => new Map<string, Accreditation>(),
+            )).get(accreditationKey(ename, submission.version)) ?? null;
 
         try {
             const jws = await signAccreditation({
@@ -117,6 +123,7 @@ export const actions: Actions = {
                 statement,
                 reviewedByEName: reviewer,
                 submissionEnvelopeId: submission.submissionEnvelopeId,
+                supersedes: previous?.accreditationId ?? null,
             });
 
             const accreditation: Accreditation = {
@@ -131,7 +138,7 @@ export const actions: Actions = {
                 reviewedByEName: reviewer,
                 issuerJwksUri: jwksUri(),
                 submissionEnvelopeId: submission.submissionEnvelopeId,
-                status: "active",
+                supersedes: previous?.accreditationId ?? null,
                 jws,
                 createdAt: new Date().toISOString(),
             };

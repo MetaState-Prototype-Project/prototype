@@ -68,6 +68,7 @@ export interface AccreditationClaims {
     statement: string;
     reviewedByEName: string;
     submissionEnvelopeId: string;
+    supersedes: string | null;
 }
 
 /** Where a verifier fetches the key set that validates our statements. */
@@ -98,6 +99,7 @@ export async function signAccreditation(
         platformName: claims.platformName,
         platformVersion: claims.platformVersion,
         submissionEnvelopeId: claims.submissionEnvelopeId,
+        supersedes: claims.supersedes,
     })
         .setProtectedHeader({ alg: ALG, kid: KID, typ: "JWT" })
         .setIssuer(publicUrl())

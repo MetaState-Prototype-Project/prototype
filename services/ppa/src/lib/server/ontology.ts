@@ -56,7 +56,8 @@ export interface Accreditation {
     reviewedByEName: string;
     issuerJwksUri: string;
     submissionEnvelopeId: string;
-    status: "active" | "superseded";
+    /** The decision this one replaces for the same version, if any. */
+    supersedes: string | null;
     jws: string;
     createdAt: string;
 }
