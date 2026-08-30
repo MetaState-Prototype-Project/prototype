@@ -15,6 +15,7 @@ import { isPermissionGranted } from "@choochmeque/tauri-plugin-notifications-api
 import { FaceIdIcon, Notification02Icon } from "@hugeicons/core-free-icons";
 import { checkStatus } from "@tauri-apps/plugin-biometric";
 import { getContext, onMount } from "svelte";
+import { clearAllPageCaches } from "../cache";
 
 const getGlobalState = getContext<() => GlobalState>("globalState");
 const setGlobalState =
@@ -84,6 +85,7 @@ async function performLogout() {
     isLogoutDrawerOpen = false;
     clearAllNotifications();
     await clearAllCachedPhotos();
+    clearAllPageCaches();
     if (!globalState) {
         console.error("Cannot logout: global state not ready");
         return;
