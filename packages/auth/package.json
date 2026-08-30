@@ -6,6 +6,7 @@
 	"scripts": {
 		"build": "tsc -p tsconfig.json",
 		"check-types": "tsc --noEmit",
+		"test": "vitest run",
 		"postinstall": "npm run build"
 	},
 	"main": "./dist/index.js",
@@ -16,10 +17,25 @@
 			"import": "./dist/index.js",
 			"require": "./dist/index.js",
 			"default": "./dist/index.js"
+		},
+		"./platform": {
+			"types": "./dist/platform/index.d.ts",
+			"import": "./dist/platform/index.js",
+			"require": "./dist/platform/index.js",
+			"default": "./dist/platform/index.js"
+		},
+		"./platform/scenario": {
+			"types": "./dist/platform/scenario.d.ts",
+			"import": "./dist/platform/scenario.js",
+			"require": "./dist/platform/scenario.js",
+			"default": "./dist/platform/scenario.js"
 		}
 	},
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"dependencies": {
+		"jose": "^5.2.2",
 		"jsonwebtoken": "^9.0.2",
 		"signature-validator": "workspace:*",
 		"uuid": "^11.1.0"
@@ -28,6 +44,7 @@
 		"@types/jsonwebtoken": "^9.0.9",
 		"@types/node": "^20.11.24",
 		"@types/uuid": "^10.0.0",
-		"typescript": "~5.6.2"
+		"typescript": "~5.6.2",
+		"vitest": "^3.2.4"
 	}
 }

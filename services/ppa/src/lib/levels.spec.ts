@@ -79,7 +79,7 @@ describe("computeLevel", () => {
 
     it("still weighs several weak rows heavily", () => {
         // Two rows at L0 and three at L1, against a spread up to L5.
-        const weak = ["functional-review", "deployment-assurance"];
+        const weak = ["functional-review", "code-review"];
         const weaker = ["provenance", "actor-reputation", "key-assurance"];
         const answers = [
             ...allAt(5).filter(
@@ -101,6 +101,22 @@ describe("computeLevel", () => {
         const result = computeLevel(framework, allAt(5), "IAL3");
         expect(result.level).toBe("L2");
         expect(result.limiting).toBe("identity");
+    });
+
+    it("still reports what the evidence alone supported when capped", () => {
+        // Without this the reviewer sees a mean of 5 next to an award of L2 and
+        // reasonably reads it as a bug rather than as the identity floor.
+        const result = computeLevel(framework, allAt(5), "IAL3");
+
+        expect(result.scoredLevel).toBe("L5");
+        expect(result.level).toBe("L2");
+    });
+
+    it("reports the same level twice when nothing capped it", () => {
+        const result = computeLevel(framework, allAt(3), "IAL4");
+
+        expect(result.scoredLevel).toBe("L3");
+        expect(result.level).toBe("L3");
     });
 
     it("refuses any level for an anonymous responsible party", () => {

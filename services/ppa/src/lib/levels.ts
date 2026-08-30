@@ -78,6 +78,12 @@ export interface ComputedLevel {
     level: AccessLevel | null;
     /** The geometric mean itself, before flooring — shown in the calculation. */
     score: number;
+    /**
+     * The level the evidence alone supports, before the identity floor is
+     * applied. Shown alongside `level` so a cap reads as a cap rather than as
+     * an arithmetic mistake.
+     */
+    scoredLevel: AccessLevel | null;
     /** Weakest dimension, or "identity" when the IAL floor is what capped it. */
     limiting: string | null;
     /** True when a dimension fails outright, so no level can be awarded. */
@@ -96,7 +102,7 @@ export interface ComputedLevel {
  * an otherwise strong release to its own value the way a strict minimum did.
  *
  * The mean is taken over level + 1 and shifted back afterwards. L0 is a real,
- * expected answer on this scale (deployment assurance of "None" is L0), and a
+ * expected answer on this scale (a code review nobody performed is L0), and a
  * plain geometric mean multiplies by zero, so a single such row would collapse
  * the score to zero no matter how strong the other fifteen were.
  *
@@ -134,7 +140,14 @@ export function computeLevel(
     }
 
     if (blocked || perDimension.length === 0) {
-        return { level: null, score: 0, limiting, blocked: true, perDimension };
+        return {
+            level: null,
+            score: 0,
+            scoredLevel: null,
+            limiting,
+            blocked: true,
+            perDimension,
+        };
     }
 
     // Geometric mean over level + 1, shifted back, so a legitimate L0 row
@@ -148,6 +161,7 @@ export function computeLevel(
     // exp(mean(ln 6)) - 1 lands a hair under 5, so floor alone would award L4
     // for a flawless assessment. Nudge past the float error before flooring.
     let index = Math.floor(score + 1e-9);
+    const scoredLevel = levelFromIndex(index);
 
     // The identity floor: the highest level whose required IAL is met.
     let identityCap = -1;
@@ -166,6 +180,7 @@ export function computeLevel(
     return {
         level: levelFromIndex(index),
         score,
+        scoredLevel,
         limiting,
         blocked: false,
         perDimension,

@@ -78,8 +78,9 @@
 <section class="card p-6">
     <h2 class="text-sm font-semibold text-ink">Assessment</h2>
     <p class="mt-1 text-xs text-muted">
-        The level is the weakest of these dimensions — a strong result in one
-        does not make up for a weakness in another. Framework v{framework.frameworkVersion}.
+        Every dimension counts. The level is their geometric mean, so a weak row
+        pulls the result down far more than an average would, without one row
+        pinning the rest. Framework v{framework.frameworkVersion}.
     </p>
 
     <!-- The running answer, kept in view while working down the matrix. -->
@@ -104,13 +105,18 @@
                 <p class="mt-0.5 text-xs text-muted">
                     An unanswered dimension counts as no evidence.
                 </p>
+            {:else if result.blocked && limitingLabel}
+                <p class="text-sm text-body">
+                    <strong class="font-semibold text-ink">{limitingLabel}</strong>
+                    is unanswered or fails outright, so no level can be awarded.
+                </p>
             {:else if limitingLabel}
                 <p class="text-sm text-body">
-                    Held at {result.level ?? "no level"} by
+                    Weakest row:
                     <strong class="font-semibold text-ink">{limitingLabel}</strong>.
                 </p>
                 <p class="mt-0.5 text-xs text-muted">
-                    Raising that one row is what raises the level.
+                    It drags the result hardest, but every row moves it.
                 </p>
             {/if}
         </div>

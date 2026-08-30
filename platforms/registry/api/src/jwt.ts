@@ -66,18 +66,48 @@ export async function generatePlatformToken(platform: string): Promise<string> {
   return token;
 }
 
-export async function verifyPlatformToken(token: string): Promise<string | null> {
+export async function generateManagedPlatformToken(ename: string, manager: string): Promise<string> {
+  await initializeKeys();
+  return new SignJWT({
+    platform: manager,
+    kind: "platform-manager",
+    managedEname: ename,
+    manager,
+  })
+    .setProtectedHeader({ alg: "ES256", kid: "entropy-key-1" })
+    .setJti(globalThis.crypto.randomUUID())
+    .setIssuedAt()
+    .setExpirationTime("1h")
+    .sign(privateKey);
+}
+
+export type PlatformTokenClaims = {
+  platform: string;
+  kind?: string;
+  managedEname?: string;
+  manager?: string;
+};
+
+export async function verifyPlatformTokenClaims(token: string): Promise<PlatformTokenClaims | null> {
   await initializeKeys();
   try {
     const { payload } = await import("jose").then(({ jwtVerify }) =>
       jwtVerify(token, publicKey, { algorithms: ["ES256"] })
     );
-    return typeof payload.platform === "string" && payload.platform.trim()
-      ? payload.platform
-      : null;
+    if (typeof payload.platform !== "string" || !payload.platform.trim()) return null;
+    return {
+      platform: payload.platform,
+      ...(typeof payload.kind === "string" && { kind: payload.kind }),
+      ...(typeof payload.managedEname === "string" && { managedEname: payload.managedEname }),
+      ...(typeof payload.manager === "string" && { manager: payload.manager }),
+    };
   } catch {
     return null;
   }
+}
+
+export async function verifyPlatformToken(token: string): Promise<string | null> {
+  return (await verifyPlatformTokenClaims(token))?.platform ?? null;
 }
 
 // Generate and sign a JWT binding ename and publicKey together
