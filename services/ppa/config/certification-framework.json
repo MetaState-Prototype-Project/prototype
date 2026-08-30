@@ -143,7 +143,7 @@
         },
         {
           "level": 2,
-          "label": "Recorded — that declaration is written into this assessment for this release"
+          "label": "The declaration is recorded in this assessment, for this release"
         },
         {
           "level": 4,
@@ -185,15 +185,15 @@
         },
         {
           "level": 3,
-          "label": "A reviewer read this release for significant problems, suspicious behaviour and inconsistencies with what it claims to do"
+          "label": "A reviewer read this release for significant problems and inconsistencies"
         },
         {
           "level": 4,
-          "label": "That, plus dependencies, data handling and the sensitive paths"
+          "label": "A reviewer read the release, its dependencies, data handling and sensitive paths"
         },
         {
           "level": 5,
-          "label": "That, repeated by a second reviewer, with findings tracked to resolution"
+          "label": "Two reviewers read it independently, with findings tracked to resolution"
         }
       ]
     },
@@ -220,7 +220,7 @@
         },
         {
           "level": 5,
-          "label": "Every accountable lead interviewed, including whoever holds the signing keys and runs security"
+          "label": "Every accountable lead interviewed, including security and key custody"
         }
       ]
     },
@@ -239,7 +239,7 @@
         },
         {
           "level": 2,
-          "label": "That history has been looked at"
+          "label": "The commit history has been looked at"
         },
         {
           "level": 3,
@@ -266,7 +266,7 @@
         },
         {
           "level": 2,
-          "label": "Some references, but below the threshold"
+          "label": "Each responsible actor holds 1 or 2 signed references"
         },
         {
           "level": 3,
@@ -316,7 +316,7 @@
         },
         {
           "level": 4,
-          "label": "One signed review by a specialist or organisation independent of the applicant, stating what was reviewed, how, and what was found"
+          "label": "One signed review by a specialist independent of the applicant, stating what was reviewed and found"
         },
         {
           "level": 5,
@@ -397,7 +397,7 @@
         },
         {
           "level": 2,
-          "label": "That, and secrets and deployment keys are kept apart from the source"
+          "label": "Secrets and deployment keys kept apart from the source"
         },
         {
           "level": 3,
