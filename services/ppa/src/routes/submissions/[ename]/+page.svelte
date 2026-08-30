@@ -3,16 +3,39 @@
     import { ACCESS_LEVELS } from "$lib/levels";
     import DomainChips from "$lib/DomainChips.svelte";
     import ReviewThread from "$lib/ReviewThread.svelte";
+    import AssessmentMatrix from "$lib/AssessmentMatrix.svelte";
+    import IdentityPanel from "$lib/IdentityPanel.svelte";
+    import {
+        computeLevel,
+        type AccessLevel,
+        type DimensionAnswer,
+    } from "$lib/levels";
     import PlatformMark from "$lib/PlatformMark.svelte";
     import StatusPill from "$lib/StatusPill.svelte";
 
     let { data, form } = $props();
 
     let decision = $state<"granted" | "denied">("granted");
-    let level = $state<string>("L1");
+    let level = $state<AccessLevel>("L1");
     // Everything the platform asked for starts approved; the reviewer narrows.
     // Re-seeded per submission so moving between platforms does not carry a
     // previous selection across.
+    let answers = $state<DimensionAnswer[]>([]);
+    let overrideReason = $state("");
+
+    let computed = $derived(
+        computeLevel(data.framework, answers, data.minimumIal),
+    );
+    // Following the evidence is the default; the reviewer changes it only
+    // deliberately, and then has to say why.
+    let followComputed = $state(true);
+    $effect(() => {
+        if (followComputed && computed.level) level = computed.level;
+    });
+    let isOverride = $derived(
+        decision === "granted" && level !== computed.level,
+    );
+
     let chosen = $state<string[]>([]);
     let seededFor = $state<string | null>(null);
     $effect(() => {
@@ -164,6 +187,21 @@
             </details>
         </section>
 
+        <IdentityPanel
+            actors={data.actors}
+            minimumIal={data.minimumIal}
+            required={decision === "granted"
+                ? data.framework.identityFloor[level]
+                : null}
+        />
+
+        <AssessmentMatrix
+            framework={data.framework}
+            derivedAnswers={data.derivedAnswers}
+            minimumIal={data.minimumIal}
+            bind:answers
+        />
+
         <ReviewThread
             history={data.history}
             submission={data.submission}
@@ -273,6 +311,19 @@
                     it came from the association.
                 </p>
 
+                <div
+                    class="mt-4 rounded-2xl px-4 py-3 {computed.level
+                        ? 'bg-brand-wash'
+                        : 'bg-caution-wash'}"
+                >
+                    <p class="text-xs {computed.level ? 'text-brand' : 'text-caution'}">
+                        Assessment supports
+                    </p>
+                    <p class="text-lg font-semibold {computed.level ? 'text-brand' : 'text-caution'}">
+                        {computed.level ?? "no level yet"}
+                    </p>
+                </div>
+
                 {#if form?.message}
                     <p
                         class="mt-4 rounded-2xl bg-negative-wash px-4 py-3 text-sm text-negative"
@@ -317,7 +368,12 @@
 
                     {#if decision === "granted"}
                         <fieldset>
-                            <legend class="text-xs text-faint">Access level</legend>
+                            <legend class="text-xs text-faint">
+                                Access level
+                                {#if isOverride}
+                                    <span class="text-caution">— overriding the assessment</span>
+                                {/if}
+                            </legend>
                             <div class="mt-2 grid grid-cols-5 gap-1.5">
                                 {#each ACCESS_LEVELS as option (option)}
                                     <label
@@ -372,6 +428,22 @@
                         </fieldset>
                     {/if}
 
+                    {#if isOverride}
+                        <div>
+                            <label for="overrideReason" class="text-xs text-caution">
+                                Why {level} rather than {computed.level ?? "no level"}?
+                            </label>
+                            <textarea
+                                id="overrideReason"
+                                name="overrideReason"
+                                rows="3"
+                                bind:value={overrideReason}
+                                placeholder="Recorded on the certificate beside the computed level…"
+                                class="field mt-2 resize-y"
+                            ></textarea>
+                        </div>
+                    {/if}
+
                     <div>
                         <label for="statement" class="text-xs text-faint">
                             Reasons for your decision
@@ -385,6 +457,14 @@
                             class="field mt-2 resize-y"
                         ></textarea>
                     </div>
+
+                    {#each answers as answer (answer.id)}
+                        <input
+                            type="hidden"
+                            name={`dimension:${answer.id}`}
+                            value={answer.option}
+                        />
+                    {/each}
 
                     <button
                         type="submit"

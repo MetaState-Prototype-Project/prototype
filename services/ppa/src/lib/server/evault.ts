@@ -15,7 +15,9 @@ import { GraphQLClient, gql } from "graphql-request";
 import { registryUrl } from "./env";
 import {
     type Accreditation,
+    type Assessment,
     PLATFORM_ACCREDITATION_ONTOLOGY,
+    PLATFORM_ASSESSMENT_ONTOLOGY,
 } from "./ontology";
 
 const BINDING_DOCUMENTS_QUERY = gql`
@@ -176,6 +178,55 @@ export async function fetchBindingDocuments(
     } while (after !== null);
 
     return out;
+}
+
+/** Shared writer: both records go to the reviewed platform's own eVault. */
+async function storeForPlatform(
+    platformEName: string,
+    ontology: string,
+    payload: unknown,
+): Promise<string> {
+    const ename = normalizeEName(platformEName);
+    const [baseUrl, token] = await Promise.all([
+        resolveEVaultUrl(ename),
+        getPlatformToken(),
+    ]);
+
+    const client = new GraphQLClient(new URL("/graphql", baseUrl).toString(), {
+        headers: { Authorization: `Bearer ${token}`, "X-ENAME": ename },
+    });
+
+    const response = await client.request<CreateResponse>(
+        CREATE_META_ENVELOPE,
+        { input: { ontology, payload, acl: ["*"] } },
+    );
+
+    const errors = response.createMetaEnvelope.errors ?? [];
+    if (errors.length > 0) {
+        throw new Error(
+            `eVault rejected the record: ${errors
+                .map((e) => `${e.field ?? "?"}: ${e.message}`)
+                .join("; ")}`,
+        );
+    }
+    const id = response.createMetaEnvelope.metaEnvelope?.id;
+    if (!id) throw new Error("eVault returned no MetaEnvelope id");
+    return id;
+}
+
+/**
+ * Writes the findings behind a decision. Public, like the certificate, because
+ * the framework's point is that a later reader can inspect the evidence rather
+ * than trusting the headline level.
+ */
+export async function storeAssessment(
+    assessment: Assessment,
+): Promise<string> {
+    return storeForPlatform(
+        assessment.platformEName,
+        PLATFORM_ASSESSMENT_ONTOLOGY,
+        assessment,
+    );
 }
 
 /**
