@@ -10,7 +10,6 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import type { ActorIdentity } from "./identity";
 import type { Submission } from "./ontology";
-import type { DeploymentRecord } from "./aaas";
 import type { ReputationEvidence } from "./reputation";
 import type { Framework, IdentityLevel } from "$lib/levels";
 
@@ -56,11 +55,10 @@ export function deriveAnswers(
         submission: Submission;
         minimumIal: IdentityLevel;
         actors: ActorIdentity[];
-        deployments: DeploymentRecord[];
         reputation: ReputationEvidence;
     },
 ): DerivedAnswer[] {
-    const { submission, minimumIal, actors, deployments, reputation } = context;
+    const { submission, minimumIal, actors, reputation } = context;
     const at = (id: string, level: number) => optionAtLevel(framework, id, level);
 
     // The submission is only in the queue at all because its release statement
@@ -104,15 +102,6 @@ export function deriveAnswers(
         evidence: commit
             ? `Manifest commit ${commit.slice(0, 12)} recorded, with ${submission.authorEnames.length} named author${submission.authorEnames.length === 1 ? "" : "s"}. Reviewing that history is a judgement above this row.`
             : "No manifest commit recorded.",
-    });
-
-    answers.push({
-        id: "deployment-assurance",
-        option: at("deployment-assurance", deployments.length > 0 ? 3 : 0),
-        evidence:
-            deployments.length > 0
-                ? `${deployments.length} deployment${deployments.length === 1 ? "" : "s"} attested against this exact release.`
-                : "No deployment has been attested against this release.",
     });
 
     // The framework's reputation thresholds are counts, so they are counted.

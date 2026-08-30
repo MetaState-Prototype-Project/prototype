@@ -1,6 +1,6 @@
 {
-  "$comment": "The PPA application certification matrix, transcribed from 'Post-Platforms Certification Framework — Application Certification Framework Concept v2'. The document calls its quantitative thresholds provisional policy parameters, so this file is versioned and every assessment records the version that judged it. Each dimension lists its distinct requirement texts; `level` is the highest certification level that requirement satisfies, so a repeated requirement collapses to one option. `source: derived` means the app answers the row itself, from the release proof, the actors’ binding documents, attested deployments or signed eReputation references.",
-  "frameworkVersion": "2",
+  "$comment": "The PPA application certification matrix, transcribed from 'Post-Platforms Certification Framework — Application Certification Framework Concept v2'. The document calls its quantitative thresholds provisional policy parameters, so this file is versioned and every assessment records the version that judged it. Each dimension lists its distinct requirement texts; `level` is the highest certification level that requirement satisfies, so a repeated requirement collapses to one option. `source: derived` means the app answers the row itself, from the release proof, the actors’ binding documents or signed eReputation references.",
+  "frameworkVersion": "3",
   "levels": [
     {
       "id": "L0",
@@ -348,37 +348,6 @@
         {
           "level": 5,
           "label": "Verified, and the issuing body’s own standing weighed in the judgement"
-        }
-      ]
-    },
-    {
-      "id": "deployment-assurance",
-      "label": "Deployment assurance",
-      "source": "derived",
-      "options": [
-        {
-          "level": 0,
-          "label": "Nothing ties what is running to this release"
-        },
-        {
-          "level": 1,
-          "label": "The team states the deployment matches the release"
-        },
-        {
-          "level": 2,
-          "label": "Version records line up with the release"
-        },
-        {
-          "level": 3,
-          "label": "A signed deployment attests to this exact release"
-        },
-        {
-          "level": 4,
-          "label": "Signed artefacts or hashes match, with deployment logs"
-        },
-        {
-          "level": 5,
-          "label": "A reproducible build matches the deployed artefact"
         }
       ]
     },

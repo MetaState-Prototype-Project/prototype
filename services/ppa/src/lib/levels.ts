@@ -102,7 +102,7 @@ export interface ComputedLevel {
  * an otherwise strong release to its own value the way a strict minimum did.
  *
  * The mean is taken over level + 1 and shifted back afterwards. L0 is a real,
- * expected answer on this scale (deployment assurance of "None" is L0), and a
+ * expected answer on this scale (a code review nobody performed is L0), and a
  * plain geometric mean multiplies by zero, so a single such row would collapse
  * the score to zero no matter how strong the other fifteen were.
  *
