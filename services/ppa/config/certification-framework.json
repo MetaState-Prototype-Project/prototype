@@ -43,11 +43,11 @@
       "options": [
         {
           "level": -1,
-          "label": "Not demonstrated"
+          "label": "Does not authenticate a user through W3DS or reach an eVault"
         },
         {
           "level": 5,
-          "label": "Required — demonstrated"
+          "label": "Authenticates a user through W3DS and interacts with an eVault"
         }
       ]
     },
@@ -58,23 +58,23 @@
       "options": [
         {
           "level": 0,
-          "label": "None"
+          "label": "Not run — nobody has launched it"
         },
         {
           "level": 1,
-          "label": "Basic"
+          "label": "Launched, and it broadly does what it claims"
         },
         {
           "level": 3,
-          "label": "Reviewed"
+          "label": "Main flows exercised against the stated functionality and the areas it asks for"
         },
         {
           "level": 4,
-          "label": "Extended"
+          "label": "Edge cases, failure handling and data flows exercised as well"
         },
         {
           "level": 5,
-          "label": "High assurance"
+          "label": "Reviewed against a written specification, with the results recorded"
         }
       ]
     },
@@ -85,19 +85,19 @@
       "options": [
         {
           "level": -1,
-          "label": "IAL1 — anonymous"
+          "label": "IAL1 — at least one responsible person is anonymous"
         },
         {
           "level": 0,
-          "label": "IAL2 — attested"
+          "label": "IAL2 — every responsible person is vouched for by someone already identified"
         },
         {
           "level": 2,
-          "label": "IAL3 — passport-verified"
+          "label": "IAL3 — every responsible person is verified against a passport or equivalent eID"
         },
         {
           "level": 5,
-          "label": "IAL4 — passport and independent attestation"
+          "label": "IAL4 — every responsible person is passport-verified and attested by three others who are"
         }
       ]
     },
@@ -108,23 +108,23 @@
       "options": [
         {
           "level": 0,
-          "label": "Responsible person recorded"
+          "label": "One responsible person is recorded"
         },
         {
           "level": 1,
-          "label": "Normally the same person"
+          "label": "Developer and deployer are the same person"
         },
         {
           "level": 2,
-          "label": "May differ; roles recorded"
+          "label": "They are different people, and each role is recorded"
         },
         {
           "level": 4,
-          "label": "All key actors known"
+          "label": "Every key actor is known and named"
         },
         {
           "level": 5,
-          "label": "Fully accountable chain"
+          "label": "Every role from author to operator is named and attributable"
         }
       ]
     },
@@ -135,23 +135,23 @@
       "options": [
         {
           "level": 0,
-          "label": "Optional — not declared"
+          "label": "Not asked — how the software was built is unrecorded"
         },
         {
           "level": 1,
-          "label": "Declared"
+          "label": "Declared — the team stated whether it was conventional, AI-assisted, vibe-coded or mixed"
         },
         {
           "level": 2,
-          "label": "Recorded"
+          "label": "Recorded — that declaration is written into this assessment for this release"
         },
         {
           "level": 4,
-          "label": "Traceable"
+          "label": "Traceable — which parts were AI-generated can be identified from the commit history"
         },
         {
           "level": 5,
-          "label": "Auditable"
+          "label": "Auditable — AI involvement is documented per change and can be checked independently"
         }
       ]
     },
@@ -162,11 +162,11 @@
       "options": [
         {
           "level": -1,
-          "label": "No"
+          "label": "Source is not available to PPA"
         },
         {
           "level": 5,
-          "label": "Yes"
+          "label": "Source is available to PPA"
         }
       ]
     },
@@ -177,23 +177,23 @@
       "options": [
         {
           "level": 0,
-          "label": "None"
+          "label": "Nobody has read the code"
         },
         {
           "level": 1,
-          "label": "Automated gross-error scan"
+          "label": "Automated scan only — tooling run for gross errors and obvious risks"
         },
         {
           "level": 3,
-          "label": "Manual review each release"
+          "label": "A reviewer read this release for significant problems, suspicious behaviour and inconsistencies with what it claims to do"
         },
         {
           "level": 4,
-          "label": "Extended"
+          "label": "That, plus dependencies, data handling and the sensitive paths"
         },
         {
           "level": 5,
-          "label": "Extensive"
+          "label": "That, repeated by a second reviewer, with findings tracked to resolution"
         }
       ]
     },
@@ -204,23 +204,23 @@
       "options": [
         {
           "level": 1,
-          "label": "None"
+          "label": "Nobody has been interviewed"
         },
         {
           "level": 2,
-          "label": "Owner, lead developer and deployer/operator"
+          "label": "Owner, lead developer and deployer/operator interviewed, where these are different people"
         },
         {
           "level": 3,
-          "label": "All key responsible actors"
+          "label": "Every key responsible actor interviewed"
         },
         {
           "level": 4,
-          "label": "Key actors and relevant technical leads"
+          "label": "Key actors and the relevant technical leads interviewed"
         },
         {
           "level": 5,
-          "label": "All accountable leads including security and key custody"
+          "label": "Every accountable lead interviewed, including whoever holds the signing keys and runs security"
         }
       ]
     },
@@ -231,27 +231,27 @@
       "options": [
         {
           "level": -1,
-          "label": "Not recorded"
+          "label": "No commit history recorded"
         },
         {
           "level": 1,
-          "label": "Recorded from the start"
+          "label": "Commit history recorded from the start"
         },
         {
           "level": 2,
-          "label": "Reviewed"
+          "label": "That history has been looked at"
         },
         {
           "level": 3,
-          "label": "Required and reviewed"
+          "label": "Required and reviewed — contributions traced to named people"
         },
         {
           "level": 4,
-          "label": "Extended review"
+          "label": "Extended review of who changed what, and when"
         },
         {
           "level": 5,
-          "label": "Fully auditable"
+          "label": "Fully auditable — every change attributable to an identified contributor"
         }
       ]
     },
@@ -262,23 +262,23 @@
       "options": [
         {
           "level": 1,
-          "label": "Recorded; no minimum"
+          "label": "References recorded; no minimum met"
         },
         {
           "level": 2,
-          "label": "Emerging; no minimum"
+          "label": "Some references, but below the threshold"
         },
         {
           "level": 3,
-          "label": "3 signed professional references"
+          "label": "Each responsible actor holds at least 3 signed professional references"
         },
         {
           "level": 4,
-          "label": "5 references, including 2 recognised professionals"
+          "label": "At least 5, including 2 from recognised professionals"
         },
         {
           "level": 5,
-          "label": "10 high-reputation professional or organisational references"
+          "label": "At least 10 from high-reputation professionals or organisations"
         }
       ]
     },
@@ -289,19 +289,19 @@
       "options": [
         {
           "level": 2,
-          "label": "No minimum"
+          "label": "No prior track record required at this level"
         },
         {
           "level": 3,
-          "label": "1 prior Level 2+ app with positive eReputation; 50 authenticated user signals"
+          "label": "A prior Level 2+ application with positive standing, and around 50 authenticated signals"
         },
         {
           "level": 4,
-          "label": "Established prior-app reputation and ~1,000 authenticated signals"
+          "label": "Established reputation from previous applications, and around 1,000 authenticated signals"
         },
         {
           "level": 5,
-          "label": "Extensive strong portfolio and ~10,000 authenticated signals"
+          "label": "An extensive portfolio, and around 10,000 authenticated signals"
         }
       ]
     },
@@ -312,15 +312,15 @@
       "options": [
         {
           "level": 3,
-          "label": "None"
+          "label": "No independent review"
         },
         {
           "level": 4,
-          "label": "1 independent signed review"
+          "label": "One signed review by a specialist or organisation independent of the applicant, stating what was reviewed, how, and what was found"
         },
         {
           "level": 5,
-          "label": "Multiple independent reviews"
+          "label": "Several such reviews, from independent parties"
         }
       ]
     },
@@ -331,23 +331,23 @@
       "options": [
         {
           "level": 0,
-          "label": "Not relevant"
+          "label": "Not relevant — none claimed, and none needed here"
         },
         {
           "level": 1,
-          "label": "May be recorded"
+          "label": "Claimed but unverified — mentioned, not checked"
         },
         {
           "level": 2,
-          "label": "Considered"
+          "label": "A certificate from another body exists and has been looked at"
         },
         {
           "level": 3,
-          "label": "Recognised"
+          "label": "Verified as genuine, and accepted in place of repeating that work"
         },
         {
           "level": 5,
-          "label": "Important — present and weighted"
+          "label": "Verified, and the issuing body’s own standing weighed in the judgement"
         }
       ]
     },
@@ -358,27 +358,27 @@
       "options": [
         {
           "level": 0,
-          "label": "None"
+          "label": "Nothing ties what is running to this release"
         },
         {
           "level": 1,
-          "label": "Basic declaration"
+          "label": "The team states the deployment matches the release"
         },
         {
           "level": 2,
-          "label": "Reasonable check"
+          "label": "Version records line up with the release"
         },
         {
           "level": 3,
-          "label": "Release provenance verified"
+          "label": "A signed deployment attests to this exact release"
         },
         {
           "level": 4,
-          "label": "Strong assurance"
+          "label": "Signed artefacts or hashes match, with deployment logs"
         },
         {
           "level": 5,
-          "label": "High assurance"
+          "label": "A reproducible build matches the deployed artefact"
         }
       ]
     },
@@ -389,27 +389,27 @@
       "options": [
         {
           "level": 0,
-          "label": "None"
+          "label": "Nothing asked about hosting, secrets or key custody"
         },
         {
           "level": 1,
-          "label": "Minimal"
+          "label": "The team described where it runs and who can administer it"
         },
         {
           "level": 2,
-          "label": "Basic"
+          "label": "That, and secrets and deployment keys are kept apart from the source"
         },
         {
           "level": 3,
-          "label": "Reviewed where relevant"
+          "label": "Admin access, secret storage and change control checked where they matter"
         },
         {
           "level": 4,
-          "label": "Strong"
+          "label": "Access control, key custody, backup and change control all reviewed and sound"
         },
         {
           "level": 5,
-          "label": "Hardware-backed where appropriate"
+          "label": "Signing and deployment keys held in hardware or an HSM"
         }
       ]
     },
@@ -420,11 +420,11 @@
       "options": [
         {
           "level": 0,
-          "label": "Minimal statement"
+          "label": "Only a minimal statement is recorded"
         },
         {
           "level": 5,
-          "label": "Yes — full findings recorded"
+          "label": "Full findings published with the certificate"
         }
       ]
     }
