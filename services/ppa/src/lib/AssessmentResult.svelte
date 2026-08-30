@@ -53,6 +53,15 @@
             </p>
         </div>
         <div class="text-2xl text-faint">→</div>
+        {#if identityCapped && result.scoredLevel}
+            <div>
+                <p class="text-xs text-muted">Evidence supports</p>
+                <p class="text-2xl font-semibold text-muted line-through decoration-1">
+                    {result.scoredLevel}
+                </p>
+            </div>
+            <div class="text-2xl text-faint">→</div>
+        {/if}
         <div>
             <p class="text-xs text-muted">Computed level</p>
             <p class="text-2xl font-semibold {result.level ? 'text-brand' : 'text-caution'}">
@@ -68,8 +77,10 @@
                 </p>
             {:else if identityCapped}
                 <p class="text-body">
-                    Capped at {result.level} by the identity floor — the weakest
-                    accountable actor is {minimumIal}.
+                    The assessment supports {result.scoredLevel}, but
+                    {result.scoredLevel} needs every responsible person verified
+                    to {framework.identityFloor[result.scoredLevel ?? "L0"]}. The
+                    weakest is {minimumIal}, so this is held at {result.level}.
                 </p>
             {:else if limitingLabel}
                 <p class="text-body">

@@ -103,6 +103,22 @@ describe("computeLevel", () => {
         expect(result.limiting).toBe("identity");
     });
 
+    it("still reports what the evidence alone supported when capped", () => {
+        // Without this the reviewer sees a mean of 5 next to an award of L2 and
+        // reasonably reads it as a bug rather than as the identity floor.
+        const result = computeLevel(framework, allAt(5), "IAL3");
+
+        expect(result.scoredLevel).toBe("L5");
+        expect(result.level).toBe("L2");
+    });
+
+    it("reports the same level twice when nothing capped it", () => {
+        const result = computeLevel(framework, allAt(3), "IAL4");
+
+        expect(result.scoredLevel).toBe("L3");
+        expect(result.level).toBe("L3");
+    });
+
     it("refuses any level for an anonymous responsible party", () => {
         expect(computeLevel(framework, allAt(5), "IAL1").level).toBeNull();
     });
