@@ -76,6 +76,45 @@ export interface Submission {
     raw: Record<string, unknown>;
 }
 
+/** PlatformAssessment — the findings behind one decision. */
+export const PLATFORM_ASSESSMENT_ONTOLOGY =
+    "b0c8cfad-2872-4fb7-9d99-278f257bb922";
+
+export interface AssessmentDimension {
+    id: string;
+    answer: string;
+    level: number;
+    source: "derived" | "reviewer";
+    note?: string | null;
+}
+
+export interface AssessmentActor {
+    ename: string;
+    role: string;
+    ial: "IAL1" | "IAL2" | "IAL3" | "IAL4";
+    idDocuments: number;
+    attestations: number;
+    verifiedAttesters: number;
+    overridden: boolean;
+    note?: string | null;
+}
+
+export interface Assessment {
+    assessmentId: string;
+    platformEName: string;
+    platformVersion: string;
+    frameworkVersion: string;
+    dimensions: AssessmentDimension[];
+    actors: AssessmentActor[];
+    minimumIal: "IAL1" | "IAL2" | "IAL3" | "IAL4";
+    computedLevel: string | null;
+    limitingDimension: string | null;
+    awardedLevel: string | null;
+    overrideReason: string | null;
+    reviewedByEName: string;
+    createdAt: string;
+}
+
 /** A decision the PPA has issued, as read back out of its own eVault. */
 export interface Accreditation {
     accreditationId: string;
@@ -94,6 +133,10 @@ export interface Accreditation {
     submissionEnvelopeId: string;
     /** The decision this one replaces for the same version, if any. */
     supersedes: string | null;
+    frameworkVersion: string;
+    computedLevel: string | null;
+    minimumIal: string;
+    assessmentEnvelopeId: string;
     jws: string;
     createdAt: string;
 }

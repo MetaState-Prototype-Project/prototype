@@ -70,6 +70,9 @@ export interface AccreditationClaims {
     submissionEnvelopeId: string;
     supersedes: string | null;
     applicantResponse: string | null;
+    frameworkVersion: string;
+    computedLevel: string | null;
+    minimumIal: string;
 }
 
 /** Where a verifier fetches the key set that validates our statements. */
@@ -102,6 +105,9 @@ export async function signAccreditation(
         submissionEnvelopeId: claims.submissionEnvelopeId,
         supersedes: claims.supersedes,
         applicantResponse: claims.applicantResponse,
+        frameworkVersion: claims.frameworkVersion,
+        computedLevel: claims.computedLevel,
+        minimumIal: claims.minimumIal,
     })
         .setProtectedHeader({ alg: ALG, kid: KID, typ: "JWT" })
         .setIssuer(publicUrl())

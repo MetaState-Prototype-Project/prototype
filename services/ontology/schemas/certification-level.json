@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "2e75bd9c-8321-43c5-99f2-a7a2bfb56e11",
+  "title": "Certification Level",
+  "domain": "governance",
+  "type": "object",
+  "description": "A PPA application certification level. Levels are cumulative — each includes the requirements of those below it — and the level is an aggregate indicator over independently recorded assurance dimensions. Certification applies to a specific application release, not to an application indefinitely. This schema is the published list; the permitted values are the oneOf under `id`.",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable level id, recorded on every accreditation.",
+      "oneOf": [
+        {
+          "const": "L0",
+          "title": "Level 0 — W3DS-compatible experimental",
+          "description": "This release can technically participate in W3DS and a minimally identified person stands behind it. No meaningful software-assurance review has been performed; in practice almost no production eVault should admit such an application."
+        },
+        {
+          "const": "L1",
+          "title": "Level 1 — identified responsible person, basic functional review",
+          "description": "The first real trust level. PPA knows who is responsible and has seen that the release broadly does what it claims. Source is available and may be scanned automatically, but no manual code review is required."
+        },
+        {
+          "const": "L2",
+          "title": "Level 2 — source-code review and direct assessment",
+          "description": "Manual code review becomes a requirement for every certified release. Developer and deployer may differ but their roles are recorded, and PPA interviews the owner, responsible developer and deployer."
+        },
+        {
+          "const": "L3",
+          "title": "Level 3 — proven development history and reputation",
+          "description": "Requires IAL4 for all key accountable actors, a traceable contribution history, signed professional references, and demonstrated prior operational experience."
+        },
+        {
+          "const": "L4",
+          "title": "Level 4 — established operational reputation and independent review",
+          "description": "Substantial real-world use and a much larger body of authenticated feedback, plus at least one signed review by a recognised independent professional or organisation."
+        },
+        {
+          "const": "L5",
+          "title": "Level 5 — high-assurance industrial application",
+          "description": "For systems where compromise or failure may have serious consequences: extensive operational evidence, multiple independent reviews, strong deployment provenance and rigorous key control."
+        }
+      ]
+    },
+    "label": {
+      "type": "string",
+      "description": "Human-readable name."
+    },
+    "description": {
+      "type": "string",
+      "description": "What the level means."
+    }
+  },
+  "required": [
+    "id",
+    "label"
+  ],
+  "additionalProperties": false
+}

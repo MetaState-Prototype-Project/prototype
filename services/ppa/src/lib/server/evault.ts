@@ -15,8 +15,27 @@ import { GraphQLClient, gql } from "graphql-request";
 import { registryUrl } from "./env";
 import {
     type Accreditation,
+    type Assessment,
     PLATFORM_ACCREDITATION_ONTOLOGY,
+    PLATFORM_ASSESSMENT_ONTOLOGY,
 } from "./ontology";
+
+const BINDING_DOCUMENTS_QUERY = gql`
+    query GetBindingDocuments($first: Int!, $after: String) {
+        bindingDocuments(first: $first, after: $after) {
+            edges {
+                node {
+                    id
+                    parsed
+                }
+            }
+            pageInfo {
+                hasNextPage
+                endCursor
+            }
+        }
+    }
+`;
 
 const CREATE_META_ENVELOPE = gql`
     mutation CreateMetaEnvelope($input: MetaEnvelopeInput!) {
@@ -31,6 +50,23 @@ const CREATE_META_ENVELOPE = gql`
         }
     }
 `;
+
+export interface BindingDocument {
+    id: string;
+    subject: string;
+    type: string;
+    data: Record<string, unknown>;
+    signatures: Array<{ signer: string; signature: string; timestamp: string }>;
+}
+
+interface BindingDocumentsResponse {
+    bindingDocuments: {
+        edges: Array<{
+            node: { id: string; parsed: Record<string, unknown> | null };
+        }>;
+        pageInfo: { hasNextPage: boolean; endCursor: string | null };
+    };
+}
 
 interface CreateResponse {
     createMetaEnvelope: {
@@ -81,6 +117,116 @@ async function resolveEVaultUrl(ename: string): Promise<string> {
     if (!resolved) throw new Error(`Registry did not resolve ${ename}`);
     evaultUrls.set(ename, resolved);
     return resolved;
+}
+
+/**
+ * Every binding document held by one eName — the identity evidence behind an
+ * accountable actor. Reads need a platform token because a person's binding
+ * documents are ACL'd to them; deployment documents are the only public ones.
+ *
+ * Mirrors platforms/enotary/src/lib/server/evault.ts, which reads the same
+ * documents to name the counterparty of a social connection.
+ */
+export async function fetchBindingDocuments(
+    ename: string,
+): Promise<BindingDocument[]> {
+    const normalized = normalizeEName(ename);
+    const [baseUrl, token] = await Promise.all([
+        resolveEVaultUrl(normalized),
+        getPlatformToken(),
+    ]);
+
+    const client = new GraphQLClient(new URL("/graphql", baseUrl).toString(), {
+        headers: { Authorization: `Bearer ${token}`, "X-ENAME": normalized },
+    });
+
+    const out: BindingDocument[] = [];
+    let after: string | null = null;
+    do {
+        const res: BindingDocumentsResponse =
+            await client.request<BindingDocumentsResponse>(
+                BINDING_DOCUMENTS_QUERY,
+                { first: 100, after: after ?? undefined },
+            );
+        for (const edge of res.bindingDocuments.edges) {
+            const parsed = edge.node.parsed;
+            if (!parsed || typeof parsed !== "object") continue;
+            const { subject, type, data, signatures } = parsed as Record<
+                string,
+                unknown
+            >;
+            if (
+                typeof subject !== "string" ||
+                typeof type !== "string" ||
+                typeof data !== "object" ||
+                data === null ||
+                !Array.isArray(signatures)
+            ) {
+                continue;
+            }
+            out.push({
+                id: edge.node.id,
+                subject,
+                type,
+                data: data as Record<string, unknown>,
+                signatures: signatures as BindingDocument["signatures"],
+            });
+        }
+        after = res.bindingDocuments.pageInfo.hasNextPage
+            ? res.bindingDocuments.pageInfo.endCursor
+            : null;
+    } while (after !== null);
+
+    return out;
+}
+
+/** Shared writer: both records go to the reviewed platform's own eVault. */
+async function storeForPlatform(
+    platformEName: string,
+    ontology: string,
+    payload: unknown,
+): Promise<string> {
+    const ename = normalizeEName(platformEName);
+    const [baseUrl, token] = await Promise.all([
+        resolveEVaultUrl(ename),
+        getPlatformToken(),
+    ]);
+
+    const client = new GraphQLClient(new URL("/graphql", baseUrl).toString(), {
+        headers: { Authorization: `Bearer ${token}`, "X-ENAME": ename },
+    });
+
+    const response = await client.request<CreateResponse>(
+        CREATE_META_ENVELOPE,
+        { input: { ontology, payload, acl: ["*"] } },
+    );
+
+    const errors = response.createMetaEnvelope.errors ?? [];
+    if (errors.length > 0) {
+        throw new Error(
+            `eVault rejected the record: ${errors
+                .map((e) => `${e.field ?? "?"}: ${e.message}`)
+                .join("; ")}`,
+        );
+    }
+    const id = response.createMetaEnvelope.metaEnvelope?.id;
+    if (!id) throw new Error("eVault returned no MetaEnvelope id");
+    return id;
+}
+
+/**
+ * Writes the findings behind a decision. Public, like the certificate, because
+ * the framework's point is that a later reader can inspect the evidence rather
+ * than trusting the headline level.
+ */
+export async function storeAssessment(
+    assessment: Assessment,
+): Promise<string> {
+    return storeForPlatform(
+        assessment.platformEName,
+        PLATFORM_ASSESSMENT_ONTOLOGY,
+        assessment,
+    );
 }
 
 /**

@@ -9,10 +9,22 @@ import {
     getAuthors,
     listSubmissions,
 } from "$lib/server/aaas";
-import { storeAccreditation } from "$lib/server/evault";
+import { storeAccreditation, storeAssessment } from "$lib/server/evault";
 import { jwksUri, signAccreditation } from "$lib/server/jwt";
-import { type Accreditation, isAccessLevel } from "$lib/server/ontology";
+import {
+    type Accreditation,
+    type Assessment,
+} from "$lib/server/ontology";
+import { computeLevel, isAccessLevel, type DimensionAnswer } from "$lib/levels";
 import { listDomains, validDomains } from "$lib/server/domains";
+import { collectReputation } from "$lib/server/reputation";
+import { deriveAnswers, loadFramework } from "$lib/server/framework";
+import {
+    accountableActors,
+    deriveIdentity,
+    minimumIdentity,
+    type ActorIdentity,
+} from "$lib/server/identity";
 import { repositoryBaseUrl } from "$lib/server/env";
 import { submissionSupersedesDecision } from "$lib/server/submission-proof";
 
@@ -41,6 +53,28 @@ export const load: PageServerLoad = async ({ params }) => {
         .filter((d) => d.platformEName === ename)
         .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
 
+    const framework = await loadFramework();
+
+    // Identity is derived per actor and reduced to the weakest, because that is
+    // what the framework caps the level on.
+    const cache = new Map();
+    const roles = accountableActors(submission);
+    const identities = await Promise.all(
+        roles.map(async (actor) => ({
+            ...(await deriveIdentity(actor.ename, cache)),
+            role: actor.role,
+        })),
+    );
+    const minimumIal = minimumIdentity(identities as ActorIdentity[]);
+
+    const reputation = await collectReputation(submission.platformName, identities);
+    const derivedAnswers = deriveAnswers(framework, {
+        submission,
+        minimumIal,
+        actors: identities as ActorIdentity[],
+        reputation,
+    });
+
     // Built here so the page never has to know about configuration.
     const base = repositoryBaseUrl();
     const repository = submission.submissionProof.statement.repository;
@@ -61,6 +95,11 @@ export const load: PageServerLoad = async ({ params }) => {
     return {
         submission,
         history,
+        framework,
+        actors: identities,
+        minimumIal,
+        derivedAnswers,
+        reputation,
         repositoryUrl,
         authors: await getAuthors(submission.authorEnames, messenger),
         messengerConfigured: messenger !== null,
@@ -140,8 +179,64 @@ export const actions: Actions = {
             });
         }
 
+        // The matrix arrives as one field per dimension; the derived rows are
+        // recomputed here rather than trusted from the form, so a crafted post
+        // cannot claim evidence the app did not establish.
+        const framework = await loadFramework();
+        const reviewerAnswers: DimensionAnswer[] = [];
+        for (const dimension of framework.dimensions) {
+            if (dimension.source !== "reviewer") continue;
+            const raw = form.get(`dimension:${dimension.id}`);
+            if (raw === null) continue;
+            const option = Number.parseInt(String(raw), 10);
+            if (Number.isNaN(option) || !dimension.options[option]) continue;
+            reviewerAnswers.push({ id: dimension.id, option });
+        }
+
         const level = decision === "granted" ? (rawLevel as string) : null;
         const accreditationId = randomUUID();
+        const assessmentId = randomUUID();
+
+        const cache = new Map();
+        const roles = accountableActors(submission);
+        const identities = await Promise.all(
+            roles.map(async (actor) => ({
+                ...(await deriveIdentity(actor.ename, cache)),
+                role: actor.role,
+            })),
+        );
+        const minimumIal = minimumIdentity(identities);
+        const reputation = await collectReputation(submission.platformName, identities);
+        const derived = deriveAnswers(framework, {
+            submission,
+            minimumIal,
+            actors: identities,
+            reputation,
+        });
+        const allAnswers = [
+            ...derived.map((d) => ({ id: d.id, option: d.option })),
+            ...reviewerAnswers,
+        ];
+        const computed = computeLevel(framework, allAnswers, minimumIal);
+
+        // An award that differs from the evidence has to say why, so a
+        // divergence between judgement and matrix is never silent.
+        const overrideReason = String(form.get("overrideReason") ?? "").trim();
+        if (
+            decision === "granted" &&
+            level !== computed.level &&
+            !overrideReason
+        ) {
+            return fail(400, {
+                message:
+                    computed.level === null
+                        ? `The assessment supports no level yet. Explain why you are awarding ${level} anyway.`
+                        : `The assessment supports ${computed.level}. Explain why you are awarding ${level} instead.`,
+                decision,
+                statement,
+                level: rawLevel,
+            });
+        }
         // A version can be refused and reapply, so name the decision this one
         // replaces instead of leaving the order to be inferred.
         const applicantResponse =
@@ -167,6 +262,9 @@ export const actions: Actions = {
                 submissionEnvelopeId: submission.submissionEnvelopeId,
                 supersedes: previous?.accreditationId ?? null,
                 applicantResponse,
+                frameworkVersion: framework.frameworkVersion,
+                computedLevel: computed.level,
+                minimumIal,
             });
 
             const accreditation: Accreditation = {
@@ -184,12 +282,59 @@ export const actions: Actions = {
                 supersedes: previous?.accreditationId ?? null,
                 applicantResponse,
                 applicantSubmittedAt,
+                frameworkVersion: framework.frameworkVersion,
+                computedLevel: computed.level,
+                minimumIal,
+                assessmentEnvelopeId: "",
                 jws,
                 createdAt: new Date().toISOString(),
             };
 
-            await storeAccreditation(accreditation);
-            return { issued: accreditation };
+            const assessment: Assessment = {
+                assessmentId,
+                platformEName: ename,
+                platformVersion: submission.version,
+                frameworkVersion: framework.frameworkVersion,
+                dimensions: allAnswers.map((answer) => {
+                    const dimension = framework.dimensions.find(
+                        (d) => d.id === answer.id,
+                    );
+                    const option = dimension?.options[answer.option];
+                    return {
+                        id: answer.id,
+                        answer: option?.label ?? "",
+                        level: option?.level ?? -1,
+                        source: dimension?.source ?? "reviewer",
+                        note: null,
+                    };
+                }),
+                actors: identities.map((actor) => ({
+                    ename: actor.ename,
+                    role: actor.role,
+                    ial: actor.ial,
+                    idDocuments: actor.idDocuments,
+                    attestations: actor.attestations,
+                    verifiedAttesters: actor.verifiedAttesters,
+                    overridden: false,
+                    note: actor.error ?? null,
+                })),
+                minimumIal,
+                computedLevel: computed.level,
+                limitingDimension: computed.limiting,
+                awardedLevel: level as Assessment["awardedLevel"],
+                overrideReason: overrideReason || null,
+                reviewedByEName: reviewer,
+                createdAt: new Date().toISOString(),
+            };
+            // Findings first: the certificate cites the assessment, so the
+            // evidence must exist before anything points at it.
+            const assessmentEnvelopeId = await storeAssessment(assessment);
+
+            await storeAccreditation({
+                ...accreditation,
+                assessmentEnvelopeId,
+            });
+            return { issued: accreditation, assessment };
         } catch (err) {
             console.error("[ppa] failed issuing accreditation:", err);
             return fail(500, {
