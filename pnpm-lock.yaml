@@ -4092,9 +4092,21 @@ importers:
       '@metastate-foundation/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
+      graphql-request:
+        specifier: ^7.3.1
+        version: 7.4.0(graphql@16.13.1)
       jose:
         specifier: ^5.2.2
         version: 5.10.0
+      signature-validator:
+        specifier: workspace:*
+        version: link:../../infrastructure/signature-validator
+      svelte-qrcode:
+        specifier: ^1.0.1
+        version: 1.0.1
     devDependencies:
       '@sveltejs/adapter-node':
         specifier: ^5.2.12
