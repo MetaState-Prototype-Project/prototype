@@ -64,14 +64,36 @@ describe("computeLevel", () => {
         expect(score).toBeLessThan(arithmetic);
     });
 
-    it("holds the release at L0 when any dimension meets nothing above it", () => {
+    it("does not let one L0 row collapse an otherwise strong assessment", () => {
+        // L0 is a real answer on this scale, so a plain geometric mean would
+        // multiply the whole product by zero and award L0 regardless.
         const answers = [
             ...allAt(5).filter((a) => a.id !== "functional-review"),
             pick("functional-review", 0),
         ];
         const result = computeLevel(framework, answers, "IAL4");
-        expect(result.score).toBe(0);
-        expect(result.level).toBe("L0");
+        expect(result.score).toBeGreaterThan(3);
+        expect(result.level).toBe("L4");
+        expect(result.limiting).toBe("functional-review");
+    });
+
+    it("still weighs several weak rows heavily", () => {
+        // Two rows at L0 and three at L1, against a spread up to L5.
+        const weak = ["functional-review", "deployment-assurance"];
+        const weaker = ["provenance", "actor-reputation", "key-assurance"];
+        const answers = [
+            ...allAt(5).filter(
+                (a) => !weak.includes(a.id) && !weaker.includes(a.id),
+            ),
+            ...weak.map((id) => pick(id, 0)),
+            ...weaker.map((id) => pick(id, 1)),
+        ];
+        const result = computeLevel(framework, answers, "IAL4");
+        const arithmetic =
+            result.perDimension.reduce((a, d) => a + d.level, 0) /
+            result.perDimension.length;
+        expect(result.score).toBeLessThan(arithmetic);
+        expect(result.level).toBe("L2");
     });
 
     it("caps at the identity floor even when every dimension is perfect", () => {

@@ -92,9 +92,13 @@ export interface ComputedLevel {
  *
  * A geometric mean keeps the framework's point that "a strong result in one
  * dimension does not erase a weakness in another" — a low row drags the result
- * far more than an arithmetic mean would, and a row at zero takes the whole
- * product to zero — without letting one middling row pin an otherwise strong
- * release to its own value the way a strict minimum did.
+ * far more than an arithmetic mean would — without letting one middling row pin
+ * an otherwise strong release to its own value the way a strict minimum did.
+ *
+ * The mean is taken over level + 1 and shifted back afterwards. L0 is a real,
+ * expected answer on this scale (deployment assurance of "None" is L0), and a
+ * plain geometric mean multiplies by zero, so a single such row would collapse
+ * the score to zero no matter how strong the other fifteen were.
  *
  * The identity floor is applied afterwards as a hard cap, because the framework
  * states it as a requirement rather than a contribution: L0 needs IAL2, L1–L2
@@ -133,20 +137,16 @@ export function computeLevel(
         return { level: null, score: 0, limiting, blocked: true, perDimension };
     }
 
-    // Geometric mean. A single zero takes the product to zero, which is the
-    // intended behaviour: a dimension that meets nothing above L0 holds the
-    // whole release at L0.
-    const product = perDimension.reduce((acc, d) => acc * d.level, 1);
+    // Geometric mean over level + 1, shifted back, so a legitimate L0 row
+    // weighs heavily without annihilating the product.
     const score =
-        product === 0
-            ? 0
-            : Math.exp(
-                  perDimension.reduce((acc, d) => acc + Math.log(d.level), 0) /
-                      perDimension.length,
-              );
+        Math.exp(
+            perDimension.reduce((acc, d) => acc + Math.log(d.level + 1), 0) /
+                perDimension.length,
+        ) - 1;
 
-    // exp(mean(ln 5)) lands a hair under 5, so floor alone would award L4 for a
-    // flawless assessment. Nudge past the float error before flooring.
+    // exp(mean(ln 6)) - 1 lands a hair under 5, so floor alone would award L4
+    // for a flawless assessment. Nudge past the float error before flooring.
     let index = Math.floor(score + 1e-9);
 
     // The identity floor: the highest level whose required IAL is met.

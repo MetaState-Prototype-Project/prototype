@@ -37,8 +37,8 @@
 <section class="card p-6">
     <h2 class="text-sm font-semibold text-ink">Calculation</h2>
     <p class="mt-1 text-xs text-muted">
-        The level is the geometric mean of every dimension, so a weak row pulls
-        the result down sharply while a single middling one does not pin it.
+        The geometric mean of every dimension, so a weak row pulls the result
+        down far more than an average would, without one row pinning the rest.
     </p>
 
     <div
