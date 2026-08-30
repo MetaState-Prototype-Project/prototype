@@ -11,6 +11,7 @@ import path from "node:path";
 import type { ActorIdentity } from "./identity";
 import type { Submission } from "./ontology";
 import type { DeploymentRecord } from "./aaas";
+import type { ReputationEvidence } from "./reputation";
 import type { Framework, IdentityLevel } from "$lib/levels";
 
 const CACHE = Symbol.for("ppa.framework");
@@ -56,9 +57,10 @@ export function deriveAnswers(
         minimumIal: IdentityLevel;
         actors: ActorIdentity[];
         deployments: DeploymentRecord[];
+        reputation: ReputationEvidence;
     },
 ): DerivedAnswer[] {
-    const { submission, minimumIal, actors, deployments } = context;
+    const { submission, minimumIal, actors, deployments, reputation } = context;
     const at = (id: string, level: number) => optionAtLevel(framework, id, level);
 
     // The submission is only in the queue at all because its release statement
@@ -111,6 +113,42 @@ export function deriveAnswers(
             deployments.length > 0
                 ? `${deployments.length} deployment${deployments.length === 1 ? "" : "s"} attested against this exact release.`
                 : "No deployment has been attested against this release.",
+    });
+
+    // The framework's reputation thresholds are counts, so they are counted.
+    // Signed references are public, which is what makes this evidence rather
+    // than an assertion.
+    const refs = reputation.minimumActorReferences;
+    const actorLevel = refs >= 10 ? 5 : refs >= 5 ? 4 : refs >= 3 ? 3 : refs >= 1 ? 2 : 1;
+    answers.push({
+        id: "actor-reputation",
+        option: at("actor-reputation", actorLevel),
+        evidence: reputation.error
+            ? `eReputation could not be reached (${reputation.error}); counted as none.`
+            : actors.length === 0
+              ? "No accountable actor to hold references."
+              : `Weakest actor holds ${refs} signed reference${refs === 1 ? "" : "s"}.`,
+    });
+
+    const platformRefs = reputation.platformReferences;
+    const trackLevel =
+        platformRefs >= 10000 ? 5 : platformRefs >= 1000 ? 4 : platformRefs >= 50 ? 3 : 2;
+    answers.push({
+        id: "track-record",
+        option: at("track-record", trackLevel),
+        evidence: reputation.error
+            ? `eReputation could not be reached (${reputation.error}); counted as none.`
+            : `${platformRefs} authenticated signal${platformRefs === 1 ? "" : "s"} for this platform.`,
+    });
+
+    const independent = reputation.independentReviews;
+    const reviewLevel = independent >= 2 ? 5 : independent === 1 ? 4 : 3;
+    answers.push({
+        id: "independent-review",
+        option: at("independent-review", reviewLevel),
+        evidence: reputation.error
+            ? `eReputation could not be reached (${reputation.error}); counted as none.`
+            : `${independent} signed review${independent === 1 ? "" : "s"} from outside the accountable actors.`,
     });
 
     answers.push({

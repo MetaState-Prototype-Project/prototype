@@ -56,8 +56,6 @@ export interface FrameworkDimension {
     id: string;
     label: string;
     source: "derived" | "reviewer";
-    /** The ecosystem cannot verify this evidence yet (no eReputation system). */
-    unverified?: boolean;
     options: FrameworkOption[];
 }
 

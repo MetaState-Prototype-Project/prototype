@@ -18,6 +18,7 @@ import {
 } from "$lib/server/ontology";
 import { computeLevel, isAccessLevel, type DimensionAnswer } from "$lib/levels";
 import { listDomains, validDomains } from "$lib/server/domains";
+import { collectReputation } from "$lib/server/reputation";
 import { deriveAnswers, loadFramework } from "$lib/server/framework";
 import {
     accountableActors,
@@ -67,14 +68,16 @@ export const load: PageServerLoad = async ({ params }) => {
     );
     const minimumIal = minimumIdentity(identities as ActorIdentity[]);
 
-    const deployments = await listDeployments(ename, submission.version).catch(
-        () => [],
-    );
+    const [deployments, reputation] = await Promise.all([
+        listDeployments(ename, submission.version).catch(() => []),
+        collectReputation(submission.platformName, identities),
+    ]);
     const derivedAnswers = deriveAnswers(framework, {
         submission,
         minimumIal,
         actors: identities as ActorIdentity[],
         deployments,
+        reputation,
     });
 
     // Built here so the page never has to know about configuration.
@@ -102,6 +105,7 @@ export const load: PageServerLoad = async ({ params }) => {
         minimumIal,
         derivedAnswers,
         deployments,
+        reputation,
         repositoryUrl,
         authors: await getAuthors(submission.authorEnames, messenger),
         messengerConfigured: messenger !== null,
@@ -208,14 +212,16 @@ export const actions: Actions = {
             })),
         );
         const minimumIal = minimumIdentity(identities);
-        const deployments = await listDeployments(ename, submission.version).catch(
-            () => [],
-        );
+        const [deployments, reputation] = await Promise.all([
+            listDeployments(ename, submission.version).catch(() => []),
+            collectReputation(submission.platformName, identities),
+        ]);
         const derived = deriveAnswers(framework, {
             submission,
             minimumIal,
             actors: identities,
             deployments,
+            reputation,
         });
         const allAnswers = [
             ...derived.map((d) => ({ id: d.id, option: d.option })),
@@ -309,7 +315,6 @@ export const actions: Actions = {
                         answer: option?.label ?? "",
                         level: option?.level ?? -1,
                         source: dimension?.source ?? "reviewer",
-                        unverified: dimension?.unverified ?? false,
                         note: null,
                     };
                 }),

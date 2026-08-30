@@ -51,11 +51,7 @@
               "derived",
               "reviewer"
             ],
-            "description": "Whether the app derived this from verified evidence or a reviewer asserted it."
-          },
-          "unverified": {
-            "type": "boolean",
-            "description": "True when the answer relies on evidence the ecosystem cannot yet verify, such as eReputation signals."
+            "description": "Whether the app established this from evidence — the release proof, binding documents, attested deployments or signed eReputation references — or a reviewer judged it."
           },
           "note": {
             "type": [

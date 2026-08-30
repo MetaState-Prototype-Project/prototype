@@ -40,6 +40,11 @@ export function ontologyUrl(): string {
     return raw("PUBLIC_ONTOLOGY_URL") || "https://ontology.w3ds.metastate.foundation";
 }
 
+/** eReputation service — signed references about people and platforms. */
+export function ereputationUrl(): string {
+    return raw("PPA_EREPUTATION_URL") || "https://ereputation.w3ds.metastate.foundation";
+}
+
 export function awarenessUrl(): string {
     return raw("AWARENESS_SERVICE_URL") || "http://localhost:4100";
 }

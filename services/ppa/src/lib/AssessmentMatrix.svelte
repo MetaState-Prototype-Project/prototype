@@ -150,13 +150,6 @@
                     {/if}
                 </legend>
 
-                {#if dimension.unverified}
-                    <p class="mt-1 text-xs text-caution">
-                        Nothing in the ecosystem can verify this yet — recorded as
-                        your assertion.
-                    </p>
-                {/if}
-
                 <div class="mt-3 space-y-1.5">
                     {#each dimension.options as option, index (option.label)}
                         <label

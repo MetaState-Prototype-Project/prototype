@@ -85,7 +85,6 @@ export interface AssessmentDimension {
     answer: string;
     level: number;
     source: "derived" | "reviewer";
-    unverified?: boolean;
     note?: string | null;
 }
 
