@@ -26,6 +26,10 @@
     },
     "dependencies": {
         "@metastate-foundation/auth": "workspace:*",
-        "jose": "^5.2.2"
+        "jose": "^5.2.2",
+        "svelte-qrcode": "^1.0.1",
+        "dotenv": "^16.4.5",
+        "graphql-request": "^7.3.1",
+        "signature-validator": "workspace:*"
     }
 }

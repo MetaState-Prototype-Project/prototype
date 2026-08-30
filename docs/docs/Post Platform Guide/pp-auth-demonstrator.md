@@ -4,41 +4,48 @@ sidebar_position: 9
 
 # PP Auth demonstrator
 
-A running demonstration of platform authentication and domain separation. Two platforms, one vault, and every attempt to reach data shown with the reason it succeeded or failed.
+Shows platform authentication and domain separation against the live network: real platforms, real certificates from the association, real deployments, and your own eVault.
 
 ```bash
 pnpm --filter pp-auth-demo dev
 ```
 
-Then open **http://localhost:4310**. Nothing else needs to be running — no database, no registry, no eVault.
+Then open **http://localhost:4310** and sign in with your wallet. It needs `PPA_AWARENESS_API_KEY` (or `AWARENESS_API_KEY`) to see the network, and `PUBLIC_REGISTRY_URL` to resolve eVaults.
 
-## What it shows
+Nothing is seeded. If the platforms page is empty, nothing has been deployed or certified yet — which is a true statement about the network rather than a failure of the app.
 
-**Chatterbox** is a social platform, certified L3 for `social` and `communication`. **Ledgerly** handles money, certified L4 for `finance`. Both are live, both will try to reach everything in the vault.
+## Platforms
 
-Point either one at a domain it was not certified for and it is refused — with a sentence saying so, not a status code. The refusal does not come from a list of platform names: it comes from the certificate the deployment presented, which does not name that domain and cannot be made to.
+Every platform with a deployment or a certification decision, read live. Under each are the deployments actually running it, with the release and commit they were built from.
 
-**Your terms** sets the owner's side: the minimum level, whose reputation scores count and what score they must reach, and any domain refused outright. Signing produces a real signature over a real statement, which is verified before it takes effect. Raise the bar to L4 and Chatterbox stops being allowed anything; require a reputation of 50 and Ledgerly does, on the scores the demo's engine reports.
+**Check it** verifies that deployment's chain of trust, from scratch, against records anyone can read:
 
-**Try to cheat** is where the mechanism is visible. Each edit breaks exactly one link:
-
-| Edit | Fails at |
+| Link | Where the evidence comes from |
 |---|---|
-| Present a different public key — paste your own | Possession |
-| Widen its own authorisation | Deployment authorised |
-| Borrow the other platform's version document | Bundle integrity |
-| Point at a different release | Version identity |
-| Borrow the other platform's certificate | Accreditation |
+| Possession | the deployment itself — see below |
+| Deployment authorised | the wallet signature on the deployment's key document, resolved through the registry |
+| Bundle integrity | the hashes covered by that same signature |
+| Version identity | UUIDv5 arithmetic over the platform eName and version |
+| Release authorship | the release proof in the platform's own profile, and its registry key-binding certificate |
+| Accreditation | the association's ES256 certificate for that exact version |
 
-The chain trace re-runs on every attempt, so you can watch a link go red and read why.
+Five of the six are checked by reading. **Possession is not** — the deployment's private key never leaves the deployment, so a reader cannot answer a challenge on its behalf. That link reports "not attempted" rather than pretending it failed a check that was never made.
 
-## What is real and what is not
+If you hold the key — because you are the person who made that deployment — paste it and the challenge is signed for real. It is kept in memory for that process only: never written to disk, never logged, gone on restart. A wrong key produces a genuine signature that genuinely fails.
 
-The signatures are real — P-256 and ES256, verified by exactly the same code that verifies a live deployment. The tampering really does fail, for the reason shown.
+## Your data
 
-What is simulated is who holds the keys. The deployer's wallet, the registry and the association are stood in for by keys generated in the demo process, so it runs on its own. A chain that verifies here proves the mechanism works. It proves nothing about any particular platform, which is what the real roots are for.
+Your own eVault records, grouped by the domain each schema declares. That grouping is what a certificate is written against, so it is also what decides who sees what.
 
-The minting facility lives at `@metastate-foundation/auth/platform/scenario`, deliberately behind a separate entry point so it cannot be reached by accident from code that verifies real deployments.
+The table shows every certified platform against every kind of data you hold, decided by the real certificate's domains and your real signed terms, using the same `authorize` an eVault would call. A platform certified for `social`, `finance` and `media` is allowed those and refused everything else — with the reason spelled out. It cannot reach your messages or your files, and nothing it presents will change that.
+
+## Your terms
+
+The association says what a platform was found to be; you decide what that is worth. Set the minimum level, whose reputation scores you accept and the score they must reach, and any domain refused outright.
+
+Signing goes to your wallet. The signing session id **is** the canonical payload of the statement, so what the wallet signs is exactly the digest of your terms — the signature then verifies against the statement on its own, without anyone trusting this app. The terms are published into your own eVault as an `Access Policy` record, world-readable, and the signature is checked again before the write.
+
+Your terms can only narrow a certificate, never widen it. Permitting `finance` does not let a platform reach finance data it was not certified for.
 
 ## See also
 
