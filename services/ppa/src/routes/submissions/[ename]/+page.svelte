@@ -5,6 +5,7 @@
     import ReviewThread from "$lib/ReviewThread.svelte";
     import AssessmentMatrix from "$lib/AssessmentMatrix.svelte";
     import IdentityPanel from "$lib/IdentityPanel.svelte";
+    import AssessmentResult from "$lib/AssessmentResult.svelte";
     import {
         computeLevel,
         type AccessLevel,
@@ -23,6 +24,7 @@
     let answers = $state<DimensionAnswer[]>([]);
     let assessmentOpen = $state(false);
     let overrideReason = $state("");
+    let overrideOpen = $state(false);
 
     let computed = $derived(
         computeLevel(data.framework, answers, data.minimumIal),
@@ -124,6 +126,12 @@
                     bind:answers
                 />
 
+                <AssessmentResult
+                    framework={data.framework}
+                    result={computed}
+                    minimumIal={data.minimumIal}
+                />
+
                 <section class="card p-6">
                     <h2 class="text-sm font-semibold text-ink">Issue a decision</h2>
                     <p class="mt-1 text-xs text-muted">
@@ -174,14 +182,29 @@
             </div>
 
             {#if decision === "granted"}
-                <fieldset>
-                    <legend class="text-xs text-faint">
-                        Access level
+                <div>
+                    <p class="text-xs text-faint">Level to award</p>
+                    <p class="mt-1 flex items-baseline gap-2">
+                        <span class="text-2xl font-semibold text-ink">{level}</span>
                         {#if isOverride}
-                            <span class="text-caution">— overriding the assessment</span>
+                            <span class="text-xs text-caution">
+                                overriding {computed.level ?? "no level"}
+                            </span>
+                        {:else}
+                            <span class="text-xs text-muted">as calculated</span>
                         {/if}
-                    </legend>
-                    <div class="mt-2 grid grid-cols-5 gap-1.5">
+                    </p>
+                    <input type="hidden" name="level" value={level} />
+                </div>
+
+                <!-- Overriding stays available but deliberate: closed unless the
+                     reviewer goes looking for it. -->
+                <details class="rounded-2xl border border-line px-4 py-3">
+                    <summary class="cursor-pointer text-xs text-muted select-none hover:text-ink">
+                        Award a different level
+                    </summary>
+
+                    <div class="mt-3 grid grid-cols-6 gap-1.5">
                         {#each ACCESS_LEVELS as option (option)}
                             <label
                                 class="cursor-pointer rounded-xl border py-2 text-center text-sm font-semibold transition-colors
@@ -191,16 +214,33 @@
                             >
                                 <input
                                     type="radio"
-                                    name="level"
+                                    name="levelChoice"
                                     value={option}
-                                    bind:group={level}
+                                    checked={level === option}
+                                    onchange={() => {
+                                        level = option;
+                                        followComputed = false;
+                                    }}
                                     class="sr-only"
                                 />
                                 {option}
                             </label>
                         {/each}
                     </div>
-                </fieldset>
+
+                    {#if isOverride}
+                        <button
+                            type="button"
+                            class="mt-2 text-xs text-brand hover:underline"
+                            onclick={() => {
+                                followComputed = true;
+                                if (computed.level) level = computed.level;
+                            }}
+                        >
+                            Back to the calculated level
+                        </button>
+                    {/if}
+                </details>
             {/if}
 
             {#if decision === "granted"}

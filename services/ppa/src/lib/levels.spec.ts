@@ -39,14 +39,39 @@ describe("computeLevel", () => {
         expect(computeLevel(framework, allAt(0), "IAL2").level).toBe("L0");
     });
 
-    it("is pinned by the weakest dimension, not the average", () => {
+    it("lets one weak dimension drag the result without pinning it", () => {
         const answers = [
             ...allAt(5).filter((a) => a.id !== "code-review"),
             pick("code-review", 1),
         ];
         const result = computeLevel(framework, answers, "IAL4");
-        expect(result.level).toBe("L1");
+        // Geometric mean of fifteen 5s and a single 1 — well below 5, but not
+        // dragged all the way down to it the way a strict minimum would.
+        expect(result.score).toBeGreaterThan(1);
+        expect(result.score).toBeLessThan(5);
+        expect(result.level).toBe("L4");
         expect(result.limiting).toBe("code-review");
+    });
+
+    it("punishes a weakness far harder than an arithmetic mean would", () => {
+        const answers = [
+            ...allAt(5).filter((a) => a.id !== "code-review"),
+            pick("code-review", 1),
+        ];
+        const { score } = computeLevel(framework, answers, "IAL4");
+        const arithmetic =
+            (5 * (framework.dimensions.length - 1) + 1) / framework.dimensions.length;
+        expect(score).toBeLessThan(arithmetic);
+    });
+
+    it("holds the release at L0 when any dimension meets nothing above it", () => {
+        const answers = [
+            ...allAt(5).filter((a) => a.id !== "functional-review"),
+            pick("functional-review", 0),
+        ];
+        const result = computeLevel(framework, answers, "IAL4");
+        expect(result.score).toBe(0);
+        expect(result.level).toBe("L0");
     });
 
     it("caps at the identity floor even when every dimension is perfect", () => {
@@ -64,6 +89,7 @@ describe("computeLevel", () => {
         const answers = allAt(5).filter((a) => a.id !== "interview");
         const result = computeLevel(framework, answers, "IAL4");
         expect(result.level).toBeNull();
+        expect(result.blocked).toBe(true);
         expect(result.limiting).toBe("interview");
     });
 

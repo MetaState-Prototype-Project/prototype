@@ -76,23 +76,32 @@ export interface DimensionAnswer {
 
 export interface ComputedLevel {
     level: AccessLevel | null;
-    /** Dimension id that held the level down, or "identity" for the IAL floor. */
+    /** The geometric mean itself, before flooring — shown in the calculation. */
+    score: number;
+    /** Weakest dimension, or "identity" when the IAL floor is what capped it. */
     limiting: string | null;
+    /** True when a dimension fails outright, so no level can be awarded. */
+    blocked: boolean;
     /** Per-dimension satisfied level, for display. */
     perDimension: { id: string; level: number }[];
 }
 
 /**
- * The level a set of answers supports.
+ * The level a set of answers supports: the geometric mean of the per-dimension
+ * levels, floored.
  *
- * The framework is explicit that "a strong result in one dimension does not
- * erase a weakness in another", so this is the minimum across dimensions —
- * never an average and never the best row. The identity floor caps it
- * separately: L0 needs IAL2, L1–L2 need IAL3, L3–L5 need IAL4, so the weakest
- * accountable actor can pull the whole release down.
+ * A geometric mean keeps the framework's point that "a strong result in one
+ * dimension does not erase a weakness in another" — a low row drags the result
+ * far more than an arithmetic mean would, and a row at zero takes the whole
+ * product to zero — without letting one middling row pin an otherwise strong
+ * release to its own value the way a strict minimum did.
  *
- * Returns null when nothing is supportable — an unanswered dimension, an
- * answer that fails even L0, or an anonymous responsible party.
+ * The identity floor is applied afterwards as a hard cap, because the framework
+ * states it as a requirement rather than a contribution: L0 needs IAL2, L1–L2
+ * need IAL3, L3–L5 need IAL4.
+ *
+ * Returns null when nothing is supportable — an unanswered dimension, an answer
+ * that fails outright, or an anonymous responsible party.
  */
 export function computeLevel(
     framework: Framework,
@@ -102,8 +111,9 @@ export function computeLevel(
     const byId = new Map(answers.map((a) => [a.id, a]));
     const perDimension: { id: string; level: number }[] = [];
 
-    let lowest = ACCESS_LEVELS.length - 1;
+    let lowest = Number.POSITIVE_INFINITY;
     let limiting: string | null = null;
+    let blocked = false;
 
     for (const dimension of framework.dimensions) {
         const answer = byId.get(dimension.id);
@@ -116,7 +126,28 @@ export function computeLevel(
             lowest = satisfied;
             limiting = dimension.id;
         }
+        if (satisfied < 0) blocked = true;
     }
+
+    if (blocked || perDimension.length === 0) {
+        return { level: null, score: 0, limiting, blocked: true, perDimension };
+    }
+
+    // Geometric mean. A single zero takes the product to zero, which is the
+    // intended behaviour: a dimension that meets nothing above L0 holds the
+    // whole release at L0.
+    const product = perDimension.reduce((acc, d) => acc * d.level, 1);
+    const score =
+        product === 0
+            ? 0
+            : Math.exp(
+                  perDimension.reduce((acc, d) => acc + Math.log(d.level), 0) /
+                      perDimension.length,
+              );
+
+    // exp(mean(ln 5)) lands a hair under 5, so floor alone would award L4 for a
+    // flawless assessment. Nudge past the float error before flooring.
+    let index = Math.floor(score + 1e-9);
 
     // The identity floor: the highest level whose required IAL is met.
     let identityCap = -1;
@@ -127,10 +158,16 @@ export function computeLevel(
             break;
         }
     }
-    if (identityCap < lowest) {
-        lowest = identityCap;
+    if (identityCap < index) {
+        index = identityCap;
         limiting = "identity";
     }
 
-    return { level: levelFromIndex(lowest), limiting, perDimension };
+    return {
+        level: levelFromIndex(index),
+        score,
+        limiting,
+        blocked: false,
+        perDimension,
+    };
 }
