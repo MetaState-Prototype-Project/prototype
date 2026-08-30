@@ -6,7 +6,7 @@
  * version that judged it.
  */
 
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import type { ActorIdentity } from "./identity";
 import type { Submission } from "./ontology";
@@ -14,15 +14,34 @@ import type { ReputationEvidence } from "./reputation";
 import type { Framework, IdentityLevel } from "$lib/levels";
 
 const CACHE = Symbol.for("ppa.framework");
-const store = globalThis as typeof globalThis & { [CACHE]?: Framework };
+const store = globalThis as typeof globalThis & {
+    [CACHE]?: { mtimeMs: number; framework: Framework };
+};
 
+/**
+ * Reloads when the file changes rather than caching for the life of the
+ * process. This is editable policy, and a cache that outlives an edit means a
+ * reviewer changes the matrix, sees no difference, and has no way to tell
+ * whether the file or the app is wrong.
+ */
 export async function loadFramework(): Promise<Framework> {
-    if (store[CACHE]) return store[CACHE];
     // cwd is services/ppa under both `vite dev` and `node build/index.js`.
     const file = path.resolve(process.cwd(), "config/certification-framework.json");
-    const framework = JSON.parse(await readFile(file, "utf8")) as Framework;
-    store[CACHE] = framework;
-    return framework;
+    const cached = store[CACHE];
+    try {
+        const { mtimeMs } = await stat(file);
+        if (cached && cached.mtimeMs === mtimeMs) return cached.framework;
+        const framework = JSON.parse(await readFile(file, "utf8")) as Framework;
+        store[CACHE] = { mtimeMs, framework };
+        return framework;
+    } catch (error) {
+        // An unreadable file must not blank the matrix mid-review.
+        if (cached) {
+            console.error("[ppa/framework] could not reload the matrix:", error);
+            return cached.framework;
+        }
+        throw error;
+    }
 }
 
 /** Index of the option carrying a given level, for building derived answers. */
