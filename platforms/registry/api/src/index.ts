@@ -7,6 +7,7 @@ import { generateEntropy, generatePlatformToken, generateKeyBindingCertificate, 
 import { UriResolutionService } from "./services/UriResolutionService";
 import { VaultService } from "./services/VaultService";
 import { SoftwareVersionService, SoftwareVersionConflictError, softwareVersionEName } from "./services/SoftwareVersionService";
+import { PlatformManagementService, PlatformManagementConflictError } from "./services/PlatformManagementService";
 
 import fs from "node:fs";
 
@@ -56,6 +57,7 @@ const initializeDatabase = async () => {
 // Initialize VaultService
 const vaultService = new VaultService(AppDataSource.getRepository("Vault"));
 const softwareVersionService = new SoftwareVersionService(AppDataSource.getRepository("SoftwareVersion"));
+const platformManagementService = new PlatformManagementService(AppDataSource.getRepository("PlatformManagement"));
 
 // Initialize UriResolutionService (simplified for multi-tenant architecture)
 const uriResolutionService = new UriResolutionService();
@@ -187,6 +189,61 @@ server.post("/platforms/certification", async (request, reply) => {
         reply.status(500).send({ error: "Failed to generate platform token" });
     }
 });
+
+server.post(
+    "/platforms/migrations/inspect-token",
+    { preHandler: checkSharedSecret },
+    async (request, reply) => {
+        try {
+            const { token } = request.body as { token?: string };
+            if (!token) return reply.status(400).send({ error: "token is required" });
+            return await platformManagementService.inspectLegacyToken(token);
+        } catch (error) {
+            return reply.status(401).send({ error: error instanceof Error ? error.message : "Invalid platform token" });
+        }
+    },
+);
+
+server.post(
+    "/platforms/migrations/activate",
+    { preHandler: checkSharedSecret },
+    async (request, reply) => {
+        try {
+            const input = request.body as { ename?: string; manager?: string; profileEnvelopeId?: string; legacyToken?: string };
+            if (!input.ename || !input.manager || !input.profileEnvelopeId || !input.legacyToken) {
+                return reply.status(400).send({ error: "ename, manager, profileEnvelopeId, and legacyToken are required" });
+            }
+            return await platformManagementService.transfer(input as Required<typeof input>);
+        } catch (error) {
+            if (error instanceof PlatformManagementConflictError) return reply.status(409).send({ error: error.message });
+            return reply.status(401).send({ error: error instanceof Error ? error.message : "Migration activation failed" });
+        }
+    },
+);
+
+server.post(
+    "/platforms/management/token",
+    { preHandler: checkSharedSecret },
+    async (request, reply) => {
+        try {
+            const { ename, manager } = request.body as { ename?: string; manager?: string };
+            if (!ename || !manager) return reply.status(400).send({ error: "ename and manager are required" });
+            return { token: await platformManagementService.managerToken(ename, manager) };
+        } catch (error) {
+            return reply.status(403).send({ error: error instanceof Error ? error.message : "Manager token denied" });
+        }
+    },
+);
+
+server.post(
+    "/platforms/management/authorize-profile-write",
+    { preHandler: checkSharedSecret },
+    async (request, reply) => {
+        const input = request.body as { ename?: string; ontology?: string; envelopeId?: string; token?: string };
+        if (!input.ename || !input.ontology) return reply.status(400).send({ error: "ename and ontology are required" });
+        return platformManagementService.authorizeProfileWrite(input as Required<Pick<typeof input, "ename" | "ontology">> & typeof input);
+    },
+);
 
 // Generate key binding certificate (JWT binding ename and publicKey)
 server.post(
