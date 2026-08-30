@@ -188,3 +188,44 @@ export function signatureCandidates(value: string): Uint8Array[] {
 export function toArrayBuffer(value: Uint8Array): ArrayBuffer {
 	return Uint8Array.from(value).buffer;
 }
+
+/**
+ * Rebuilds a release submission statement in the field order GitW3's Go struct
+ * serialises, which is what the author's wallet actually signed.
+ *
+ * This is not cosmetic and not sortable. The digest is taken over
+ * `JSON.stringify` of the statement, so the order of the keys *is* the
+ * signature. A statement that has been through a JSON parse, an eVault, and the
+ * awareness fanout comes back with its keys in whatever order those hops chose,
+ * and hashing that order produces a digest matching nothing. Verified against
+ * live congo-basin proofs: struct order matches, wire order and sorted order
+ * both fail.
+ */
+export function canonicalSubmissionStatement(
+	raw: Record<string, unknown>,
+): string {
+	const statement: Record<string, unknown> = {
+		type: raw.type,
+		schemaVersion: raw.schemaVersion,
+		repositoryId: raw.repositoryId,
+		repository: raw.repository,
+		platformEName: raw.platformEName,
+		platformName: raw.platformName,
+		releaseTag: raw.releaseTag,
+		version: raw.version,
+		manifestCommitId: raw.manifestCommitId,
+		domains: raw.domains,
+		signerEName: raw.signerEName,
+		issuedAt: raw.issuedAt,
+		nonce: raw.nonce,
+	};
+	// Optional trailing fields, present only on a resubmission after refusal.
+	if (raw.previousDecision) {
+		statement.previousDecision = raw.previousDecision;
+		statement.previousDecisionAt = raw.previousDecisionAt;
+	}
+	if (raw.responseToDecision) {
+		statement.responseToDecision = raw.responseToDecision;
+	}
+	return JSON.stringify(statement);
+}

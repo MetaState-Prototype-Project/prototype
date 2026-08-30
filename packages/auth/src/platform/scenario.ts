@@ -17,7 +17,11 @@
 import { randomUUID } from "node:crypto";
 import { SignJWT, exportJWK, generateKeyPair as generateJwkPair } from "jose";
 import type { JWK, KeyLike } from "jose";
-import { bindingDocumentHash, sha256Base64Url } from "./bytes.js";
+import {
+	bindingDocumentHash,
+	canonicalSubmissionStatement,
+	sha256Base64Url,
+} from "./bytes.js";
 import { softwareVersionEName } from "./chain.js";
 import { generateKeyPair, signP256, verifyP256 } from "./p256.js";
 import type {
@@ -190,7 +194,11 @@ export async function mintDeployment(
 		issuedAt: timestamp,
 		nonce: randomUUID(),
 	};
-	const payload = SUBMISSION_PREFIX + sha256Base64Url(JSON.stringify(statement));
+	const payload =
+		SUBMISSION_PREFIX +
+		sha256Base64Url(
+			canonicalSubmissionStatement(statement as unknown as Record<string, unknown>),
+		);
 	const keyBindingCertificate = await new SignJWT({
 		ename: roots.wallet.ename,
 		publicKey: roots.wallet.publicKey,

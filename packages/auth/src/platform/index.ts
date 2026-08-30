@@ -1,5 +1,6 @@
 export {
 	bindingDocumentHash,
+	canonicalSubmissionStatement,
 	decodeBase58,
 	decodePublicKey,
 	derSignatureToRaw,

@@ -22,6 +22,7 @@ import { createHash } from "node:crypto";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import {
 	bindingDocumentHash,
+	canonicalSubmissionStatement,
 	sha256Base64Url,
 	stableStringify,
 } from "./bytes.js";
@@ -340,7 +341,12 @@ export async function verifyDeploymentChain(
 	let authorshipDetail = "The release carried no submission proof.";
 	if (proof?.statement) {
 		const canonical =
-			SUBMISSION_PREFIX + sha256Base64Url(JSON.stringify(proof.statement));
+			SUBMISSION_PREFIX +
+			sha256Base64Url(
+				canonicalSubmissionStatement(
+					proof.statement as unknown as Record<string, unknown>,
+				),
+			);
 		if (proof.payload !== canonical) {
 			authorshipDetail = "The signed payload does not match the statement.";
 		} else if (proof.statement.platformEName !== evidence.platformEname) {
