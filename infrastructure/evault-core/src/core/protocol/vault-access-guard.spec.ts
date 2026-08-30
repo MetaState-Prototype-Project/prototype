@@ -53,6 +53,56 @@ describe("VaultAccessGuard", () => {
                 keys: [{ ...testJWK, d: undefined }], // Public key only
             },
         });
+        mockedAxios.post.mockResolvedValue({ data: { managed: false, allowed: true } });
+        process.env.REGISTRY_SHARED_SECRET = "registry-secret";
+    });
+
+    describe("managed PlatformProfile writes", () => {
+        const profileInput = {
+            ontology: "550e8400-e29b-41d4-a716-446655440000",
+            payload: { platformName: "example" },
+            acl: ["*"],
+        };
+
+        it("rejects a revoked legacy token before the resolver runs", async () => {
+            mockedAxios.post.mockResolvedValue({
+                data: { managed: true, allowed: false, reason: "The legacy platform token was revoked during migration" },
+            });
+            const resolver = vi.fn(async () => ({ id: "profile" }));
+            const wrapped = guard.middleware(resolver);
+            const context = createMockContext({
+                eName: "@platform",
+                request: { headers: new Headers({ authorization: "Bearer legacy-token" }) } as any,
+            });
+
+            await expect(wrapped(null, { id: "profile-1", input: profileInput }, context)).rejects.toThrow("revoked during migration");
+            expect(resolver).not.toHaveBeenCalled();
+        });
+
+        it("allows the active manager token at the original envelope", async () => {
+            mockedAxios.post.mockResolvedValue({ data: { managed: true, allowed: true } });
+            const resolver = vi.fn(async () => ({ id: "profile" }));
+            const wrapped = guard.middleware(resolver);
+            const managerToken = await createValidToken({
+                platform: "manager-a",
+                kind: "platform-manager",
+                managedEname: "@platform",
+                manager: "manager-a",
+            });
+            const context = createMockContext({
+                eName: "@platform",
+                request: { headers: new Headers({ authorization: `Bearer ${managerToken}` }) } as any,
+            });
+            mockedAxios.get.mockResolvedValue({ data: { keys: [{ ...testJWK, d: undefined }] } });
+
+            await wrapped(null, { id: "profile-1", input: profileInput }, context);
+            expect(mockedAxios.post).toHaveBeenCalledWith(
+                "http://localhost:4322/platforms/management/authorize-profile-write",
+                expect.objectContaining({ ename: "@platform", envelopeId: "profile-1", token: managerToken }),
+                expect.anything(),
+            );
+            expect(resolver).toHaveBeenCalledOnce();
+        });
     });
 
     const createMockContext = (overrides: Partial<VaultContext> = {}): VaultContext => {
@@ -887,4 +937,3 @@ describe("VaultAccessGuard", () => {
         });
     });
 });
-
