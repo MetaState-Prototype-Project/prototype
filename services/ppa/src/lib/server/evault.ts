@@ -18,6 +18,23 @@ import {
     PLATFORM_ACCREDITATION_ONTOLOGY,
 } from "./ontology";
 
+const BINDING_DOCUMENTS_QUERY = gql`
+    query GetBindingDocuments($first: Int!, $after: String) {
+        bindingDocuments(first: $first, after: $after) {
+            edges {
+                node {
+                    id
+                    parsed
+                }
+            }
+            pageInfo {
+                hasNextPage
+                endCursor
+            }
+        }
+    }
+`;
+
 const CREATE_META_ENVELOPE = gql`
     mutation CreateMetaEnvelope($input: MetaEnvelopeInput!) {
         createMetaEnvelope(input: $input) {
@@ -31,6 +48,23 @@ const CREATE_META_ENVELOPE = gql`
         }
     }
 `;
+
+export interface BindingDocument {
+    id: string;
+    subject: string;
+    type: string;
+    data: Record<string, unknown>;
+    signatures: Array<{ signer: string; signature: string; timestamp: string }>;
+}
+
+interface BindingDocumentsResponse {
+    bindingDocuments: {
+        edges: Array<{
+            node: { id: string; parsed: Record<string, unknown> | null };
+        }>;
+        pageInfo: { hasNextPage: boolean; endCursor: string | null };
+    };
+}
 
 interface CreateResponse {
     createMetaEnvelope: {
@@ -81,6 +115,67 @@ async function resolveEVaultUrl(ename: string): Promise<string> {
     if (!resolved) throw new Error(`Registry did not resolve ${ename}`);
     evaultUrls.set(ename, resolved);
     return resolved;
+}
+
+/**
+ * Every binding document held by one eName — the identity evidence behind an
+ * accountable actor. Reads need a platform token because a person's binding
+ * documents are ACL'd to them; deployment documents are the only public ones.
+ *
+ * Mirrors platforms/enotary/src/lib/server/evault.ts, which reads the same
+ * documents to name the counterparty of a social connection.
+ */
+export async function fetchBindingDocuments(
+    ename: string,
+): Promise<BindingDocument[]> {
+    const normalized = normalizeEName(ename);
+    const [baseUrl, token] = await Promise.all([
+        resolveEVaultUrl(normalized),
+        getPlatformToken(),
+    ]);
+
+    const client = new GraphQLClient(new URL("/graphql", baseUrl).toString(), {
+        headers: { Authorization: `Bearer ${token}`, "X-ENAME": normalized },
+    });
+
+    const out: BindingDocument[] = [];
+    let after: string | null = null;
+    do {
+        const res: BindingDocumentsResponse =
+            await client.request<BindingDocumentsResponse>(
+                BINDING_DOCUMENTS_QUERY,
+                { first: 100, after: after ?? undefined },
+            );
+        for (const edge of res.bindingDocuments.edges) {
+            const parsed = edge.node.parsed;
+            if (!parsed || typeof parsed !== "object") continue;
+            const { subject, type, data, signatures } = parsed as Record<
+                string,
+                unknown
+            >;
+            if (
+                typeof subject !== "string" ||
+                typeof type !== "string" ||
+                typeof data !== "object" ||
+                data === null ||
+                !Array.isArray(signatures)
+            ) {
+                continue;
+            }
+            out.push({
+                id: edge.node.id,
+                subject,
+                type,
+                data: data as Record<string, unknown>,
+                signatures: signatures as BindingDocument["signatures"],
+            });
+        }
+        after = res.bindingDocuments.pageInfo.hasNextPage
+            ? res.bindingDocuments.pageInfo.endCursor
+            : null;
+    } while (after !== null);
+
+    return out;
 }
 
 /**
