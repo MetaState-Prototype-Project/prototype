@@ -2,32 +2,35 @@
     import ChainTrace from "./ChainTrace.svelte";
     import type { ChainResult } from "@metastate-foundation/auth/platform";
 
+    interface DomainGrant {
+        domain: string;
+        label: string;
+        /** Whether the association certified this platform for this domain. */
+        certified: boolean;
+        read: boolean;
+        write: boolean;
+        revoked: boolean;
+    }
+
     let {
+        platformEname,
         deployments,
-        domains,
+        grants,
+        onchange,
     }: {
+        platformEname: string;
         deployments: Array<{ ename: string; name: string; environment: string; keyHeld: boolean }>;
-        domains: Array<{ domain: string; label: string }>;
+        grants: DomainGrant[];
+        onchange: () => Promise<void>;
     } = $props();
 
     let deploymentEname = $state("");
     let domain = $state("");
     let operation = $state<"read" | "write">("read");
-
-    // Keep the selection valid as the lists change underneath it. Holding a
-    // stale eName would send the request against something no longer listed.
-    $effect(() => {
-        if (!deployments.some((entry) => entry.ename === deploymentEname)) {
-            deploymentEname = deployments[0]?.ename ?? "";
-        }
-    });
-    $effect(() => {
-        if (!domains.some((entry) => entry.domain === domain)) {
-            domain = domains[0]?.domain ?? "";
-        }
-    });
+    let text = $state("");
 
     let busy = $state(false);
+    let saving = $state(false);
     let chain = $state<ChainResult | null>(null);
     let decision = $state<{ allowed: boolean; reason: string; code: string } | null>(null);
     let stage = $state<string | null>(null);
@@ -35,7 +38,57 @@
     let records = $state<Array<{ id: string; kind: string; summary: string }> | null>(null);
     let wrote = $state<{ id: string; kind: string } | null>(null);
     let note = $state<string | null>(null);
-    let text = $state("");
+
+    // Keep selections valid as the lists change underneath them.
+    $effect(() => {
+        if (!deployments.some((entry) => entry.ename === deploymentEname)) {
+            deploymentEname = deployments[0]?.ename ?? "";
+        }
+    });
+    $effect(() => {
+        if (!grants.some((entry) => entry.domain === domain)) {
+            domain = grants.find((entry) => entry.certified)?.domain ?? grants[0]?.domain ?? "";
+        }
+    });
+
+    let held = $derived(deployments.find((d) => d.ename === deploymentEname)?.keyHeld ?? false);
+    let selected = $derived(grants.find((entry) => entry.domain === domain) ?? null);
+
+    function clear() {
+        chain = null;
+        decision = null;
+        stage = null;
+        records = null;
+        wrote = null;
+        note = null;
+    }
+
+    async function permit(which: "read" | "write") {
+        if (!selected) return;
+        const next = {
+            read: selected.read,
+            write: selected.write,
+            [which]: !selected[which],
+        };
+        saving = true;
+        try {
+            await fetch("/api/grants", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    platformEname,
+                    domain,
+                    operations: [
+                        ...(next.read ? ["read"] : []),
+                        ...(next.write ? ["write"] : []),
+                    ],
+                }),
+            });
+            await onchange();
+        } finally {
+            saving = false;
+        }
+    }
 
     async function send() {
         busy = true;
@@ -58,8 +111,6 @@
             busy = false;
         }
     }
-
-    let held = $derived(deployments.find((d) => d.ename === deploymentEname)?.keyHeld ?? false);
 </script>
 
 <div class="space-y-4 rounded-2xl bg-canvas p-4">
@@ -68,7 +119,7 @@
     <div class="grid gap-3 sm:grid-cols-3">
         <label class="space-y-1">
             <span class="text-xs text-muted">From</span>
-            <select class="field" bind:value={deploymentEname}>
+            <select class="field" bind:value={deploymentEname} onchange={clear}>
                 {#each deployments as deployment (deployment.ename)}
                     <option value={deployment.ename}>
                         {deployment.name} · {deployment.environment}
@@ -78,20 +129,58 @@
         </label>
         <label class="space-y-1">
             <span class="text-xs text-muted">Wants to</span>
-            <select class="field" bind:value={operation}>
+            <select class="field" bind:value={operation} onchange={clear}>
                 <option value="read">read</option>
                 <option value="write">write to</option>
             </select>
         </label>
         <label class="space-y-1">
             <span class="text-xs text-muted">Your</span>
-            <select class="field" bind:value={domain}>
-                {#each domains as entry (entry.domain)}
-                    <option value={entry.domain}>{entry.label}</option>
+            <select class="field" bind:value={domain} onchange={clear}>
+                {#each grants as entry (entry.domain)}
+                    <option value={entry.domain}>
+                        {entry.label}{entry.certified ? "" : " — not certified"}
+                    </option>
                 {/each}
             </select>
         </label>
     </div>
+
+    {#if selected}
+        <div class="flex flex-wrap items-center gap-4 rounded-2xl border border-line bg-surface px-4 py-3">
+            {#if selected.certified}
+                <span class="text-xs text-muted">You permit it to</span>
+                <label class="flex items-center gap-2 text-sm">
+                    <input
+                        type="checkbox"
+                        checked={selected.read}
+                        disabled={saving}
+                        onchange={() => permit("read")}
+                    />
+                    read
+                </label>
+                <label class="flex items-center gap-2 text-sm">
+                    <input
+                        type="checkbox"
+                        checked={selected.write}
+                        disabled={saving}
+                        onchange={() => permit("write")}
+                    />
+                    write
+                </label>
+                {#if !selected.read && !selected.write}
+                    <span class="text-xs text-muted">
+                        {selected.revoked ? "withdrawn" : "nothing yet"}
+                    </span>
+                {/if}
+            {:else}
+                <span class="text-xs text-caution">
+                    Not certified for {selected.label.toLowerCase()} data, so there is
+                    nothing to permit — this is refused before permissions are consulted.
+                </span>
+            {/if}
+        </div>
+    {/if}
 
     {#if operation === "write"}
         <label class="block space-y-1">
@@ -138,9 +227,7 @@
                 {wrote ? "Written, and read back from your eVault" : "Pulled from your eVault"}
             </p>
             {#if wrote}
-                <p class="text-xs text-positive">
-                    Stored a new {wrote.kind} record.
-                </p>
+                <p class="text-xs text-positive">Stored a new {wrote.kind} record.</p>
             {/if}
             {#if note}
                 <p class="text-xs text-caution">{note}</p>

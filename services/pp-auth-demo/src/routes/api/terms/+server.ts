@@ -5,6 +5,7 @@ import {
 	type CertificationLevel,
 } from "@metastate-foundation/auth/platform";
 import { randomUUID } from "node:crypto";
+import { reputationEngine } from "$lib/server/env";
 import { prepare } from "$lib/server/policy";
 import { createSigningOffer } from "$lib/server/session";
 import type { RequestHandler } from "./$types";
@@ -26,20 +27,14 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
 	}
 	const strings = (value: unknown): string[] =>
 		Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
-	const minimumReputation =
-		body.minimumReputation === null || body.minimumReputation === ""
-			? null
-			: Number(body.minimumReputation);
-	if (minimumReputation !== null && !Number.isFinite(minimumReputation)) {
-		return json({ error: "The score must be a number" }, { status: 400 });
-	}
 
 	const statement = {
 		...defaultAccessPolicy(ename),
 		minimumLevel: level,
-		reputationEngine:
-			typeof body.reputationEngine === "string" ? body.reputationEngine.trim() : "",
-		minimumReputation,
+		// Named in the statement so it is on the record which service the owner
+		// accepted scores from, even while there is only one to accept.
+		reputationEngine: reputationEngine(),
+		minimumReputation: null,
 		allowedDomains: null,
 		deniedDomains: strings(body.deniedDomains),
 		issuedAt: new Date().toISOString(),
@@ -52,8 +47,7 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
 		{
 			message: "Set the terms platforms must meet to reach your data",
 			minimumLevel: statement.minimumLevel,
-			reputationEngine: statement.reputationEngine || "not used",
-			minimumReputation: statement.minimumReputation ?? "no threshold",
+			reputationFrom: statement.reputationEngine,
 			refused: statement.deniedDomains.length ? statement.deniedDomains : "nothing",
 		},
 		url.origin,

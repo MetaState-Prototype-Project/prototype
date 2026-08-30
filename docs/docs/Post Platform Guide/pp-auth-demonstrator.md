@@ -41,9 +41,11 @@ The table shows every certified platform against every kind of data you hold, de
 
 ## Permissions
 
-Being certified for a kind of data is not permission to do anything with it. This tab is where that is settled: for each certified platform, a read and a write toggle per domain it was certified for. Nothing else is listed, because anything else is refused before permissions are consulted.
+Being certified for a kind of data is not permission to do anything with it. This tab is where that is settled.
 
-Each change writes an `AccessGrant` into your own eVault as a new revision. Clearing both toggles withdraws the grant rather than deleting it, so the record shows access was taken away rather than never given.
+The domain list is the whole published vocabulary, not just what a platform was certified for — the domains it has no business with are listed too, marked as such, because asking for one and watching the certificate refuse it is the case worth seeing.
+
+Read and write are toggled beside the domain you are asking about. Each change writes an `AccessGrant` into your own eVault as a new revision. Clearing both withdraws the grant rather than deleting it, so the record shows access was taken away rather than never given.
 
 **Deployment keys go in here, before you try anything.** Possession is the one link a reader cannot establish by looking, so whether the key is present decides what a check can even mean. Enter it and the deployment can answer a challenge for real; leave it out and every request stops at the handshake, which is the correct outcome.
 
@@ -55,7 +57,7 @@ Turn off write and a write is refused while a read still succeeds; withdraw the 
 
 ## Your terms
 
-The association says what a platform was found to be; you decide what that is worth. Set the minimum level, whose reputation scores you accept and the score they must reach, and any domain refused outright.
+The association says what a platform was found to be; you decide what that is worth. Set the minimum level and any domain refused outright. The reputation service is named in what you sign but is not a choice: there is one on the network today, so asking you to type its address would only be a way to get it wrong.
 
 Signing goes to your wallet. The signing session id **is** the canonical payload of the statement, so what the wallet signs is exactly the digest of your terms — the signature then verifies against the statement on its own, without anyone trusting this app. The terms are published into your own eVault as an `Access Policy` record, world-readable, and the signature is checked again before the write.
 

@@ -5,9 +5,12 @@ import { held } from "$lib/server/keys";
 import type { PageServerLoad } from "./$types";
 
 /**
- * Everything needed to decide, and to see the decision: the certified
- * platforms, the domains they were certified for, and what each has actually
- * been permitted to do.
+ * Everything needed to decide, and to see the decision.
+ *
+ * The domain list is the whole published vocabulary, not just what each
+ * platform was certified for. Offering only the certified ones would hide the
+ * most important case: asking for something a platform has no business with,
+ * and watching the certificate refuse it before permissions are even reached.
  */
 export const load: PageServerLoad = async ({ locals }) => {
 	const ename = locals.user!.ename;
@@ -46,16 +49,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 					version: deployment.version,
 					keyHeld: withKeys.has(deployment.deploymentEname),
 				})),
-				grants: (record.domains ?? []).map((domain) => {
+				grants: domains.map((entry) => {
+					const domain = entry.id;
 					const grant = grants.find(
-						(entry) =>
-							entry.granteeEName === record.platformEName &&
-							entry.resourceType === domain,
+						(held) =>
+							held.granteeEName === record.platformEName &&
+							held.resourceType === domain,
 					);
 					const active = grant && grant.status === "active";
 					return {
 						domain,
-						label: domains.find((d) => d.id === domain)?.label ?? domain,
+						label: entry.label,
+						certified: (record.domains ?? []).includes(domain),
 						read: Boolean(active && grant!.permissions.includes(`${domain}:Read`)),
 						write: Boolean(active && grant!.permissions.includes(`${domain}:Write`)),
 						revoked: Boolean(grant && grant.status === "revoked"),

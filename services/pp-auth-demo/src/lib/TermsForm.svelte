@@ -6,9 +6,11 @@
     let {
         policy,
         domains,
+        reputationEngine,
     }: {
         policy: AccessPolicyStatement;
         domains: Array<{ id: string; label: string }>;
+        reputationEngine: string;
     } = $props();
 
     const LEVELS = [
@@ -26,12 +28,6 @@
     // rather than leaving stale values in the form.
     /* svelte-ignore state_referenced_locally */
     let minimumLevel = $state(policy.minimumLevel);
-    /* svelte-ignore state_referenced_locally */
-    let engine = $state(policy.reputationEngine);
-    /* svelte-ignore state_referenced_locally */
-    let minimumReputation = $state(
-        policy.minimumReputation === null ? "" : String(policy.minimumReputation),
-    );
     /* svelte-ignore state_referenced_locally */
     let denied = $state(new Set(policy.deniedDomains));
 
@@ -65,8 +61,6 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     minimumLevel,
-                    reputationEngine: engine,
-                    minimumReputation: minimumReputation === "" ? null : minimumReputation,
                     deniedDomains: [...denied],
                 }),
             });
@@ -132,27 +126,16 @@
         </div>
     </div>
 
-    <div class="grid gap-4 sm:grid-cols-2">
-        <div class="space-y-2">
-            <label class="text-xs font-semibold tracking-wide text-faint uppercase" for="engine">
-                Whose reputation scores you trust
-            </label>
-            <input id="engine" class="field" bind:value={engine} oninput={() => (done = false)} />
-            <p class="text-xs text-muted">Leave blank to ignore reputation entirely.</p>
-        </div>
-        <div class="space-y-2">
-            <label class="text-xs font-semibold tracking-wide text-faint uppercase" for="score">
-                The score they must reach
-            </label>
-            <input
-                id="score"
-                class="field"
-                inputmode="numeric"
-                bind:value={minimumReputation}
-                oninput={() => (done = false)}
-                placeholder="No threshold"
-            />
-        </div>
+    <div class="space-y-2">
+        <p class="text-xs font-semibold tracking-wide text-faint uppercase">
+            Whose reputation scores you trust
+        </p>
+        <p class="text-sm text-body">{reputationEngine}</p>
+        <p class="text-xs text-muted">
+            The only reputation service on the network today, so there is nothing to
+            choose. It is named in what you sign, so the record says which service you
+            accepted scores from.
+        </p>
     </div>
 
     {#if domains.length > 0}

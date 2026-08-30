@@ -45,6 +45,16 @@ export function ereputationUrl(): string {
 	return raw("PPA_EREPUTATION_URL") || "https://ereputation.w3ds.metastate.foundation";
 }
 
+/**
+ * The reputation service whose scores terms are written against.
+ *
+ * There is exactly one, so asking an owner to type its address is asking them
+ * to get it wrong. When a second exists this becomes a choice again.
+ */
+export function reputationEngine(): string {
+	return new URL(ereputationUrl()).host;
+}
+
 export function jwtSecret(): string {
 	return raw("PP_AUTH_DEMO_JWT_SECRET") || raw("PPA_JWT_SECRET") || "pp-auth-demo-dev-secret";
 }

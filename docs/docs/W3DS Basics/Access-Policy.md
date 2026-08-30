@@ -13,8 +13,8 @@ It is a signed statement rather than a stored setting, so it travels with the ow
 | Term | Meaning |
 |---|---|
 | `minimumLevel` | The weakest certification level they will deal with. A platform certified below it is refused whatever its certificate grants. |
-| `reputationEngine` | Whose reputation scores they accept, as an eName or URL. Blank means reputation is not consulted at all. |
-| `minimumReputation` | The score that engine must report for the platform. Null means no threshold. |
+| `reputationEngine` | Whose reputation scores they accept, as an eName or host. Blank means reputation is not consulted at all. Today the network runs one service, so applications may reasonably fix this rather than ask. |
+| `minimumReputation` | The score that engine must report for the platform. Null means no threshold, which is the common case. |
 | `allowedDomains` | Null means "whatever the certificate grants" — the ordinary case. A list narrows it further. |
 | `deniedDomains` | Refused outright, overriding both the certificate and the allow list. |
 

@@ -28,7 +28,11 @@
     </section>
 
     {#key data.policy.statement.nonce}
-        <TermsForm policy={data.policy.statement} domains={data.domains} />
+        <TermsForm
+            policy={data.policy.statement}
+            domains={data.domains}
+            reputationEngine={data.reputationEngine}
+        />
     {/key}
 
     {#if data.policy.signed}
