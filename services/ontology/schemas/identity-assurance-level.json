@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "b5e7d4f4-3c14-4831-8b97-ce15b5a70b30",
+  "title": "Identity Assurance Level",
+  "domain": "governance",
+  "type": "object",
+  "description": "The identity confidence held for an accountable human actor behind a certified release. Every certification level sets a minimum: L0 requires IAL2, L1–L2 require IAL3, and L3–L5 require IAL4. A wholly anonymous responsible party cannot hold a certified release. This schema is the published list; the permitted values are the oneOf under `id`.",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable identity assurance level id.",
+      "oneOf": [
+        {
+          "const": "IAL1",
+          "title": "IAL1 — anonymous",
+          "description": "No reliable identity information. This level is not sufficient for PPA application certification."
+        },
+        {
+          "const": "IAL2",
+          "title": "IAL2 — attested",
+          "description": "The person’s name and identity are confirmed by at least one already-identified person."
+        },
+        {
+          "const": "IAL3",
+          "title": "IAL3 — passport-verified",
+          "description": "The person is verified against a passport or an equivalent high-confidence eID."
+        },
+        {
+          "const": "IAL4",
+          "title": "IAL4 — passport and independent attestation",
+          "description": "IAL3 plus confirmation of the person’s identity by at least three passport-identified people."
+        }
+      ]
+    },
+    "label": {
+      "type": "string",
+      "description": "Human-readable name."
+    },
+    "description": {
+      "type": "string",
+      "description": "What the level means."
+    }
+  },
+  "required": [
+    "id",
+    "label"
+  ],
+  "additionalProperties": false
+}

@@ -39,6 +39,7 @@
         "null"
       ],
       "enum": [
+        "L0",
         "L1",
         "L2",
         "L3",
@@ -46,7 +47,33 @@
         "L5",
         null
       ],
-      "description": "Access level granted; null when decision is 'denied'"
+      "description": "Access level granted; null when denied. Levels are cumulative and defined by the certification framework."
+    },
+    "computedLevel": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "L0",
+        "L1",
+        "L2",
+        "L3",
+        "L4",
+        "L5",
+        null
+      ],
+      "description": "Level the assessment implied before any reviewer override, so a divergence between judgement and evidence is visible on the certificate itself."
+    },
+    "minimumIal": {
+      "type": "string",
+      "enum": [
+        "IAL1",
+        "IAL2",
+        "IAL3",
+        "IAL4"
+      ],
+      "description": "Weakest identity assurance across the accountable actors at decision time."
     },
     "domains": {
       "type": "array",
@@ -89,6 +116,15 @@
     "submissionEnvelopeId": {
       "type": "string",
       "description": "MetaEnvelope id of the PlatformProfile submission this decision reviewed"
+    },
+    "frameworkVersion": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Version of the certification framework applied."
+    },
+    "assessmentEnvelopeId": {
+      "type": "string",
+      "description": "MetaEnvelope id of the PlatformAssessment holding the findings behind this decision."
     },
     "supersedes": {
       "type": [

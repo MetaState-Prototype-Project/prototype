@@ -1,0 +1,210 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "b0c8cfad-2872-4fb7-9d99-278f257bb922",
+  "title": "Platform Assessment",
+  "domain": "governance",
+  "type": "object",
+  "description": "The findings behind a PPA certification decision for one platform release. The certification level is an aggregate, but the framework requires every assurance dimension to remain separately recorded, so this is the evidence a later eVault or reputation engine can inspect rather than relying on the headline level. Stored in the reviewed platform’s eVault with a public ACL, alongside the PlatformAccreditation that cites it.",
+  "properties": {
+    "assessmentId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable id for this assessment; cited by the accreditation."
+    },
+    "platformEName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "platformVersion": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The release assessed. Assessment is per release, not per application."
+    },
+    "frameworkVersion": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Version of the certification framework applied. Its thresholds are policy parameters and change over time."
+    },
+    "dimensions": {
+      "type": "array",
+      "description": "One entry per assurance dimension in the framework, recorded independently: a strong result in one does not erase a weakness in another.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Dimension id from the framework."
+          },
+          "answer": {
+            "type": "string",
+            "description": "The requirement text selected."
+          },
+          "level": {
+            "type": "integer",
+            "minimum": -1,
+            "maximum": 5,
+            "description": "Highest certification level this answer satisfies; -1 blocks certification."
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "derived",
+              "reviewer"
+            ],
+            "description": "Whether the app derived this from verified evidence or a reviewer asserted it."
+          },
+          "unverified": {
+            "type": "boolean",
+            "description": "True when the answer relies on evidence the ecosystem cannot yet verify, such as eReputation signals."
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "answer",
+          "level",
+          "source"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "actors": {
+      "type": "array",
+      "description": "Every accountable human actor and the identity assurance held for them.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ename": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "type": "string",
+            "description": "author, releaseSigner or deployer."
+          },
+          "ial": {
+            "type": "string",
+            "enum": [
+              "IAL1",
+              "IAL2",
+              "IAL3",
+              "IAL4"
+            ]
+          },
+          "idDocuments": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "attestations": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Social-connection attestations counted."
+          },
+          "verifiedAttesters": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Of those, how many attesters were themselves passport-verified."
+          },
+          "overridden": {
+            "type": "boolean",
+            "description": "True when a reviewer set this IAL by hand rather than accepting the derivation."
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "ename",
+          "role",
+          "ial"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "minimumIal": {
+      "type": "string",
+      "enum": [
+        "IAL1",
+        "IAL2",
+        "IAL3",
+        "IAL4"
+      ],
+      "description": "The weakest actor’s identity assurance, which is what gates the level."
+    },
+    "computedLevel": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "L0",
+        "L1",
+        "L2",
+        "L3",
+        "L4",
+        "L5",
+        null
+      ],
+      "description": "Level implied by the weakest dimension and the identity floor. Null when no level is supportable."
+    },
+    "limitingDimension": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Dimension id that held the computed level down."
+    },
+    "awardedLevel": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "L0",
+        "L1",
+        "L2",
+        "L3",
+        "L4",
+        "L5",
+        null
+      ],
+      "description": "What the reviewer actually awarded. Null on a denial."
+    },
+    "overrideReason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Required whenever awardedLevel differs from computedLevel, so a divergence is always explained."
+    },
+    "reviewedByEName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "assessmentId",
+    "platformEName",
+    "platformVersion",
+    "frameworkVersion",
+    "dimensions",
+    "actors",
+    "minimumIal",
+    "computedLevel",
+    "reviewedByEName",
+    "createdAt"
+  ],
+  "additionalProperties": false
+}
