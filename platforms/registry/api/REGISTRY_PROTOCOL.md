@@ -219,6 +219,27 @@ Authorization: Bearer <shared-secret>
 }
 ```
 
+### 5.1 Managed PlatformProfile Migration
+
+The management API is service-to-service only and requires
+`Authorization: Bearer <REGISTRY_SHARED_SECRET>`. It does not expose the submitted legacy token in
+responses or logs.
+
+- `POST /platforms/migrations/inspect-token` verifies a legacy platform JWT and returns its SHA-256
+  fingerprint.
+- `POST /platforms/migrations/activate` atomically binds an eName and its original PlatformProfile
+  envelope ID to one manager, records the supplied legacy-token fingerprint as revoked, and returns a
+  short-lived manager-scoped token. Repeating the identical transfer is idempotent; a competing
+  transfer returns `409`.
+- `POST /platforms/management/token` issues a new short-lived token only to the recorded manager.
+- `POST /platforms/management/authorize-profile-write` is called by eVault before a PlatformProfile
+  write. Unmanaged eNames retain legacy behavior. Managed profiles accept only their active manager
+  token and original envelope ID.
+
+The write restriction is scoped to User-profile ontology
+`550e8400-e29b-41d4-a716-446655440000`. PPA accreditation envelopes and unrelated eVault records are
+not management writes and retain their existing authorization paths.
+
 ### 6. Platform Discovery Protocol
 
 **Method**: `GET /platforms`

@@ -79,7 +79,7 @@ describe("computeLevel", () => {
 
     it("still weighs several weak rows heavily", () => {
         // Two rows at L0 and three at L1, against a spread up to L5.
-        const weak = ["functional-review", "deployment-assurance"];
+        const weak = ["functional-review", "code-review"];
         const weaker = ["provenance", "actor-reputation", "key-assurance"];
         const answers = [
             ...allAt(5).filter(

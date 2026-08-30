@@ -7,7 +7,6 @@ import {
     listAccreditations,
     findMessenger,
     getAuthors,
-    listDeployments,
     listSubmissions,
 } from "$lib/server/aaas";
 import { storeAccreditation, storeAssessment } from "$lib/server/evault";
@@ -68,15 +67,11 @@ export const load: PageServerLoad = async ({ params }) => {
     );
     const minimumIal = minimumIdentity(identities as ActorIdentity[]);
 
-    const [deployments, reputation] = await Promise.all([
-        listDeployments(ename, submission.version).catch(() => []),
-        collectReputation(submission.platformName, identities),
-    ]);
+    const reputation = await collectReputation(submission.platformName, identities);
     const derivedAnswers = deriveAnswers(framework, {
         submission,
         minimumIal,
         actors: identities as ActorIdentity[],
-        deployments,
         reputation,
     });
 
@@ -104,7 +99,6 @@ export const load: PageServerLoad = async ({ params }) => {
         actors: identities,
         minimumIal,
         derivedAnswers,
-        deployments,
         reputation,
         repositoryUrl,
         authors: await getAuthors(submission.authorEnames, messenger),
@@ -212,15 +206,11 @@ export const actions: Actions = {
             })),
         );
         const minimumIal = minimumIdentity(identities);
-        const [deployments, reputation] = await Promise.all([
-            listDeployments(ename, submission.version).catch(() => []),
-            collectReputation(submission.platformName, identities),
-        ]);
+        const reputation = await collectReputation(submission.platformName, identities);
         const derived = deriveAnswers(framework, {
             submission,
             minimumIal,
             actors: identities,
-            deployments,
             reputation,
         });
         const allAnswers = [
