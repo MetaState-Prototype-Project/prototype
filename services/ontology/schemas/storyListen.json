@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "06025631-8e24-4d74-94d5-c7e99bc9f263",
+  "title": "StoryListen",
+  "domain": "travel",
+  "type": "object",
+  "description": "One playback of a story by a person. Lives on the listener's vault. Carries no copies of story fields (title, language live in the story itself) and no inline context (the context lives in the referenced StoryRequest). Exactly one of storyRef / tmaticStoryId identifies the story: storyRef for stories that exist as TravelStory envelopes, tmaticStoryId for stories from the tmatic.travel library, which is not yet on W3DS",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier of this listen event"
+    },
+    "listenerEName": {
+      "type": "string",
+      "description": "@-prefixed eName of the listener"
+    },
+    "storyRef": {
+      "type": "string",
+      "description": "w3ds://envelope?id=@<ename>/<metaEnvelopeId> reference to the TravelStory version played, for FWM-created stories"
+    },
+    "tmaticStoryId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "tmatic.travel story UUID, for stories played from the tmatic library"
+    },
+    "tmaticLanguage": {
+      "type": "string",
+      "description": "BCP-47 tag of the tmatic language version played; only with tmaticStoryId (a tmatic story UUID covers all its language versions, so the pair identifies what was actually heard)"
+    },
+    "requestRef": {
+      "type": "string",
+      "description": "w3ds://envelope reference to the StoryRequest this playback answered"
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Playback start, ISO 8601"
+    },
+    "completionRate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Fraction of the audio actually listened to"
+    },
+    "rating": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "Listener's rating of this story, if given"
+    },
+    "feedbackText": {
+      "type": "string",
+      "description": "Free-form listener feedback, if given"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Record creation timestamp, ISO 8601"
+    }
+  },
+  "required": [
+    "id",
+    "listenerEName",
+    "startedAt",
+    "createdAt"
+  ],
+  "additionalProperties": false,
+  "oneOf": [
+    {
+      "required": [
+        "storyRef"
+      ],
+      "not": {
+        "required": [
+          "tmaticStoryId"
+        ]
+      }
+    },
+    {
+      "required": [
+        "tmaticStoryId"
+      ],
+      "not": {
+        "required": [
+          "storyRef"
+        ]
+      }
+    }
+  ],
+  "dependencies": {
+    "tmaticLanguage": [
+      "tmaticStoryId"
+    ]
+  }
+}
