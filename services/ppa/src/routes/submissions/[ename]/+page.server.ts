@@ -13,6 +13,7 @@ import { storeAccreditation } from "$lib/server/evault";
 import { jwksUri, signAccreditation } from "$lib/server/jwt";
 import { type Accreditation, isAccessLevel } from "$lib/server/ontology";
 import { listDomains, validDomains } from "$lib/server/domains";
+import { repositoryBaseUrl } from "$lib/server/env";
 import { submissionSupersedesDecision } from "$lib/server/submission-proof";
 
 export const load: PageServerLoad = async ({ params }) => {
@@ -40,9 +41,27 @@ export const load: PageServerLoad = async ({ params }) => {
         .filter((d) => d.platformEName === ename)
         .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
 
+    // Built here so the page never has to know about configuration.
+    const base = repositoryBaseUrl();
+    const repository = submission.submissionProof.statement.repository;
+    let repositoryUrl: string | null = null;
+    if (base && repository) {
+        try {
+            repositoryUrl = new URL(
+                repository.replace(/^\/+/, ""),
+                base.endsWith("/") ? base : `${base}/`,
+            ).toString();
+        } catch {
+            console.warn(
+                `[ppa] PPA_REPOSITORY_BASE_URL is not a usable base URL: ${base}`,
+            );
+        }
+    }
+
     return {
         submission,
         history,
+        repositoryUrl,
         authors: await getAuthors(submission.authorEnames, messenger),
         messengerConfigured: messenger !== null,
         domains,

@@ -42,7 +42,6 @@
         { label: "Version", value: data.submission.version || "—" },
         { label: "Submitted", value: data.submission.submittedAt.slice(0, 10) },
         { label: "Signed by", value: data.submission.submissionProof.statement.signerEName },
-        { label: "Repository", value: data.submission.submissionProof.statement.repository },
     ]);
 </script>
 
@@ -96,6 +95,25 @@
                         <dd class="mt-1 text-sm font-medium text-ink">{fact.value}</dd>
                     </div>
                 {/each}
+                <div class="col-span-2">
+                    <dt class="text-xs text-faint">Repository</dt>
+                    <dd class="mt-1 text-sm break-all">
+                        {#if data.repositoryUrl}
+                            <a
+                                href={data.repositoryUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                class="font-medium text-brand hover:underline"
+                            >
+                                {data.submission.submissionProof.statement.repository}
+                            </a>
+                        {:else}
+                            <span class="font-medium text-ink">
+                                {data.submission.submissionProof.statement.repository}
+                            </span>
+                        {/if}
+                    </dd>
+                </div>
                 <div class="col-span-2">
                     <dt class="text-xs text-faint">URL</dt>
                     <dd class="mt-1 text-sm">

@@ -80,6 +80,16 @@ export function messengerContactPath(): string {
     return raw("PPA_MESSENGER_CONTACT_PATH") || "/contacts/{ename}";
 }
 
+/**
+ * Base URL of the forge hosting submitted repositories. The signed release
+ * statement carries `owner/name` but no host, so a link can only be built
+ * with this. Left unset the repository stays plain text rather than pointing
+ * at a guessed address.
+ */
+export function repositoryBaseUrl(): string {
+    return raw("PPA_REPOSITORY_BASE_URL");
+}
+
 export function demoVerificationCode(): string {
     return raw("DEMO_VERIFICATION_CODE");
 }
