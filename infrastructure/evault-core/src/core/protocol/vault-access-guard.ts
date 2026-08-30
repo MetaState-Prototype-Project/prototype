@@ -18,9 +18,68 @@ type CachedJWKS = {
 const jwksCache = new Map<string, CachedJWKS>();
 const JWKS_TTL_MS = 24 * 60 * 60 * 1000;
 const JWKS_FETCH_TIMEOUT_MS = 5000;
+const PLATFORM_PROFILE_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440000";
 
 export class VaultAccessGuard {
     constructor(private db: DbService) {}
+
+    private bearerToken(context: VaultContext): string | undefined {
+        const authHeader =
+            context.request?.headers?.get("authorization") ??
+            context.request?.headers?.get("Authorization");
+        return authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : undefined;
+    }
+
+    /**
+     * Migrated PlatformProfiles have one Registry-recorded manager. This check
+     * is intentionally scoped to that ontology so PPA decisions and every
+     * unrelated eVault document keep their existing authorization behavior.
+     */
+    private async validateManagedProfileWrite(
+        context: VaultContext,
+        input: { ontology?: unknown } | undefined,
+        envelopeId?: string,
+    ): Promise<void> {
+        if (input?.ontology !== PLATFORM_PROFILE_ONTOLOGY) return;
+        if (!context.eName) throw new Error("X-ENAME header is required for a platform profile write");
+        const registryUrl = process.env.PUBLIC_REGISTRY_URL || process.env.REGISTRY_URL;
+        const sharedSecret = process.env.REGISTRY_SHARED_SECRET;
+        if (!registryUrl || !sharedSecret) {
+            throw new Error("Managed platform profile authorization is unavailable");
+        }
+        try {
+            const response = await axios.post(
+                new URL("/platforms/management/authorize-profile-write", registryUrl).toString(),
+                {
+                    ename: context.eName,
+                    ontology: input.ontology,
+                    ...(envelopeId && { envelopeId }),
+                    ...(this.bearerToken(context) && { token: this.bearerToken(context) }),
+                },
+                {
+                    timeout: JWKS_FETCH_TIMEOUT_MS,
+                    headers: { Authorization: `Bearer ${sharedSecret}` },
+                },
+            );
+            if (response.data?.managed && !response.data?.allowed) {
+                throw new Error(response.data?.reason || "The platform profile is managed by another publisher");
+            }
+        } catch (error) {
+            if (error instanceof Error && (
+                error.message === "The platform profile is managed by another publisher" ||
+                error.message === "The legacy platform token was revoked during migration" ||
+                error.message === "The token is not the active platform manager" ||
+                error.message === "A platform manager token is required" ||
+                error.message === "The managed platform profile has a different envelope ID"
+            )) {
+                throw error;
+            }
+            const reason = axios.isAxiosError(error) && typeof error.response?.data?.error === "string"
+                ? error.response.data.error
+                : "Registry management verification failed";
+            throw new Error(reason);
+        }
+    }
 
     /**
      * Validates JWT token from Authorization header
@@ -255,6 +314,10 @@ export class VaultAccessGuard {
                 "payload" in args.input &&
                 "acl" in args.input &&
                 !args.id; // storeMetaEnvelope doesn't have id, updateMetaEnvelopeById does
+
+            await timed("guard.validateManagedProfileWrite", () =>
+                this.validateManagedProfileWrite(context, args.input, args.id),
+            );
 
             // CRITICAL: Validate authentication BEFORE executing any resolver
             await timed("guard.validateAuthentication", () =>
