@@ -1,0 +1,201 @@
+{
+  "$comment": "The PPA application certification matrix, transcribed from 'Post-Platforms Certification Framework — Application Certification Framework Concept v2'. The document calls its quantitative thresholds provisional policy parameters, so this file is versioned and every assessment records the version that judged it. Each dimension lists its distinct requirement texts; `level` is the highest certification level that requirement satisfies, so a repeated requirement collapses to one option. `source: derived` means the app answers the row from evidence it has already verified.",
+  "frameworkVersion": "2",
+  "levels": [
+    { "id": "L0", "label": "W3DS-compatible experimental application" },
+    { "id": "L1", "label": "Identified responsible person and basic functional review" },
+    { "id": "L2", "label": "Source-code review and direct assessment" },
+    { "id": "L3", "label": "Proven development history and reputation" },
+    { "id": "L4", "label": "Established operational reputation and independent review" },
+    { "id": "L5", "label": "High-assurance industrial application" }
+  ],
+  "identityFloor": { "L0": "IAL2", "L1": "IAL3", "L2": "IAL3", "L3": "IAL4", "L4": "IAL4", "L5": "IAL4" },
+  "dimensions": [
+    {
+      "id": "w3ds-compatibility",
+      "label": "W3DS compatibility",
+      "source": "derived",
+      "options": [
+        { "level": -1, "label": "Not demonstrated" },
+        { "level": 5, "label": "Required — demonstrated" }
+      ]
+    },
+    {
+      "id": "functional-review",
+      "label": "Functional review",
+      "source": "reviewer",
+      "options": [
+        { "level": 0, "label": "None" },
+        { "level": 1, "label": "Basic" },
+        { "level": 3, "label": "Reviewed" },
+        { "level": 4, "label": "Extended" },
+        { "level": 5, "label": "High assurance" }
+      ]
+    },
+    {
+      "id": "identity-assurance",
+      "label": "Responsible actors — minimum identity assurance",
+      "source": "derived",
+      "options": [
+        { "level": -1, "label": "IAL1 — anonymous" },
+        { "level": 0, "label": "IAL2 — attested" },
+        { "level": 2, "label": "IAL3 — passport-verified" },
+        { "level": 5, "label": "IAL4 — passport and independent attestation" }
+      ]
+    },
+    {
+      "id": "roles",
+      "label": "Developer / deployer roles",
+      "source": "reviewer",
+      "options": [
+        { "level": 0, "label": "Responsible person recorded" },
+        { "level": 1, "label": "Normally the same person" },
+        { "level": 2, "label": "May differ; roles recorded" },
+        { "level": 4, "label": "All key actors known" },
+        { "level": 5, "label": "Fully accountable chain" }
+      ]
+    },
+    {
+      "id": "development-method",
+      "label": "AI / development method",
+      "source": "reviewer",
+      "options": [
+        { "level": 0, "label": "Optional — not declared" },
+        { "level": 1, "label": "Declared" },
+        { "level": 2, "label": "Recorded" },
+        { "level": 4, "label": "Traceable" },
+        { "level": 5, "label": "Auditable" }
+      ]
+    },
+    {
+      "id": "source-available",
+      "label": "Source code available",
+      "source": "derived",
+      "options": [
+        { "level": -1, "label": "No" },
+        { "level": 5, "label": "Yes" }
+      ]
+    },
+    {
+      "id": "code-review",
+      "label": "PPA code review",
+      "source": "reviewer",
+      "options": [
+        { "level": 0, "label": "None" },
+        { "level": 1, "label": "Automated gross-error scan" },
+        { "level": 3, "label": "Manual review each release" },
+        { "level": 4, "label": "Extended" },
+        { "level": 5, "label": "Extensive" }
+      ]
+    },
+    {
+      "id": "interview",
+      "label": "Interview",
+      "source": "reviewer",
+      "options": [
+        { "level": 1, "label": "None" },
+        { "level": 2, "label": "Owner, lead developer and deployer/operator" },
+        { "level": 3, "label": "All key responsible actors" },
+        { "level": 4, "label": "Key actors and relevant technical leads" },
+        { "level": 5, "label": "All accountable leads including security and key custody" }
+      ]
+    },
+    {
+      "id": "provenance",
+      "label": "Development provenance / commits",
+      "source": "derived",
+      "options": [
+        { "level": -1, "label": "Not recorded" },
+        { "level": 1, "label": "Recorded from the start" },
+        { "level": 2, "label": "Reviewed" },
+        { "level": 3, "label": "Required and reviewed" },
+        { "level": 4, "label": "Extended review" },
+        { "level": 5, "label": "Fully auditable" }
+      ]
+    },
+    {
+      "id": "actor-reputation",
+      "label": "Responsible actors — eReputation / professional references",
+      "source": "reviewer",
+      "unverified": true,
+      "options": [
+        { "level": 1, "label": "Recorded; no minimum" },
+        { "level": 2, "label": "Emerging; no minimum" },
+        { "level": 3, "label": "3 signed professional references" },
+        { "level": 4, "label": "5 references, including 2 recognised professionals" },
+        { "level": 5, "label": "10 high-reputation professional or organisational references" }
+      ]
+    },
+    {
+      "id": "track-record",
+      "label": "Application track record / authenticated eReputation",
+      "source": "reviewer",
+      "unverified": true,
+      "options": [
+        { "level": 2, "label": "No minimum" },
+        { "level": 3, "label": "1 prior Level 2+ app with positive eReputation; 50 authenticated user signals" },
+        { "level": 4, "label": "Established prior-app reputation and ~1,000 authenticated signals" },
+        { "level": 5, "label": "Extensive strong portfolio and ~10,000 authenticated signals" }
+      ]
+    },
+    {
+      "id": "independent-review",
+      "label": "Independent professional review",
+      "source": "reviewer",
+      "unverified": true,
+      "options": [
+        { "level": 3, "label": "None" },
+        { "level": 4, "label": "1 independent signed review" },
+        { "level": 5, "label": "Multiple independent reviews" }
+      ]
+    },
+    {
+      "id": "external-certification",
+      "label": "External certification",
+      "source": "reviewer",
+      "unverified": true,
+      "options": [
+        { "level": 0, "label": "Not relevant" },
+        { "level": 1, "label": "May be recorded" },
+        { "level": 2, "label": "Considered" },
+        { "level": 3, "label": "Recognised" },
+        { "level": 5, "label": "Important — present and weighted" }
+      ]
+    },
+    {
+      "id": "deployment-assurance",
+      "label": "Deployment assurance",
+      "source": "derived",
+      "options": [
+        { "level": 0, "label": "None" },
+        { "level": 1, "label": "Basic declaration" },
+        { "level": 2, "label": "Reasonable check" },
+        { "level": 3, "label": "Release provenance verified" },
+        { "level": 4, "label": "Strong assurance" },
+        { "level": 5, "label": "High assurance" }
+      ]
+    },
+    {
+      "id": "key-assurance",
+      "label": "Key / infrastructure assurance",
+      "source": "reviewer",
+      "options": [
+        { "level": 0, "label": "None" },
+        { "level": 1, "label": "Minimal" },
+        { "level": 2, "label": "Basic" },
+        { "level": 3, "label": "Reviewed where relevant" },
+        { "level": 4, "label": "Strong" },
+        { "level": 5, "label": "Hardware-backed where appropriate" }
+      ]
+    },
+    {
+      "id": "findings-recorded",
+      "label": "Findings and signed certificate in eVault",
+      "source": "derived",
+      "options": [
+        { "level": 0, "label": "Minimal statement" },
+        { "level": 5, "label": "Yes — full findings recorded" }
+      ]
+    }
+  ]
+}
