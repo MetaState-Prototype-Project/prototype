@@ -45,7 +45,13 @@ Being certified for a kind of data is not permission to do anything with it. Thi
 
 The domain list is the whole published vocabulary, not just what a platform was certified for — the domains it has no business with are listed too, marked as such, because asking for one and watching the certificate refuse it is the case worth seeing.
 
-Read and write are toggled beside the domain you are asking about. Each change writes an `AccessGrant` into your own eVault as a new revision. Clearing both withdraws the grant rather than deleting it, so the record shows access was taken away rather than never given.
+Grants are managed by the platform through `POST /api/grants`, not set by hand here — the page shows what happens under them. Each change writes an `AccessGrant` into the owner's eVault as a new revision; clearing both operations withdraws the grant rather than deleting it, so the record shows access was taken away rather than never given.
+
+```bash
+curl -X POST http://localhost:4310/api/grants \
+  -H 'Content-Type: application/json' \
+  -d '{"platformEname":"@…","domain":"social","operations":["read"]}'
+```
 
 **Deployment keys go in here, before you try anything.** Possession is the one link a reader cannot establish by looking, so whether the key is present decides what a check can even mean. Enter it and the deployment can answer a challenge for real; leave it out and every request stops at the handshake, which is the correct outcome.
 

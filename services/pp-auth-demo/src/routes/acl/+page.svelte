@@ -59,10 +59,8 @@
                 </div>
 
                 <RequestTester
-                    platformEname={platform.ename}
                     deployments={platform.deployments}
                     grants={platform.grants}
-                    onchange={refresh}
                 />
             {:else}
                 <p class="text-sm text-muted">

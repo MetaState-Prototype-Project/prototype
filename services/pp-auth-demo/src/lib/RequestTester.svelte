@@ -7,21 +7,15 @@
         label: string;
         /** Whether the association certified this platform for this domain. */
         certified: boolean;
-        read: boolean;
-        write: boolean;
-        revoked: boolean;
     }
 
     let {
-        platformEname,
         deployments,
         grants,
-        onchange,
     }: {
-        platformEname: string;
         deployments: Array<{ ename: string; name: string; environment: string; keyHeld: boolean }>;
+        /** Domains to offer, and whether the platform was certified for each. */
         grants: DomainGrant[];
-        onchange: () => Promise<void>;
     } = $props();
 
     let deploymentEname = $state("");
@@ -30,7 +24,6 @@
     let text = $state("");
 
     let busy = $state(false);
-    let saving = $state(false);
     let chain = $state<ChainResult | null>(null);
     let decision = $state<{ allowed: boolean; reason: string; code: string } | null>(null);
     let stage = $state<string | null>(null);
@@ -52,7 +45,6 @@
     });
 
     let held = $derived(deployments.find((d) => d.ename === deploymentEname)?.keyHeld ?? false);
-    let selected = $derived(grants.find((entry) => entry.domain === domain) ?? null);
 
     function clear() {
         chain = null;
@@ -61,33 +53,6 @@
         records = null;
         wrote = null;
         note = null;
-    }
-
-    async function permit(which: "read" | "write") {
-        if (!selected) return;
-        const next = {
-            read: selected.read,
-            write: selected.write,
-            [which]: !selected[which],
-        };
-        saving = true;
-        try {
-            await fetch("/api/grants", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    platformEname,
-                    domain,
-                    operations: [
-                        ...(next.read ? ["read"] : []),
-                        ...(next.write ? ["write"] : []),
-                    ],
-                }),
-            });
-            await onchange();
-        } finally {
-            saving = false;
-        }
     }
 
     async function send() {
@@ -145,42 +110,6 @@
             </select>
         </label>
     </div>
-
-    {#if selected}
-        <div class="flex flex-wrap items-center gap-4 rounded-2xl border border-line bg-surface px-4 py-3">
-            {#if selected.certified}
-                <span class="text-xs text-muted">You permit it to</span>
-                <label class="flex items-center gap-2 text-sm">
-                    <input
-                        type="checkbox"
-                        checked={selected.read}
-                        disabled={saving}
-                        onchange={() => permit("read")}
-                    />
-                    read
-                </label>
-                <label class="flex items-center gap-2 text-sm">
-                    <input
-                        type="checkbox"
-                        checked={selected.write}
-                        disabled={saving}
-                        onchange={() => permit("write")}
-                    />
-                    write
-                </label>
-                {#if !selected.read && !selected.write}
-                    <span class="text-xs text-muted">
-                        {selected.revoked ? "withdrawn" : "nothing yet"}
-                    </span>
-                {/if}
-            {:else}
-                <span class="text-xs text-caution">
-                    Not certified for {selected.label.toLowerCase()} data, so there is
-                    nothing to permit — this is refused before permissions are consulted.
-                </span>
-            {/if}
-        </div>
-    {/if}
 
     {#if operation === "write"}
         <label class="block space-y-1">
