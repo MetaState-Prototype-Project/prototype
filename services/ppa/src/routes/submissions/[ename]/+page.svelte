@@ -1,5 +1,6 @@
 <script lang="ts">
     import { enhance } from "$app/forms";
+    import { fly } from "svelte/transition";
     import { ACCESS_LEVELS } from "$lib/levels";
     import DomainChips from "$lib/DomainChips.svelte";
     import ReviewThread from "$lib/ReviewThread.svelte";
@@ -23,6 +24,13 @@
     // previous selection across.
     let answers = $state<DimensionAnswer[]>([]);
     let assessmentOpen = $state(false);
+    $effect(() => {
+        if (typeof document === "undefined") return;
+        document.body.style.overflow = assessmentOpen ? "hidden" : "";
+        return () => {
+            document.body.style.overflow = "";
+        };
+    });
     let overrideReason = $state("");
     let overrideOpen = $state(false);
 
@@ -86,15 +94,21 @@
 {#if assessmentOpen}
     <!-- Held in a drawer so the review page stays readable; the answers live
          in the page, so closing it keeps everything entered so far. -->
-    <div class="fixed inset-0 z-30 flex justify-end">
+    <div class="fixed inset-0 z-50 flex justify-end">
         <button
             type="button"
-            class="absolute inset-0 bg-ink/30 backdrop-blur-sm"
+            class="absolute inset-0 bg-ink/40"
             aria-label="Close assessment"
             onclick={() => (assessmentOpen = false)}
         ></button>
 
-        <div class="relative flex h-full w-full max-w-2xl flex-col bg-canvas shadow-lift">
+        <!-- Slides in from the right edge, so where it came from is obvious;
+             without the transition a panel simply appearing mid-screen reads as
+             a floating dialog rather than a drawer. -->
+        <div
+            class="relative flex h-full w-full max-w-3xl flex-col border-l border-line bg-canvas shadow-lift"
+            transition:fly={{ x: 480, duration: 200 }}
+        >
             <header class="flex items-center gap-4 border-b border-line bg-surface px-6 py-4">
                 <div class="min-w-0 flex-1">
                     <h2 class="text-lg font-semibold text-ink">Assessment</h2>
