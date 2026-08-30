@@ -16,7 +16,7 @@ import type { RequestHandler } from "./$types";
  * signs is exactly the digest of these terms — the resulting signature stands
  * on its own, without anyone having to trust this app's session store.
  */
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler = async ({ request, locals, url }) => {
 	const body = (await request.json()) as Record<string, unknown>;
 	const ename = locals.user!.ename;
 
@@ -47,13 +47,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	};
 
 	const prepared = prepare(statement);
-	const offer = createSigningOffer(prepared.payload, {
-		message: "Set the terms platforms must meet to reach your data",
-		minimumLevel: statement.minimumLevel,
-		reputationEngine: statement.reputationEngine || "not used",
-		minimumReputation: statement.minimumReputation ?? "no threshold",
-		refused: statement.deniedDomains.length ? statement.deniedDomains : "nothing",
-	});
+	const offer = createSigningOffer(
+		prepared.payload,
+		{
+			message: "Set the terms platforms must meet to reach your data",
+			minimumLevel: statement.minimumLevel,
+			reputationEngine: statement.reputationEngine || "not used",
+			minimumReputation: statement.minimumReputation ?? "no threshold",
+			refused: statement.deniedDomains.length ? statement.deniedDomains : "nothing",
+		},
+		url.origin,
+	);
 
 	return json({ statement, payload: prepared.payload, uri: offer.uri });
 };

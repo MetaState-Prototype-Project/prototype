@@ -43,11 +43,24 @@ function sweep(): void {
 	}
 }
 
-export function createLoginOffer(): { uri: string; session: string } {
+/**
+ * Where the wallet should post back.
+ *
+ * Taken from the request being served, not from configuration. The wallet runs
+ * on a phone, so a callback of `localhost` points it at itself and the login
+ * silently never completes — and a static env var is wrong the moment the app
+ * is reached on a different address than whoever set it had in mind. The
+ * origin the browser used is the one address known to reach this app.
+ */
+function callback(origin: string | undefined, path: string): string {
+	return new URL(path, origin || publicUrl()).toString();
+}
+
+export function createLoginOffer(origin?: string): { uri: string; session: string } {
 	sweep();
 	const session = randomUUID();
 	sessions.set(session, { createdAt: Date.now(), kind: "login", status: "pending" });
-	const redirect = new URL("/api/auth", publicUrl()).toString();
+	const redirect = callback(origin, "/api/auth");
 	return {
 		session,
 		uri: `w3ds://auth?redirect=${redirect}&session=${session}&platform=pp-auth-demo`,
@@ -62,10 +75,11 @@ export function createLoginOffer(): { uri: string; session: string } {
 export function createSigningOffer(
 	payload: string,
 	summary: Record<string, unknown>,
+	origin?: string,
 ): { uri: string; session: string } {
 	sweep();
 	sessions.set(payload, { createdAt: Date.now(), kind: "policy", status: "pending" });
-	const redirect = new URL("/api/sign", publicUrl()).toString();
+	const redirect = callback(origin, "/api/sign");
 	const data = Buffer.from(JSON.stringify(summary), "utf8").toString("base64");
 	return {
 		session: payload,
