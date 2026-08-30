@@ -1,5 +1,6 @@
 <script lang="ts">
     import ChainTrace from "./ChainTrace.svelte";
+import KeyEntry from "./KeyEntry.svelte";
     import type { ChainResult } from "@metastate-foundation/auth/platform";
 
     interface Deployment {
@@ -24,8 +25,6 @@
     let missing = $state<string[]>([]);
     let busy = $state(false);
     let checked = $state(false);
-    let privateKey = $state("");
-    let showKey = $state(false);
 
     async function check() {
         busy = true;
@@ -44,22 +43,6 @@
         }
     }
 
-    async function saveKey() {
-        busy = true;
-        try {
-            await fetch("/api/key", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ deploymentEname: deployment.ename, privateKey }),
-            });
-            privateKey = "";
-            showKey = false;
-            await onchange();
-            await check();
-        } finally {
-            busy = false;
-        }
-    }
 </script>
 
 <div class="rounded-2xl border border-line p-4">
@@ -73,14 +56,13 @@
                 {deployment.releaseTag} · {deployment.commitSha.slice(0, 12)}
             </p>
         </div>
-        <div class="flex items-center gap-2">
-            {#if deployment.keyHeld}
-                <span class="pill bg-positive-wash text-positive">Key supplied</span>
-            {/if}
-            <button class="btn btn-quiet" disabled={busy} onclick={check}>
-                {busy ? "Checking…" : "Check it"}
-            </button>
-        </div>
+        <button class="btn btn-quiet" disabled={busy} onclick={check}>
+            {busy ? "Checking…" : "Check it"}
+        </button>
+    </div>
+
+    <div class="mt-3">
+        <KeyEntry {deployment} onchange={onchange} />
     </div>
 
     {#if checked && missing.length > 0}
@@ -100,34 +82,11 @@
                 {chain.claim.level} for {chain.claim.domains.join(", ") || "no domains"}.
             </p>
         {:else if chain.failedAt === "possession" && !deployment.keyHeld}
-            <div class="mt-3 rounded-2xl bg-canvas p-4">
-                <p class="text-sm text-body">
-                    Everything that can be checked by reading has been checked. The one
-                    thing left is whether whoever is calling actually holds this
-                    deployment's key — and only the deployment can show that.
-                </p>
-                {#if showKey}
-                    <textarea
-                        class="field mono-block mt-3"
-                        rows="3"
-                        bind:value={privateKey}
-                        placeholder="PKCS#8 private key, base64"
-                    ></textarea>
-                    <div class="mt-2 flex gap-2">
-                        <button class="btn btn-primary" disabled={busy || !privateKey.trim()} onclick={saveKey}>
-                            Prove it
-                        </button>
-                        <button class="btn btn-quiet" onclick={() => (showKey = false)}>Cancel</button>
-                    </div>
-                    <p class="mt-2 text-xs text-muted">
-                        Kept in memory for this process only. Never written down, never logged.
-                    </p>
-                {:else}
-                    <button class="btn btn-quiet mt-3" onclick={() => (showKey = true)}>
-                        I hold this deployment's key
-                    </button>
-                {/if}
-            </div>
+            <p class="mt-3 rounded-2xl bg-canvas px-4 py-3 text-sm text-body">
+                Everything that can be checked by reading has been checked. The one
+                thing left is whether whoever is calling actually holds this
+                deployment's key — enter it above and check again.
+            </p>
         {/if}
     {/if}
 </div>

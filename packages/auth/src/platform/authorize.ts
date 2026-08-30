@@ -1,16 +1,29 @@
 /**
  * What a verified platform may actually touch.
  *
- * Two independent gates, and both must open. The association's certificate
- * names the domains a release was assessed for; the owner's policy names what
- * they will permit. A social platform certified for `social` and
- * `communication` has no path to `finance` data — not because the eVault
- * recognises it as a social platform, but because `finance` is not in its
- * certificate and nothing it can present adds it.
+ * Three independent gates, and all of them must open:
+ *
+ *   1. the association's certificate names the domains a release was assessed
+ *      for — a social platform certified for `social` and `communication` has
+ *      no path to `finance` data, not because the eVault recognises it as a
+ *      social platform, but because `finance` is not in its certificate and
+ *      nothing it can present adds it;
+ *   2. the owner's policy names what they will deal with at all;
+ *   3. the grants name what may be done — reading is not writing, and a
+ *      platform certified and permitted for a domain still needs a grant that
+ *      covers the operation it is attempting.
+ *
+ * Each narrows the one before it. None of them can widen an earlier one.
  */
 
 import { levelRank, type CertificationLevel, type PlatformClaim } from "./types.js";
 import { type AccessPolicyStatement } from "./policy.js";
+import {
+	evaluateGrants,
+	permissionFor,
+	type AccessGrant,
+	type Operation,
+} from "./grants.js";
 
 export type DenialCode =
 	| "domain-not-certified"
@@ -18,7 +31,10 @@ export type DenialCode =
 	| "domain-outside-owner-allowlist"
 	| "level-below-policy"
 	| "reputation-engine-not-accepted"
-	| "reputation-below-policy";
+	| "reputation-below-policy"
+	| "operation-not-granted"
+	| "grant-revoked"
+	| "grant-expired";
 
 export interface ReputationReading {
 	/** eName or URL of the engine that produced it. */
@@ -31,6 +47,16 @@ export interface AuthorizationRequest {
 	/** Domain of the record being read or written, from its ontology schema. */
 	domain: string;
 	reputation?: ReputationReading | null;
+	/** What is being attempted. Defaults to a read. */
+	operation?: Operation;
+	/**
+	 * Grants held for this platform. Omit entirely when the caller does not use
+	 * grants, which skips the layer; pass `[]` to say the platform holds none,
+	 * which refuses everything. Those are different statements.
+	 */
+	grants?: AccessGrant[];
+	/** Clock, for evaluating grant validity windows. */
+	now?: Date;
 }
 
 export interface AuthorizationDecision {
@@ -97,9 +123,40 @@ export function authorize(
 		}
 	}
 
+	if (request.grants !== undefined) {
+		const operation = request.operation ?? "read";
+		const verb = operation === "read" ? "read" : "write to";
+		const match = evaluateGrants(
+			request.grants,
+			claim.platformEname,
+			domain,
+			operation,
+			request.now,
+		);
+		if (!match.allowed) {
+			if (match.reason === "revoked") {
+				return deny(
+					"grant-revoked",
+					`${claim.platformName}'s permission to ${verb} your ${domain} data has been withdrawn.`,
+				);
+			}
+			if (match.reason === "expired") {
+				return deny(
+					"grant-expired",
+					`${claim.platformName}'s permission to ${verb} your ${domain} data is outside its valid dates.`,
+				);
+			}
+			return deny(
+				"operation-not-granted",
+				`${claim.platformName} has not been given permission to ${verb} your ${domain} data.`,
+			);
+		}
+	}
+
+	const did = request.operation === "write" ? "write to" : "read";
 	return {
 		allowed: true,
-		reason: `${claim.platformName} is certified ${claim.level} for ${domain} data and meets your terms.`,
+		reason: `${claim.platformName} is certified ${claim.level} for ${domain} data and may ${did} it.`,
 		code: "granted",
 	};
 }
@@ -114,5 +171,8 @@ export function permittedDomains(
 		(domain) => authorize(policy, { claim, domain, reputation }).allowed,
 	);
 }
+
+export { permissionFor };
+export type { AccessGrant, Operation };
 
 export type { CertificationLevel };

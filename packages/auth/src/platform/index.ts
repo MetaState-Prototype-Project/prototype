@@ -30,6 +30,8 @@ export {
 } from "./policy.js";
 export type { AccessPolicyStatement, SignedAccessPolicy } from "./policy.js";
 export { authorize, permittedDomains } from "./authorize.js";
+export { evaluateGrants, permissionFor } from "./grants.js";
+export type { AccessGrant, GrantMatch, Operation } from "./grants.js";
 export type {
 	AuthorizationDecision,
 	AuthorizationRequest,

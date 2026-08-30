@@ -7,6 +7,7 @@
     const TABS = [
         { href: "/platforms", label: "Platforms" },
         { href: "/data", label: "Your data" },
+        { href: "/acl", label: "Permissions" },
         { href: "/terms", label: "Your terms" },
     ];
 </script>

@@ -39,6 +39,16 @@ Your own eVault records, grouped by the domain each schema declares. That groupi
 
 The table shows every certified platform against every kind of data you hold, decided by the real certificate's domains and your real signed terms, using the same `authorize` an eVault would call. A platform certified for `social`, `finance` and `media` is allowed those and refused everything else — with the reason spelled out. It cannot reach your messages or your files, and nothing it presents will change that.
 
+## Permissions
+
+Being certified for a kind of data is not permission to do anything with it. This tab is where that is settled: for each certified platform, a read and a write toggle per domain it was certified for. Nothing else is listed, because anything else is refused before permissions are consulted.
+
+Each change writes an `AccessGrant` into your own eVault as a new revision. Clearing both toggles withdraws the grant rather than deleting it, so the record shows access was taken away rather than never given.
+
+**Deployment keys go in here, before you try anything.** Possession is the one link a reader cannot establish by looking, so whether the key is present decides what a check can even mean. Enter it and the deployment can answer a challenge for real; leave it out and every request stops at the handshake, which is the correct outcome.
+
+**Try a request** then runs one all the way through — a named deployment, an operation, a domain — and reports which of the three gates decided. Turn off write and a write is refused while a read still succeeds; withdraw the grant and the refusal changes from "has not been given permission" to "has been withdrawn".
+
 ## Your terms
 
 The association says what a platform was found to be; you decide what that is worth. Set the minimum level, whose reputation scores you accept and the score they must reach, and any domain refused outright.

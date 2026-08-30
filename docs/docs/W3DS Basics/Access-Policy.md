@@ -47,6 +47,22 @@ The newest statement for a subject is the one in force. An owner who has never s
 
 Published as the `Access Policy` ontology (`c7a41f6d-95b8-4e2a-9c33-8f0d1b6e4a72`), domain `governance`.
 
+## Permissions are a separate question
+
+A policy says which platforms you will deal with. It does not say what they may *do* — reading your posts is not the same as writing to them.
+
+That is what an [`AccessGrant`](https://github.com/MetaState-Prototype-Project/prototype/blob/main/services/ontology/schemas/accessGrant.json) is for: a grantee, a resource, and permissions written as `resource:Action` (`social:Read`, `finance:Write`). Grants are **deny by default** — a platform that is certified for a domain and permitted by your policy still needs a grant covering the operation it is attempting.
+
+Grants are append-only. Changing what a platform may do writes a new revision rather than editing the old record, and withdrawing access marks the grant revoked while keeping the permissions it used to carry. So "your access was withdrawn" and "you never had access" stay distinguishable, which matters when explaining a refusal to someone.
+
+The three gates run in order, and each can only narrow the one before it:
+
+1. **The certificate** — was this release assessed for this domain?
+2. **Your policy** — will you deal with this platform at all?
+3. **The grants** — may it do this particular thing?
+
+A grant cannot widen a certificate. Permitting `health:Read` to a platform never certified for `health` changes nothing.
+
 ## See also
 
 - [Platform Authentication](/docs/W3DS%20Protocol/Platform-Authentication) — how a platform proves which release it is running
