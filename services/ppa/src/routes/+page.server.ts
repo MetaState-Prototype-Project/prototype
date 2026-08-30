@@ -5,6 +5,7 @@ import {
     isReadConfigured,
     listSubmissions,
 } from "$lib/server/aaas";
+import { submissionSupersedesDecision } from "$lib/server/submission-proof";
 
 /**
  * The review queue. Submissions come from AaaS; the decision badge comes from
@@ -45,10 +46,18 @@ export const load: PageServerLoad = async () => {
         submissions: submissions.map((submission) => {
             // Scoped to the submitted version: an older version's decision
             // says nothing about the one being offered now.
-            const decision =
+            const recordedDecision =
                 decided.get(
                     accreditationKey(submission.ename, submission.version),
                 ) ?? null;
+            const decision =
+                recordedDecision &&
+                !submissionSupersedesDecision(
+                    submission.submissionProof,
+                    recordedDecision,
+                )
+                    ? recordedDecision
+                    : null;
             return {
                 ...submission,
                 decision: decision

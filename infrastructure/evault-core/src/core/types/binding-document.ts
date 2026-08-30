@@ -4,12 +4,35 @@ export type BindingDocumentType =
     | "social_connection"
     | "self"
     | "personal_parameters"
-    | "security_question";
+    | "security_question"
+    | "deployment_key"
+    | "software_version";
 
 export interface BindingDocumentSignature {
     signer: string;
     signature: string;
     timestamp: string;
+    scope?: "document" | "bundle";
+    signedPayload?: string;
+}
+
+export interface BindingDocumentDeploymentKeyData {
+    kind: "deployment_key";
+    deploymentName: string;
+    environment: string;
+    deployerEname: string;
+    platformEname: string;
+    publicKey: string;
+    algorithm: "ECDSA_P256";
+}
+
+export interface BindingDocumentSoftwareVersionData {
+    kind: "software_version";
+    platformEname: string;
+    versionEname: string;
+    version: string;
+    releaseTag: string;
+    commitSha: string;
 }
 
 export interface BindingDocumentIdDocumentData {
@@ -62,7 +85,9 @@ export type BindingDocumentData =
     | BindingDocumentSocialConnectionData
     | BindingDocumentSelfData
     | BindingDocumentPersonalParametersData
-    | BindingDocumentSecurityQuestionData;
+    | BindingDocumentSecurityQuestionData
+    | BindingDocumentDeploymentKeyData
+    | BindingDocumentSoftwareVersionData;
 
 export interface BindingDocument {
     subject: string;

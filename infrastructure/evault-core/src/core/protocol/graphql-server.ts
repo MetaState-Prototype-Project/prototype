@@ -227,6 +227,8 @@ export class GraphQLServer {
                             "self",
                             "personal_parameters",
                             "security_question",
+                            "deployment_key",
+                            "software_version",
                         ] as const;
                         type ValidType =
                             (typeof VALID_BINDING_DOCUMENT_TYPES)[number];
@@ -858,6 +860,8 @@ export class GraphQLServer {
                                     signer: string;
                                     signature: string;
                                     timestamp: string;
+                                    scope?: "document" | "bundle";
+                                    signedPayload?: string;
                                 };
                             };
                         },
@@ -883,6 +887,8 @@ export class GraphQLServer {
                             "self",
                             "personal_parameters",
                             "security_question",
+                            "deployment_key",
+                            "software_version",
                         ] as const;
                         type ValidType =
                             (typeof VALID_BINDING_DOCUMENT_TYPES)[number];
@@ -996,6 +1002,8 @@ export class GraphQLServer {
                                     signer: string;
                                     signature: string;
                                     timestamp: string;
+                                    scope?: "document" | "bundle";
+                                    signedPayload?: string;
                                 };
                             };
                         },

@@ -2,6 +2,7 @@
     import { enhance } from "$app/forms";
     import { ACCESS_LEVELS } from "$lib/levels";
     import DomainChips from "$lib/DomainChips.svelte";
+    import ReviewThread from "$lib/ReviewThread.svelte";
     import PlatformMark from "$lib/PlatformMark.svelte";
     import StatusPill from "$lib/StatusPill.svelte";
 
@@ -40,6 +41,7 @@
         { label: "Category", value: data.submission.category },
         { label: "Version", value: data.submission.version || "—" },
         { label: "Submitted", value: data.submission.submittedAt.slice(0, 10) },
+        { label: "Signed by", value: data.submission.submissionProof.statement.signerEName },
     ]);
 </script>
 
@@ -94,6 +96,25 @@
                     </div>
                 {/each}
                 <div class="col-span-2">
+                    <dt class="text-xs text-faint">Repository</dt>
+                    <dd class="mt-1 text-sm break-all">
+                        {#if data.repositoryUrl}
+                            <a
+                                href={data.repositoryUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                class="font-medium text-brand hover:underline"
+                            >
+                                {data.submission.submissionProof.statement.repository}
+                            </a>
+                        {:else}
+                            <span class="font-medium text-ink">
+                                {data.submission.submissionProof.statement.repository}
+                            </span>
+                        {/if}
+                    </dd>
+                </div>
+                <div class="col-span-2">
                     <dt class="text-xs text-faint">URL</dt>
                     <dd class="mt-1 text-sm">
                         {#if data.submission.url}
@@ -121,6 +142,14 @@
                 </div>
             {/if}
 
+            <div class="mt-6 rounded-2xl bg-positive-wash px-4 py-3">
+                <p class="text-sm font-semibold text-positive">Owner/admin signature verified</p>
+                <p class="mt-1 text-xs text-positive/80">
+                    This exact release statement and its Registry-backed wallet proof were read from
+                    the platform's eVault.
+                </p>
+            </div>
+
             <details class="group mt-6 border-t border-line pt-4">
                 <summary
                     class="cursor-pointer text-xs font-medium text-muted select-none hover:text-ink"
@@ -134,6 +163,15 @@
                     )}</pre>
             </details>
         </section>
+
+        <ReviewThread
+            history={data.history}
+            submission={data.submission}
+            domains={data.domains}
+            submissionHistory={data.submission.submissionHistory}
+            pendingResponse={data.submission.submissionProof.statement.responseToDecision ?? null}
+            pendingAt={data.submission.submissionProof.statement.issuedAt ?? null}
+        />
 
         <section class="card p-6">
             <div class="flex items-baseline justify-between gap-4">

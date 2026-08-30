@@ -4,7 +4,7 @@
   "title": "PlatformAccreditation",
   "domain": "governance",
   "type": "object",
-  "description": "A decision issued by the Post Platforms Association (PPA) on a platform application for network access. The record is stored in the eVault of the platform it is about, with a public ACL, so it travels with that platform and anyone can read it. The association owns no vault of its own: its identity is a signing key, and the `jws` field carries the whole decision as a self-contained ES256 JWS that verifies against `issuerJwksUri` without trusting the eVault, the PPA app, or the platform holding it. Records are append-only and scoped to one platform version: the newest record for a given platform and version is the one in force, and a new version starts unaccredited.",
+  "description": "A decision issued by the Post Platforms Association (PPA) on a platform application for network access. The record is stored in the eVault of the platform it is about, with a public ACL, so it travels with that platform and anyone can read it. The association owns no vault of its own: its identity is a signing key, and the `jws` field carries the whole decision as a self-contained ES256 JWS that verifies against `issuerJwksUri` without trusting the eVault, the PPA app, or the platform holding it. Records are append-only and scoped to one platform version. A version may be refused and reapply, so it can accumulate several decisions; the newest record for a given platform and version is the one in force, and each points at the one it replaced. A new version starts unaccredited.",
   "properties": {
     "accreditationId": {
       "type": "string",
@@ -61,6 +61,21 @@
       "type": "string",
       "description": "Free-text reasoning from the reviewer, shown to the applicant and covered by the signature"
     },
+    "applicantResponse": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "What the applicant said when reapplying, as it stood when this decision was taken. A platform profile is overwritten on each submission, so without capturing it here the earlier rounds of the exchange are lost."
+    },
+    "applicantSubmittedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "description": "When the submission this decision answers was signed."
+    },
     "reviewedByEName": {
       "type": "string",
       "minLength": 1,
@@ -75,13 +90,12 @@
       "type": "string",
       "description": "MetaEnvelope id of the PlatformProfile submission this decision reviewed"
     },
-    "status": {
-      "type": "string",
-      "enum": [
-        "active",
-        "superseded"
+    "supersedes": {
+      "type": [
+        "string",
+        "null"
       ],
-      "description": "'superseded' marks a decision replaced by a later one for the same platform"
+      "description": "accreditationId of the decision this one replaces for the same platform and version, or null for a first decision. An application may be refused and reapply, so one version can accumulate several decisions; this makes that chain explicit rather than leaving it to be inferred."
     },
     "jws": {
       "type": "string",

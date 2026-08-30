@@ -4,6 +4,7 @@ import type { Actions, PageServerLoad } from "./$types";
 import {
     accreditationKey,
     currentAccreditations,
+    listAccreditations,
     findMessenger,
     getAuthors,
     listSubmissions,
@@ -12,24 +13,55 @@ import { storeAccreditation } from "$lib/server/evault";
 import { jwksUri, signAccreditation } from "$lib/server/jwt";
 import { type Accreditation, isAccessLevel } from "$lib/server/ontology";
 import { listDomains, validDomains } from "$lib/server/domains";
+import { repositoryBaseUrl } from "$lib/server/env";
+import { submissionSupersedesDecision } from "$lib/server/submission-proof";
 
 export const load: PageServerLoad = async ({ params }) => {
     const ename = decodeURIComponent(params.ename);
 
-    const [submissions, messenger, decided, domains] = await Promise.all([
-        listSubmissions(),
-        findMessenger(),
-        currentAccreditations().catch(() => new Map<string, Accreditation>()),
-        listDomains(),
-    ]);
+    const [submissions, messenger, decided, domains, allDecisions] =
+        await Promise.all([
+            listSubmissions(),
+            findMessenger(),
+            currentAccreditations().catch(() => new Map<string, Accreditation>()),
+            listDomains(),
+            listAccreditations().catch(() => [] as Accreditation[]),
+        ]);
 
     const submission = submissions.find((s) => s.ename === ename);
     if (!submission) {
         throw error(404, "This platform isn't awaiting review.");
     }
 
+    const recordedDecision =
+        decided.get(accreditationKey(ename, submission.version)) ?? null;
+    // Every decision ever taken on this platform, oldest first, so the page
+    // can show the exchange rather than only its latest turn.
+    const history = allDecisions
+        .filter((d) => d.platformEName === ename)
+        .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+
+    // Built here so the page never has to know about configuration.
+    const base = repositoryBaseUrl();
+    const repository = submission.submissionProof.statement.repository;
+    let repositoryUrl: string | null = null;
+    if (base && repository) {
+        try {
+            repositoryUrl = new URL(
+                repository.replace(/^\/+/, ""),
+                base.endsWith("/") ? base : `${base}/`,
+            ).toString();
+        } catch {
+            console.warn(
+                `[ppa] PPA_REPOSITORY_BASE_URL is not a usable base URL: ${base}`,
+            );
+        }
+    }
+
     return {
         submission,
+        history,
+        repositoryUrl,
         authors: await getAuthors(submission.authorEnames, messenger),
         messengerConfigured: messenger !== null,
         domains,
@@ -38,7 +70,13 @@ export const load: PageServerLoad = async ({ params }) => {
             submission.requestedDomains.includes(d.id),
         ),
         currentDecision:
-            decided.get(accreditationKey(ename, submission.version)) ?? null,
+            recordedDecision &&
+            !submissionSupersedesDecision(
+                submission.submissionProof,
+                recordedDecision,
+            )
+                ? recordedDecision
+                : null,
     };
 };
 
@@ -104,6 +142,16 @@ export const actions: Actions = {
 
         const level = decision === "granted" ? (rawLevel as string) : null;
         const accreditationId = randomUUID();
+        // A version can be refused and reapply, so name the decision this one
+        // replaces instead of leaving the order to be inferred.
+        const applicantResponse =
+            submission.submissionProof.statement.responseToDecision?.trim() || null;
+        const applicantSubmittedAt =
+            submission.submissionProof.statement.issuedAt ?? null;
+        const previous =
+            (await currentAccreditations().catch(
+                () => new Map<string, Accreditation>(),
+            )).get(accreditationKey(ename, submission.version)) ?? null;
 
         try {
             const jws = await signAccreditation({
@@ -117,6 +165,8 @@ export const actions: Actions = {
                 statement,
                 reviewedByEName: reviewer,
                 submissionEnvelopeId: submission.submissionEnvelopeId,
+                supersedes: previous?.accreditationId ?? null,
+                applicantResponse,
             });
 
             const accreditation: Accreditation = {
@@ -131,7 +181,9 @@ export const actions: Actions = {
                 reviewedByEName: reviewer,
                 issuerJwksUri: jwksUri(),
                 submissionEnvelopeId: submission.submissionEnvelopeId,
-                status: "active",
+                supersedes: previous?.accreditationId ?? null,
+                applicantResponse,
+                applicantSubmittedAt,
                 jws,
                 createdAt: new Date().toISOString(),
             };

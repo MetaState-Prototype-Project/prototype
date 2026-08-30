@@ -175,12 +175,16 @@ export const typeDefs = /* GraphQL */ `
         self
         personal_parameters
         security_question
+        deployment_key
+        software_version
     }
 
     type BindingDocumentSignature {
         signer: String!
         signature: String!
         timestamp: String!
+        scope: String
+        signedPayload: String
     }
 
     type BindingDocument {
@@ -300,6 +304,8 @@ export const typeDefs = /* GraphQL */ `
         signer: String!
         signature: String!
         timestamp: String!
+        scope: String
+        signedPayload: String
     }
 
     "Input for creating a binding document"

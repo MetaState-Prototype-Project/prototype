@@ -1,4 +1,5 @@
 import axios from "axios";
+import { createHash } from "node:crypto";
 import nacl from "tweetnacl";
 import { verifySignature } from "signature-validator";
 import type { DbService } from "../core/db/db.service";
@@ -11,6 +12,7 @@ import {
 import type {
     BindingDocument,
     BindingDocumentData,
+    BindingDocumentDeploymentKeyData,
     BindingDocumentIdDocumentData,
     BindingDocumentPersonalParametersData,
     BindingDocumentPhotographData,
@@ -18,6 +20,7 @@ import type {
     BindingDocumentSelfData,
     BindingDocumentSignature,
     BindingDocumentSocialConnectionData,
+    BindingDocumentSoftwareVersionData,
     BindingDocumentType,
 } from "../core/types/binding-document";
 
@@ -146,6 +149,48 @@ function validateBindingDocumentData(
                 answerHash: trimmedAnswerHash,
             } as BindingDocumentSecurityQuestionData;
         }
+        case "deployment_key": {
+            if (
+                d.kind !== "deployment_key" ||
+                typeof d.deploymentName !== "string" || !d.deploymentName.trim() ||
+                typeof d.environment !== "string" || !d.environment.trim() ||
+                typeof d.deployerEname !== "string" || !d.deployerEname.startsWith("@") ||
+                typeof d.platformEname !== "string" || !d.platformEname.startsWith("@") ||
+                typeof d.publicKey !== "string" || !d.publicKey.startsWith("z") ||
+                d.algorithm !== "ECDSA_P256"
+            ) {
+                throw new ValidationError("deployment_key data is invalid");
+            }
+            return {
+                kind: "deployment_key",
+                deploymentName: d.deploymentName.trim(),
+                environment: d.environment.trim(),
+                deployerEname: d.deployerEname,
+                platformEname: d.platformEname,
+                publicKey: d.publicKey,
+                algorithm: "ECDSA_P256",
+            } as BindingDocumentDeploymentKeyData;
+        }
+        case "software_version": {
+            if (
+                d.kind !== "software_version" ||
+                typeof d.platformEname !== "string" || !d.platformEname.startsWith("@") ||
+                typeof d.versionEname !== "string" || !d.versionEname.startsWith("@") ||
+                typeof d.version !== "string" || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(d.version) ||
+                typeof d.releaseTag !== "string" || !d.releaseTag.trim() ||
+                typeof d.commitSha !== "string" || !/^[0-9a-f]{40,64}$/i.test(d.commitSha)
+            ) {
+                throw new ValidationError("software_version data is invalid");
+            }
+            return {
+                kind: "software_version",
+                platformEname: d.platformEname,
+                versionEname: d.versionEname,
+                version: d.version,
+                releaseTag: d.releaseTag.trim(),
+                commitSha: d.commitSha.toLowerCase(),
+            } as BindingDocumentSoftwareVersionData;
+        }
         default: {
             const _exhaustive: never = type;
             throw new ValidationError(`Unknown binding document type: ${_exhaustive}`);
@@ -172,14 +217,13 @@ export class BindingDocumentService {
         this.registryUrl = registryUrl || process.env.PUBLIC_REGISTRY_URL || "";
     }
 
-    private async verifyUserSignature(
+    private async verifyUserPayload(
         signer: string,
         signature: string,
-        doc: { subject: string; type: BindingDocumentType; data: BindingDocumentData },
+        payload: string,
     ): Promise<boolean> {
         if (!this.registryUrl) return false;
         try {
-            const payload = getCanonicalBindingDocumentString(doc);
             const result = await verifySignature({
                 eName: signer,
                 signature,
@@ -187,6 +231,56 @@ export class BindingDocumentService {
                 registryBaseUrl: this.registryUrl,
             });
             return result.valid;
+        } catch {
+            return false;
+        }
+    }
+
+    private async verifyUserSignature(
+        signer: string,
+        signature: string,
+        doc: { subject: string; type: BindingDocumentType; data: BindingDocumentData },
+    ): Promise<boolean> {
+        return this.verifyUserPayload(
+            signer,
+            signature,
+            getCanonicalBindingDocumentString(doc),
+        );
+    }
+
+    private async verifyBundleSignature(
+        signature: BindingDocumentSignature,
+        doc: { subject: string; type: BindingDocumentType; data: BindingDocumentData },
+    ): Promise<boolean> {
+        if (signature.scope !== "bundle" || !signature.signedPayload) return false;
+        try {
+            const bundle = JSON.parse(signature.signedPayload) as {
+                type?: unknown;
+                version?: unknown;
+                documents?: unknown;
+            };
+            if (
+                bundle.type !== "deployment_attestation_bundle" ||
+                bundle.version !== 1 ||
+                !Array.isArray(bundle.documents) ||
+                bundle.documents.length !== 2
+            ) return false;
+            const expectedHash = computeBindingDocumentHash(doc);
+            const member = bundle.documents.some((item) => {
+                if (!item || typeof item !== "object") return false;
+                const entry = item as Record<string, unknown>;
+                return entry.hash === expectedHash &&
+                    entry.subject === doc.subject && entry.type === doc.type;
+            });
+            if (!member) return false;
+            const digest = createHash("sha256")
+                .update(signature.signedPayload, "utf8")
+                .digest("base64url");
+            return this.verifyUserPayload(
+                signature.signer,
+                signature.signature,
+                `gitw3:deployment:v1:${digest}`,
+            );
         } catch {
             return false;
         }
@@ -270,6 +364,7 @@ export class BindingDocumentService {
         const expectedHash = computeBindingDocumentHash(docToVerify);
         const hasLegacyHashSignature = input.ownerSignature.signature === expectedHash;
         const isProvisionerSigner = /^https?:\/\//.test(input.ownerSignature.signer);
+        const isDeploymentDocument = input.type === "deployment_key" || input.type === "software_version";
 
         const hasValidUserSignature =
             !hasLegacyHashSignature &&
@@ -279,9 +374,20 @@ export class BindingDocumentService {
                 input.ownerSignature.signature,
                 docToVerify,
             ));
+        const hasValidBundleSignature = isDeploymentDocument &&
+            (await this.verifyBundleSignature(input.ownerSignature, docToVerify));
 
-        if (!hasLegacyHashSignature && !isProvisionerSigner && !hasValidUserSignature) {
+        if (
+            (isDeploymentDocument && !hasValidBundleSignature) ||
+            (!isDeploymentDocument && !hasLegacyHashSignature && !isProvisionerSigner && !hasValidUserSignature)
+        ) {
             throw new ValidationError("Invalid owner signature");
+        }
+        if (
+            input.type === "deployment_key" &&
+            input.ownerSignature.signer !== (validatedData as BindingDocumentDeploymentKeyData).deployerEname
+        ) {
+            throw new ValidationError("deployment_key must be signed by its deployer");
         }
 
         const bindingDocument: BindingDocument = {
@@ -291,11 +397,13 @@ export class BindingDocumentService {
             signatures: [input.ownerSignature],
         };
 
+        const isPublicDeploymentDocument = input.type === "deployment_key" || input.type === "software_version";
+        const acl = isPublicDeploymentDocument ? ["*"] : [normalizedSubject];
         const result = await this.db.storeMetaEnvelope(
             {
                 ontology: BINDING_DOCUMENT_ONTOLOGY,
                 payload: bindingDocument,
-                acl: [normalizedSubject],
+                acl,
             },
             [normalizedSubject],
             eName,

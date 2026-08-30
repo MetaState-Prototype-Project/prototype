@@ -4,6 +4,7 @@ import axios from "axios";
 import fastify, { type FastifyInstance } from "fastify";
 import * as jose from "jose";
 import type {
+    PreviewProvisionRequest,
     ProvisionRequest,
     ProvisioningService,
 } from "../../services/ProvisioningService";
@@ -1060,6 +1061,29 @@ export async function registerHttpRoutes(
 
     // Provision eVault endpoint
     if (provisioningService) {
+        server.post<{ Body: PreviewProvisionRequest }>(
+            "/provision/preview",
+            {
+                schema: {
+                    tags: ["provisioning"],
+                    description: "Preview an eVault eName without provisioning it",
+                    body: {
+                        type: "object",
+                        required: ["registryEntropy", "namespace"],
+                        properties: {
+                            registryEntropy: { type: "string" },
+                            namespace: { type: "string" },
+                        },
+                    },
+                },
+            },
+            async (request: TypedRequest<PreviewProvisionRequest>, reply: TypedReply) => {
+                const result = await provisioningService.previewEVault(request.body);
+                if (!result.success) return reply.status(400).send(result);
+                return result;
+            },
+        );
+
         server.post<{ Body: ProvisionRequest }>(
             "/provision",
             {

@@ -3,7 +3,8 @@ import {
     type StartedNeo4jContainer,
 } from "@testcontainers/neo4j";
 import neo4j, { type Driver } from "neo4j-driver";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { DbService } from "../core/db/db.service";
 import { computeEnvelopeHash } from "../core/db/envelope-hash";
 import { computeBindingDocumentHash } from "../core/utils/binding-document-hash";
@@ -231,6 +232,97 @@ describe("BindingDocumentService (integration)", () => {
             );
 
             expect(result.bindingDocument.subject).toBe("@already-prefixed");
+        });
+
+        it("stores a deployer-signed deployment bundle as public documents", async () => {
+            const deploymentSubject = "@11111111-1111-5111-8111-111111111111";
+            const versionSubject = "@22222222-2222-5222-8222-222222222222";
+            const deployer = "@33333333-3333-5333-8333-333333333333";
+            const deploymentData = {
+                kind: "deployment_key" as const,
+                deploymentName: "Singapore production",
+                environment: "production",
+                deployerEname: deployer,
+                platformEname: TEST_ENAME,
+                publicKey: "zDeploymentPublicKey",
+                algorithm: "ECDSA_P256" as const,
+            };
+            const versionData = {
+                kind: "software_version" as const,
+                platformEname: TEST_ENAME,
+                versionEname: versionSubject,
+                version: "1.2.3",
+                releaseTag: "v1.2.3",
+                commitSha: "a".repeat(40),
+            };
+            const signedPayload = JSON.stringify({
+                type: "deployment_attestation_bundle",
+                version: 1,
+                documents: [
+                    {
+                        subject: deploymentSubject,
+                        type: "deployment_key",
+                        hash: computeBindingDocumentHash({ subject: deploymentSubject, type: "deployment_key", data: deploymentData }),
+                    },
+                    {
+                        subject: versionSubject,
+                        type: "software_version",
+                        hash: computeBindingDocumentHash({ subject: versionSubject, type: "software_version", data: versionData }),
+                    },
+                ],
+            });
+            const verify = vi.spyOn(bindingDocumentService as any, "verifyUserPayload").mockResolvedValue(true);
+            const ownerSignature = {
+                signer: deployer,
+                signature: "wallet-signature",
+                timestamp: new Date().toISOString(),
+                scope: "bundle" as const,
+                signedPayload,
+            };
+
+            const deployment = await bindingDocumentService.createBindingDocument({
+                subject: deploymentSubject,
+                type: "deployment_key",
+                data: deploymentData,
+                ownerSignature,
+            }, deploymentSubject);
+            const version = await bindingDocumentService.createBindingDocument({
+                subject: versionSubject,
+                type: "software_version",
+                data: versionData,
+                ownerSignature,
+            }, deploymentSubject);
+
+            expect(deployment.bindingDocument.signatures[0].signedPayload).toBe(signedPayload);
+            expect(version.bindingDocument.signatures[0].scope).toBe("bundle");
+            expect(verify).toHaveBeenCalledWith(
+                deployer,
+                "wallet-signature",
+                `gitw3:deployment:v1:${createHash("sha256").update(signedPayload).digest("base64url")}`,
+            );
+            verify.mockRestore();
+        });
+
+        it("rejects unsigned deployment documents", async () => {
+            const data = {
+                kind: "deployment_key" as const,
+                deploymentName: "Production",
+                environment: "production",
+                deployerEname: TEST_ENAME,
+                platformEname: "@platform",
+                publicKey: "zDeploymentPublicKey",
+                algorithm: "ECDSA_P256" as const,
+            };
+            await expect(bindingDocumentService.createBindingDocument({
+                subject: "@deployment",
+                type: "deployment_key",
+                data,
+                ownerSignature: {
+                    signer: TEST_ENAME,
+                    signature: computeBindingDocumentHash({ subject: "@deployment", type: "deployment_key", data }),
+                    timestamp: new Date().toISOString(),
+                },
+            }, "@deployment")).rejects.toThrow("Invalid owner signature");
         });
 
         it("should persist envelope operation logs via dbService after creating a binding document", async () => {

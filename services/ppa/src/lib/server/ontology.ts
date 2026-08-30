@@ -18,6 +18,35 @@ export { ACCESS_LEVELS, isAccessLevel } from "$lib/levels";
 export type { Domain } from "$lib/types";
 export type { AccessLevel } from "$lib/levels";
 
+export interface PPASubmissionStatement {
+    type: "w3ds.ppa.release-submission";
+    schemaVersion: 1;
+    repositoryId: number;
+    repository: string;
+    platformEName: string;
+    platformName: string;
+    releaseTag: string;
+    version: string;
+    manifestCommitId: string;
+    domains: string[];
+    signerEName: string;
+    issuedAt: string;
+    nonce: string;
+    previousDecision?: "denied";
+    previousDecisionAt?: string;
+    responseToDecision?: string;
+}
+
+/** Portable wallet evidence stored with the PlatformProfile in its eVault. */
+export interface PPASubmissionProof {
+    statement: PPASubmissionStatement;
+    payload: string;
+    signature: string;
+    publicKey: string;
+    keyBindingCertificate: string;
+    verifiedAt: string;
+}
+
 /** A platform's submission for review, as read out of AaaS. */
 export interface Submission {
     /** The platform eVault's eName — the stable key for a submission. */
@@ -37,6 +66,10 @@ export interface Submission {
      * declares. A decision can approve these or a subset — never more.
      */
     requestedDomains: string[];
+    /** Independently verified owner/admin release signature from the platform eVault. */
+    submissionProof: PPASubmissionProof;
+    /** Append-only signed applications and replies retained by the platform. */
+    submissionHistory: PPASubmissionProof[];
     submissionEnvelopeId: string;
     submittedAt: string;
     /** The untouched PlatformProfile payload, shown behind a disclosure. */
@@ -53,10 +86,14 @@ export interface Accreditation {
     level: string | null;
     domains: string[];
     statement: string;
+    /** What the applicant said when reapplying, as it stood at decision time. */
+    applicantResponse: string | null;
+    applicantSubmittedAt: string | null;
     reviewedByEName: string;
     issuerJwksUri: string;
     submissionEnvelopeId: string;
-    status: "active" | "superseded";
+    /** The decision this one replaces for the same version, if any. */
+    supersedes: string | null;
     jws: string;
     createdAt: string;
 }
