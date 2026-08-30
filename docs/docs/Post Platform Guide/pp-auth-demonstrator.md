@@ -47,7 +47,11 @@ Each change writes an `AccessGrant` into your own eVault as a new revision. Clea
 
 **Deployment keys go in here, before you try anything.** Possession is the one link a reader cannot establish by looking, so whether the key is present decides what a check can even mean. Enter it and the deployment can answer a challenge for real; leave it out and every request stops at the handshake, which is the correct outcome.
 
-**Try a request** then runs one all the way through — a named deployment, an operation, a domain — and reports which of the three gates decided. Turn off write and a write is refused while a read still succeeds; withdraw the grant and the refusal changes from "has not been given permission" to "has been withdrawn".
+**Try a request** then runs one all the way through — a named deployment, an operation, a domain — and reports which of the three gates decided.
+
+A permitted read is not a verdict: it goes to the eVault and the records it returns are rendered underneath. A refused one fetches nothing, and says so — the eVault is never asked. A permitted write really writes, with text you supply, into a schema belonging to that domain, and then reads the domain back so you can see it landed.
+
+Turn off write and a write is refused while a read still succeeds; withdraw the grant and the refusal changes from "has not been given permission" to "has been withdrawn".
 
 ## Your terms
 

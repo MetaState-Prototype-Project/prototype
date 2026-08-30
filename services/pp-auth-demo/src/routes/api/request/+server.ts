@@ -2,6 +2,7 @@ import { json } from "@sveltejs/kit";
 import { authorize, type Operation, type PlatformClaim } from "@metastate-foundation/auth/platform";
 import { deployments, platformProfile } from "$lib/server/aaas";
 import { assemble, verify } from "$lib/server/chain";
+import { recordsInDomain, writeRecord } from "$lib/server/data";
 import { currentGrants } from "$lib/server/grants";
 import { keyFor } from "$lib/server/keys";
 import { currentPolicy } from "$lib/server/policy";
@@ -19,6 +20,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		deploymentEname?: string;
 		domain?: string;
 		operation?: string;
+		text?: string;
 	};
 	const operation: Operation = body.operation === "write" ? "write" : "read";
 	const domain = String(body.domain ?? "");
@@ -71,7 +73,43 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		grants,
 	});
 
-	return json({ stage: "authorised", chain, decision, missing: [] });
+	if (!decision.allowed) {
+		// Nothing is fetched. A refusal that still read the data and then
+		// declined to show it would not be a refusal at all.
+		return json({ stage: "authorised", chain, decision, records: null, wrote: null });
+	}
+
+	if (operation === "write") {
+		const text = String(body.text ?? "").trim();
+		if (!text) {
+			return json({
+				stage: "authorised",
+				chain,
+				decision,
+				records: null,
+				wrote: null,
+				note: "Permitted, but nothing was written — no text was given.",
+			});
+		}
+		const wrote = await writeRecord(ename, domain, text);
+		return json({
+			stage: "authorised",
+			chain,
+			decision,
+			records: await recordsInDomain(ename, domain),
+			wrote,
+		});
+	}
+
+	// The point of the whole exercise: a permitted read really does go to the
+	// eVault and come back with the records.
+	return json({
+		stage: "authorised",
+		chain,
+		decision,
+		records: await recordsInDomain(ename, domain),
+		wrote: null,
+	});
 };
 
 export const GET: RequestHandler = async () =>

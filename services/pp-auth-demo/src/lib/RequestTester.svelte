@@ -32,6 +32,10 @@
     let decision = $state<{ allowed: boolean; reason: string; code: string } | null>(null);
     let stage = $state<string | null>(null);
     let missing = $state<string[]>([]);
+    let records = $state<Array<{ id: string; kind: string; summary: string }> | null>(null);
+    let wrote = $state<{ id: string; kind: string } | null>(null);
+    let note = $state<string | null>(null);
+    let text = $state("");
 
     async function send() {
         busy = true;
@@ -39,13 +43,17 @@
             const res = await fetch("/api/request", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ deploymentEname, domain, operation }),
+                body: JSON.stringify({ deploymentEname, domain, operation, text }),
             });
             const body = await res.json();
             chain = body.chain ?? null;
             decision = body.decision ?? null;
             stage = body.stage ?? null;
             missing = body.missing ?? [];
+            records = body.records ?? null;
+            wrote = body.wrote ?? null;
+            note = body.note ?? null;
+            if (body.wrote) text = "";
         } finally {
             busy = false;
         }
@@ -85,6 +93,13 @@
         </label>
     </div>
 
+    {#if operation === "write"}
+        <label class="block space-y-1">
+            <span class="text-xs text-muted">What it wants to write</span>
+            <input class="field" bind:value={text} placeholder="Something to store" />
+        </label>
+    {/if}
+
     {#if !held}
         <p class="text-xs text-caution">
             This deployment has no key here, so it cannot prove who it is and the
@@ -114,6 +129,41 @@
         <p class="rounded-2xl bg-negative-wash px-4 py-3 text-sm text-negative">
             Refused before any permission was consulted — it could not prove what it is.
             {chain.links.find((link) => !link.ok)?.detail}
+        </p>
+    {/if}
+
+    {#if decision?.allowed}
+        <div class="space-y-2 rounded-2xl border border-line bg-surface p-4">
+            <p class="text-xs font-semibold tracking-wide text-faint uppercase">
+                {wrote ? "Written, and read back from your eVault" : "Pulled from your eVault"}
+            </p>
+            {#if wrote}
+                <p class="text-xs text-positive">
+                    Stored a new {wrote.kind} record.
+                </p>
+            {/if}
+            {#if note}
+                <p class="text-xs text-caution">{note}</p>
+            {/if}
+            {#if records && records.length > 0}
+                <ul class="space-y-2">
+                    {#each records as record (record.id)}
+                        <li class="rounded-xl bg-canvas p-3">
+                            <p class="text-xs text-faint">{record.kind}</p>
+                            <p class="mt-1 text-sm text-body">{record.summary}</p>
+                        </li>
+                    {/each}
+                </ul>
+            {:else if records}
+                <p class="text-sm text-muted">
+                    The read was permitted and went through — your eVault holds nothing
+                    of this kind.
+                </p>
+            {/if}
+        </div>
+    {:else if decision}
+        <p class="rounded-2xl border border-line bg-surface px-4 py-3 text-sm text-muted">
+            Nothing was fetched. The eVault was never asked.
         </p>
     {/if}
 
