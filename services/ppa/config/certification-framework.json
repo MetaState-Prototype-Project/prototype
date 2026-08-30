@@ -181,19 +181,19 @@
         },
         {
           "level": 1,
-          "label": "Automated scan only — tooling run for gross errors and obvious risks"
+          "label": "Automated scan only — tooling run to catch gross errors and obvious risks"
         },
         {
           "level": 3,
-          "label": "A reviewer read this release for significant problems and inconsistencies"
+          "label": "Manually reviewed this release, looking for problems and inconsistencies"
         },
         {
           "level": 4,
-          "label": "A reviewer read the release, its dependencies, data handling and sensitive paths"
+          "label": "Manually reviewed the release, its dependencies, data handling and sensitive paths"
         },
         {
           "level": 5,
-          "label": "Two reviewers read it independently, with findings tracked to resolution"
+          "label": "Manually reviewed by two people independently, with findings tracked to resolution"
         }
       ]
     },
