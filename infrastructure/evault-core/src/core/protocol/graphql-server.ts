@@ -1,4 +1,5 @@
 import { Server } from "http";
+import { aclBlockFromInput, Permission } from "../acl";
 import axios from "axios";
 import type { GraphQLSchema } from "graphql";
 import { createSchema, createYoga } from "graphql-yoga";
@@ -361,6 +362,7 @@ export class GraphQLServer {
                                 ontology: string;
                                 payload: any;
                                 acl: string[];
+                                _acl?: unknown;
                             };
                         },
                         context: VaultContext,
@@ -383,6 +385,7 @@ export class GraphQLServer {
                                     ontology: input.ontology,
                                     payload: input.payload,
                                     acl: input.acl,
+                                    _acl: aclBlockFromInput(input._acl),
                                 },
                                 input.acl,
                                 context.eName,
@@ -483,6 +486,7 @@ export class GraphQLServer {
                             };
                         }
                     },
+                    Permission.CREATE,
                 ),
 
                 // Update an existing MetaEnvelope with structured payload
@@ -498,6 +502,7 @@ export class GraphQLServer {
                                 ontology: string;
                                 payload: any;
                                 acl: string[];
+                                _acl?: unknown;
                             };
                         },
                         context: VaultContext,
@@ -521,6 +526,7 @@ export class GraphQLServer {
                                     ontology: input.ontology,
                                     payload: input.payload,
                                     acl: input.acl,
+                                    _acl: aclBlockFromInput(input._acl),
                                 },
                                 input.acl,
                                 context.eName,
@@ -612,6 +618,7 @@ export class GraphQLServer {
                             };
                         }
                     },
+                    Permission.UPDATE,
                 ),
 
                 // Delete a MetaEnvelope with structured result
@@ -701,6 +708,7 @@ export class GraphQLServer {
                             };
                         }
                     },
+                    Permission.DELETE,
                 ),
 
                 // Bulk create MetaEnvelopes (optimized for migrations)
@@ -716,6 +724,7 @@ export class GraphQLServer {
                                 ontology: string;
                                 payload: any;
                                 acl: string[];
+                                _acl?: unknown;
                             }>;
                             skipWebhooks?: boolean;
                         },
@@ -760,6 +769,7 @@ export class GraphQLServer {
                                             ontology: input.ontology,
                                             payload: input.payload,
                                             acl: input.acl,
+                                            _acl: aclBlockFromInput(input._acl),
                                         },
                                         input.acl,
                                         context.eName,
@@ -840,6 +850,7 @@ export class GraphQLServer {
                             errors: [],
                         };
                     },
+                    Permission.CREATE,
                 ),
 
                 // ============================================================
@@ -988,6 +999,7 @@ export class GraphQLServer {
                             };
                         }
                     },
+                    Permission.CREATE,
                 ),
 
                 createBindingDocumentSignature: this.accessGuard.middleware(
@@ -1095,6 +1107,7 @@ export class GraphQLServer {
                             };
                         }
                     },
+                    Permission.UPDATE,
                 ),
 
                 hashSecurityAnswer: this.accessGuard.middleware(
@@ -1217,6 +1230,7 @@ export class GraphQLServer {
                                 ontology: string;
                                 payload: any;
                                 acl: string[];
+                                _acl?: unknown;
                             };
                         },
                         context: VaultContext,
@@ -1229,6 +1243,7 @@ export class GraphQLServer {
                                 ontology: input.ontology,
                                 payload: input.payload,
                                 acl: input.acl,
+                                _acl: aclBlockFromInput(input._acl),
                             },
                             input.acl,
                             context.eName,
@@ -1304,6 +1319,7 @@ export class GraphQLServer {
                             metaEnvelope: metaEnvelopeWithParsed,
                         };
                     },
+                    Permission.CREATE,
                 ),
                 // Upload a file to object storage and create a File meta-envelope
                 uploadFile: this.accessGuard.middleware(
@@ -1317,6 +1333,7 @@ export class GraphQLServer {
                                 contentType: string;
                                 content: string;
                                 acl: string[];
+                                _acl?: unknown;
                             };
                         },
                         context: VaultContext,
@@ -1420,6 +1437,7 @@ export class GraphQLServer {
                                     ontology: FILE_SCHEMA_ID,
                                     payload,
                                     acl: input.acl,
+                                    _acl: aclBlockFromInput(input._acl),
                                 },
                                 input.acl,
                                 context.eName,
@@ -1514,6 +1532,7 @@ export class GraphQLServer {
                             };
                         }
                     },
+                    Permission.CREATE,
                 ),
                 updateMetaEnvelopeById: this.accessGuard.middleware(
                     async (
@@ -1527,6 +1546,7 @@ export class GraphQLServer {
                                 ontology: string;
                                 payload: any;
                                 acl: string[];
+                                _acl?: unknown;
                             };
                         },
                         context: VaultContext,
@@ -1541,6 +1561,7 @@ export class GraphQLServer {
                                     ontology: input.ontology,
                                     payload: input.payload,
                                     acl: input.acl,
+                                    _acl: aclBlockFromInput(input._acl),
                                 },
                                 input.acl,
                                 context.eName,
@@ -1600,6 +1621,7 @@ export class GraphQLServer {
                             throw error;
                         }
                     },
+                    Permission.UPDATE,
                 ),
                 deleteMetaEnvelope: this.accessGuard.middleware(
                     async (
@@ -1636,6 +1658,7 @@ export class GraphQLServer {
                             );
                         return true;
                     },
+                    Permission.DELETE,
                 ),
                 updateEnvelopeValue: this.accessGuard.middleware(
                     async (
@@ -1686,6 +1709,7 @@ export class GraphQLServer {
                         }
                         return true;
                     },
+                    Permission.UPDATE,
                 ),
             },
         };

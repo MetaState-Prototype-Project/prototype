@@ -1,6 +1,13 @@
 import axios from "axios";
 import type { YogaInitialContext } from "graphql-yoga";
 import * as jose from "jose";
+import {
+    type ConditionEvaluator,
+    evaluate,
+    Permission,
+    type PermissionBits,
+    type Principal,
+} from "../acl";
 import type { DbService } from "../db/db.service";
 import type { MetaEnvelope } from "../db/types";
 import { timed } from "../utils/timing";
@@ -21,7 +28,41 @@ const JWKS_FETCH_TIMEOUT_MS = 5000;
 const PLATFORM_PROFILE_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440000";
 
 export class VaultAccessGuard {
-    constructor(private db: DbService) {}
+    /**
+     * @param conditionEvaluator - Resolves Resource Link Ontology conditions.
+     *   Without one, any record whose policy carries conditions is decided
+     *   fail-closed: a `require` group with conditions cannot pass, and a deny
+     *   condition always applies.
+     */
+    constructor(
+        private db: DbService,
+        private conditionEvaluator?: ConditionEvaluator,
+    ) {}
+
+    /**
+     * The party a request acts as.
+     *
+     * A user identity is the party when there is one, with the calling
+     * platform recorded alongside it so that a platform-level grant or denial
+     * still applies at its own specificity. Otherwise the platform itself is
+     * the party.
+     *
+     * Group membership is not resolved yet, so a grant or denial naming a
+     * group matches nothing. For grants that is fail-closed; for denials it is
+     * fail-open, so group denials are not usable until a membership lookup is
+     * wired in here.
+     */
+    private principalFor(context: VaultContext): Principal | null {
+        const platform: string | undefined =
+            context.tokenPayload?.platform ?? undefined;
+        if (context.currentUser) {
+            return { ename: context.currentUser, kind: "user", platform };
+        }
+        if (platform) {
+            return { ename: platform, kind: "platform" };
+        }
+        return null;
+    }
 
     private bearerToken(context: VaultContext): string | undefined {
         const authHeader =
@@ -199,6 +240,7 @@ export class VaultAccessGuard {
     private async checkAccess(
         metaEnvelopeId: string,
         context: VaultContext,
+        action: PermissionBits = Permission.READ,
     ): Promise<{ hasAccess: boolean; exists: boolean }> {
         // Reuse token payload already validated by validateAuthentication() earlier
         // in the middleware; only re-validate as a fallback (e.g. store operations
@@ -212,21 +254,15 @@ export class VaultAccessGuard {
         }
 
         if (tokenPayload) {
-            // Token is valid, set platform context and allow access
             context.tokenPayload = tokenPayload;
-            // Still need to check if envelope exists
-            if (!context.eName) {
-                return { hasAccess: true, exists: false };
-            }
-            const metaEnvelope = await this.db.findMetaEnvelopeById(
-                metaEnvelopeId,
-                context.eName,
-            );
-            return { hasAccess: true, exists: metaEnvelope !== null };
         }
 
-        // Validate eName is present
         if (!context.eName) {
+            // With no vault addressed there is no record to load, so a valid
+            // token is all there is to go on.
+            if (tokenPayload) {
+                return { hasAccess: true, exists: false };
+            }
             throw new Error("X-ENAME header is required for access control");
         }
 
@@ -235,25 +271,43 @@ export class VaultAccessGuard {
             context.eName,
         );
         if (!metaEnvelope) {
-            return { hasAccess: false, exists: false };
+            return { hasAccess: tokenPayload !== null, exists: false };
         }
 
-        // Fallback to original ACL logic if no valid token
-        if (!context.currentUser) {
-            if (metaEnvelope.acl.includes("*")) {
-                return { hasAccess: true, exists: true };
+        // A record carrying an explicit policy is decided by that policy, for
+        // every caller. A platform token does not bypass the owner's rules --
+        // that bypass is exactly what the granular model exists to close.
+        if (metaEnvelope._acl) {
+            const principal = this.principalFor(context);
+            if (!principal) {
+                return { hasAccess: false, exists: true };
             }
-            return { hasAccess: false, exists: true };
+            const decision = await evaluate(
+                metaEnvelope._acl,
+                principal,
+                action,
+                this.conditionEvaluator,
+            );
+            return { hasAccess: decision.allowed, exists: true };
         }
 
-        // If ACL contains "*", anyone can access
-        if (metaEnvelope.acl.includes("*")) {
+        // Records written before the _acl block keep their original behaviour
+        // unchanged: a valid platform token suffices, otherwise the legacy
+        // array decides. Nothing is narrowed until an owner sets a policy.
+        if (tokenPayload) {
             return { hasAccess: true, exists: true };
         }
 
-        // Check if the current user's ID is in the ACL
-        const hasAccess = metaEnvelope.acl.includes(context.currentUser);
-        return { hasAccess, exists: true };
+        if (metaEnvelope.acl.includes("*")) {
+            return { hasAccess: true, exists: true };
+        }
+        if (!context.currentUser) {
+            return { hasAccess: false, exists: true };
+        }
+        return {
+            hasAccess: metaEnvelope.acl.includes(context.currentUser),
+            exists: true,
+        };
     }
 
     /**
@@ -267,7 +321,7 @@ export class VaultAccessGuard {
         if (typeof metaEnvelope !== "object") {
             return metaEnvelope;
         }
-        const { acl, ...filtered } = metaEnvelope;
+        const { acl, _acl, ...filtered } = metaEnvelope;
         return filtered;
     }
 
@@ -281,11 +335,26 @@ export class VaultAccessGuard {
         envelopes: MetaEnvelope[],
         context: VaultContext,
     ): Promise<any[]> {
+        const principal = this.principalFor(context);
         const filteredEnvelopes = [];
         for (const envelope of envelopes) {
-            const hasAccess =
-                envelope.acl.includes("*") ||
-                envelope.acl.includes(context.currentUser ?? "");
+            let hasAccess: boolean;
+            if (envelope._acl) {
+                hasAccess = principal
+                    ? (
+                          await evaluate(
+                              envelope._acl,
+                              principal,
+                              Permission.READ,
+                              this.conditionEvaluator,
+                          )
+                      ).allowed
+                    : false;
+            } else {
+                hasAccess =
+                    envelope.acl.includes("*") ||
+                    envelope.acl.includes(context.currentUser ?? "");
+            }
             if (hasAccess) {
                 filteredEnvelopes.push(this.filterACL(envelope));
             }
@@ -304,6 +373,7 @@ export class VaultAccessGuard {
             args: Args,
             context: VaultContext,
         ) => Promise<any>,
+        action: PermissionBits = Permission.READ,
     ) {
         return async (parent: T, args: Args, context: VaultContext) => {
             // Check if this is storeMetaEnvelope operation (has input with ontology, payload, acl)
@@ -358,7 +428,7 @@ export class VaultAccessGuard {
 
             // Check if envelope exists and user has access
             const { hasAccess, exists } = await timed("guard.checkAccess", () =>
-                this.checkAccess(metaEnvelopeId, context),
+                this.checkAccess(metaEnvelopeId, context, action),
             );
 
             // For update operations with input, allow in-place creation if envelope doesn't exist

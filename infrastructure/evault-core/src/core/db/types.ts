@@ -1,3 +1,5 @@
+import type { AclBlock } from "../acl";
+
 /**
  * Represents a meta-envelope that contains multiple envelopes of data.
  */
@@ -6,6 +8,12 @@ export type MetaEnvelope<T extends Record<string, any> = Record<string, any>> =
         ontology: string;
         payload: T;
         acl: string[];
+        /**
+         * The granular access policy. When present it is authoritative and the
+         * legacy `acl` array is ignored; when absent the array is interpreted
+         * through `fromLegacyAcl`.
+         */
+        _acl?: AclBlock;
     };
 
 /**
@@ -29,6 +37,8 @@ export type MetaEnvelopeResult<
     id: string;
     ontology: string;
     acl: string[];
+    /** The granular access policy, when the record carries one. */
+    _acl?: AclBlock;
     envelopes: Envelope<T[keyof T]>[];
     parsed: T;
     // eName is stored internally but never returned in API responses
@@ -50,6 +60,7 @@ export type StoreMetaEnvelopeResult<
         id: string;
         ontology: string;
         acl: string[];
+        _acl?: AclBlock;
     };
     envelopes: Envelope<T[keyof T]>[];
     mergedPayload?: Record<string, any>;

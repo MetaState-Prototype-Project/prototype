@@ -151,6 +151,8 @@ export const typeDefs = /* GraphQL */ `
         content: String!
         "Access control list for the created File meta-envelope"
         acl: [String!]!
+        "The granular access policy. Takes precedence over acl."
+        _acl: AclBlockInput
     }
 
     type UploadFilePayload {
@@ -278,13 +280,64 @@ export const typeDefs = /* GraphQL */ `
     }
 
     # ============================================================================
+    # Access Control Inputs
+    # ============================================================================
+
+    "A numeric requirement on a value inside an ontology, e.g. eReputation >= 60"
+    input AclConditionInput {
+        "The ontology's eName"
+        ontology: String!
+        "JSONPath into the ontology value, e.g. $.score"
+        path: String!
+        "One of >=, >, <=, <, =="
+        op: String!
+        value: Float!
+    }
+
+    "One named party and the permissions it holds"
+    input AclGrantInput {
+        "The party's eName"
+        ename: String!
+        "Bitmask: 0x01 READ, 0x02 CREATE, 0x04 UPDATE, 0x08 DELETE. Bits 4-7 are reserved and must be 0."
+        perms: Int!
+    }
+
+    "Access removals. A denial always wins over any grant."
+    input AclDenialsInput {
+        "Deny by identity"
+        enames: [String!]
+        "Deny a party that fails the check"
+        conditions: [AclConditionInput!]
+    }
+
+    """
+    The granular access policy stored inside the record it protects.
+
+    Decisions run in a fixed order: denials, then the most specific grant
+    (user beats platform beats group), then the require groups. When present
+    this block is authoritative and the legacy acl array is ignored.
+    """
+    input AclBlockInput {
+        v: Int
+        grants: [AclGrantInput!]
+        denials: AclDenialsInput
+        "Permissions for unnamed parties that pass a require group"
+        default_perms: Int
+        "OR of groups, each an AND of conditions"
+        require: [[AclConditionInput!]!]
+    }
+
+    # ============================================================================
     # Inputs
     # ============================================================================
 
     input MetaEnvelopeInput {
         ontology: String!
         payload: JSON!
+        "Legacy access list. Ignored when _acl is supplied."
         acl: [String!]!
+        "The granular access policy. Takes precedence over acl."
+        _acl: AclBlockInput
     }
 
     "Input for bulk create operations (e.g., migrations)"
@@ -293,7 +346,10 @@ export const typeDefs = /* GraphQL */ `
         id: ID
         ontology: String!
         payload: JSON!
+        "Legacy access list. Ignored when _acl is supplied."
         acl: [String!]!
+        "The granular access policy. Takes precedence over acl."
+        _acl: AclBlockInput
     }
 
     # ============================================================================

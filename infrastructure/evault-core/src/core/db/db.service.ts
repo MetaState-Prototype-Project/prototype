@@ -1,6 +1,7 @@
 import neo4j, { type Driver } from "neo4j-driver";
 import { W3IDBuilder } from "w3id";
 import { timed } from "../utils/timing";
+import { parseStoredAclBlock, serializeAclBlock } from "../acl";
 import { deserializeValue, serializeValue } from "./schema";
 import type {
     AppendEnvelopeOperationLogParams,
@@ -88,13 +89,14 @@ export class DbService {
         );
 
         const cypher: string[] = [
-            `CREATE (m:MetaEnvelope { id: $metaId, ontology: $ontology, acl: $acl, eName: $eName })`,
+            `CREATE (m:MetaEnvelope { id: $metaId, ontology: $ontology, acl: $acl, aclBlock: $aclBlock, eName: $eName })`,
         ];
 
         const envelopeParams: Record<string, any> = {
             metaId: w3id.id,
             ontology: meta.ontology,
             acl: acl,
+            aclBlock: serializeAclBlock(meta._acl),
             eName: eName,
         };
 
@@ -144,6 +146,7 @@ export class DbService {
                 id: w3id.id,
                 ontology: meta.ontology,
                 acl: acl,
+                _acl: meta._acl,
             },
             envelopes: createdEnvelopes,
         };
@@ -176,13 +179,14 @@ export class DbService {
 
         const cypher: string[] = [
             "MERGE (m:MetaEnvelope { id: $metaId })",
-            "ON CREATE SET m.ontology = $ontology, m.acl = $acl, m.eName = $eName",
+            "ON CREATE SET m.ontology = $ontology, m.acl = $acl, m.aclBlock = $aclBlock, m.eName = $eName",
         ];
 
         const envelopeParams: Record<string, any> = {
             metaId: metaId,
             ontology: meta.ontology,
             acl: acl,
+            aclBlock: serializeAclBlock(meta._acl),
             eName: eName,
         };
 
@@ -262,7 +266,7 @@ export class DbService {
       END
     WITH m
     MATCH (m)-[:LINKS_TO]->(allEnvelopes:Envelope)
-    RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, collect(allEnvelopes) AS envelopes
+    RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, m.aclBlock AS aclBlock, collect(allEnvelopes) AS envelopes
     `,
             { ontology, term: searchTerm, eName },
         );
@@ -295,6 +299,7 @@ export class DbService {
                 id: record.get("id"),
                 ontology: record.get("ontology"),
                 acl: record.get("acl"),
+                _acl: parseStoredAclBlock(record.get("aclBlock")),
                 envelopes,
                 parsed,
             };
@@ -321,7 +326,7 @@ export class DbService {
             `
     MATCH (m:MetaEnvelope { eName: $eName })-[:LINKS_TO]->(e:Envelope)
     WHERE m.id IN $ids
-    RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, collect(e) AS envelopes
+    RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, m.aclBlock AS aclBlock, collect(e) AS envelopes
     `,
             { ids, eName },
         );
@@ -354,6 +359,7 @@ export class DbService {
                 id: record.get("id"),
                 ontology: record.get("ontology"),
                 acl: record.get("acl"),
+                _acl: parseStoredAclBlock(record.get("aclBlock")),
                 envelopes,
                 parsed,
             };
@@ -378,7 +384,7 @@ export class DbService {
         const result = await this.runQueryInternal(
             `
       MATCH (m:MetaEnvelope { id: $id, eName: $eName })-[:LINKS_TO]->(e:Envelope)
-      RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, collect(e) AS envelopes
+      RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, m.aclBlock AS aclBlock, collect(e) AS envelopes
       `,
             { id, eName },
         );
@@ -413,6 +419,7 @@ export class DbService {
             id: record.get("id"),
             ontology: record.get("ontology"),
             acl: record.get("acl"),
+            _acl: parseStoredAclBlock(record.get("aclBlock")),
             envelopes,
             parsed,
         };
@@ -436,7 +443,7 @@ export class DbService {
         const result = await this.runQueryInternal(
             `
     MATCH (m:MetaEnvelope { ontology: $ontology, eName: $eName })-[:LINKS_TO]->(e:Envelope)
-    RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, collect(e) AS envelopes
+    RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, m.aclBlock AS aclBlock, collect(e) AS envelopes
     `,
             { ontology, eName },
         );
@@ -469,6 +476,7 @@ export class DbService {
                 id: record.get("id"),
                 ontology: record.get("ontology"),
                 acl: record.get("acl"),
+                _acl: parseStoredAclBlock(record.get("aclBlock")),
                 envelopes,
                 parsed,
             };
@@ -487,7 +495,7 @@ export class DbService {
         const result = await this.runQueryInternal(
             `
     MATCH (m:MetaEnvelope { ontology: $ontology })-[:LINKS_TO]->(e:Envelope)
-    RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, m.eName AS eName, collect(e) AS envelopes
+    RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, m.aclBlock AS aclBlock, m.eName AS eName, collect(e) AS envelopes
     `,
             { ontology },
         );
@@ -520,6 +528,7 @@ export class DbService {
                 id: record.get("id"),
                 ontology: record.get("ontology"),
                 acl: record.get("acl"),
+                _acl: parseStoredAclBlock(record.get("aclBlock")),
                 eName: record.get("eName"),
                 envelopes,
                 parsed,
@@ -606,13 +615,19 @@ export class DbService {
                 const findResult = await tx.run(
                     `
                     MERGE (m:MetaEnvelope { id: $id, eName: $eName })
-                    ON CREATE SET m.ontology = $ontology, m.acl = $acl
-                    ON MATCH SET m.ontology = $ontology, m.acl = $acl
+                    ON CREATE SET m.ontology = $ontology, m.acl = $acl, m.aclBlock = $aclBlock
+                    ON MATCH SET m.ontology = $ontology, m.acl = $acl, m.aclBlock = coalesce($aclBlock, m.aclBlock)
                     WITH m
                     OPTIONAL MATCH (m)-[:LINKS_TO]->(e:Envelope)
                     RETURN collect(e) AS envelopes
                     `,
-                    { id, eName, ontology: meta.ontology, acl },
+                    {
+                        id,
+                        eName,
+                        ontology: meta.ontology,
+                        acl,
+                        aclBlock: serializeAclBlock(meta._acl),
+                    },
                 );
 
                 const envelopeNodes: any[] = (
@@ -736,6 +751,7 @@ export class DbService {
                         id,
                         ontology: meta.ontology,
                         acl,
+                        _acl: meta._acl,
                     },
                     envelopes: createdEnvelopes,
                     mergedPayload,
@@ -765,7 +781,7 @@ export class DbService {
         const result = await this.runQueryInternal(
             `
     MATCH (m:MetaEnvelope { eName: $eName })-[:LINKS_TO]->(e:Envelope)
-    RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, collect(e) AS envelopes
+    RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, m.aclBlock AS aclBlock, collect(e) AS envelopes
     `,
             { eName },
         );
@@ -798,6 +814,7 @@ export class DbService {
                 id: record.get("id"),
                 ontology: record.get("ontology"),
                 acl: record.get("acl"),
+                _acl: parseStoredAclBlock(record.get("aclBlock")),
                 envelopes,
                 parsed,
             };
@@ -931,12 +948,13 @@ export class DbService {
             await targetDbService.runQuery(
                 `
                 MERGE (m:MetaEnvelope { id: $metaId, eName: $eName })
-                SET m.ontology = $ontology, m.acl = $acl
+                SET m.ontology = $ontology, m.acl = $acl, m.aclBlock = $aclBlock
                 `,
                 {
                     metaId: metaEnvelope.id,
                     ontology: metaEnvelope.ontology,
                     acl: metaEnvelope.acl,
+                    aclBlock: serializeAclBlock(metaEnvelope._acl),
                     eName: eName,
                 },
             );
@@ -1349,7 +1367,7 @@ export class DbService {
             ORDER BY m.id ${orderDirection}
             LIMIT $limitPlusOne
             MATCH (m)-[:LINKS_TO]->(e:Envelope)
-            RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, collect(e) AS envelopes
+            RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, m.aclBlock AS aclBlock, collect(e) AS envelopes
         `;
         params.limitPlusOne = neo4j.int(limit + 1);
 
@@ -1410,6 +1428,7 @@ export class DbService {
                 id,
                 ontology: record.get("ontology"),
                 acl: record.get("acl"),
+                _acl: parseStoredAclBlock(record.get("aclBlock")),
                 envelopes,
                 parsed,
             };
