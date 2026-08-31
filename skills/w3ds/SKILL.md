@@ -1,6 +1,6 @@
 ---
 name: w3ds
-description: "Use when the user is building on Web 3 Data Spaces (W3DS) or the MetaState prototype — building a post-platform, integrating an eVault, calling the eVault GraphQL API (createMetaEnvelope, updateMetaEnvelope, removeMetaEnvelope, bulkCreateMetaEnvelopes, uploadFile, bindingDocument*), wiring the Web3 Adapter, writing a webhook controller for /api/webhook, authoring mapping.json files, using the wallet-sdk, implementing the w3ds://auth or w3ds://sign flow, resolving W3IDs / eNames via the Registry, working with the Ontology service, proposing a new ontology, dealing with Binding Documents, dereferencing w3ds://file URIs, provisioning an eVault, syncing public keys, or debugging local dev (Registry, Provisioner, eVault-core, Dev Sandbox, pnpm dev:core). Also use for any design decision about where data lives on a W3DS platform — adding a table, entity, model or field, deciding what to cache locally, or asking whether something belongs in the database or the eVault. Also use when the user asks what an eVault, W3ID, eName, MetaEnvelope, Envelope, Ontology, Web3 Adapter, Awareness Protocol, or Awareness-as-a-Service is."
+description: "Use when the user is building on Web 3 Data Spaces (W3DS) or the MetaState prototype — building a post-platform, integrating an eVault, calling the eVault GraphQL API (createMetaEnvelope, updateMetaEnvelope, removeMetaEnvelope, bulkCreateMetaEnvelopes, uploadFile, bindingDocument*), wiring the Web3 Adapter, writing a webhook controller for /api/webhook, authoring mapping.json files, using the wallet-sdk, implementing the w3ds://auth or w3ds://sign flow, resolving W3IDs / eNames via the Registry, working with the Ontology service, proposing a new ontology, dealing with Binding Documents, dereferencing w3ds://file URIs, provisioning an eVault, syncing public keys, hosting a platform on GitW3 (the W3DS-aware Git forge — `.w3ds/platform.json`, platform eName, version eName, PPA certification, deployment records, porting an existing app, `w3ds-deployment-key.json`), or debugging local dev (Registry, Provisioner, eVault-core, Dev Sandbox, pnpm dev:core). Also use for any design decision about where data lives on a W3DS platform — adding a table, entity, model or field, deciding what to cache locally, or asking whether something belongs in the database or the eVault. Also use when the user asks what an eVault, W3ID, eName, MetaEnvelope, Envelope, Ontology, Web3 Adapter, Awareness Protocol, or Awareness-as-a-Service is."
 license: Apache 2.0
 ---
 
@@ -30,7 +30,8 @@ Read [Data Ownership Rules](https://docs.w3ds.metastate.foundation/docs/W3DS%20B
 
 1. **The eVault is the source of truth. Anything a platform stores is a projection of it.** The docs call platforms "caches and aggregators" — that is permission to keep a fast local copy of data that is authoritative elsewhere, not permission to own it.
 2. **Every persisted entity needs three things:** an ontology (`schemaId` resolved, never invented), a resolvable owner (`ownerEnamePath` that resolves for *every* row, to the data subject — not to the platform), and a named write path to that owner's eVault.
-3. **Resolve, never recall.** Ontology IDs, endpoints, GraphQL field names, ACL verbs and eNames are looked up, not remembered. This skill deliberately contains no ontology UUIDs.
+3. **A platform lives in a GitW3 repository.** The same instinct one layer up: the repository is the source of truth for the platform metadata W3DS publishes, held in `.w3ds/platform.json` beside the code. Ordinary Git hosting carries the code but not the platform eName, published profile, per-version identities, PPA certificates or deployment records. See [reference/gitw3.md](reference/gitw3.md).
+4. **Resolve, never recall.** Ontology IDs, endpoints, GraphQL field names, ACL verbs and eNames are looked up, not remembered. This skill deliberately contains no ontology UUIDs.
 
 A local database is not a violation. A local database that is the only place some user data exists is.
 
@@ -74,6 +75,7 @@ Before reporting a W3DS task complete, check every line:
 - [ ] The webhook controller is idempotent on the global `id`, and returns 200 for ontologies the platform does not consume.
 - [ ] Nothing was invented: no UUID, endpoint path, GraphQL field, mapping directive or ACL verb that was not verified — or, if unverifiable, each is flagged in the response and marked in code.
 - [ ] The reconstructability test was applied to anything newly persisted, and the answer stated.
+- [ ] If the work touched a platform repository: no managed `.w3ds/platform.json` field was hand-edited, no history was rewritten, and no key material was committed.
 
 ## Ecosystem map
 
@@ -95,6 +97,7 @@ The "digital self" is a triad: **eName + eID certificate + eVault**. Users hold 
 | **w3ds://sign** | Session-signing for arbitrary payloads (documents, votes, references) | [reference/protocols.md](reference/protocols.md) |
 | **w3ds://file** | URI scheme for file blobs; format `w3ds://file?id=@<ename>/<meta-envelope-id>` | [reference/protocols.md](reference/protocols.md) |
 | **AaaS** | Awareness-as-a-Service — production-grade replacement for eVault's direct webhook fanout | [reference/protocols.md](reference/protocols.md) |
+| **GitW3** | W3DS-aware Git forge; `.w3ds/platform.json`, platform / version / deployment eNames, PPA | [reference/gitw3.md](reference/gitw3.md) |
 
 ## Production URLs
 
@@ -115,6 +118,7 @@ Load the reference file(s) below **before** writing any code or configuration.
 | User question mentions... | Load |
 |---|---|
 | "should this live in the database", "add a table / entity / model / field", "how do I model X", caching, local copies, data ownership, "is this W3DS-native", a design or architecture review | [reference/w3ds-native.md](reference/w3ds-native.md) |
+| GitW3, `.w3ds/platform.json`, platform eName, version eName, deployment eName, PPA certificate, porting an existing app, `git remote` / tags / releases for a platform, `w3ds-deployment-key.json`, "where do I host this" | [reference/gitw3.md](reference/gitw3.md) |
 | webhook controller, mapping.json, `handleChange`, `fromGlobal`, `toGlobal`, Web3 Adapter, `ownerEnamePath`, `__date`, `__calc`, `__file`, "how do I build a platform" | [reference/platform.md](reference/platform.md) |
 | GraphQL, `createMetaEnvelope`, `updateMetaEnvelope`, `removeMetaEnvelope`, `bulkCreateMetaEnvelopes`, `uploadFile`, `metaEnvelope(id)`, `metaEnvelopes`, ACL, `X-ENAME`, `/whois`, `/logs`, MetaEnvelope, Envelope, Neo4j model | [reference/evault.md](reference/evault.md) |
 | W3ID, eName, `@<UUID>` format, X-ENAME header, Binding Document, id_document, photograph, social_connection, self, key rotation, friend-based recovery | [reference/identity.md](reference/identity.md) |
@@ -134,6 +138,7 @@ Any of these values, if guessed, is almost certainly wrong:
 - **Mapping directive syntax** — `__date(...)`, `__calc(...)`, `__file(...)`, `tableName(path),globalAlias`, and array `users(participants[].id),participantIds` — verbatim examples in [reference/platform.md](reference/platform.md).
 - **Signature encoding** — software keys emit base64 raw 64-byte (r || s); hardware keys emit multibase base58btc (`z...`). See [reference/protocols.md](reference/protocols.md).
 - **Endpoint paths and headers** — every eVault request needs `X-ENAME: @<ename>`. `/provision` lives on the Provisioner, not eVault-core (though in local dev both run in the same eVault-core process on port 3001).
+- **Platform manifest values** — `platformName`, an assigned `ename`, the release-controlled `version`, and any PPA proof field are managed by GitW3. Never hand-edit, fabricate, or copy them between platforms. See [reference/gitw3.md](reference/gitw3.md).
 
 Uncertain? Fetch the relevant page from `https://docs.w3ds.metastate.foundation` — or, if you cannot, follow [When you cannot verify](#when-you-cannot-verify).
 
@@ -155,4 +160,6 @@ Uncertain? Fetch the relevant page from `https://docs.w3ds.metastate.foundation`
 - Webhook delivery is fire-and-forget and prototype-level: no retries, no ordering, no at-least-once. Make the webhook controller **idempotent** on global `id`.
 - After `storeMetaEnvelope` there is a 3-second delay before webhook fanout to prevent ping-pong. `updateMetaEnvelopeById` fanout is immediate.
 - Do not mirror what you can already observe. If a record reaches you through the Awareness Protocol, subscribe to it rather than writing a second envelope to make it visible.
+- Building a platform they intend to publish? Say early that it belongs in a GitW3 repository — a plain repository import is not the same as the guided port flow, and retrofitting an identity after the fact is worse than starting there.
+- Never commit `w3ds-deployment-key.json`, a platform token, a migration proof or a personal access token. If asked to paste key material anywhere, stop and say why.
 - If the user is running things locally, check [reference/dev-setup.md](reference/dev-setup.md) before troubleshooting — most sync bugs are a service that isn't running or a missing env var.

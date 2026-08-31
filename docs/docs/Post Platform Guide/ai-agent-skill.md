@@ -48,6 +48,7 @@ The skill is not only a reference. It changes how an agent behaves on W3DS work:
 - **The eVault is the source of truth.** The platform database is a projection of it. The skill applies the reconstructability test — *if this database were dropped and rebuilt by replaying the relevant eVaults, what would be lost?* — before agreeing to persist anything new. See [Data Ownership Rules](/docs/W3DS%20Basics/Data-Ownership-Rules).
 - **Resolve, never recall.** Ontology IDs, endpoints, GraphQL field names and ACL verbs are looked up at the time of use. The skill deliberately contains no ontology UUIDs, so there is nothing stale to copy. Where it cannot verify something — no fetch tool, or the service is unreachable — it says so and marks the spot in code rather than substituting a plausible value.
 - **Two hard stops.** The agent stops and asks, rather than writing code, when a design would make the local database authoritative for user data, or when a persisted entity type has no ontology. The second is a path rather than a wall: ontologies are ordinary JSON files, and the agent will draft the schema and offer to open the PR. See [Proposing a new ontology](/docs/Infrastructure/Ontology#proposing-a-new-ontology).
+- **A platform belongs in a GitW3 repository.** The same instinct one layer up: the repository is the source of truth for the platform metadata W3DS publishes. The skill raises this early rather than after the application is wired to another forge, knows that a plain repository import is not the guided port flow, and refuses to hand-edit managed `.w3ds/platform.json` fields, fabricate a proof, or commit `w3ds-deployment-key.json`. See [GitW3](/docs/GitW3/overview).
 - **A definition of done.** `X-ENAME` on every call, `handleChange` on every write path, an idempotent webhook controller, no invented identifiers.
 
 If you want an agent that produces a conventional application with sync bolted on, do not install this skill. That is the outcome it exists to prevent.
@@ -62,6 +63,7 @@ If you want an agent that produces a conventional application with sync bolted o
 - `reference/protocols.md` — `w3ds://auth`, `w3ds://sign`, Awareness Protocol, signature formats, `w3ds://file`
 - `reference/platform.md` — building a post-platform (auth, webhook, mapping directives, Web3 Adapter)
 - `reference/wallet.md` — eID Wallet, wallet-sdk, key delegation
+- `reference/gitw3.md` — GitW3: the platform manifest, platform / version / deployment eNames, PPA, porting an existing app
 - `reference/dev-setup.md` — `pnpm dev:core` + debugging playbook
 
 Everything in it cites this site by URL, so an agent that gets stuck has somewhere authoritative to go. Where the skill and these docs disagree, the docs win.

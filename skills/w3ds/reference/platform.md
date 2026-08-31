@@ -11,6 +11,8 @@ This is the primary developer reference. A platform participating in W3DS needs 
 | **Mapping files** | JSON per local table describing the global schema mapping | [Mapping Rules](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/mapping-rules) |
 | **Web3 Adapter** | Instance holding the mapping configs, mapping DB, and eVault client; call `handleChange(...)` after every DB write | [Web3 Adapter](https://docs.w3ds.metastate.foundation/docs/Infrastructure/Web3-Adapter) |
 
+The platform also needs an identity, which is not code: a GitW3 repository holding `.w3ds/platform.json` and the permanent platform eName provisioned from it. See [gitw3.md](gitw3.md) — it is easier to start there than to retrofit an identity onto a repository already living somewhere else.
+
 If your app is stateless — writes directly to eVaults and doesn't own a local DB — you can skip the Web3 Adapter entirely. The adapter exists only to keep a platform DB in sync with eVaults, and for a small application stateless is both less code and more obviously W3DS-native. Suggest it before building a sync layer nobody asked for.
 
 **Before you build any of this**, settle where the data lives. The eVault is the source of truth; the platform DB is a projection of it. Every entity you persist needs an ontology, an owner eName, and a write path to that owner's eVault — run the pre-flight in [SKILL.md](../SKILL.md#pre-flight--before-writing-any-w3ds-code) and read [w3ds-native.md](w3ds-native.md) if the answer to any of the four is unclear. The mechanics below assume that question is already answered; getting it wrong produces a conventional application with sync bolted on, which is the failure this reference exists to prevent.

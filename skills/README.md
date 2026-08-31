@@ -8,7 +8,7 @@ Installable AI-agent skills for the MetaState / W3DS ecosystem. Powered by the [
 
 | Skill | Purpose |
 |-------|---------|
-| [w3ds](./w3ds) | Web 3 Data Spaces — build post-platforms, call the eVault GraphQL API, wire the Web3 Adapter, implement `w3ds://auth` / `w3ds://sign`, debug local dev. Enforces eVault-first design: the eVault is the source of truth, the platform DB is a projection. |
+| [w3ds](./w3ds) | Web 3 Data Spaces — build post-platforms, call the eVault GraphQL API, wire the Web3 Adapter, implement `w3ds://auth` / `w3ds://sign`, host the platform on GitW3, debug local dev. Enforces eVault-first design: the eVault is the source of truth, the platform DB is a projection, and the platform's own identity lives in its GitW3 repository. |
 
 ## Use it without installing anything
 
