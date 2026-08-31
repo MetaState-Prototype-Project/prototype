@@ -1,17 +1,21 @@
 # Building a post-platform
 
-This is the primary developer reference. A platform participating in W3DS needs four things: an auth flow, a webhook endpoint, JSON mapping files, and a Web3 Adapter wired to the local DB. Source: `docs/docs/Post Platform Guide/*.md`, `docs/docs/Infrastructure/Web3-Adapter.md`.
+This is the primary developer reference. A platform participating in W3DS needs four things: an auth flow, a webhook endpoint, JSON mapping files, and a Web3 Adapter wired to the local DB. Source: the [Post Platform Guide](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/getting-started) section of the docs, plus [Web3 Adapter](https://docs.w3ds.metastate.foundation/docs/Infrastructure/Web3-Adapter).
 
 ## The four required pieces
 
 | Piece | What | Reference doc |
 |---|---|---|
-| **Auth endpoints** | `GET /api/auth/offer` + `POST /api/auth`, using `signature-validator` | `docs/docs/Post Platform Guide/getting-started.md` |
-| **Webhook endpoint** | `POST /api/webhook` — idempotent, uses `adapter.fromGlobal` + mapping DB | `docs/docs/Post Platform Guide/webhook-controller.md` |
-| **Mapping files** | JSON per local table describing the global schema mapping | `docs/docs/Post Platform Guide/mapping-rules.md` |
-| **Web3 Adapter** | Instance holding the mapping configs, mapping DB, and eVault client; call `handleChange(...)` after every DB write | `docs/docs/Infrastructure/Web3-Adapter.md` |
+| **Auth endpoints** | `GET /api/auth/offer` + `POST /api/auth`, using `signature-validator` | [Getting Started with Platform Development](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/getting-started) |
+| **Webhook endpoint** | `POST /api/webhook` — idempotent, uses `adapter.fromGlobal` + mapping DB | [Webhook Controller Guide](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/webhook-controller) |
+| **Mapping files** | JSON per local table describing the global schema mapping | [Mapping Rules](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/mapping-rules) |
+| **Web3 Adapter** | Instance holding the mapping configs, mapping DB, and eVault client; call `handleChange(...)` after every DB write | [Web3 Adapter](https://docs.w3ds.metastate.foundation/docs/Infrastructure/Web3-Adapter) |
 
-If your app is stateless — writes directly to eVaults and doesn't own a local DB — you can skip the Web3 Adapter entirely. Adapter is only needed when a platform DB has to stay in sync with eVaults.
+The platform also needs an identity, which is not code: a GitW3 repository holding `.w3ds/platform.json` and the permanent platform eName provisioned from it. See [gitw3.md](gitw3.md) — it is easier to start there than to retrofit an identity onto a repository already living somewhere else.
+
+If your app is stateless — writes directly to eVaults and doesn't own a local DB — you can skip the Web3 Adapter entirely. The adapter exists only to keep a platform DB in sync with eVaults, and for a small application stateless is both less code and more obviously W3DS-native. Suggest it before building a sync layer nobody asked for.
+
+**Before you build any of this**, settle where the data lives. The eVault is the source of truth; the platform DB is a projection of it. Every entity you persist needs an ontology, an owner eName, and a write path to that owner's eVault — run the pre-flight in [SKILL.md](../SKILL.md#pre-flight--before-writing-any-w3ds-code) and read [w3ds-native.md](w3ds-native.md) if the answer to any of the four is unclear. The mechanics below assume that question is already answered; getting it wrong produces a conventional application with sync bolted on, which is the failure this reference exists to prevent.
 
 ## Auth flow
 
@@ -151,7 +155,7 @@ The endpoint receives packets for **every** ontology — you must filter and dro
 
 **Idempotency is mandatory.** Same `globalId` may arrive more than once. Never create a second local row for the same global ID; always upsert.
 
-Detail: `docs/docs/Post Platform Guide/webhook-controller.md`.
+Detail: [Webhook Controller Guide](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/webhook-controller).
 
 ## Mapping directives
 
@@ -173,13 +177,13 @@ Mapping files describe how local table fields ↔ global ontology fields. Same f
 ```
 
 - `tableName` — local table / entity name.
-- `schemaId` — global ontology W3ID (from [registry.md § Canonical ontology W3IDs](registry.md#canonical-ontology-w3ids)).
+- `schemaId` — global ontology W3ID (from [registry.md § Resolving an ontology](registry.md#resolving-an-ontology)).
 - `ownerEnamePath` — how to determine which eVault owns rows in this table. Supports fallbacks with `||`.
 - `ownedJunctionTables` — for many-to-many relationships; when a junction row changes, the adapter re-syncs the parent.
 - `readOnly` (optional) — when `true`, `handleChange` skips this table for outbound sync.
 - `localToUniversalMap` — the field mapping.
 
-### Directives (verbatim, from `docs/docs/Post Platform Guide/mapping-rules.md`)
+### Directives (verbatim, from [Mapping Rules](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/mapping-rules))
 
 **Direct field:**
 
@@ -256,7 +260,14 @@ Detail on the URI scheme: [protocols.md § File URIs](protocols.md#file-uris-w3d
 "ownerEnamePath": "users(createdBy.ename) || ename"  // fallback
 ```
 
-The adapter uses this to write to the correct owner's eVault. If it resolves to nothing, `handleChange` returns without syncing.
+The adapter uses this to write to the correct owner's eVault. If it resolves to nothing, `handleChange` returns without syncing — silently.
+
+Two rules that decide whether the data is really owned by its subject:
+
+- **The owner is the data subject** — the person or group the record is *about*, not the platform that received the write. Pointing `ownerEnamePath` at the platform's own eName because it always resolves produces platform-owned data wearing an eVault costume: the user cannot take it, revoke it, or see it from another platform.
+- **It must resolve for every row**, not the happy path. Check the nullable relation, the imported row, the record created before the user existed. Each unresolved row is an entity that never leaves the platform.
+
+Fallbacks with `||` are for alternative paths to the *same* subject, not a way to reach a default owner when the real one is missing.
 
 ### Junction tables
 
@@ -275,7 +286,7 @@ User:
 ```json
 {
   "tableName": "users",
-  "schemaId":  "550e8400-e29b-41d4-a716-446655440000",
+  "schemaId":  "<the User schemaId, resolved from GET https://ontology.w3ds.metastate.foundation/schemas>",
   "ownerEnamePath": "ename",
   "ownedJunctionTables": ["user_followers", "user_following"],
   "localToUniversalMap": {
@@ -295,7 +306,7 @@ Group with relations:
 ```json
 {
   "tableName": "groups",
-  "schemaId":  "550e8400-e29b-41d4-a716-446655440003",
+  "schemaId":  "<the Group schemaId, resolved from GET https://ontology.w3ds.metastate.foundation/schemas>",
   "ownerEnamePath": "users(participants[].ename)",
   "localToUniversalMap": {
     "name":         "name",
@@ -311,7 +322,7 @@ Group with relations:
 
 ## Web3 Adapter — the sync engine
 
-Source: `docs/docs/Infrastructure/Web3-Adapter.md`.
+Source: [Web3 Adapter](https://docs.w3ds.metastate.foundation/docs/Infrastructure/Web3-Adapter).
 
 ### Components
 
@@ -369,6 +380,9 @@ Every one of these has bitten someone. Address them in code review:
 7. **Non-idempotent webhook controller** → duplicate deliveries create duplicate rows. Always upsert by global ID.
 8. **Auth expects the user to exist before webhook** → for a fresh eVault, the User MetaEnvelope needs to have been synced first. Order: provision + create User in eVault → webhook creates local user → then login can succeed.
 9. **Missing `X-ENAME` on adapter calls** → 400s on every eVault write.
+10. **A local table with no mapping** → the entity exists on this platform and nowhere else. Either it is operational state (sessions, queues, ID mappings, caches — fine) or it is user data the platform has quietly claimed. Resolve an ontology, or [propose one](w3ds-native.md#proposing-a-new-ontology).
+11. **`handleChange` missed on some write paths** → the mapping is correct and the entity still doesn't sync, because migrations, seeds, admin endpoints or background jobs write around the adapter. Cover every path with an ORM listener or a transactional outbox, not a call bolted onto one controller.
+12. **`ownerEnamePath` pointing at the platform** for records about users → everything syncs, into the wrong eVault. See [`ownerEnamePath` patterns](#ownerenamepath-patterns).
 
 ## Known limitations
 
@@ -384,9 +398,11 @@ Design your platform's consistency layer accordingly.
 
 ## References in the docs
 
-- Getting started (auth): `docs/docs/Post Platform Guide/getting-started.md`
-- Webhook controller: `docs/docs/Post Platform Guide/webhook-controller.md`
-- Mapping rules: `docs/docs/Post Platform Guide/mapping-rules.md`
-- eCurrency example: `docs/docs/Post Platform Guide/ecurrency-accounts-and-ledger.md`
-- Web3 Adapter architecture: `docs/docs/Infrastructure/Web3-Adapter.md`
-- Awareness Protocol packet + timing: `docs/docs/W3DS Protocol/Awareness-Protocol.md`
+- Getting started (auth): [Getting Started with Platform Development](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/getting-started)
+- Webhook controller: [Webhook Controller Guide](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/webhook-controller)
+- Mapping rules: [Mapping Rules](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/mapping-rules)
+- eCurrency example: [eCurrency: Accounts and Ledger MetaEnvelopes](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/ecurrency-accounts-and-ledger)
+- Web3 Adapter architecture: [Web3 Adapter](https://docs.w3ds.metastate.foundation/docs/Infrastructure/Web3-Adapter)
+- Awareness Protocol packet + timing: [Awareness Protocol](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Awareness-Protocol)
+- Where data lives: [Data Ownership Rules](https://docs.w3ds.metastate.foundation/docs/W3DS%20Basics/Data-Ownership-Rules)
+- Access control on synced records: [Implementing Access Control](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/access-control)

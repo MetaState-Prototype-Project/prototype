@@ -1,6 +1,6 @@
 # eVault — data store + GraphQL
 
-The eVault is the personal data store for a single W3ID. One eVault per tenant, Neo4j-backed, GraphQL at `/graphql`, HTTP endpoints for identity/log/file resolution. Source: `docs/docs/Infrastructure/eVault.md`.
+The eVault is the personal data store for a single W3ID. One eVault per tenant, Neo4j-backed, GraphQL at `/graphql`, HTTP endpoints for identity/log/file resolution. Source: [eVault](https://docs.w3ds.metastate.foundation/docs/Infrastructure/eVault).
 
 ## Data model
 
@@ -21,7 +21,7 @@ Missing this header returns 400 or "access denied" — it is the #1 integration 
 
 ## GraphQL — idiomatic API
 
-All shown below verified against `docs/docs/Infrastructure/eVault.md`. Endpoint: `POST {evaultUrl}/graphql`.
+All shown below verified against [eVault](https://docs.w3ds.metastate.foundation/docs/Infrastructure/eVault). Endpoint: `POST {evaultUrl}/graphql`.
 
 ### Query one
 
@@ -44,7 +44,7 @@ query {
 query {
   metaEnvelopes(
     filter: {
-      ontologyId: "550e8400-e29b-41d4-a716-446655440001"
+      ontologyId: "<the SocialMediaPost schemaId>"
       search: { term: "hello", caseSensitive: false, mode: CONTAINS }
     }
     first: 10
@@ -64,7 +64,7 @@ Filter fields: `ontologyId`, `search.term`, `search.caseSensitive`, `search.fiel
 ```graphql
 mutation {
   createMetaEnvelope(input: {
-    ontology: "550e8400-e29b-41d4-a716-446655440001"
+    ontology: "<the SocialMediaPost schemaId>"
     payload: {
       content: "Hello, world!"
       mediaUrls: []
@@ -88,7 +88,7 @@ mutation {
   updateMetaEnvelope(
     id: "global-id-123"
     input: {
-      ontology: "550e8400-e29b-41d4-a716-446655440001"
+      ontology: "<the SocialMediaPost schemaId>"
       payload: { content: "Updated content", mediaUrls: [] }
       acl: ["*"]
     }
@@ -195,7 +195,7 @@ mutation {
 }
 ```
 
-Binding documents are stored as MetaEnvelopes with ontology `b1d0a8c3-4e5f-6789-0abc-def012345678`. The MetaEnvelope ID is the binding document ID. See [identity.md](identity.md) for the type-specific data shapes.
+Binding documents are stored as MetaEnvelopes with the `Binding Document` ontology (resolve its `schemaId` — see [registry.md § Resolving an ontology](registry.md#resolving-an-ontology)). The MetaEnvelope ID is the binding document ID. See [identity.md](identity.md) for the type-specific data shapes.
 
 ## GraphQL — legacy names (still valid)
 
@@ -252,7 +252,7 @@ Response:
       "operation": "create",             // create | update | delete | update_envelope_value
       "platform": "https://platform.example.com",
       "timestamp": "2025-02-04T12:00:00.000Z",
-      "ontology": "550e8400-e29b-41d4-a716-446655440001"
+      "ontology": "<the SocialMediaPost schemaId>"
     }
   ],
   "nextCursor": "2025-02-04T12:00:00.000Z|log-entry-id",
@@ -318,7 +318,7 @@ A valid platform Bearer token satisfies the legacy path but does **not** bypass 
 
 Undeterminable membership is not "not a member": a grant needs proof and is withheld, a denial stands until non-membership is shown. With no resolver configured, groups match nobody at all.
 
-Not yet wired: no condition evaluator is connected, so any `require` group containing conditions fails closed. Write policies using `grants`, `denials.enames`, group enames, and empty-group `require`. Full model: `docs/docs/W3DS Protocol/Access-Control.md`.
+Not yet wired: no condition evaluator is connected, so any `require` group containing conditions fails closed. Write policies using `grants`, `denials.enames`, group enames, and empty-group `require`. Full model: [Access Control](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Access-Control).
 
 Special cases:
 
@@ -342,7 +342,7 @@ Payload:
 {
   "id": "a1b2c3d4-...",
   "w3id": "@user-a.w3id",
-  "schemaId": "550e8400-e29b-41d4-a716-446655440001",
+  "schemaId": "<the SocialMediaPost schemaId>",
   "data": {
     "content": "Hello, world!",
     "mediaUrls": [],
@@ -369,7 +369,7 @@ The Provisioner supports multiple W3IDs sharing infrastructure, but each eVault 
 
 ## References in the docs
 
-- Full spec: `docs/docs/Infrastructure/eVault.md`
-- Data model + ontology field semantics: `docs/docs/Infrastructure/Ontology.md`
-- Webhook packet + delivery mechanics: `docs/docs/W3DS Protocol/Awareness-Protocol.md`
-- Key binding certificate detail: `docs/docs/Infrastructure/eVault-Key-Delegation.md`
+- Full spec: [eVault](https://docs.w3ds.metastate.foundation/docs/Infrastructure/eVault)
+- Data model + ontology field semantics: [Ontology](https://docs.w3ds.metastate.foundation/docs/Infrastructure/Ontology)
+- Webhook packet + delivery mechanics: [Awareness Protocol](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Awareness-Protocol)
+- Key binding certificate detail: [eVault Key Delegation](https://docs.w3ds.metastate.foundation/docs/Infrastructure/eVault-Key-Delegation)

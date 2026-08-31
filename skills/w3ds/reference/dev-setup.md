@@ -1,6 +1,6 @@
 # Local dev + debugging
 
-One command spins up the full W3DS core stack. Most sync bugs come from a service that isn't running or a missing env var — always verify the stack is healthy before hunting deeper. Source: `docs/docs/Post Platform Guide/local-dev-quick-start.md`, `dev-sandbox.md`.
+One command spins up the full W3DS core stack. Most sync bugs come from a service that isn't running or a missing env var — always verify the stack is healthy before hunting deeper. Source: [Local Dev Quick Start](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/local-dev-quick-start) and [Using the Dev Sandbox](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/dev-sandbox).
 
 ## Prerequisites
 
@@ -84,7 +84,7 @@ Open **http://localhost:8080** for the Dev Sandbox.
 
 ## Dev Sandbox — the wallet substitute
 
-Source: `docs/docs/Post Platform Guide/dev-sandbox.md`.
+Source: [Using the Dev Sandbox](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/dev-sandbox).
 
 The Dev Sandbox is a minimal browser app that uses `wallet-sdk` with a Web Crypto adapter. It lets you:
 
@@ -222,6 +222,6 @@ pnpm docker:core:down
 
 ## References in the docs
 
-- Local dev quick start: `docs/docs/Post Platform Guide/local-dev-quick-start.md`
-- Dev Sandbox: `docs/docs/Post Platform Guide/dev-sandbox.md`
+- Local dev quick start: [Local Dev Quick Start](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/local-dev-quick-start)
+- Dev Sandbox: [Using the Dev Sandbox](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/dev-sandbox)
 - Full Docker setup + platforms: repo root `README.md`

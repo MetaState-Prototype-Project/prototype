@@ -2,6 +2,8 @@
 
 **[Documentation](https://docs.w3ds.metastate.foundation)** — Getting started with W3DS and the MetaState prototype.
 
+**Building with an AI coding agent?** Load the [W3DS agent skill](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/ai-agent-skill) — `npx skills add MetaState-Prototype-Project/prototype@w3ds`, or point a fetch-capable agent at [`/skill/SKILL.md`](https://docs.w3ds.metastate.foundation/skill/SKILL.md) and [`/llms.txt`](https://docs.w3ds.metastate.foundation/llms.txt).
+
 **Quick start (registry + evault-core + dev-sandbox):** see **[QUICKSTART.md](QUICKSTART.md)** — one script to run Postgres + Neo4j in Docker and the core services locally. Dev sandbox runs at **http://localhost:8080**.
 
 ## Docker Development Environment
