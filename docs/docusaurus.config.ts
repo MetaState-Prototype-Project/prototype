@@ -20,6 +20,9 @@ const config: Config = {
 
     themes: ['@docusaurus/theme-mermaid'],
 
+    // Publishes /llms.txt, /llms-full.txt and /skill/** for AI coding agents.
+    plugins: ['./plugins/llms-txt.js'],
+
     // Production URL: hosted at docs.w3ds.metastate.foundation
     url: 'https://docs.w3ds.metastate.foundation',
     baseUrl: '/',
