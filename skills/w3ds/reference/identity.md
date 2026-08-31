@@ -1,6 +1,6 @@
 # Identity — W3ID, eName, Binding Documents
 
-W3IDs identify every user, group, eVault, and MetaEnvelope in the ecosystem. An eName is a W3ID that has been registered in the Registry and is therefore resolvable to a service URL. Source: `docs/docs/W3DS Basics/W3ID.md`, `eName.md`, `Binding-Documents.md`.
+W3IDs identify every user, group, eVault, and MetaEnvelope in the ecosystem. An eName is a W3ID that has been registered in the Registry and is therefore resolvable to a service URL. Source: [W3ID](https://docs.w3ds.metastate.foundation/docs/W3DS%20Basics/W3ID), [eName](https://docs.w3ds.metastate.foundation/docs/W3DS%20Basics/eName), [Binding Documents](https://docs.w3ds.metastate.foundation/docs/W3DS%20Basics/Binding-Documents).
 
 ## W3ID
 
@@ -8,8 +8,8 @@ UUID-based (RFC 4122), persistent, globally unique. Two forms:
 
 | Form | Format | Example | Use |
 |---|---|---|---|
-| **Global** (eName) | `@<UUID>` | `@e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a` | Cross-platform identity, ACLs, X-ENAME header |
-| **Local** | plain `<UUID>` | `f2a6743e-8d5b-43bc-a9f0-1c7a3b9e90d7` | Object identifier within one eVault |
+| **Global** (eName) | `@<UUID>` |  `@e4d909c2-…-b34b6c0f1a5a` (elided; substitute a real eName) | Cross-platform identity, ACLs, X-ENAME header |
+| **Local** | plain `<UUID>` |  `f2a6743e-…-1c7a3b9e90d7` | Object identifier within one eVault |
 
 Namespace has range 2^122 (from UUID); collision probability is negligible. Global IDs are case-insensitive.
 
@@ -37,7 +37,7 @@ If you're building a platform, users and groups you interact with will always ha
 Required on every eVault GraphQL / HTTP request:
 
 ```http
-X-ENAME: @e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a
+X-ENAME: @<the eName whose eVault this request is for>
 ```
 
 Determines: which eVault to route the request to, ACL enforcement, log ownership. Missing header = 400.
@@ -54,7 +54,7 @@ Determines: which eVault to route the request to, ACL enforcement, log ownership
 
 ## Binding Documents
 
-A Binding Document is a special MetaEnvelope (ontology `b1d0a8c3-4e5f-6789-0abc-def012345678`) that ties a subject eName to a real-world credential or claim. Every binding document has:
+A Binding Document is a special MetaEnvelope (ontology: the `Binding Document` `schemaId`, resolved from the Ontology service — see [registry.md § Resolving an ontology](registry.md#resolving-an-ontology)) that ties a subject eName to a real-world credential or claim. Every binding document has:
 
 - `subject` — the eName being bound (with `@` prefix)
 - `type` — one of `id_document | photograph | social_connection | self`
@@ -120,9 +120,9 @@ The W3ID system supports binding an identity to a passport or other physical doc
 
 ## References in the docs
 
-- W3ID spec: `docs/docs/W3DS Basics/W3ID.md`
-- eName vs W3ID: `docs/docs/W3DS Basics/eName.md`
-- Binding document types + operations: `docs/docs/W3DS Basics/Binding-Documents.md`
-- ACL semantics: `docs/docs/Infrastructure/eVault.md` (§ Access Control)
-- Granular `_acl` permissions: `docs/docs/W3DS Protocol/Access-Control.md`
-- Key binding certificates: `docs/docs/Infrastructure/eVault-Key-Delegation.md`
+- W3ID spec: [W3ID](https://docs.w3ds.metastate.foundation/docs/W3DS%20Basics/W3ID)
+- eName vs W3ID: [eName](https://docs.w3ds.metastate.foundation/docs/W3DS%20Basics/eName)
+- Binding document types + operations: [Binding Documents](https://docs.w3ds.metastate.foundation/docs/W3DS%20Basics/Binding-Documents)
+- ACL semantics: [eVault](https://docs.w3ds.metastate.foundation/docs/Infrastructure/eVault) (§ Access Control)
+- Granular `_acl` permissions: [Access Control](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Access-Control)
+- Key binding certificates: [eVault Key Delegation](https://docs.w3ds.metastate.foundation/docs/Infrastructure/eVault-Key-Delegation)

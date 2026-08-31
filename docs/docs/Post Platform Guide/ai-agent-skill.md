@@ -6,6 +6,29 @@ sidebar_position: 8
 
 This repo ships a packaged **W3DS knowledge skill** under `skills/w3ds/` that you can load into your AI coding assistant so it stops guessing ontology UUIDs, mapping directives, and GraphQL field names. It's grounded in the docs you're reading now.
 
+## Zero install
+
+If your agent can fetch a URL, it needs nothing installed. Point it at:
+
+```text
+https://docs.w3ds.metastate.foundation/skill/SKILL.md
+```
+
+Or hand it the whole skill in one file:
+
+```text
+https://docs.w3ds.metastate.foundation/skill/w3ds-full.txt
+```
+
+Two companions are published alongside it, and an agent that can fetch should know about both:
+
+| File | What it is |
+| --- | --- |
+| [`/llms.txt`](https://docs.w3ds.metastate.foundation/llms.txt) | An index of every page on this site, with URLs and one-line summaries. The cheapest way for an agent to find the authoritative page for a question. |
+| [`/llms-full.txt`](https://docs.w3ds.metastate.foundation/llms-full.txt) | The whole documentation corpus in a single file, for agents that would rather read everything once. |
+
+These are regenerated on every docs deploy, so a fetch is always current. Installing is still worth it for agents that support skills — the skill then loads automatically on the right questions, instead of only when someone remembers to paste a URL.
+
 The easiest install for every supported agent is the [`npx skills`](https://skills.sh) CLI — it targets Claude Code, Codex, Cursor, GitHub Copilot, Windsurf, OpenCode, Cline, Gemini, and 60+ others. Manual per-tool instructions are further down if you'd rather bypass the CLI or your agent isn't supported yet.
 
 :::note Windows users
@@ -18,9 +41,21 @@ Command blocks are labeled **macOS / Linux (bash)** and **Windows (PowerShell)**
 
 :::
 
+## What the skill enforces
+
+The skill is not only a reference. It changes how an agent behaves on W3DS work:
+
+- **The eVault is the source of truth.** The platform database is a projection of it. The skill applies the reconstructability test — *if this database were dropped and rebuilt by replaying the relevant eVaults, what would be lost?* — before agreeing to persist anything new. See [Data Ownership Rules](/docs/W3DS%20Basics/Data-Ownership-Rules).
+- **Resolve, never recall.** Ontology IDs, endpoints, GraphQL field names and ACL verbs are looked up at the time of use. The skill deliberately contains no ontology UUIDs, so there is nothing stale to copy. Where it cannot verify something — no fetch tool, or the service is unreachable — it says so and marks the spot in code rather than substituting a plausible value.
+- **Two hard stops.** The agent stops and asks, rather than writing code, when a design would make the local database authoritative for user data, or when a persisted entity type has no ontology. The second is a path rather than a wall: ontologies are ordinary JSON files, and the agent will draft the schema and offer to open the PR. See [Proposing a new ontology](/docs/Infrastructure/Ontology#proposing-a-new-ontology).
+- **A definition of done.** `X-ENAME` on every call, `handleChange` on every write path, an idempotent webhook controller, no invented identifiers.
+
+If you want an agent that produces a conventional application with sync bolted on, do not install this skill. That is the outcome it exists to prevent.
+
 ## What's in the skill
 
-- `SKILL.md` — router and ecosystem map
+- `SKILL.md` — router, authority rules, pre-flight gate, stop rules, definition of done
+- `reference/w3ds-native.md` — where data lives: the reconstructability test, anti-patterns, proposing an ontology
 - `reference/evault.md` — GraphQL API, ACLs, `/whois`, `/logs`
 - `reference/identity.md` — W3ID, eName, Binding Documents
 - `reference/registry.md` — Registry endpoints, canonical ontology UUIDs
@@ -28,6 +63,8 @@ Command blocks are labeled **macOS / Linux (bash)** and **Windows (PowerShell)**
 - `reference/platform.md` — building a post-platform (auth, webhook, mapping directives, Web3 Adapter)
 - `reference/wallet.md` — eID Wallet, wallet-sdk, key delegation
 - `reference/dev-setup.md` — `pnpm dev:core` + debugging playbook
+
+Everything in it cites this site by URL, so an agent that gets stuck has somewhere authoritative to go. Where the skill and these docs disagree, the docs win.
 
 ## Install with `npx skills` (all tools)
 
@@ -132,49 +169,46 @@ Codex CLI reads `AGENTS.md` from the repo root and `~/.codex/AGENTS.md` for user
 
 ### Project-scoped
 
-Copy the skill content into `AGENTS.md` at the root of the project you're building on W3DS.
+Write the published skill into `AGENTS.md` at the root of the project you're building on W3DS. No clone needed.
 
 **macOS / Linux (bash):**
 
 ```bash
-cat skills/w3ds/SKILL.md > AGENTS.md
-echo -e "\n\n---\n" >> AGENTS.md
-for f in skills/w3ds/reference/*.md; do
-  echo -e "\n## $(basename "$f" .md)\n" >> AGENTS.md
-  cat "$f" >> AGENTS.md
-done
+curl -fsSL https://docs.w3ds.metastate.foundation/skill/w3ds-full.txt > AGENTS.md
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-Get-Content skills/w3ds/SKILL.md | Set-Content AGENTS.md
-Add-Content AGENTS.md "`n`n---`n"
-Get-ChildItem skills/w3ds/reference/*.md | ForEach-Object {
-  Add-Content AGENTS.md "`n## $($_.BaseName)`n"
-  Get-Content $_.FullName | Add-Content AGENTS.md
-}
+Invoke-WebRequest https://docs.w3ds.metastate.foundation/skill/w3ds-full.txt -OutFile AGENTS.md
 ```
 
-Or, if `AGENTS.md` already exists, append the skill as a section.
+If `AGENTS.md` already exists, append instead of overwriting:
 
 **macOS / Linux (bash):**
 
 ```bash
-echo -e "\n\n# W3DS reference\n" >> AGENTS.md
-cat skills/w3ds/SKILL.md skills/w3ds/reference/*.md >> AGENTS.md
+printf '\n\n# W3DS reference\n\n' >> AGENTS.md
+curl -fsSL https://docs.w3ds.metastate.foundation/skill/w3ds-full.txt >> AGENTS.md
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
 Add-Content AGENTS.md "`n`n# W3DS reference`n"
-Get-Content skills/w3ds/SKILL.md, skills/w3ds/reference/*.md | Add-Content AGENTS.md
+(Invoke-WebRequest https://docs.w3ds.metastate.foundation/skill/w3ds-full.txt).Content |
+  Add-Content AGENTS.md
+```
+
+Working from a metastate clone instead? Concatenate the local files:
+
+```bash
+cat skills/w3ds/SKILL.md skills/w3ds/reference/*.md > AGENTS.md
 ```
 
 ### User-scoped
 
-Put the same concatenated content in `~/.codex/AGENTS.md` if you want it available in every project you touch.
+Put the same content in `~/.codex/AGENTS.md` if you want it available in every project you touch.
 
 ## Cursor (manual)
 
@@ -264,16 +298,19 @@ Copilot reads `.github/copilot-instructions.md` for repo-level guidance.
 
 ```bash
 mkdir -p .github
-cat skills/w3ds/SKILL.md skills/w3ds/reference/*.md > .github/copilot-instructions.md
+curl -fsSL https://docs.w3ds.metastate.foundation/skill/w3ds-full.txt \
+  > .github/copilot-instructions.md
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
 New-Item -ItemType Directory -Force -Path .github | Out-Null
-Get-Content skills/w3ds/SKILL.md, skills/w3ds/reference/*.md |
-  Set-Content .github/copilot-instructions.md
+Invoke-WebRequest https://docs.w3ds.metastate.foundation/skill/w3ds-full.txt `
+  -OutFile .github/copilot-instructions.md
 ```
+
+Copilot has no fetch tool of its own, so this copy is all it will ever see. Re-run the command when the docs change, and expect the skill to flag identifiers it could not verify rather than resolving them itself.
 
 Commit the file. Copilot picks it up automatically for repositories that have it enabled in settings (Copilot → Chat → *Instructions*).
 
@@ -286,13 +323,14 @@ Windsurf reads `.windsurfrules` at the repo root.
 **macOS / Linux (bash):**
 
 ```bash
-cat skills/w3ds/SKILL.md skills/w3ds/reference/*.md > .windsurfrules
+curl -fsSL https://docs.w3ds.metastate.foundation/skill/w3ds-full.txt > .windsurfrules
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-Get-Content skills/w3ds/SKILL.md, skills/w3ds/reference/*.md | Set-Content .windsurfrules
+Invoke-WebRequest https://docs.w3ds.metastate.foundation/skill/w3ds-full.txt `
+  -OutFile .windsurfrules
 ```
 
 For user-level rules, put the same content in:
@@ -319,18 +357,19 @@ aider --read CONVENTIONS.md
 
 Cline, Roo, Continue.dev, Gemini, Zed, Goose, Kilo, and dozens more are all supported by `npx skills` — try `-a <name>` from the [main install section](#install-with-npx-skills-all-tools) first. If your agent isn't supported yet or you want to bypass the CLI, use this universal pattern:
 
-1. Concatenate the skill into one markdown file.
+1. Download the skill as one markdown file.
 
    **macOS / Linux (bash):**
 
    ```bash
-   cat skills/w3ds/SKILL.md skills/w3ds/reference/*.md > w3ds-context.md
+   curl -fsSL https://docs.w3ds.metastate.foundation/skill/w3ds-full.txt > w3ds-context.md
    ```
 
    **Windows (PowerShell):**
 
    ```powershell
-   Get-Content skills/w3ds/SKILL.md, skills/w3ds/reference/*.md | Set-Content w3ds-context.md
+   Invoke-WebRequest https://docs.w3ds.metastate.foundation/skill/w3ds-full.txt `
+     -OutFile w3ds-context.md
    ```
 
 2. Add `w3ds-context.md` to whatever the agent uses for repo-level context:
@@ -343,9 +382,9 @@ Cline, Roo, Continue.dev, Gemini, Zed, Goose, Kilo, and dozens more are all supp
 
 If your tool isn't listed above, the pattern is always the same:
 
-1. Concatenate `skills/w3ds/SKILL.md` and `skills/w3ds/reference/*.md` into whatever file the tool reads for repo instructions.
+1. Put `https://docs.w3ds.metastate.foundation/skill/w3ds-full.txt` into whatever file the tool reads for repo instructions.
 2. If the tool supports rule-file frontmatter (Cursor, some others), keep it descriptive so the tool knows when to activate the rule.
-3. If the tool has no rule system at all, point it at the skill in your prompt: *"Use `skills/w3ds/` in this repo as authoritative W3DS reference before answering."*
+3. If the tool has no rule system at all, point it at the URL in your prompt: *"Read https://docs.w3ds.metastate.foundation/skill/SKILL.md and treat https://docs.w3ds.metastate.foundation as the authoritative source before answering."*
 
 ## Updating
 
@@ -353,7 +392,7 @@ The skill mirrors the docs. When docs change, pull the latest metastate `main` a
 
 - **`npx skills` install (any agent):** `npx skills update` — updates every installed skill across every agent.
 - **Symlink install (Claude Code):** nothing — edits take effect immediately.
-- **Manual copy install (Cursor, Copilot, Windsurf, Codex, Aider):** re-run the concatenation command from the relevant section above.
+- **Manual copy install (Cursor, Copilot, Windsurf, Codex, Aider):** re-run the download command from the relevant section above. `/skill/w3ds-full.txt` is rebuilt on every docs deploy, so a re-fetch is always current.
 
 If you're building on a fork and shipping the manual copy, add a repo hook or pre-commit step that re-runs the concatenation so the copy in your project stays fresh.
 
@@ -361,9 +400,11 @@ If you're building on a fork and shipping the manual copy, add a repo hook or pr
 
 Gaps or wrong answers? PRs welcome. The skill lives at `skills/w3ds/` in this repo. Rules of thumb:
 
-- Ground every claim in a `docs/docs/...` path.
+- Ground every claim in a `https://docs.w3ds.metastate.foundation/docs/...` URL. The skill is installed outside this repo far more often than inside it, so a repo-relative path is a dead end for most readers.
+- **No ontology UUIDs in the skill.** They go stale, and an agent will copy one rather than resolve it. Teach the lookup instead.
 - Keep the main `SKILL.md` scannable (under ~200 lines); push detail into `reference/*.md`.
-- Don't invent APIs. If the docs don't say it, don't put it in the skill.
+- Don't invent APIs. If the docs don't say it, don't put it in the skill — add it to the docs first.
+- If a change alters what the agent *does* rather than what it knows, say so in [What the skill enforces](#what-the-skill-enforces).
 
 ## Reference
 

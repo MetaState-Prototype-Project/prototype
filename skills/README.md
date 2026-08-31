@@ -2,11 +2,27 @@
 
 Installable AI-agent skills for the MetaState / W3DS ecosystem. Powered by the [skills.sh](https://skills.sh) CLI — works with Claude Code, Codex, Cursor, GitHub Copilot, Windsurf, OpenCode, Cline, Gemini, and 60+ other coding agents.
 
+**[docs.w3ds.metastate.foundation](https://docs.w3ds.metastate.foundation) is authoritative.** These skills are a condensed index of it and can lag behind it — where a skill and the docs disagree, the docs win. Every citation in the skill is a live URL for that reason, and the skill contains no ontology UUIDs: they are resolved from the Ontology service at the time of use.
+
 ## Available skills
 
 | Skill | Purpose |
 |-------|---------|
-| [w3ds](./w3ds) | Web 3 Data Spaces — build post-platforms, call the eVault GraphQL API, wire the Web3 Adapter, implement `w3ds://auth` / `w3ds://sign`, debug local dev. |
+| [w3ds](./w3ds) | Web 3 Data Spaces — build post-platforms, call the eVault GraphQL API, wire the Web3 Adapter, implement `w3ds://auth` / `w3ds://sign`, debug local dev. Enforces eVault-first design: the eVault is the source of truth, the platform DB is a projection. |
+
+## Use it without installing anything
+
+Every skill file is published on the docs site, rebuilt on each deploy:
+
+| URL | What |
+|-----|------|
+| [`/skill/SKILL.md`](https://docs.w3ds.metastate.foundation/skill/SKILL.md) | The skill router |
+| [`/skill/reference/`](https://docs.w3ds.metastate.foundation/skill/reference/platform.md) | Reference files, e.g. `platform.md` |
+| [`/skill/w3ds-full.txt`](https://docs.w3ds.metastate.foundation/skill/w3ds-full.txt) | The whole skill in one file |
+| [`/llms.txt`](https://docs.w3ds.metastate.foundation/llms.txt) | Index of every docs page, with URLs |
+| [`/llms-full.txt`](https://docs.w3ds.metastate.foundation/llms-full.txt) | The whole docs corpus in one file |
+
+Any agent that can fetch a URL can self-serve. Installing is still better where the agent supports skills — it then loads on the right questions rather than when someone remembers to paste a link.
 
 ## Install
 
@@ -46,7 +62,7 @@ npx skills use MetaState-Prototype-Project/prototype@w3ds | claude
 npx skills use MetaState-Prototype-Project/prototype@w3ds --agent cursor
 ```
 
-Full per-tool install guide (manual paths for agents not yet covered by the CLI, or if you'd rather bypass it) lives at [docs/Post Platform Guide/AI Agent Skill](../docs/docs/Post%20Platform%20Guide/ai-agent-skill.md).
+Full per-tool install guide (manual paths for agents not yet covered by the CLI, or if you'd rather bypass it) lives at [AI Agent Skill](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/ai-agent-skill).
 
 ## Local development
 
@@ -73,3 +89,8 @@ Edits to files under `skills/w3ds/` take effect on the next skill invocation —
 Each skill is a directory with a top-level `SKILL.md` and optional `reference/` files. The `SKILL.md` frontmatter needs at minimum a `name` and a `description`; the description is what the agent uses to decide when to trigger the skill, so list the concrete surfaces it covers (concepts, APIs, protocol names, common questions).
 
 Keep the main `SKILL.md` scannable (~150 lines) and push deep content into `reference/*.md` files that get loaded on demand.
+
+Two rules specific to these skills:
+
+- **Cite live URLs, never repo paths.** A skill is installed outside this repo far more often than inside it, so `docs/docs/...` is a dead end for most readers.
+- **No ontology UUIDs.** They go stale, and an agent will copy one rather than resolve it. Teach the `GET /schemas` lookup instead.

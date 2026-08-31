@@ -1,6 +1,6 @@
 # eID Wallet + wallet-sdk + key delegation
 
-Everything about identity provisioning, signature creation, and key management across devices. Source: `docs/docs/Infrastructure/eID-Wallet.md`, `wallet-sdk.md`, `eVault-Key-Delegation.md`.
+Everything about identity provisioning, signature creation, and key management across devices. Source: [eID Wallet](https://docs.w3ds.metastate.foundation/docs/Infrastructure/eID-Wallet), [wallet-sdk](https://docs.w3ds.metastate.foundation/docs/Infrastructure/wallet-sdk), [eVault Key Delegation](https://docs.w3ds.metastate.foundation/docs/Infrastructure/eVault-Key-Delegation).
 
 ## eID Wallet — what it is
 
@@ -198,7 +198,7 @@ The W3ID does not change during rotation.
 
 ### Friend-based recovery
 
-A trust list (2–3 friends or notaries) can vouch for identity and approve key changes. The user defines the list while they still hold their keys. Not yet implemented — described in `docs/docs/W3DS Basics/W3ID.md`.
+A trust list (2–3 friends or notaries) can vouch for identity and approve key changes. The user defines the list while they still hold their keys. Not yet implemented — described in [W3ID](https://docs.w3ds.metastate.foundation/docs/W3DS%20Basics/W3ID).
 
 ## eVault endpoints used by the wallet
 
@@ -278,8 +278,8 @@ Never commit. Never reuse across environments. Never use desktop keys in product
 
 ## References in the docs
 
-- eID Wallet architecture: `docs/docs/Infrastructure/eID-Wallet.md`
-- wallet-sdk API: `docs/docs/Infrastructure/wallet-sdk.md`
-- Key delegation + `PATCH /public-key`: `docs/docs/Infrastructure/eVault-Key-Delegation.md`
-- Desktop signing detail: `docs/docs/W3DS Protocol/Signature-Formats.md`
-- Dev Sandbox (in-browser wallet substitute): `docs/docs/Post Platform Guide/dev-sandbox.md`
+- eID Wallet architecture: [eID Wallet](https://docs.w3ds.metastate.foundation/docs/Infrastructure/eID-Wallet)
+- wallet-sdk API: [wallet-sdk](https://docs.w3ds.metastate.foundation/docs/Infrastructure/wallet-sdk)
+- Key delegation + `PATCH /public-key`: [eVault Key Delegation](https://docs.w3ds.metastate.foundation/docs/Infrastructure/eVault-Key-Delegation)
+- Desktop signing detail: [Signature Formats](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Signature-Formats)
+- Dev Sandbox (in-browser wallet substitute): [Using the Dev Sandbox](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/dev-sandbox)

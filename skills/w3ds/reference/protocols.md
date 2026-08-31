@@ -1,6 +1,6 @@
 # W3DS protocols
 
-Four wire-level protocols to know: `w3ds://auth`, `w3ds://sign`, the Awareness Protocol (webhooks), and `w3ds://file` URIs. Plus signature verification, which is shared by auth and sign. Source: `docs/docs/W3DS Protocol/*.md`.
+Four wire-level protocols to know: `w3ds://auth`, `w3ds://sign`, the Awareness Protocol (webhooks), and `w3ds://file` URIs. Plus signature verification, which is shared by auth and sign. Source: the [W3DS Protocol](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Authentication) section of the docs.
 
 ## w3ds://auth (authentication)
 
@@ -38,7 +38,7 @@ Request body:
 ```json
 {
   "w3id": "@user-a.w3id",
-  "session": "550e8400-e29b-41d4-a716-446655440000",
+  "session": "<the sessionId from the offer>",
   "signature": "xK3vJZQ2...==",
   "appVersion": "0.4.0"
 }
@@ -74,7 +74,7 @@ Temporary field (will be sunset). Present because some early wallets signed diff
 - Expire in ≤ 5 minutes.
 - Return generic errors; never leak "user not found" vs "signature invalid".
 
-Detail: `docs/docs/W3DS Protocol/Authentication.md`.
+Detail: [Authentication](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Authentication).
 
 ## w3ds://sign (arbitrary signatures)
 
@@ -107,11 +107,11 @@ w3ds://sign?session={sessionId}&data={base64Data}&redirect_uri={encodedCallback}
 
 5. Platform validates, verifies signature with `verifySignature(...)` using `message` as the `payload`, then processes the action and marks the session `completed` (or `security_violation`).
 
-Detail: `docs/docs/W3DS Protocol/Signing.md`.
+Detail: [Signing](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Signing).
 
 ## Awareness Protocol (webhooks)
 
-Prototype-level fanout from eVault-core to every registered platform after a write. Fire-and-forget. Source: `docs/docs/W3DS Protocol/Awareness-Protocol.md`.
+Prototype-level fanout from eVault-core to every registered platform after a write. Fire-and-forget. Source: [Awareness Protocol](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Awareness-Protocol).
 
 ### When it fires
 
@@ -133,7 +133,7 @@ Prototype-level fanout from eVault-core to every registered platform after a wri
 {
   "id":        "a1b2c3d4-...",
   "w3id":      "@e4d909c2-...",
-  "schemaId":  "550e8400-e29b-41d4-a716-446655440001",
+  "schemaId":  "<the SocialMediaPost schemaId, resolved from the Ontology service>",
   "data": {
     "content":   "Hello, world!",
     "mediaUrls": [],
@@ -167,7 +167,7 @@ For production, use Awareness-as-a-Service.
 
 ### Awareness-as-a-Service (AaaS)
 
-Production-grade replacement layer. Source: `docs/docs/Services/Awareness-as-a-Service.md`. Key differences vs raw Awareness Protocol:
+Production-grade replacement layer. Source: [Awareness as a Service (AaaS)](https://docs.w3ds.metastate.foundation/docs/Services/Awareness-as-a-Service). Key differences vs raw Awareness Protocol:
 
 - `POST /ingest` accepts packets from eVault-core.
 - `GET /api/packets` — poll query with filters (ontology, eVault, time).
@@ -180,7 +180,7 @@ Undifferentiated fanout → targeted delivery; no history → queryable; ungover
 
 ## Signature formats
 
-Source: `docs/docs/W3DS Protocol/Signature-Formats.md`.
+Source: [Signature Formats](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Signature-Formats).
 
 ### The algorithm
 
@@ -242,7 +242,7 @@ import { verifySignature } from "signature-validator";
 const result = await verifySignature({
   eName:           "@user.w3id",
   signature:       "z3K7vJZQ2F3k5L8mN9pQrS7tUvW1xY3zA5bC7dE9fG1hIjKlMnOpQrStUvWxYz",
-  payload:         "550e8400-e29b-41d4-a716-446655440000",
+  payload:         "<the sessionId that was signed>",
   registryBaseUrl: "https://registry.w3ds.metastate.foundation",
 });
 
@@ -251,7 +251,7 @@ const result = await verifySignature({
 
 ## File URIs (`w3ds://file`)
 
-Standard URI scheme for referencing blobs. Source: `docs/docs/W3DS Protocol/File-URIs.md`.
+Standard URI scheme for referencing blobs. Source: [File URIs](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/File-URIs).
 
 ### Format
 
@@ -311,7 +311,7 @@ Two distinct schemas. Conflating them is a common source of bugs.
 
 | | `w3ds-file-v1` | `File` ontology |
 |---|---|---|
-| Identifier | `w3ds-file-v1` (string literal) | `a1b2c3d4-e5f6-7890-abcd-ef1234567890` (UUID) |
+| Identifier | `w3ds-file-v1` — a **protocol string literal**, never looked up | A UUID `schemaId`, resolved from `GET /schemas` by title `File` |
 | Created by | `uploadFile` mutation | Platform apps (file-manager, esigner) via Web3 Adapter mapping |
 | Layer | Storage / transport — describes a blob | Application domain — a file record in a platform DB |
 | Payload keys | `filename`, `contentType`, `size`, `blobKey`, `publicUrl`, `uploadedAt` | `id`, `name`, `displayName`, `description`, `mimeType`, `size`, `md5Hash`, `data`, `url`, `ownerId`, `folderId`, `createdAt`, `updatedAt` |
@@ -326,9 +326,9 @@ The Web3 Adapter's `__file(...)` mapping directive automatically calls `uploadFi
 
 ## References in the docs
 
-- Authentication: `docs/docs/W3DS Protocol/Authentication.md`
-- Signing: `docs/docs/W3DS Protocol/Signing.md`
-- Signature formats: `docs/docs/W3DS Protocol/Signature-Formats.md`
-- Awareness Protocol: `docs/docs/W3DS Protocol/Awareness-Protocol.md`
-- File URIs: `docs/docs/W3DS Protocol/File-URIs.md`
-- Awareness-as-a-Service: `docs/docs/Services/Awareness-as-a-Service.md`
+- Authentication: [Authentication](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Authentication)
+- Signing: [Signing](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Signing)
+- Signature formats: [Signature Formats](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Signature-Formats)
+- Awareness Protocol: [Awareness Protocol](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Awareness-Protocol)
+- File URIs: [File URIs](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/File-URIs)
+- Awareness-as-a-Service: [Awareness as a Service (AaaS)](https://docs.w3ds.metastate.foundation/docs/Services/Awareness-as-a-Service)
