@@ -12,12 +12,59 @@ export const typeDefs = /* GraphQL */ `
         valueType: String
     }
 
+    # ------------------------------------------------------------------
+    # Access control (output)
+    # ------------------------------------------------------------------
+
+    "A numeric requirement on a value inside an ontology"
+    type AclCondition {
+        "The ontology's eName"
+        ontology: String!
+        "JSONPath into the ontology value, e.g. $.score"
+        path: String!
+        "One of >=, >, <=, <, =="
+        op: String!
+        value: Float!
+    }
+
+    "One named party and the permissions it holds"
+    type AclGrant {
+        ename: String!
+        "Bitmask: 0x01 READ, 0x02 CREATE, 0x04 UPDATE, 0x08 DELETE"
+        perms: Int!
+    }
+
+    "Access removals. A denial always wins over any grant."
+    type AclDenials {
+        enames: [String!]!
+        conditions: [AclCondition!]!
+    }
+
+    """
+    The access policy enforced for a record.
+
+    Always the policy actually in force: a record carrying only the legacy
+    \`acl\` array is reported as the block that array is interpreted as, so
+    callers see one shape regardless of how the record was written.
+    """
+    type AclBlock {
+        v: Int!
+        grants: [AclGrant!]!
+        denials: AclDenials!
+        "Permissions for unnamed parties that pass a require group"
+        default_perms: Int!
+        "OR of groups, each an AND of conditions"
+        require: [[AclCondition!]!]!
+    }
+
     type MetaEnvelope {
         id: String!
         "The ontology schema ID (W3ID)"
         ontology: String!
         envelopes: [Envelope!]!
         parsed: JSON
+        "The access policy in force for this record"
+        _acl: AclBlock
     }
 
     "Result type for legacy storeMetaEnvelope and updateMetaEnvelopeById mutations"

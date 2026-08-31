@@ -1,5 +1,5 @@
 import { Server } from "http";
-import { aclBlockFromInput, Permission } from "../acl";
+import { aclBlockFromInput, Permission, resolveAclBlock } from "../acl";
 import axios from "axios";
 import type { GraphQLSchema } from "graphql";
 import { createSchema, createYoga } from "graphql-yoga";
@@ -173,6 +173,14 @@ export class GraphQLServer {
             // Field resolver for Envelope.fieldKey (alias for ontology)
             Envelope: {
                 fieldKey: (parent: any) => parent.ontology,
+            },
+
+            MetaEnvelope: {
+                // Always answer with the policy actually enforced, so a record
+                // carrying only a legacy array reads back the same shape as one
+                // carrying an explicit block.
+                _acl: (parent: any) =>
+                    resolveAclBlock({ _acl: parent?._acl, acl: parent?.acl }),
             },
 
             Query: {
@@ -1732,6 +1740,10 @@ export class GraphQLServer {
                     request.headers.get("x-ename") ??
                     request.headers.get("X-ENAME") ??
                     null;
+                const onBehalfOf =
+                    request.headers.get("x-on-behalf-of") ??
+                    request.headers.get("X-ON-BEHALF-OF") ??
+                    null;
 
                 if (token) {
                     try {
@@ -1739,12 +1751,14 @@ export class GraphQLServer {
                         return {
                             currentUser: id ?? null,
                             eName: eName,
+                            onBehalfOf,
                         };
                     } catch (error) {
                         // Invalid JWT token - ignore and continue without currentUser
                         return {
                             currentUser: null,
                             eName: eName,
+                            onBehalfOf,
                         };
                     }
                 }
@@ -1752,6 +1766,7 @@ export class GraphQLServer {
                 return {
                     currentUser: null,
                     eName: eName,
+                    onBehalfOf,
                 };
             },
         });

@@ -7,6 +7,7 @@ import {
     Permission,
     type PermissionBits,
     type Principal,
+    resolveAclBlock,
 } from "../acl";
 import type { DbService } from "../db/db.service";
 import type { MetaEnvelope } from "../db/types";
@@ -16,7 +17,21 @@ export type VaultContext = YogaInitialContext & {
     currentUser: string | null;
     tokenPayload?: any;
     eName: string | null;
+    /**
+     * The user a platform declares it is acting for, from `X-ON-BEHALF-OF`.
+     * An assertion, not a proof — see {@link VaultAccessGuard.principalFor}.
+     */
+    onBehalfOf?: string | null;
 };
+
+/**
+ * Party references are `@<uuid>`. Anything else is not an identity we will
+ * authorize against — notably a JWT `kid`, which for a Registry platform token
+ * is a signing-key id rather than a party.
+ */
+function isEName(value: unknown): value is string {
+    return typeof value === "string" && value.startsWith("@") && value.length > 1;
+}
 
 type CachedJWKS = {
     jwks: ReturnType<typeof jose.createLocalJWKSet>;
@@ -53,10 +68,26 @@ export class VaultAccessGuard {
      * wired in here.
      */
     private principalFor(context: VaultContext): Principal | null {
-        const platform: string | undefined =
-            context.tokenPayload?.platform ?? undefined;
-        if (context.currentUser) {
-            return { ename: context.currentUser, kind: "user", platform };
+        const platform = isEName(context.tokenPayload?.platform)
+            ? context.tokenPayload.platform
+            : undefined;
+
+        // A platform may declare the user it acts for. The token proves the
+        // platform, not the user, so this is the platform's assertion and is
+        // only as trustworthy as the platform making it. It cannot be used to
+        // escape a denial: denials match the carrying platform too.
+        const asserted = isEName(context.onBehalfOf)
+            ? context.onBehalfOf
+            : undefined;
+
+        // currentUser comes from the JWT `kid`. For a wallet-signed token that
+        // is the user's W3ID; for a Registry platform token it is a key id, so
+        // it is only accepted when it actually looks like a party.
+        const user =
+            asserted ?? (isEName(context.currentUser) ? context.currentUser : undefined);
+
+        if (user) {
+            return { ename: user, kind: "user", platform };
         }
         if (platform) {
             return { ename: platform, kind: "platform" };
@@ -322,7 +353,11 @@ export class VaultAccessGuard {
             return metaEnvelope;
         }
         const { acl, _acl, ...filtered } = metaEnvelope;
-        return filtered;
+        if (acl === undefined && _acl === undefined) return filtered;
+        // The policy is readable by anyone who may read the record. The legacy
+        // array is not surfaced as such — a record carrying only an array is
+        // shown as the policy it is actually enforced as.
+        return { ...filtered, _acl: resolveAclBlock({ _acl, acl }) };
     }
 
     /**
