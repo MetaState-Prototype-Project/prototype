@@ -88,7 +88,7 @@ An entry in an [ACL](#access-control-list-acl) pairing a party's [eName](#web-30
 
 ## Group
 
-An [Entity](#entity): a reference to a number of users within the MetaState that holds its own [W3ID](#web-30-identifier-w3id-ename) and [eVault](#evault). It is often seen as a "group" in social networks.
+An [Entity](#entity): a reference to a number of users within the MetaState that holds its own [W3ID](#web-30-identifier-w3id-ename) and [eVault](#evault). It is often seen as a "group" in social networks. In an [ACL](#access-control-list-acl) a group eName is resolved to its members' eNames when a decision is made, so naming a group stays correct as its membership changes.
 
 ---
 

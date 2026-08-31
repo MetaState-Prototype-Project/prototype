@@ -314,7 +314,11 @@ A valid platform Bearer token satisfies the legacy path but does **not** bypass 
 
 **`X-ON-BEHALF-OF`** — optional header naming the user eName a platform is acting for. That user becomes the party (at user specificity) with the platform recorded alongside it; without it the platform is the party. It is the platform's assertion, not a proof, so it can reach what the user was granted — but it cannot escape a denial, since denials match the carrying platform too. Only `@`-prefixed eNames are accepted as parties; a JWT `kid` is not.
 
-Not yet wired: group membership is not resolved (group grants match nothing — fail-closed; group denials also match nothing — fail-**open**), and no condition evaluator is connected, so any `require` group containing conditions fails closed. Write policies using `grants`, `denials.enames`, and empty-group `require` only. Full model: `docs/docs/W3DS Protocol/Access-Control.md`.
+**Groups.** A grant or denial may name a group eName; it resolves to member eNames at decision time. The group record is found in the group's own vault or by its `ename` field, and participants are read from `members`, `memberIds`, `participants`, `participantIds`, `admins`, `owner` (unioned — admins and owner count). Each entry is **either an eName or a profile record's id**; an id resolves via that record's `ename` field, else the vault it lives in. Never assume one form.
+
+Undeterminable membership is not "not a member": a grant needs proof and is withheld, a denial stands until non-membership is shown. With no resolver configured, groups match nobody at all.
+
+Not yet wired: no condition evaluator is connected, so any `require` group containing conditions fails closed. Write policies using `grants`, `denials.enames`, group enames, and empty-group `require`. Full model: `docs/docs/W3DS Protocol/Access-Control.md`.
 
 Special cases:
 

@@ -58,6 +58,36 @@ Grants tied at the same specificity — duplicates, or two groups the party belo
 
 A direct grant is final. A named party never falls through to the ontology half, whether its grant allowed the action or not.
 
+### How a group resolves
+
+A group eName is not a party in its own right — it stands for the people in it, and is resolved to their eNames when the decision is made. Naming a group in a policy therefore stays correct as the group's membership changes, with nothing to rewrite.
+
+The group's record is found either in the group's own vault or by its `ename` field naming the group, and its participants are read from whichever fields it carries — `members`, `memberIds`, `participants`, `participantIds`, `admins`, `owner`. A group's members are the union of all of them, so an admin is a member.
+
+A participant may be named two ways, and both are accepted:
+
+| Written as | Example | Resolved by |
+|---|---|---|
+| An eName | `@7b9c2e1a-…` | Taken as-is. |
+| A profile record's id | `4f1a8c30-…` | Following the record to the eName behind it. |
+
+Both occur in practice — `GroupManifest.members` holds eNames while `Group.participantIds` holds profile ids — so a policy naming a group works regardless of which shape the group was written with.
+
+When a participant is given as a profile id, the eName is taken from the record's own `ename` field where it has one, and otherwise from the vault the record lives in. The record's own statement wins because the same profile syncs into several vaults, so the vault it happens to sit in does not reliably identify its subject.
+
+An id that resolves to nothing is skipped rather than treated as a member.
+
+### When membership cannot be determined
+
+A lookup that fails is not the same as a party being shown not to be a member, and the two lead to opposite answers:
+
+- A **grant** to a group applies only on proof of membership. Uncertainty withholds it.
+- A **denial** naming a group applies unless the party is shown *not* to be a member. Uncertainty holds the denial.
+
+So a group whose record cannot be read is safe in both directions: it hands out nothing and it stops removing nothing.
+
+Where no group resolver is configured at all, groups simply do not resolve — that is the feature switched off rather than a failed lookup, and group grants and denials alike match nobody.
+
 ## Denials
 
 A denial removes access regardless of any grant. **Deny always wins**, with no exceptions — it is the one place where specificity does not decide the outcome.
@@ -240,9 +270,9 @@ Reserved permission bits exist for the same reason: they are refused today so th
 
 ## Current limits
 
-- **Group membership is not resolved yet.** A grant or denial naming a group matches nothing. For grants that is fail-closed; for denials it is fail-**open**, so group denials are not usable yet.
 - **Condition evaluation is a seam, not yet connected.** eVault accepts an evaluator but none is wired in, so conditions currently fail closed: a `require` group containing conditions cannot pass, and a deny condition always fires. Until an evaluator is connected, write policies that use `grants`, `denials.enames`, and empty-group `require` only.
 - **Enforcement is eVault-side.** The Web3 Adapter and platforms do not evaluate `_acl` yet.
+- **Group resolution reads records this eVault holds.** A group whose record has not synced here cannot be resolved, and is treated as undeterminable — see above for what that means in each direction.
 - `default_perms` above READ for unnamed parties is unsettled under the current sync model.
 
 ## See also
