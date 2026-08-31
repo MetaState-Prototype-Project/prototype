@@ -170,6 +170,29 @@ You always get the policy actually in force. A record written with only `acl: ["
 
 Everything else about your integration is unchanged — mapping, webhooks, and the Awareness Protocol do not interact with the policy. The policy is stored inside the record, so it travels with the data when it syncs, without your webhook controller doing anything.
 
+## Errors you will get
+
+A malformed policy is rejected whole — nothing is quietly dropped and stored in a weaker form. Every message is prefixed `Invalid _acl:` unless noted.
+
+| Message | Cause |
+|---|---|
+| `bits 4-7 are reserved and must be 0` | A `perms` or `default_perms` above `15`. |
+| `expected an unsigned byte` | `perms` was not an integer in 0-255. |
+| `each grant needs an ename` | A grant object missing its `ename`. |
+| `unknown operator "…"` | A condition `op` outside `>=`, `>`, `<=`, `<`, `==`. |
+| `needs a finite numeric value` | A condition `value` that is not a number. |
+| `grants must be an array` (and similar) | A container sent as the wrong shape. |
+| `Unsupported _acl version: n` | `v` set to anything but `1`. |
+
+Condition errors name the position — `require[0][1]`, `denials.conditions[0]` — so you can find the offending entry directly.
+
+Two runtime outcomes worth distinguishing, neither of which is a validation error:
+
+- **`Access denied`** — the record exists and the policy refused you. Retrying will not help; asking for a different verb might.
+- **`null`** — no record with that id for that `X-ENAME`. Not a permissions problem.
+
+List queries behave differently again: a record you may not read is **omitted from the results**, not reported. So a list can come back shorter than you expect with no error and no indication that anything was withheld. Do not treat a list's length as a count of what exists.
+
 ## Not usable yet
 
 Two parts of the protocol document are specified but not connected, and a policy relying on them will not behave as written:

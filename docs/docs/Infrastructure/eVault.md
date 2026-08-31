@@ -612,7 +612,13 @@ A MetaEnvelope can carry access rules two ways. The granular `_acl` policy is th
 
 Full model, wire format, and current limits: [Access Control](/docs/W3DS%20Protocol/Access-Control).
 
-It is stored on the MetaEnvelope node as the `aclBlock` property (JSON), so the policy travels with the record when it syncs.
+It is stored on the MetaEnvelope node as the `aclBlock` property (JSON), so the policy travels with the record when it syncs. No migration is needed to start using it: the property is optional, and a node without one is read through its legacy array exactly as before.
+
+:::caution Rolling back
+
+Once records begin carrying policies, treat the deployment as forward-only. Earlier builds do not read `aclBlock` and fall back to the `acl` array — which platforms write as `["*"]` — so a record an owner had locked down would become world-readable again on a rollback.
+
+:::
 
 ### Legacy ACL format
 

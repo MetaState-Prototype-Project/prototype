@@ -14,6 +14,12 @@ The ability to retrieve or interact with data or services based on permissions a
 
 ---
 
+## Access Control List (ACL)
+
+The rules stored inside a record saying who may do what with it. Held in the record's `_acl` block as [grants](#grant), [denials](#denial), and ontology conditions, so the rules travel with the data when it syncs rather than living in a table beside it. The older `acl` string array is the same idea without per-verb granularity. See [Access Control](/docs/W3DS%20Protocol/Access-Control).
+
+---
+
 ## Authentication
 
 The process of verifying the identity of a user or identifier. In W3DS, users authenticate using their [W3ID](/docs/W3DS%20Basics/W3ID) via the `w3ds://auth` protocol; see [Authentication](/docs/W3DS%20Protocol/Authentication) for details.
@@ -35,6 +41,12 @@ A cryptographically signed document outlining group governance, rules, and regul
 ## Credential
 
 A set of data relating to an identifier that is signed by an issuing party (e.g. a school diploma). See [Verifiable Credential (VC)](#verifiable-credential-vc).
+
+---
+
+## Denial
+
+An entry in an [ACL](#access-control-list-acl) that removes access from a party, either by naming its [eName](#web-30-identifier-w3id--ename) or by stating a condition it must clear. A denial overrides any grant — it is the one place where a more specific rule does not win, because deny always does.
 
 ---
 
@@ -65,6 +77,12 @@ The smallest unit of data in an [eVault](#evault), addressable by its unique ide
 ## eVault
 
 A secure storage location or server for the management of data and credentials of a [User](#user), [Post-Platform](#post-platform-and-or-service), or [Group](#group). In W3DS, each user or group has their own eVault identified by a [W3ID](/docs/W3DS%20Basics/W3ID). See [eVault](/docs/Infrastructure/eVault) for the full architecture and API.
+
+---
+
+## Grant
+
+An entry in an [ACL](#access-control-list-acl) pairing a party's [eName](#web-30-identifier-w3id--ename) with the permissions it holds, as a bitmask of Read, Create, Update and Delete. Where several grants could apply, only the most specific is used — a grant to a user beats one to a platform, which beats one to a group — and less specific grants do not add to it.
 
 ---
 

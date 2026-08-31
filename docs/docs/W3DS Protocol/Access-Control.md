@@ -197,6 +197,47 @@ A legacy array is interpreted as:
 
 This matters for one behaviour in particular. Under the legacy model, any platform holding a valid Registry-issued token could reach any record. **A record carrying an `_acl` block is decided by that block for every caller, token or not.** Closing that bypass is the point of the model. Records without a policy keep their existing behaviour exactly, so nothing narrows until an owner sets one.
 
+## Reads that return nothing
+
+A refusal surfaces differently depending on how the record was asked for.
+
+| Request | Refused |
+|---|---|
+| A record by id | `Access denied` |
+| A record by id that does not exist for that vault | `null` |
+| A list or connection | The record is omitted from the results |
+
+Filtering a list silently is what keeps a policy from leaking the existence of records it protects, but it means a caller cannot tell "withheld" from "not there". Anything needing that distinction must ask for the record directly.
+
+## Validation
+
+A policy you send is checked strictly and rejected whole if any part of it is malformed. A policy already stored is read liberally.
+
+The asymmetry is deliberate. Discarding an entry that cannot be parsed is safe for a grant — it only narrows access — but not for a denial: a deny condition silently dropped would *widen* access, and the caller would never learn that the policy being enforced was not the one it wrote. So nothing is dropped on the way in.
+
+Rejected on write:
+
+| Sent | Result |
+|---|---|
+| `perms` or `default_perms` with bits 4-7 set | `bits 4-7 are reserved and must be 0` |
+| `perms` that is not an unsigned byte | `expected an unsigned byte` |
+| A grant with no `ename` | `each grant needs an ename` |
+| A condition with an unknown operator | `unknown operator …; expected one of >=, >, <=, <, ==` |
+| A condition with a missing or non-numeric `value` | `needs a finite numeric value` |
+| `grants`, `require`, or `denials.enames` that is not an array | `must be an array` |
+| A `require` entry that is not a group | `require[n] must be an array of conditions` |
+| `v` other than `1` | `Unsupported _acl version: n` |
+
+Condition errors name their position — `require[0][1]`, `denials.conditions[0]` — so a rejected policy points at the entry that caused it.
+
+Read liberally when already stored: an unparseable grant or condition is dropped, and reserved bits are masked off, so a record written by a future version or corrupted in place stays readable rather than becoming inaccessible.
+
+### Versioning
+
+`v` is the policy format version, and `1` is the only value this eVault accepts. A block declaring anything else is rejected rather than interpreted, so a policy written against a later format is never enforced as though it were version 1. Omitting `v` is treated as `1`.
+
+Reserved permission bits exist for the same reason: they are refused today so that a client written against a future version that uses them fails loudly here instead of silently receiving weaker permissions than it asked for.
+
 ## Current limits
 
 - **Group membership is not resolved yet.** A grant or denial naming a group matches nothing. For grants that is fail-closed; for denials it is fail-**open**, so group denials are not usable yet.
