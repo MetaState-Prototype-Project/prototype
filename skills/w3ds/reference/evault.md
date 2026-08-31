@@ -290,6 +290,8 @@ _acl: {
 
 Perms bitmask: `0x01` READ, `0x02` CREATE, `0x04` UPDATE, `0x08` DELETE. `0x0F` full, `0x03` read + add-only. Bits 4-7 reserved, must be 0 — a write that sets them is rejected. `0x00` counts as no grant.
 
+Readable back: `MetaEnvelope._acl` is exposed to anyone permitted to read the record, and always reports the policy in force — a record with only a legacy array reports the block that array maps to. The legacy `acl` array itself is never returned.
+
 Decision order, fixed: (1) denials — by eName or a **failing** condition — always win; (2) the single most specific grant (user > platform > group, no union across specificity) decides on its own; (3) otherwise a passing `require` group admits at `default_perms`. `require` is an OR of groups, each an AND of conditions; an empty group always passes.
 
 Never guess these: a missing/multi-valued/non-numeric condition path **fails**, never passes. A named party never falls through from step 2 to step 3.
@@ -305,10 +307,12 @@ Access enforcement flow:
 
 1. Extract W3ID from `X-ENAME` header or Bearer token.
 2. If the record carries `_acl`, decide by it, against the permission the operation needs. Otherwise check the requester's W3ID against the legacy array.
-3. Strip `acl` and `_acl` from the response (security).
+3. Strip the legacy `acl` array from the response; `_acl` is returned.
 4. Grant or deny.
 
 A valid platform Bearer token satisfies the legacy path but does **not** bypass an `_acl` policy.
+
+**`X-ON-BEHALF-OF`** — optional header naming the user eName a platform is acting for. That user becomes the party (at user specificity) with the platform recorded alongside it; without it the platform is the party. It is the platform's assertion, not a proof, so it can reach what the user was granted — but it cannot escape a denial, since denials match the carrying platform too. Only `@`-prefixed eNames are accepted as parties; a JWT `kid` is not.
 
 Not yet wired: group membership is not resolved (group grants match nothing — fail-closed; group denials also match nothing — fail-**open**), and no condition evaluator is connected, so any `require` group containing conditions fails closed. Write policies using `grants`, `denials.enames`, and empty-group `require` only. Full model: `docs/docs/W3DS Protocol/Access-Control.md`.
 

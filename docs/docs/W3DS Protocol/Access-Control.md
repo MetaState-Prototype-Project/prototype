@@ -120,6 +120,26 @@ unnamed, sec 84 + erep 72   -> Group A passes; READ allowed at step 3.
 unnamed, erep 95, no sec    -> Group A fails on the missing score, Group B passes.
 ```
 
+## Who the requesting party is
+
+A request reaches the eVault carrying a platform's token. That token proves the platform. It does not say which of the platform's users the request is for, and many requests are made on a user's behalf.
+
+The `X-ON-BEHALF-OF` header carries that: an eName the platform declares it is acting for.
+
+```
+Authorization: Bearer <platform token>
+X-ENAME: @<vault owner>
+X-ON-BEHALF-OF: @<user the platform is acting for>
+```
+
+When present, that user is the party, and the platform carrying the request is recorded alongside it — so a grant to the user applies at user specificity, and a grant to the platform still applies at platform specificity. When absent, the platform itself is the party.
+
+**This is an assertion, not a proof.** The platform's token does not attest to the user, so the claim is exactly as trustworthy as the platform making it. A platform can therefore reach what a user was granted, including permissions broader than its own. That is deliberate: specificity is what makes a user grant mean anything, and a platform that can write to a vault can already act as its users in other ways.
+
+What the header cannot do is escape a denial. Denials match the party, the platform carrying the request, **and** the party's groups, so a denied platform stays denied no matter whose name it puts in the header.
+
+Only an `@`-prefixed eName is accepted as a party. Anything else — notably a JWT `kid`, which for a Registry-issued platform token is a signing-key id rather than a party — is ignored.
+
 ## The `_acl` block
 
 The policy sits beside the payload in the record it protects.
@@ -140,9 +160,31 @@ The policy sits beside the payload in the record it protects.
 }
 ```
 
-Supply it on `createMetaEnvelope`, `storeMetaEnvelope`, `bulkCreateMetaEnvelopes`, `updateMetaEnvelope`, `updateMetaEnvelopeById`, or `uploadFile`. Like the legacy `acl` array, it is never returned to callers.
+Supply it on `createMetaEnvelope`, `storeMetaEnvelope`, `bulkCreateMetaEnvelopes`, `updateMetaEnvelope`, `updateMetaEnvelopeById`, or `uploadFile`.
 
 An update that does not carry `_acl` leaves the stored policy alone rather than clearing it.
+
+### Reading it back
+
+`MetaEnvelope` exposes `_acl`, readable by anyone permitted to read the record.
+
+```graphql
+query {
+  metaEnvelope(id: "…") {
+    id
+    _acl {
+      grants { ename perms }
+      denials { enames conditions { ontology path op value } }
+      default_perms
+      require { ontology path op value }
+    }
+  }
+}
+```
+
+What comes back is always the policy **actually in force**. A record carrying only a legacy `acl` array reports the block that array is interpreted as, so callers see one shape regardless of how the record was written. The legacy array itself is never returned.
+
+Because the policy is readable by any permitted reader, treat its contents as visible to them: a denial names the parties an owner has excluded, and the grant list names who else holds access.
 
 ## Relationship to the legacy `acl` array
 

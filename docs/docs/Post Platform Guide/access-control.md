@@ -110,6 +110,46 @@ A denial beats everything, including a grant to the same party. This is how a us
   "require": [] }
 ```
 
+## Acting on behalf of a user
+
+Your platform's token proves your platform. It says nothing about which of your users a request is for, which matters as soon as a policy grants anything at user level.
+
+Send the user's eName in `X-ON-BEHALF-OF`:
+
+```http
+POST /graphql
+Authorization: Bearer <your platform token>
+X-ENAME: @<vault owner>
+X-ON-BEHALF-OF: @<the user you are acting for>
+```
+
+That user becomes the party the policy is evaluated against, and your platform is recorded alongside them — so a user grant applies at user specificity while a grant to your platform still applies at platform specificity. Omit the header and your platform is the party.
+
+Two things to be clear about:
+
+- **It is your assertion, not a proof.** The eVault has no way to check it, so it trusts you. That also means it will let you reach what the user was granted, which may be broader than your own grant. Do not send a user's eName on a request that user did not actually initiate.
+- **It will not get you past a denial.** Denials match your platform as well as the asserted user, so a policy that excludes your platform still excludes it whatever name you send.
+
+Only `@`-prefixed eNames count as parties. Anything else is ignored rather than treated as an identity.
+
+## Reading a policy back
+
+`_acl` is a field on `MetaEnvelope`:
+
+```graphql
+query {
+  metaEnvelope(id: "…") {
+    _acl {
+      grants { ename perms }
+      denials { enames }
+      default_perms
+    }
+  }
+}
+```
+
+You always get the policy actually in force. A record written with only `acl: ["*"]` reports `default_perms: 15` behind an always-passing group rather than returning the array, so you can render one consistent view without caring how the record was written.
+
 ## Things that will bite you
 
 **A grant is final.** If your platform is named in `grants`, that grant decides the answer on its own. It never falls through to `default_perms` — so a platform granted `1` on a record whose `default_perms` is `15` has read access, not full access. Being named is not always an upgrade.
@@ -120,7 +160,7 @@ A denial beats everything, including a grant to the same party. This is how a us
 
 **Updates preserve the policy.** An `updateMetaEnvelope` that omits `_acl` leaves the stored policy alone rather than clearing it. To change a policy, send the new one in full — it replaces, it does not merge.
 
-**You never read a policy back.** `_acl` is stripped from every response, like `acl` always has been. If your platform needs to show a user their own sharing settings, keep that state on your side; you cannot query it out of the eVault.
+**A policy is visible to everyone who can read the record.** `_acl` is returned, not stripped — so your denial list tells any permitted reader which platforms the user excluded, and your grant list tells them who else has access. Do not put anything in a policy you would not show to its readers.
 
 **Refusals look like two different things.** A record you may not touch raises `Access denied`. A record that does not exist for that eName returns `null`. Do not treat the second as the first — retrying will not help, and neither will asking for a different verb.
 

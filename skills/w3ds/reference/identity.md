@@ -42,6 +42,8 @@ X-ENAME: @e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a
 
 Determines: which eVault to route the request to, ACL enforcement, log ownership. Missing header = 400.
 
+`X-ON-BEHALF-OF: @<ename>` is an optional companion: the user a platform declares it is acting for, used as the party when evaluating an `_acl` policy. An assertion, not a proof — see [evault.md](evault.md#access-control).
+
 ## Where W3IDs / eNames appear
 
 - **Users, groups**: each has a persistent eName that anchors keys and (via binding documents) physical identity.

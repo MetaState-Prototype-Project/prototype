@@ -630,7 +630,7 @@ The Access Guard middleware enforces access on every operation, with the permiss
 
 1. **Extract W3ID**: From `X-ENAME` header or [Bearer token](/docs/W3DS%20Protocol/Authentication)
 2. **Check the policy**: If the record carries `_acl`, decide by it. Otherwise fall back to the legacy array.
-3. **Filter Results**: Remove `acl` and `_acl` from responses (security)
+3. **Filter Results**: Remove the legacy `acl` array from responses; `_acl` is returned as the policy in force
 4. **Allow/Deny**
 
 A valid Registry-issued platform token satisfies the *legacy* path — but it does **not** bypass an `_acl` policy. A record carrying a policy is decided by that policy for every caller.
