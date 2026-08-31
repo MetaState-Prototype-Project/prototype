@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+    aclBlockFromInput,
     emptyAclBlock,
     evaluate,
     fromLegacyAcl,
@@ -491,5 +492,74 @@ describe("normalizeAclBlock", () => {
     it("returns an empty policy for junk input", () => {
         expect(normalizeAclBlock(null)).toEqual(emptyAclBlock());
         expect(normalizeAclBlock("nope")).toEqual(emptyAclBlock());
+    });
+});
+
+describe("aclBlockFromInput: caller input is validated strictly", () => {
+    const ok = {
+        v: 1,
+        grants: [{ ename: USER, perms: 0x01 }],
+        denials: { enames: [], conditions: [] },
+        default_perms: 0x00,
+        require: [],
+    };
+
+    it("accepts a well-formed block and returns undefined for none", () => {
+        expect(aclBlockFromInput(ok)?.grants).toEqual([{ ename: USER, perms: 0x01 }]);
+        expect(aclBlockFromInput(undefined)).toBeUndefined();
+        expect(aclBlockFromInput(null)).toBeUndefined();
+    });
+
+    it("rejects a deny condition it cannot parse rather than dropping it", () => {
+        // Dropping this would remove a denial and widen access.
+        expect(() =>
+            aclBlockFromInput({
+                ...ok,
+                denials: {
+                    enames: [],
+                    conditions: [{ ontology: EREP, path: "$.score", op: "~=", value: 60 }],
+                },
+            }),
+        ).toThrow(/unknown operator/);
+    });
+
+    it("rejects a malformed require condition, naming where it is", () => {
+        expect(() =>
+            aclBlockFromInput({
+                ...ok,
+                require: [[{ ontology: EREP, path: "$.score", op: ">=", value: "sixty" }]],
+            }),
+        ).toThrow(/require\[0\]\[0\] needs a finite numeric value/);
+    });
+
+    it("rejects a grant with no ename", () => {
+        expect(() => aclBlockFromInput({ ...ok, grants: [{ perms: 0x01 }] })).toThrow(
+            /each grant needs an ename/,
+        );
+    });
+
+    it("rejects reserved permission bits", () => {
+        expect(() =>
+            aclBlockFromInput({ ...ok, grants: [{ ename: USER, perms: 0x10 }] }),
+        ).toThrow(/reserved/);
+        expect(() => aclBlockFromInput({ ...ok, default_perms: 0xff })).toThrow(/reserved/);
+    });
+
+    it("rejects a version it does not understand", () => {
+        expect(() => aclBlockFromInput({ ...ok, v: 2 })).toThrow(/Unsupported _acl version: 2/);
+    });
+
+    it("rejects wrong container shapes", () => {
+        expect(() => aclBlockFromInput([])).toThrow(/expected an object/);
+        expect(() => aclBlockFromInput({ ...ok, grants: {} })).toThrow(/grants must be an array/);
+        expect(() => aclBlockFromInput({ ...ok, require: [{}] })).toThrow(
+            /require\[0\] must be an array/,
+        );
+    });
+
+    it("still reads malformed *stored* data liberally", () => {
+        // Stored data is normalised, not rejected -- a corrupt record must stay
+        // readable, and dropping an unparseable grant there only narrows access.
+        expect(normalizeAclBlock({ grants: [{ perms: 0x01 }] }).grants).toEqual([]);
     });
 });

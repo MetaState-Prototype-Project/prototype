@@ -339,25 +339,108 @@ export async function evaluate(
  * against a newer version of the spec fails loudly instead of getting weaker
  * permissions than it asked for.
  */
+function validateConditionInput(raw: unknown, where: string): void {
+    if (typeof raw !== "object" || raw === null) {
+        throw new Error(`Invalid _acl: ${where} must be an object`);
+    }
+    const c = raw as Record<string, unknown>;
+    if (typeof c.ontology !== "string" || c.ontology.length === 0) {
+        throw new Error(`Invalid _acl: ${where} needs an ontology eName`);
+    }
+    if (typeof c.path !== "string" || c.path.length === 0) {
+        throw new Error(`Invalid _acl: ${where} needs a path`);
+    }
+    if (!isOperator(c.op)) {
+        throw new Error(
+            `Invalid _acl: ${where} has an unknown operator ${JSON.stringify(c.op)}; expected one of >=, >, <=, <, ==`,
+        );
+    }
+    if (typeof c.value !== "number" || !Number.isFinite(c.value)) {
+        throw new Error(`Invalid _acl: ${where} needs a finite numeric value`);
+    }
+}
+
+/**
+ * Coerces a caller-supplied policy into a block, or `undefined` when the caller
+ * supplied none — which is not the same as an empty policy, and must leave the
+ * record on its legacy array rather than locking it.
+ *
+ * Caller input is validated strictly and rejected on anything malformed, while
+ * stored data is read liberally. Dropping an entry we cannot parse is safe for
+ * a grant but not for a denial: a deny condition silently discarded would
+ * *widen* access, and a caller would have no way to tell its policy was not
+ * the one being enforced.
+ */
 export function aclBlockFromInput(raw: unknown): AclBlock | undefined {
     if (raw === null || raw === undefined) return undefined;
-    if (typeof raw !== "object") {
+    if (typeof raw !== "object" || Array.isArray(raw)) {
         throw new Error("Invalid _acl: expected an object");
     }
     const block = raw as Record<string, unknown>;
 
     if (block.v !== undefined && block.v !== 1) {
-        throw new Error(`Unsupported _acl version: ${String(block.v)}`);
+        throw new Error(
+            `Unsupported _acl version: ${String(block.v)}; this eVault understands version 1`,
+        );
     }
-    if (Array.isArray(block.grants)) {
+
+    if (block.grants !== undefined) {
+        if (!Array.isArray(block.grants)) {
+            throw new Error("Invalid _acl: grants must be an array");
+        }
         for (const grant of block.grants) {
-            if (typeof grant === "object" && grant !== null) {
-                validatePerms((grant as Record<string, unknown>).perms);
+            if (typeof grant !== "object" || grant === null) {
+                throw new Error("Invalid _acl: each grant must be an object");
             }
+            const entry = grant as Record<string, unknown>;
+            if (typeof entry.ename !== "string" || entry.ename.length === 0) {
+                throw new Error("Invalid _acl: each grant needs an ename");
+            }
+            validatePerms(entry.perms);
         }
     }
+
+    if (block.denials !== undefined) {
+        if (typeof block.denials !== "object" || block.denials === null) {
+            throw new Error("Invalid _acl: denials must be an object");
+        }
+        const denials = block.denials as Record<string, unknown>;
+        if (denials.enames !== undefined) {
+            if (!Array.isArray(denials.enames)) {
+                throw new Error("Invalid _acl: denials.enames must be an array");
+            }
+            for (const ename of denials.enames) {
+                if (typeof ename !== "string" || ename.length === 0) {
+                    throw new Error(
+                        "Invalid _acl: each denials.enames entry must be a non-empty string",
+                    );
+                }
+            }
+        }
+        if (denials.conditions !== undefined) {
+            if (!Array.isArray(denials.conditions)) {
+                throw new Error("Invalid _acl: denials.conditions must be an array");
+            }
+            denials.conditions.forEach((c, i) =>
+                validateConditionInput(c, `denials.conditions[${i}]`),
+            );
+        }
+    }
+
     if (block.default_perms !== undefined) {
         validatePerms(block.default_perms);
+    }
+
+    if (block.require !== undefined) {
+        if (!Array.isArray(block.require)) {
+            throw new Error("Invalid _acl: require must be an array of groups");
+        }
+        block.require.forEach((group, g) => {
+            if (!Array.isArray(group)) {
+                throw new Error(`Invalid _acl: require[${g}] must be an array of conditions`);
+            }
+            group.forEach((c, i) => validateConditionInput(c, `require[${g}][${i}]`));
+        });
     }
 
     return normalizeAclBlock(raw);
