@@ -10,7 +10,13 @@ Definitions of key terms used across the W3DS and MetaState documentation. Where
 
 ## Access
 
-The ability to retrieve or interact with data or services based on permissions and [authentication](#authentication). In W3DS, access to eVault data is governed by [ACLs](/docs/Infrastructure/eVault#access-control) and [resolution](/docs/Infrastructure/Registry#get-resolve) of identities.
+The ability to retrieve or interact with data or services based on permissions and [authentication](#authentication). In W3DS, access to eVault data is governed by the record's own access policy — [granular access control](/docs/W3DS%20Protocol/Access-Control) or the legacy [ACL](/docs/Infrastructure/eVault#access-control) array — and by [resolution](/docs/Infrastructure/Registry#get-resolve) of identities.
+
+---
+
+## Access Control List (ACL)
+
+The rules stored inside a record saying who may do what with it. Held in the record's `_acl` block as [grants](#grant), [denials](#denial), and ontology conditions, so the rules travel with the data when it syncs rather than living in a table beside it. The older `acl` string array is the same idea without per-verb granularity. See [Access Control](/docs/W3DS%20Protocol/Access-Control).
 
 ---
 
@@ -38,6 +44,12 @@ A set of data relating to an identifier that is signed by an issuing party (e.g.
 
 ---
 
+## Denial
+
+An entry in an [ACL](#access-control-list-acl) that removes access from a party, either by naming its [eName](#web-30-identifier-w3id--ename) or by stating a condition it must clear. A denial overrides any grant — it is the one place where a more specific rule does not win, because deny always does.
+
+---
+
 ## eID (ePassport)
 
 A document, similar to X.509, which binds a user's [W3ID](#web-30-identifier-w3id-ename) and the user's [Public Key](#public-key). It is signed by a [digital] notary participating in PKI. See [eID Wallet](/docs/Infrastructure/eID-Wallet) for how the prototype uses eID and key binding.
@@ -58,13 +70,19 @@ A non-human object within the MetaState such as an organization, a platform, a b
 
 ## Envelope
 
-The smallest unit of data in an [eVault](#evault), addressable by its unique identifier and [ontology](/docs/Infrastructure/Ontology) reference. Each envelope has an attached ontological definition and ACL that defines who is allowed to access it. See [eVault — Data Model](/docs/Infrastructure/eVault#data-model) for how Envelopes are stored and used.
+The smallest unit of data in an [eVault](#evault), addressable by its unique identifier and [ontology](/docs/Infrastructure/Ontology) reference. Each envelope has an attached ontological definition, and its MetaEnvelope carries the access policy that defines who is allowed to do what with it. See [eVault — Data Model](/docs/Infrastructure/eVault#data-model) for how Envelopes are stored and used.
 
 ---
 
 ## eVault
 
 A secure storage location or server for the management of data and credentials of a [User](#user), [Post-Platform](#post-platform-and-or-service), or [Group](#group). In W3DS, each user or group has their own eVault identified by a [W3ID](/docs/W3DS%20Basics/W3ID). See [eVault](/docs/Infrastructure/eVault) for the full architecture and API.
+
+---
+
+## Grant
+
+An entry in an [ACL](#access-control-list-acl) pairing a party's [eName](#web-30-identifier-w3id--ename) with the permissions it holds, as a bitmask of Read, Create, Update and Delete. Where several grants could apply, only the most specific is used — a grant to a user beats one to a platform, which beats one to a group — and less specific grants do not add to it.
 
 ---
 

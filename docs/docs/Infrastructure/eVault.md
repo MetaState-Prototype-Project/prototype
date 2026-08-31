@@ -65,7 +65,8 @@ A **MetaEnvelope** is the top-level container for an entity (post, user, message
 
 - **id**: Unique identifier (W3ID). Note: Only IDs registered in the Registry are guaranteed to be globally unique.
 - **ontology**: Schema identifier (W3ID, e.g., "550e8400-e29b-41d4-a716-446655440001"). Schema W3IDs can be resolved to their schema definitions via the [Ontology](/docs/Infrastructure/Ontology) service. See [W3DS Basics](/docs/W3DS%20Basics/getting-started) for more information on ontology schemas.
-- **acl**: Access Control List (who can access this data)
+- **acl**: Legacy access control list (who can access this data)
+- **_acl**: The granular access policy — grants, denials, and ontology conditions. Takes precedence over `acl` when present. See [Access Control](/docs/W3DS%20Protocol/Access-Control).
 - **envelopes**: Array of individual Envelope nodes
 
 ### Envelopes
@@ -83,7 +84,7 @@ Each field in a MetaEnvelope becomes a separate **Envelope** node in Neo4j:
 In Neo4j, the structure looks like:
 
 ```cypher
-(MetaEnvelope {id, ontology, acl}) -[:LINKS_TO]-> (Envelope {id, value, valueType})
+(MetaEnvelope {id, ontology, acl, aclBlock}) -[:LINKS_TO]-> (Envelope {id, value, valueType})
 ```
 
 This flat graph structure allows:
@@ -603,26 +604,42 @@ curl -X GET "http://localhost:4000/logs?limit=20&cursor=2025-02-04T12:00:00.000Z
 
 ## Access Control
 
-eVault uses **Access Control Lists (ACLs)** to determine who can access data.
+A MetaEnvelope can carry access rules two ways. The granular `_acl` policy is the current model; the legacy `acl` array predates it and still works.
 
-### ACL Format
+### The `_acl` policy
 
-ACLs are arrays of W3IDs or special values:
+`_acl` holds grants (an eName plus a READ/CREATE/UPDATE/DELETE bitmask), denials, and Resource Link Ontology conditions. Decisions run in a fixed order — denials, then the most specific grant, then the ontology groups — and the most specific grant wins without unioning less specific ones.
+
+Full model, wire format, and current limits: [Access Control](/docs/W3DS%20Protocol/Access-Control).
+
+It is stored on the MetaEnvelope node as the `aclBlock` property (JSON), so the policy travels with the record when it syncs. No migration is needed to start using it: the property is optional, and a node without one is read through its legacy array exactly as before.
+
+:::caution Rolling back
+
+Once records begin carrying policies, treat the deployment as forward-only. Earlier builds do not read `aclBlock` and fall back to the `acl` array — which platforms write as `["*"]` — so a record an owner had locked down would become world-readable again on a rollback.
+
+:::
+
+### Legacy ACL format
+
+Arrays of W3IDs or special values:
 
 - `["*"]`: Public read access (anyone can read, but only the eVault owner can write)
 - `["@user-a.w3id"]`: Only User A can access (read and write)
 - `["@user-a.w3id", "@user-b.w3id"]`: User A and User B can access (read and write)
 
-**Prototype Limitation**: In the current prototype implementation, ACLs provide all-or-nothing access. There is no read-only access without write access (except for `["*"]` which provides read-only access for everyone). More granular permissions are planned for future versions.
+The array is all-or-nothing: there is no read-only-without-write except `["*"]`. That is what `_acl` replaces. A record with an `_acl` block ignores its array entirely; a record without one behaves exactly as it always has.
 
 ### Access Enforcement
 
-The Access Guard middleware enforces ACLs:
+The Access Guard middleware enforces access on every operation, with the permission the operation needs (read for queries, create/update/delete for the corresponding mutations):
 
 1. **Extract W3ID**: From `X-ENAME` header or [Bearer token](/docs/W3DS%20Protocol/Authentication)
-2. **Check ACL**: Verify the requesting W3ID is in the MetaEnvelope's ACL
-3. **Filter Results**: Remove ACL field from responses (security)
-4. **Allow/Deny**: Grant or deny access based on ACL
+2. **Check the policy**: If the record carries `_acl`, decide by it. Otherwise fall back to the legacy array.
+3. **Filter Results**: Remove the legacy `acl` array from responses; `_acl` is returned as the policy in force
+4. **Allow/Deny**
+
+A valid Registry-issued platform token satisfies the *legacy* path — but it does **not** bypass an `_acl` policy. A record carrying a policy is decided by that policy for every caller.
 
 ### Special Cases
 

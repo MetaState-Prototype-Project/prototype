@@ -85,7 +85,7 @@ Common confusion points — internalize these once:
 
 - Always resolve the eVault URL for a user via the Registry before hitting `/graphql` or `/whois`. Do not hardcode eVault URLs.
 - Every GraphQL and HTTP call to eVault needs `X-ENAME`. Missing this header is the most common cause of 400s.
-- ACLs in the prototype are all-or-nothing except for `["*"]`. There is no read-only-without-write yet.
+- Two ACL models coexist. The `_acl` block gives per-verb grants (READ/CREATE/UPDATE/DELETE bitmask), denials, and ontology conditions, and is authoritative where present. The legacy `acl` string array is all-or-nothing except `["*"]` and still applies to records with no `_acl`. Do not describe ACLs as all-or-nothing without that distinction — see [reference/evault.md](reference/evault.md).
 - Webhook delivery is fire-and-forget and prototype-level: no retries, no ordering, no at-least-once. Design your platform's webhook controller to be **idempotent** on global `id`.
 - After `storeMetaEnvelope` there is a 3-second delay before webhook fanout to prevent ping-pong. `updateMetaEnvelopeById` fanout is immediate.
 - If the user is running things locally, refer them to [reference/dev-setup.md](reference/dev-setup.md) before troubleshooting — most sync bugs come from a service that isn't running or a missing env var.
