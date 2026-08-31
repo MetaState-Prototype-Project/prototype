@@ -1,5 +1,10 @@
 import { Server } from "http";
-import { aclBlockFromInput, Permission, resolveAclBlock } from "../acl";
+import {
+    aclBlockFromInput,
+    GroupMembershipService,
+    Permission,
+    resolveAclBlock,
+} from "../acl";
 import axios from "axios";
 import type { GraphQLSchema } from "graphql";
 import { createSchema, createYoga } from "graphql-yoga";
@@ -44,7 +49,11 @@ export class GraphQLServer {
         evaultInstance?: any,
     ) {
         this.db = db;
-        this.accessGuard = new VaultAccessGuard(db);
+        this.accessGuard = new VaultAccessGuard(
+            db,
+            undefined,
+            new GroupMembershipService(db),
+        );
         this.bindingDocumentService = new BindingDocumentService(db);
         this.evaultPublicKey =
             evaultPublicKey || process.env.EVAULT_PUBLIC_KEY || null;

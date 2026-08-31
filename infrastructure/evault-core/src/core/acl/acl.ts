@@ -5,7 +5,9 @@ import {
     type ConditionGroup,
     type Decision,
     type EName,
+    type EvaluateDeps,
     type Grant,
+    type GroupResolver,
     Permission,
     type PermissionBits,
     type Principal,
@@ -174,15 +176,61 @@ export function resolveAclBlock(record: {
 }
 
 /**
- * How specifically a grant's eName matches the principal: a user grant beats a
- * platform grant, which beats a grant to a group the party belongs to. `0`
- * means the grant does not apply.
+ * Whether the principal belongs to a group.
+ *
+ * `unknown` is deliberately distinct from `no`: a lookup that failed is not
+ * evidence of non-membership. A grant needs proof of membership before it
+ * applies, while a denial applies unless the party is shown *not* to be a
+ * member — so an unresolvable group is safe in both directions.
  */
-function specificityOf(ename: EName, principal: Principal): number {
+type MembershipAnswer = "yes" | "no" | "unknown";
+
+class Membership {
+    private cache = new Map<EName, MembershipAnswer>();
+
+    constructor(
+        private principal: Principal,
+        private resolver?: GroupResolver,
+    ) {}
+
+    async of(group: EName): Promise<MembershipAnswer> {
+        // A caller that resolved membership itself is taken at its word.
+        if (this.principal.groups?.includes(group)) return "yes";
+        // With no resolver wired in, groups cannot be resolved at all. That is
+        // the feature being switched off rather than a lookup that failed, so
+        // it answers plainly instead of holding a denial open.
+        if (!this.resolver) return "no";
+
+        const cached = this.cache.get(group);
+        if (cached !== undefined) return cached;
+
+        let answer: MembershipAnswer;
+        try {
+            const members = await this.resolver.membersOf(group);
+            answer = members.some(
+                (member) =>
+                    member === this.principal.ename ||
+                    (this.principal.platform !== undefined &&
+                        member === this.principal.platform),
+            )
+                ? "yes"
+                : "no";
+        } catch {
+            answer = "unknown";
+        }
+        this.cache.set(group, answer);
+        return answer;
+    }
+}
+
+/**
+ * How specifically a grant's eName matches the principal, ignoring groups: a
+ * user grant beats a platform grant. `0` means no direct match.
+ */
+function directSpecificityOf(ename: EName, principal: Principal): number {
     if (ename === principal.ename) return principal.kind === "user" ? 3 : 2;
     if (principal.platform !== undefined && ename === principal.platform)
         return 2;
-    if (principal.groups?.includes(ename)) return 1;
     return 0;
 }
 
@@ -194,16 +242,27 @@ function specificityOf(ename: EName, principal: Principal): number {
  * unioned, since nothing in the design orders one above the other and picking
  * arbitrarily would make the outcome depend on storage order.
  */
-export function mostSpecificGrant(
+export async function mostSpecificGrant(
     grants: readonly Grant[],
     principal: Principal,
-): { perms: PermissionBits; enames: EName[] } | null {
+    resolver?: GroupResolver,
+): Promise<{ perms: PermissionBits; enames: EName[] } | null> {
+    return selectGrant(grants, principal, new Membership(principal, resolver));
+}
+
+async function selectGrant(
+    grants: readonly Grant[],
+    principal: Principal,
+    membership: Membership,
+): Promise<{ perms: PermissionBits; enames: EName[] } | null> {
     let bestRank = 0;
     let perms: PermissionBits = Permission.NONE;
     let enames: EName[] = [];
 
+    // Direct matches first. A user or platform grant outranks any group grant,
+    // so finding one means no group needs resolving at all.
     for (const grant of grants) {
-        const rank = specificityOf(grant.ename, principal);
+        const rank = directSpecificityOf(grant.ename, principal);
         if (rank === 0) continue;
         if (rank > bestRank) {
             bestRank = rank;
@@ -215,7 +274,18 @@ export function mostSpecificGrant(
         }
     }
 
-    if (bestRank === 0 || perms === Permission.NONE) return null;
+    if (bestRank === 0) {
+        // Nothing named this party directly, so group grants come into play.
+        // They are all equally specific, and so are unioned.
+        for (const grant of grants) {
+            if ((await membership.of(grant.ename)) === "yes") {
+                perms |= grant.perms;
+                enames.push(grant.ename);
+            }
+        }
+    }
+
+    if (enames.length === 0 || perms === Permission.NONE) return null;
     return { perms, enames };
 }
 
@@ -287,14 +357,23 @@ export async function evaluate(
     acl: AclBlock,
     principal: Principal,
     action: PermissionBits,
-    evaluator?: ConditionEvaluator,
+    deps: EvaluateDeps = {},
 ): Promise<Decision> {
     validateAction(action);
+    const evaluator = deps.conditions;
+    const membership = new Membership(principal, deps.groups);
 
     // 1. Denials win over everything, with no exceptions.
     const identities = identitiesOf(principal);
     for (const denied of acl.denials.enames) {
         if (identities.has(denied)) {
+            return { allowed: false, reason: "denied_by_ename" };
+        }
+    }
+    // A denial naming a group applies unless the party is shown not to be a
+    // member. A lookup we could not complete is not that proof.
+    for (const denied of acl.denials.enames) {
+        if ((await membership.of(denied)) !== "no") {
             return { allowed: false, reason: "denied_by_ename" };
         }
     }
@@ -305,7 +384,7 @@ export async function evaluate(
     }
 
     // 2. A direct grant decides the outcome on its own.
-    const grant = mostSpecificGrant(acl.grants, principal);
+    const grant = await selectGrant(acl.grants, principal, membership);
     if (grant !== null) {
         return {
             allowed: (grant.perms & action) !== 0,
@@ -407,7 +486,9 @@ export function aclBlockFromInput(raw: unknown): AclBlock | undefined {
         const denials = block.denials as Record<string, unknown>;
         if (denials.enames !== undefined) {
             if (!Array.isArray(denials.enames)) {
-                throw new Error("Invalid _acl: denials.enames must be an array");
+                throw new Error(
+                    "Invalid _acl: denials.enames must be an array",
+                );
             }
             for (const ename of denials.enames) {
                 if (typeof ename !== "string" || ename.length === 0) {
@@ -419,7 +500,9 @@ export function aclBlockFromInput(raw: unknown): AclBlock | undefined {
         }
         if (denials.conditions !== undefined) {
             if (!Array.isArray(denials.conditions)) {
-                throw new Error("Invalid _acl: denials.conditions must be an array");
+                throw new Error(
+                    "Invalid _acl: denials.conditions must be an array",
+                );
             }
             denials.conditions.forEach((c, i) =>
                 validateConditionInput(c, `denials.conditions[${i}]`),
@@ -437,9 +520,13 @@ export function aclBlockFromInput(raw: unknown): AclBlock | undefined {
         }
         block.require.forEach((group, g) => {
             if (!Array.isArray(group)) {
-                throw new Error(`Invalid _acl: require[${g}] must be an array of conditions`);
+                throw new Error(
+                    `Invalid _acl: require[${g}] must be an array of conditions`,
+                );
             }
-            group.forEach((c, i) => validateConditionInput(c, `require[${g}][${i}]`));
+            group.forEach((c, i) =>
+                validateConditionInput(c, `require[${g}][${i}]`),
+            );
         });
     }
 

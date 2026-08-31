@@ -150,6 +150,27 @@ query {
 
 You always get the policy actually in force. A record written with only `acl: ["*"]` reports `default_perms: 15` behind an always-passing group rather than returning the array, so you can render one consistent view without caring how the record was written.
 
+## Naming a group instead of a person
+
+A grant or denial can name a group eName, and it resolves to the group's members when the decision is made — so membership changes take effect without rewriting any policy.
+
+```json
+{ "v": 1,
+  "grants": [ { "ename": "@owner", "perms": 15 },
+              { "ename": "@9f0e1d2c-3b4a-5968-7766-554433221100", "perms": 1 } ],
+  "denials": { "enames": [], "conditions": [] },
+  "default_perms": 0,
+  "require": [] }
+```
+
+You do not have to normalise your group records first. Participants are read from `members`, `memberIds`, `participants`, `participantIds`, `admins` and `owner`, and each entry may be **either an eName or the id of that member's profile record** — the two shapes platforms actually write. A profile id resolves through the record's own `ename` field, falling back to the vault it lives in.
+
+Worth knowing:
+
+- **Admins and the owner count as members.** Every participant field is unioned, so a group grant reaches them too. If you need admins treated differently, name them directly rather than relying on the group.
+- **A group grant is the least specific kind.** A direct grant to the user or the platform overrides it entirely and is not combined with it.
+- **A group whose record this eVault does not hold cannot be resolved.** A grant naming it hands out nothing; a denial naming it stays in force. Uncertainty never widens access, but it can refuse someone you expected to admit.
+
 ## Things that will bite you
 
 **A grant is final.** If your platform is named in `grants`, that grant decides the answer on its own. It never falls through to `default_perms` — so a platform granted `1` on a record whose `default_perms` is `15` has read access, not full access. Being named is not always an upgrade.
@@ -197,7 +218,6 @@ List queries behave differently again: a record you may not read is **omitted fr
 
 Two parts of the protocol document are specified but not connected, and a policy relying on them will not behave as written:
 
-- **Groups.** Group membership is not resolved, so a grant or denial naming a group matches nobody. A group grant simply fails to apply; a **group denial silently fails to deny**, which is the dangerous direction. Name parties individually for now.
 - **Ontology conditions.** No evaluator is wired in, so any condition fails. A `require` group containing conditions can never pass, and a deny condition always fires and refuses everyone. Until that lands, use only `grants`, `denials.enames`, and `require: []` or `require: [[]]`.
 
 Enforcement is eVault-side. Platforms and the adapter do not evaluate policies themselves, so do not treat a policy as a reason to skip your own authorization checks.

@@ -146,10 +146,10 @@ describe("evaluate: step 2, most specific grant wins", () => {
         expect(decision.allowed).toBe(true);
     });
 
-    it("ranks a user grant above a platform grant above a group grant", () => {
+    it("ranks a user grant above a platform grant above a group grant", async () => {
         const principal = user({ platform: PLATFORM, groups: [GROUP] });
         expect(
-            mostSpecificGrant(
+            await mostSpecificGrant(
                 [
                     { ename: GROUP, perms: 0x0f },
                     { ename: PLATFORM, perms: 0x07 },
@@ -160,7 +160,7 @@ describe("evaluate: step 2, most specific grant wins", () => {
         ).toMatchObject({ perms: 0x01 });
 
         expect(
-            mostSpecificGrant(
+            await mostSpecificGrant(
                 [
                     { ename: GROUP, perms: 0x0f },
                     { ename: PLATFORM, perms: 0x07 },
@@ -170,10 +170,10 @@ describe("evaluate: step 2, most specific grant wins", () => {
         ).toMatchObject({ perms: 0x07 });
     });
 
-    it("unions grants tied at the same specificity", () => {
+    it("unions grants tied at the same specificity", async () => {
         const principal = user({ groups: ["@group-a", "@group-b"] });
         expect(
-            mostSpecificGrant(
+            await mostSpecificGrant(
                 [
                     { ename: "@group-a", perms: 0x01 },
                     { ename: "@group-b", perms: 0x04 },
@@ -247,12 +247,9 @@ describe("evaluate: step 1, denials always win", () => {
             denials: { enames: [], conditions: [cond(EREP, ">=", 60)] },
         });
         const evaluator = scores({ [PLATFORM]: { [EREP]: 20 } });
-        const decision = await evaluate(
-            acl,
-            platform(),
-            Permission.READ,
-            evaluator,
-        );
+        const decision = await evaluate(acl, platform(), Permission.READ, {
+            conditions: evaluator,
+        });
         expect(decision).toMatchObject({
             allowed: false,
             reason: "denied_by_condition",
@@ -265,12 +262,9 @@ describe("evaluate: step 1, denials always win", () => {
             denials: { enames: [], conditions: [cond(EREP, ">=", 60)] },
         });
         const evaluator = scores({ [PLATFORM]: { [EREP]: 72 } });
-        const decision = await evaluate(
-            acl,
-            platform(),
-            Permission.READ,
-            evaluator,
-        );
+        const decision = await evaluate(acl, platform(), Permission.READ, {
+            conditions: evaluator,
+        });
         expect(decision).toMatchObject({ allowed: true, reason: "grant" });
     });
 });
@@ -299,33 +293,38 @@ describe("evaluate: step 3, the ontology groups", () => {
         // Denied at step 1.
         expect(
             (
-                await evaluate(
-                    acl,
-                    platform(BAD_PLATFORM),
-                    Permission.READ,
-                    evaluator,
-                )
+                await evaluate(acl, platform(BAD_PLATFORM), Permission.READ, {
+                    conditions: evaluator,
+                })
             ).allowed,
         ).toBe(false);
 
         // Allowed at step 2 -- 0x01 includes READ.
         expect(
-            await evaluate(acl, platform(), Permission.READ, evaluator),
+            await evaluate(acl, platform(), Permission.READ, {
+                conditions: evaluator,
+            }),
         ).toMatchObject({ allowed: true, reason: "grant" });
 
         // Denied -- 0x01 lacks DELETE, and step 3 is not reached.
         expect(
-            await evaluate(acl, platform(), Permission.DELETE, evaluator),
+            await evaluate(acl, platform(), Permission.DELETE, {
+                conditions: evaluator,
+            }),
         ).toMatchObject({ allowed: false, reason: "grant" });
 
         // Group A passes, so READ is allowed at step 3.
         expect(
-            await evaluate(acl, platform(unnamedA), Permission.READ, evaluator),
+            await evaluate(acl, platform(unnamedA), Permission.READ, {
+                conditions: evaluator,
+            }),
         ).toMatchObject({ allowed: true, reason: "ontology" });
 
         // Group A fails on the missing security score, but Group B passes.
         expect(
-            await evaluate(acl, platform(unnamedB), Permission.READ, evaluator),
+            await evaluate(acl, platform(unnamedB), Permission.READ, {
+                conditions: evaluator,
+            }),
         ).toMatchObject({ allowed: true, reason: "ontology" });
     });
 
@@ -333,7 +332,9 @@ describe("evaluate: step 3, the ontology groups", () => {
         const weak = "@platform-weak";
         const evaluator = scores({ [weak]: { [SEC]: 10, [EREP]: 10 } });
         expect(
-            await evaluate(acl, platform(weak), Permission.READ, evaluator),
+            await evaluate(acl, platform(weak), Permission.READ, {
+                conditions: evaluator,
+            }),
         ).toMatchObject({ allowed: false, reason: "no_matching_group" });
     });
 
@@ -342,12 +343,9 @@ describe("evaluate: step 3, the ontology groups", () => {
         const evaluator = scores({ [strong]: { [EREP]: 99 } });
         expect(
             (
-                await evaluate(
-                    acl,
-                    platform(strong),
-                    Permission.UPDATE,
-                    evaluator,
-                )
+                await evaluate(acl, platform(strong), Permission.UPDATE, {
+                    conditions: evaluator,
+                })
             ).allowed,
         ).toBe(false);
     });
@@ -356,12 +354,9 @@ describe("evaluate: step 3, the ontology groups", () => {
         const evaluator = scores({});
         expect(
             (
-                await evaluate(
-                    acl,
-                    platform("@unknown"),
-                    Permission.READ,
-                    evaluator,
-                )
+                await evaluate(acl, platform("@unknown"), Permission.READ, {
+                    conditions: evaluator,
+                })
             ).allowed,
         ).toBe(false);
     });
@@ -381,12 +376,9 @@ describe("evaluate: step 3, the ontology groups", () => {
         };
         expect(
             (
-                await evaluate(
-                    acl,
-                    platform("@unknown"),
-                    Permission.READ,
-                    throwing,
-                )
+                await evaluate(acl, platform("@unknown"), Permission.READ, {
+                    conditions: throwing,
+                })
             ).allowed,
         ).toBe(false);
     });
@@ -505,7 +497,9 @@ describe("aclBlockFromInput: caller input is validated strictly", () => {
     };
 
     it("accepts a well-formed block and returns undefined for none", () => {
-        expect(aclBlockFromInput(ok)?.grants).toEqual([{ ename: USER, perms: 0x01 }]);
+        expect(aclBlockFromInput(ok)?.grants).toEqual([
+            { ename: USER, perms: 0x01 },
+        ]);
         expect(aclBlockFromInput(undefined)).toBeUndefined();
         expect(aclBlockFromInput(null)).toBeUndefined();
     });
@@ -517,7 +511,14 @@ describe("aclBlockFromInput: caller input is validated strictly", () => {
                 ...ok,
                 denials: {
                     enames: [],
-                    conditions: [{ ontology: EREP, path: "$.score", op: "~=", value: 60 }],
+                    conditions: [
+                        {
+                            ontology: EREP,
+                            path: "$.score",
+                            op: "~=",
+                            value: 60,
+                        },
+                    ],
                 },
             }),
         ).toThrow(/unknown operator/);
@@ -527,31 +528,49 @@ describe("aclBlockFromInput: caller input is validated strictly", () => {
         expect(() =>
             aclBlockFromInput({
                 ...ok,
-                require: [[{ ontology: EREP, path: "$.score", op: ">=", value: "sixty" }]],
+                require: [
+                    [
+                        {
+                            ontology: EREP,
+                            path: "$.score",
+                            op: ">=",
+                            value: "sixty",
+                        },
+                    ],
+                ],
             }),
         ).toThrow(/require\[0\]\[0\] needs a finite numeric value/);
     });
 
     it("rejects a grant with no ename", () => {
-        expect(() => aclBlockFromInput({ ...ok, grants: [{ perms: 0x01 }] })).toThrow(
-            /each grant needs an ename/,
-        );
+        expect(() =>
+            aclBlockFromInput({ ...ok, grants: [{ perms: 0x01 }] }),
+        ).toThrow(/each grant needs an ename/);
     });
 
     it("rejects reserved permission bits", () => {
         expect(() =>
-            aclBlockFromInput({ ...ok, grants: [{ ename: USER, perms: 0x10 }] }),
+            aclBlockFromInput({
+                ...ok,
+                grants: [{ ename: USER, perms: 0x10 }],
+            }),
         ).toThrow(/reserved/);
-        expect(() => aclBlockFromInput({ ...ok, default_perms: 0xff })).toThrow(/reserved/);
+        expect(() => aclBlockFromInput({ ...ok, default_perms: 0xff })).toThrow(
+            /reserved/,
+        );
     });
 
     it("rejects a version it does not understand", () => {
-        expect(() => aclBlockFromInput({ ...ok, v: 2 })).toThrow(/Unsupported _acl version: 2/);
+        expect(() => aclBlockFromInput({ ...ok, v: 2 })).toThrow(
+            /Unsupported _acl version: 2/,
+        );
     });
 
     it("rejects wrong container shapes", () => {
         expect(() => aclBlockFromInput([])).toThrow(/expected an object/);
-        expect(() => aclBlockFromInput({ ...ok, grants: {} })).toThrow(/grants must be an array/);
+        expect(() => aclBlockFromInput({ ...ok, grants: {} })).toThrow(
+            /grants must be an array/,
+        );
         expect(() => aclBlockFromInput({ ...ok, require: [{}] })).toThrow(
             /require\[0\] must be an array/,
         );
@@ -560,6 +579,189 @@ describe("aclBlockFromInput: caller input is validated strictly", () => {
     it("still reads malformed *stored* data liberally", () => {
         // Stored data is normalised, not rejected -- a corrupt record must stay
         // readable, and dropping an unparseable grant there only narrows access.
-        expect(normalizeAclBlock({ grants: [{ perms: 0x01 }] }).grants).toEqual([]);
+        expect(normalizeAclBlock({ grants: [{ perms: 0x01 }] }).grants).toEqual(
+            [],
+        );
+    });
+});
+
+describe("group resolution", () => {
+    const GROUP_A = "@group-a";
+    const GROUP_B = "@group-b";
+
+    /** Resolves from a fixed table; anything else is an empty group. */
+    const groups = (table: Record<string, string[]>) => ({
+        async membersOf(group: string) {
+            return table[group] ?? [];
+        },
+    });
+
+    const failing = {
+        async membersOf(): Promise<string[]> {
+            throw new Error("group vault unreachable");
+        },
+    };
+
+    it("applies a grant to a group the party belongs to", async () => {
+        const acl = block({ grants: [{ ename: GROUP_A, perms: 0x05 }] });
+        const resolver = groups({ [GROUP_A]: [USER] });
+        expect(
+            await evaluate(acl, user(), Permission.UPDATE, {
+                groups: resolver,
+            }),
+        ).toMatchObject({ allowed: true, reason: "grant" });
+    });
+
+    it("does not apply a group grant to a non-member", async () => {
+        const acl = block({ grants: [{ ename: GROUP_A, perms: 0x05 }] });
+        const resolver = groups({ [GROUP_A]: ["@someone-else"] });
+        expect(
+            (
+                await evaluate(acl, user(), Permission.UPDATE, {
+                    groups: resolver,
+                })
+            ).allowed,
+        ).toBe(false);
+    });
+
+    it("matches a group through the platform carrying the request", async () => {
+        const acl = block({ grants: [{ ename: GROUP_A, perms: 0x01 }] });
+        const resolver = groups({ [GROUP_A]: [PLATFORM] });
+        expect(
+            (
+                await evaluate(acl, platform(), Permission.READ, {
+                    groups: resolver,
+                })
+            ).allowed,
+        ).toBe(true);
+    });
+
+    it("keeps a direct grant ahead of a group grant", async () => {
+        const acl = block({
+            grants: [
+                { ename: GROUP_A, perms: 0x0f },
+                { ename: USER, perms: 0x01 },
+            ],
+        });
+        const resolver = groups({ [GROUP_A]: [USER] });
+        expect(
+            (
+                await evaluate(acl, user(), Permission.DELETE, {
+                    groups: resolver,
+                })
+            ).allowed,
+        ).toBe(false);
+    });
+
+    it("does not resolve any group when a direct grant already matched", async () => {
+        let calls = 0;
+        const counting = {
+            async membersOf() {
+                calls++;
+                return [USER];
+            },
+        };
+        const acl = block({
+            grants: [
+                { ename: GROUP_A, perms: 0x0f },
+                { ename: USER, perms: 0x01 },
+            ],
+        });
+        await evaluate(acl, user(), Permission.READ, { groups: counting });
+        expect(calls).toBe(0);
+    });
+
+    it("unions grants from several groups the party belongs to", async () => {
+        const acl = block({
+            grants: [
+                { ename: GROUP_A, perms: 0x01 },
+                { ename: GROUP_B, perms: 0x04 },
+            ],
+        });
+        const resolver = groups({ [GROUP_A]: [USER], [GROUP_B]: [USER] });
+        for (const action of [Permission.READ, Permission.UPDATE]) {
+            expect(
+                (await evaluate(acl, user(), action, { groups: resolver }))
+                    .allowed,
+            ).toBe(true);
+        }
+        expect(
+            (
+                await evaluate(acl, user(), Permission.DELETE, {
+                    groups: resolver,
+                })
+            ).allowed,
+        ).toBe(false);
+    });
+
+    it("denies a member of a denied group", async () => {
+        const acl = block({
+            grants: [{ ename: USER, perms: 0x0f }],
+            denials: { enames: [GROUP_A], conditions: [] },
+        });
+        const resolver = groups({ [GROUP_A]: [USER] });
+        expect(
+            await evaluate(acl, user(), Permission.READ, { groups: resolver }),
+        ).toMatchObject({ allowed: false, reason: "denied_by_ename" });
+    });
+
+    it("lets a non-member through a group denial", async () => {
+        const acl = block({
+            grants: [{ ename: USER, perms: 0x0f }],
+            denials: { enames: [GROUP_A], conditions: [] },
+        });
+        const resolver = groups({ [GROUP_A]: ["@someone-else"] });
+        expect(
+            (await evaluate(acl, user(), Permission.READ, { groups: resolver }))
+                .allowed,
+        ).toBe(true);
+    });
+
+    it("holds a group denial when membership cannot be determined", async () => {
+        // A lookup that failed is not evidence of non-membership, so the denial
+        // stands rather than being skipped.
+        const acl = block({
+            grants: [{ ename: USER, perms: 0x0f }],
+            denials: { enames: [GROUP_A], conditions: [] },
+        });
+        expect(
+            await evaluate(acl, user(), Permission.READ, { groups: failing }),
+        ).toMatchObject({ allowed: false, reason: "denied_by_ename" });
+    });
+
+    it("withholds a group grant when membership cannot be determined", async () => {
+        // The same uncertainty must not hand out access.
+        const acl = block({ grants: [{ ename: GROUP_A, perms: 0x0f }] });
+        expect(
+            (await evaluate(acl, user(), Permission.READ, { groups: failing }))
+                .allowed,
+        ).toBe(false);
+    });
+
+    it("resolves each group once per decision", async () => {
+        const seen: string[] = [];
+        const counting = {
+            async membersOf(group: string) {
+                seen.push(group);
+                return [];
+            },
+        };
+        const acl = block({
+            grants: [
+                { ename: GROUP_A, perms: 0x01 },
+                { ename: GROUP_A, perms: 0x04 },
+            ],
+            denials: { enames: [GROUP_A], conditions: [] },
+        });
+        await evaluate(acl, user(), Permission.READ, { groups: counting });
+        expect(seen).toEqual([GROUP_A]);
+    });
+
+    it("still honours a pre-resolved group list with no resolver", async () => {
+        const acl = block({ grants: [{ ename: GROUP_A, perms: 0x01 }] });
+        expect(
+            (await evaluate(acl, user({ groups: [GROUP_A] }), Permission.READ))
+                .allowed,
+        ).toBe(true);
     });
 });
