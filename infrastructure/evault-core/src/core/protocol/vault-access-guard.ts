@@ -4,6 +4,7 @@ import * as jose from "jose";
 import {
     type ConditionEvaluator,
     evaluate,
+    type GroupResolver,
     Permission,
     type PermissionBits,
     type Principal,
@@ -52,7 +53,16 @@ export class VaultAccessGuard {
     constructor(
         private db: DbService,
         private conditionEvaluator?: ConditionEvaluator,
+        private groupResolver?: GroupResolver,
     ) {}
+
+    /** The collaborators policy evaluation may call out to. */
+    private get aclDeps() {
+        return {
+            conditions: this.conditionEvaluator,
+            groups: this.groupResolver,
+        };
+    }
 
     /**
      * The party a request acts as.
@@ -317,7 +327,7 @@ export class VaultAccessGuard {
                 metaEnvelope._acl,
                 principal,
                 action,
-                this.conditionEvaluator,
+                this.aclDeps,
             );
             return { hasAccess: decision.allowed, exists: true };
         }
@@ -381,7 +391,7 @@ export class VaultAccessGuard {
                               envelope._acl,
                               principal,
                               Permission.READ,
-                              this.conditionEvaluator,
+                              this.aclDeps,
                           )
                       ).allowed
                     : false;

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { VaultAccessGuard, VaultContext } from "./vault-access-guard";
-import { Permission } from "../acl";
+import { GroupMembershipService, Permission } from "../acl";
 import { DbService } from "../db/db.service";
 import { setupTestNeo4j, teardownTestNeo4j } from "../../test-utils/neo4j-setup";
 import { Driver } from "neo4j-driver";
@@ -1286,6 +1286,138 @@ describe("granular _acl policies", () => {
             await expect(
                 guard.middleware(resolver)(null, { id }, context),
             ).rejects.toThrow("Access denied");
+        });
+    });
+describe("group grants and denials end to end", () => {
+        const GROUP = "@group-guarded";
+        const PLATFORM = "@platform-grouped";
+        const MEMBER = "@user-in-group";
+        const OUTSIDER = "@user-outside-group";
+        const GROUP_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440003";
+        const USER_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440000";
+
+        let grouped: VaultAccessGuard;
+
+        beforeAll(() => {
+            grouped = new VaultAccessGuard(
+                dbService,
+                undefined,
+                new GroupMembershipService(dbService),
+            );
+        });
+
+        const storeWithPolicy = async (eName: string, _acl: any) => {
+            const result = await dbService.storeMetaEnvelope(
+                { ontology: "Test", payload: { field: "value" }, acl: ["*"], _acl },
+                ["*"],
+                eName,
+            );
+            return result.metaEnvelope.id;
+        };
+
+        const contextFor = async (eName: string, onBehalfOf: string) => {
+            const token = await createValidToken({ platform: PLATFORM });
+            return createMockContext({
+                eName,
+                onBehalfOf,
+                request: {
+                    headers: new Headers({ authorization: `Bearer ${token}` }),
+                } as any,
+            });
+        };
+
+        it("admits a member through a group grant, by eName and by profile id", async () => {
+            // One member is listed by eName, the other by their profile record's
+            // id -- both forms occur in real group records.
+            const profile = await dbService.storeMetaEnvelope(
+                { ontology: USER_ONTOLOGY, payload: { ename: OUTSIDER }, acl: ["*"] },
+                ["*"],
+                "@profile-vault",
+            );
+            await dbService.storeMetaEnvelope(
+                {
+                    ontology: GROUP_ONTOLOGY,
+                    payload: {
+                        ename: GROUP,
+                        name: "Guarded",
+                        members: [MEMBER],
+                        participantIds: [profile.metaEnvelope.id],
+                    },
+                    acl: ["*"],
+                },
+                ["*"],
+                GROUP,
+            );
+
+            const eName = "@vault-group-1";
+            const id = await storeWithPolicy(eName, {
+                v: 1,
+                grants: [{ ename: GROUP, perms: 0x01 }],
+                denials: { enames: [], conditions: [] },
+                default_perms: 0x00,
+                require: [],
+            });
+
+            for (const member of [MEMBER, OUTSIDER]) {
+                const context = await contextFor(eName, member);
+                await expect(
+                    grouped.middleware(vi.fn(async () => ({ id })), Permission.READ)(
+                        null,
+                        { id },
+                        context,
+                    ),
+                ).resolves.toBeDefined();
+            }
+        });
+
+        it("refuses someone who is not in the granted group", async () => {
+            const eName = "@vault-group-2";
+            const id = await storeWithPolicy(eName, {
+                v: 1,
+                grants: [{ ename: GROUP, perms: 0x0f }],
+                denials: { enames: [], conditions: [] },
+                default_perms: 0x00,
+                require: [],
+            });
+
+            const context = await contextFor(eName, "@nobody-in-particular");
+            await expect(
+                grouped.middleware(vi.fn(async () => ({ id })))(null, { id }, context),
+            ).rejects.toThrow("Access denied");
+        });
+
+        it("denies a member of a denied group despite a direct grant", async () => {
+            const eName = "@vault-group-3";
+            const id = await storeWithPolicy(eName, {
+                v: 1,
+                grants: [{ ename: MEMBER, perms: 0x0f }],
+                denials: { enames: [GROUP], conditions: [] },
+                default_perms: 0x00,
+                require: [],
+            });
+
+            const context = await contextFor(eName, MEMBER);
+            await expect(
+                grouped.middleware(vi.fn(async () => ({ id })))(null, { id }, context),
+            ).rejects.toThrow("Access denied");
+        });
+
+        it("leaves a group denial inert when no resolver is configured", async () => {
+            // The guard without a resolver cannot resolve groups at all, which
+            // is the feature switched off rather than a failed lookup.
+            const eName = "@vault-group-4";
+            const id = await storeWithPolicy(eName, {
+                v: 1,
+                grants: [{ ename: MEMBER, perms: 0x0f }],
+                denials: { enames: [GROUP], conditions: [] },
+                default_perms: 0x00,
+                require: [],
+            });
+
+            const context = await contextFor(eName, MEMBER);
+            await expect(
+                guard.middleware(vi.fn(async () => ({ id })))(null, { id }, context),
+            ).resolves.toBeDefined();
         });
     });
 });

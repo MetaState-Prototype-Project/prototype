@@ -8,7 +8,9 @@ export {
     type DecisionReason,
     type Denials,
     type EName,
+    type EvaluateDeps,
     type Grant,
+    type GroupResolver,
     Permission,
     type PermissionBits,
     type Principal,
@@ -31,3 +33,9 @@ export {
 } from "./acl";
 
 export { parseStoredAclBlock, serializeAclBlock } from "./storage";
+
+export {
+    GROUP_ONTOLOGIES,
+    GroupMembershipService,
+    MEMBER_FIELDS,
+} from "./group-membership.service";

@@ -123,3 +123,22 @@ export interface Decision {
 export interface ConditionEvaluator {
     passes(condition: Condition, principal: Principal): Promise<boolean>;
 }
+
+/**
+ * Resolves a group eName to the eNames of its members.
+ *
+ * A group's participant list may reference a member either by their eName or
+ * by the id of their profile record; an implementation is expected to return
+ * eNames whichever form it found.
+ */
+export interface GroupResolver {
+    membersOf(group: EName): Promise<EName[]>;
+}
+
+/** Collaborators {@link evaluate} may call out to. */
+export interface EvaluateDeps {
+    /** Resolves Resource Link Ontology conditions. */
+    conditions?: ConditionEvaluator;
+    /** Resolves group membership for grants and denials naming a group. */
+    groups?: GroupResolver;
+}
