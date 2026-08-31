@@ -272,20 +272,45 @@ Wallet endpoint for key sync. Body: `{ publicKey }`. Headers: `X-ENAME` (require
 
 ## Access control
 
-ACLs are string arrays on each MetaEnvelope:
+Two models. `_acl` is current; the `acl` string array predates it and still works.
+
+### `_acl` (granular)
+
+An optional input field on `createMetaEnvelope`, `storeMetaEnvelope`, `bulkCreateMetaEnvelopes`, `updateMetaEnvelope`, `updateMetaEnvelopeById`, and `uploadFile`. Stored on the MetaEnvelope node as the `aclBlock` JSON property, so it travels with the record.
+
+```
+_acl: {
+  v: 1,
+  grants:  [ { ename: "@<uuid>", perms: 1 } ],   // u8 bitmask
+  denials: { enames: ["@<uuid>"], conditions: [] },
+  default_perms: 1,                              // unnamed parties that pass a group
+  require: [ [ { ontology: "@<uuid>", path: "$.score", op: ">=", value: 60 } ] ]
+}
+```
+
+Perms bitmask: `0x01` READ, `0x02` CREATE, `0x04` UPDATE, `0x08` DELETE. `0x0F` full, `0x03` read + add-only. Bits 4-7 reserved, must be 0 — a write that sets them is rejected. `0x00` counts as no grant.
+
+Decision order, fixed: (1) denials — by eName or a **failing** condition — always win; (2) the single most specific grant (user > platform > group, no union across specificity) decides on its own; (3) otherwise a passing `require` group admits at `default_perms`. `require` is an OR of groups, each an AND of conditions; an empty group always passes.
+
+Never guess these: a missing/multi-valued/non-numeric condition path **fails**, never passes. A named party never falls through from step 2 to step 3.
+
+### Legacy `acl` array
 
 - `["*"]` — anyone can read; only the eVault owner can write.
 - `["@user-a.w3id"]` — user A can read AND write.
-- `["@user-a.w3id", "@user-b.w3id"]` — both can read and write.
 
-Prototype limitation: no read-only-without-write except for `["*"]`. Fine-grained perms are on the roadmap.
+All-or-nothing: no read-only-without-write except `["*"]`. Where a record has `_acl`, the array is ignored entirely; where it does not, the array behaves exactly as before.
 
 Access enforcement flow:
 
 1. Extract W3ID from `X-ENAME` header or Bearer token.
-2. Check requester's W3ID is in the ACL.
-3. Strip the ACL field from the response (security).
+2. If the record carries `_acl`, decide by it, against the permission the operation needs. Otherwise check the requester's W3ID against the legacy array.
+3. Strip `acl` and `_acl` from the response (security).
 4. Grant or deny.
+
+A valid platform Bearer token satisfies the legacy path but does **not** bypass an `_acl` policy.
+
+Not yet wired: group membership is not resolved (group grants match nothing — fail-closed; group denials also match nothing — fail-**open**), and no condition evaluator is connected, so any `require` group containing conditions fails closed. Write policies using `grants`, `denials.enames`, and empty-group `require` only. Full model: `docs/docs/W3DS Protocol/Access-Control.md`.
 
 Special cases:
 

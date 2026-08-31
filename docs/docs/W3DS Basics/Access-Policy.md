@@ -63,6 +63,15 @@ The three gates run in order, and each can only narrow the one before it:
 
 A grant cannot widen a certificate. Permitting `health:Read` to a platform never certified for `health` changes nothing.
 
+## Where the record's own rules fit
+
+The policy above is a signed statement about a *subject* — which platforms an owner will deal with at all. It is not stored in the data it protects.
+
+[Access control](/docs/W3DS%20Protocol/Access-Control) is the other half: an `_acl` block inside each record, naming parties and the verbs they hold, plus ontology conditions admitting platforms that were never named. That block is what the eVault evaluates on each request, and it travels with the record when it syncs.
+
+The two are separate gates and neither can widen the other.
+
 ## See also
 
+- [Access Control](/docs/W3DS%20Protocol/Access-Control) — the per-record `_acl` policy the eVault enforces
 - [Platform Authentication](/docs/W3DS%20Protocol/Platform-Authentication) — how a platform proves which release it is running

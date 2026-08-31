@@ -47,7 +47,7 @@ Determines: which eVault to route the request to, ACL enforcement, log ownership
 - **Users, groups**: each has a persistent eName that anchors keys and (via binding documents) physical identity.
 - **eVaults**: an eVault has its own internal W3ID (used for clone sync). The owner's eName identifies the "owner" for ACL / whois purposes.
 - **MetaEnvelopes**: `id` is a W3ID. Ownership is by the eVault whose owner-eName was in `X-ENAME` at creation time.
-- **ACLs**: arrays of eNames (or `["*"]`). See [evault.md](evault.md#access-control).
+- **ACLs**: the `_acl` policy names parties by eName in its grants and denials; the legacy `acl` array is eNames (or `["*"]`). See [evault.md](evault.md#access-control).
 - **Key binding certificates**: JWTs whose payload binds an eName to a public key.
 
 ## Binding Documents
@@ -122,4 +122,5 @@ The W3ID system supports binding an identity to a passport or other physical doc
 - eName vs W3ID: `docs/docs/W3DS Basics/eName.md`
 - Binding document types + operations: `docs/docs/W3DS Basics/Binding-Documents.md`
 - ACL semantics: `docs/docs/Infrastructure/eVault.md` (§ Access Control)
+- Granular `_acl` permissions: `docs/docs/W3DS Protocol/Access-Control.md`
 - Key binding certificates: `docs/docs/Infrastructure/eVault-Key-Delegation.md`

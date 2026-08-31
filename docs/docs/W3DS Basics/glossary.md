@@ -10,7 +10,7 @@ Definitions of key terms used across the W3DS and MetaState documentation. Where
 
 ## Access
 
-The ability to retrieve or interact with data or services based on permissions and [authentication](#authentication). In W3DS, access to eVault data is governed by [ACLs](/docs/Infrastructure/eVault#access-control) and [resolution](/docs/Infrastructure/Registry#get-resolve) of identities.
+The ability to retrieve or interact with data or services based on permissions and [authentication](#authentication). In W3DS, access to eVault data is governed by the record's own access policy — [granular access control](/docs/W3DS%20Protocol/Access-Control) or the legacy [ACL](/docs/Infrastructure/eVault#access-control) array — and by [resolution](/docs/Infrastructure/Registry#get-resolve) of identities.
 
 ---
 
@@ -58,7 +58,7 @@ A non-human object within the MetaState such as an organization, a platform, a b
 
 ## Envelope
 
-The smallest unit of data in an [eVault](#evault), addressable by its unique identifier and [ontology](/docs/Infrastructure/Ontology) reference. Each envelope has an attached ontological definition and ACL that defines who is allowed to access it. See [eVault — Data Model](/docs/Infrastructure/eVault#data-model) for how Envelopes are stored and used.
+The smallest unit of data in an [eVault](#evault), addressable by its unique identifier and [ontology](/docs/Infrastructure/Ontology) reference. Each envelope has an attached ontological definition, and its MetaEnvelope carries the access policy that defines who is allowed to do what with it. See [eVault — Data Model](/docs/Infrastructure/eVault#data-model) for how Envelopes are stored and used.
 
 ---
 
