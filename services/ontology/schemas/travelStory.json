@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "ba56d2d3-e6bf-4bfd-ac75-6436c56be76f",
+  "title": "TravelStory",
+  "domain": "travel",
+  "type": "object",
+  "description": "One language version of a location-bound story for travellers. Each language version is its own envelope; versions of the same story are linked through their StoryProvenance records, never by copying fields. Everything about HOW the story came to be (who requested it, where, which models wrote and voiced it, what it was translated from) lives in the referenced StoryProvenance envelope, not here.",
+  "properties": {
+    "id": { "type": "string", "format": "uuid", "description": "Unique identifier of this story version" },
+    "title": { "type": "string", "description": "Story title in the story language" },
+    "text": { "type": "string", "description": "Full story text (plain text, no HTML)" },
+    "language": { "type": "string", "description": "BCP-47 language tag of this version, e.g. 'ru', 'en', 'nl'" },
+    "subjectName": { "type": "string", "description": "Name of the object/place the story is about, e.g. 'Sint-Janskerk, Maastricht'. Interim field: once landmark entities get their own w3ids, the story-to-object link moves to a dedicated M:N relation and this stays only as a display hint" },
+    "location": {
+      "type": "object",
+      "description": "Anchor point of the story subject, WGS84",
+      "properties": {
+        "lat": { "type": "number", "minimum": -90, "maximum": 90, "description": "Latitude" },
+        "lon": { "type": "number", "minimum": -180, "maximum": 180, "description": "Longitude" }
+      },
+      "required": ["lat", "lon"],
+      "additionalProperties": false
+    },
+    "triggerZones": {
+      "type": "array",
+      "description": "Zones where this story is relevant to play, following tmatic.travel zone semantics. The zone is designed at creation time by the generating AI, which must reason about THIS object's nature and shape: what area a listener would stand or move in for the story to make sense. Illustrative examples, not a closed list: a square → its perimeter buffered ~20 m; a building → a circle of ~30 m; a whole village → its circumscribed circle; a street → a corridor along its full length; a river or embankment → a corridor along the stretch the story concerns; a fountain or monument → a small circle within sight; a viewpoint story about a distant object → the viewpoint, not the object. Stories written for driving carry an additional zone: a corridor along the road segment where playback is intended (~50 m each side)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "enum": ["CIRCLE", "POLYGON"], "description": "Zone geometry kind" },
+          "centerLat": { "type": "number", "description": "CIRCLE only: center latitude" },
+          "centerLon": { "type": "number", "description": "CIRCLE only: center longitude" },
+          "radius": { "type": "number", "description": "CIRCLE only: radius in meters" },
+          "geometry": { "type": "string", "description": "POLYGON only: WKT polygon string, lon-lat order" }
+        },
+        "required": ["type"],
+        "additionalProperties": false
+      }
+    },
+    "modality": { "type": "string", "enum": ["walking", "cycling", "driving", "boat"], "description": "Movement mode the story was written for" },
+    "audioUri": { "type": "string", "description": "w3ds://file URI of the narrated audio" },
+    "audioDuration": { "type": "integer", "description": "Audio duration in seconds" },
+    "imageUris": { "type": "array", "items": { "type": "string" }, "description": "w3ds://file URIs of related photos" },
+    "sourceType": { "type": "string", "enum": ["generated", "translated", "derived"], "description": "generated = written from scratch by AI; translated = translation of an existing story; derived = based on existing content. Details of the source are in StoryProvenance" },
+    "license": { "type": "string", "description": "License of this content, e.g. 'proprietary-minstrel'" },
+    "provenanceRef": { "type": "string", "description": "w3ds://envelope?id=@<ename>/<metaEnvelopeId> reference to the StoryProvenance record of this version. @<ename> is the owning entity's eName (stable), resolved to its current eVault via the registry" },
+    "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp, ISO 8601" },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp, ISO 8601" },
+    "isArchived": { "type": "boolean", "description": "Soft-delete flag" }
+  },
+  "required": ["id", "title", "text", "language", "location", "sourceType", "createdAt"],
+  "additionalProperties": false
+}
