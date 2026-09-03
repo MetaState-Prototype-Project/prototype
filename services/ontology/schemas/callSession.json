@@ -1,0 +1,155 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "schemaId": "e815ba40-ef85-4a2b-b6cf-e05a86d4afbd",
+    "title": "CallSession",
+    "description": "One audio/video call in a chat, transport-agnostic (full-mesh WebRTC or an SFU). Generalises the ad-hoc 'call' Message so a call and its recording are readable across applications: who was in it, when, how long, and where the recording and transcript live. The canonical envelope is written ONCE, on the vault that already holds the chat's canonical Chat envelope (the group's own vault for a group, the chat owner's vault for a 1:1) — never on the caller's vault, which changes from call to call. Every other participant holds a reference-mixin (isReference + canonicalOwnerEName + canonicalEnvelopeId) on their own vault, never a copy. The body carries references and metadata only: media and transcript are w3ds:// file URIs, never bytes.",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "string",
+            "description": "Stable call id, shared by every participant's record of the same call"
+        },
+        "chatId": {
+            "type": "string",
+            "description": "The conversation this call belongs to"
+        },
+        "transport": {
+            "type": "string",
+            "enum": ["mesh", "livekit"],
+            "description": "How the media was carried: peer-to-peer full mesh, or an SFU"
+        },
+        "callType": {
+            "type": "string",
+            "enum": ["audio", "video"],
+            "description": "Whether the call carried video"
+        },
+        "initiator": {
+            "type": "string",
+            "description": "eName of whoever started the call"
+        },
+        "participants": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "eNames of everyone in the call, including the initiator"
+        },
+        "roomName": {
+            "type": "string",
+            "description": "SFU room name, when the transport used one"
+        },
+        "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the call began"
+        },
+        "endedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the call ended; absent while it is still running"
+        },
+        "durationSec": {
+            "type": "number",
+            "description": "Talk time in seconds; absent when unknown"
+        },
+        "status": {
+            "type": "string",
+            "enum": ["active", "ended", "missed", "declined"],
+            "description": "Outcome of the call"
+        },
+        "recording": {
+            "type": "object",
+            "description": "Present only when the call was recorded. References only — no media bytes and no transcript text.",
+            "properties": {
+                "mode": {
+                    "type": "string",
+                    "enum": ["egress", "client"],
+                    "description": "Recorded server-side by the SFU, or by a participant's client"
+                },
+                "mediaUri": {
+                    "type": "string",
+                    "description": "w3ds:// file URI of the composite recording"
+                },
+                "mediaSegments": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "w3ds:// file URIs, when the composite was split into parts"
+                },
+                "mediaIsVideo": {
+                    "type": "boolean",
+                    "description": "Whether the composite carries video as well as audio"
+                },
+                "tracks": {
+                    "type": "array",
+                    "description": "Per-speaker media, one entry per participant captured",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "eName": { "type": "string" },
+                            "uri": { "type": "string" },
+                            "mime": { "type": "string" }
+                        },
+                        "required": ["eName", "uri"],
+                        "additionalProperties": false
+                    }
+                },
+                "transcriptUri": {
+                    "type": "string",
+                    "description": "w3ds:// file URI of the transcript"
+                },
+                "transcriptStatus": {
+                    "type": "string",
+                    "enum": ["pending", "done", "error", "skipped", "none"]
+                },
+                "analysisStatus": {
+                    "type": "string",
+                    "enum": ["pending", "done", "error", "skipped", "none"]
+                },
+                "recordedBy": {
+                    "type": "string",
+                    "description": "eName of whoever started the recording"
+                },
+                "recordingVault": {
+                    "type": "string",
+                    "description": "eName of the vault the media and transcript files live on"
+                }
+            },
+            "additionalProperties": false
+        },
+        "isReference": {
+            "type": "boolean",
+            "description": "True on a participant's pointer to a canonical CallSession held elsewhere"
+        },
+        "canonicalOwnerEName": {
+            "type": "string",
+            "description": "On a reference: the vault holding the canonical envelope"
+        },
+        "canonicalEnvelopeId": {
+            "type": "string",
+            "description": "On a reference: the canonical envelope's id on that vault"
+        },
+        "sharedBy": {
+            "type": "string",
+            "description": "On a reference: who wrote the pointer"
+        },
+        "sharedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "On a reference: when the pointer was written"
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When this envelope was created"
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Body version: bumped whenever the body changes, so readers know a cached copy is stale"
+        },
+        "isArchived": {
+            "type": "boolean",
+            "description": "Whether the record is archived"
+        }
+    },
+    "required": ["id"],
+    "additionalProperties": false
+}
