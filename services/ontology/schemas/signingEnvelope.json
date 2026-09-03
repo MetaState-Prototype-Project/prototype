@@ -1,0 +1,352 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "256510c7-692c-4bf5-8136-820cd178a266",
+  "title": "SigningEnvelope",
+  "description": "A document sent for signature by one or more parties. The canonical envelope lives on the initiator's vault; every signer holds a reference on their own vault. Field layout and process state live in the platform database, not here. The completed PDF is deliberately NOT referenced by a w3ds://file URI: it would land on the same public CDN as the source blob, carrying the decrypted document plus the identities of everyone who signed it. Only its hash is recorded, as an integrity checksum rather than evidence. The canonical envelope carries the initiator's seal (initiatorSignature): without it the envelope is unsigned data that any admitted platform could rewrite.",
+  "type": "object",
+  "properties": {
+    "isReference": {
+      "type": "boolean",
+      "description": "false on the initiator's canonical envelope, true on each signer's reference."
+    },
+    "envelopeId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable id shared by the canonical envelope and all of its references."
+    },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the initiator, whose vault holds the canonical envelope."
+    },
+    "canonicalEnvelopeId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Meta envelope id of the canonical record. References only."
+    },
+    "title": {
+      "type": "string",
+      "description": "Human-readable title. Note this is visible to any platform that can read the envelope; it is not protected by the document encryption."
+    },
+    "message": {
+      "type": "string",
+      "description": "Optional note from the initiator to the signers."
+    },
+    "fileUri": {
+      "type": "string",
+      "description": "w3ds://file URI of the stored ciphertext. The File envelope behind it records filename, size and md5Hash of the CIPHERTEXT; see contentEncoding and hashSubject."
+    },
+    "contentEncoding": {
+      "type": "string",
+      "enum": [
+        "none",
+        "aes-256-gcm"
+      ],
+      "description": "How the bytes behind fileUri are protected. Present so an outside reader cannot mistake File.md5Hash for a hash of the document."
+    },
+    "hashSubject": {
+      "type": "string",
+      "enum": [
+        "plaintext",
+        "ciphertext"
+      ],
+      "description": "What plaintextSha256 refers to. Always plaintext; stated explicitly because File.md5Hash refers to the ciphertext and the two are easily confused."
+    },
+    "plaintextSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 of the ORIGINAL UNENCRYPTED PDF. This is what signatures cover. Note: for a low-entropy document this value is a confirmation oracle, letting a reader test a guessed plaintext. It cannot be removed without breaking independent verification; the tradeoff is accepted deliberately."
+    },
+    "ciphertextSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 of the stored ciphertext, for integrity of the blob itself."
+    },
+    "keyCustody": {
+      "type": "string",
+      "enum": [
+        "platform",
+        "participant-wrapped"
+      ],
+      "description": "platform = the operator can decrypt; participant-wrapped = end-to-end. Currently always platform: the eID wallet exposes only sign() and getPublicKey(), and its ECDSA P-256 key cannot perform key agreement."
+    },
+    "fieldSchemaVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Version of the field-value canonicalisation used for fieldsHash, included in every signed payload."
+    },
+    "signingOrder": {
+      "type": "string",
+      "enum": [
+        "parallel",
+        "sequential"
+      ],
+      "description": "Product-level ordering only; signatures are cryptographically independent."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "sent",
+        "partially_signed",
+        "completed",
+        "declined",
+        "revoked",
+        "expired"
+      ]
+    },
+    "participants": {
+      "type": "array",
+      "description": "Signers and their roles. Visible to any platform that can read this envelope: who is signing what, and when, cannot be hidden in this model. Canonical envelope only. Pinned by initiatorSignature: any change to this list invalidates the seal.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "participantId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "eName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "signer",
+              "approver",
+              "viewer"
+            ]
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "opened",
+              "signed",
+              "declined"
+            ]
+          }
+        },
+        "required": [
+          "participantId",
+          "eName",
+          "role"
+        ]
+      }
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "signer",
+        "approver",
+        "viewer"
+      ],
+      "description": "This holder's role. References only."
+    },
+    "order": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "This holder's position in the signing order. References only."
+    },
+    "sharedBy": {
+      "type": "string",
+      "description": "eName of whoever created this reference. References only."
+    },
+    "sharedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "References only."
+    },
+    "finalPlaintextSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 of the completed, flattened PDF as the user downloads it. This is an INTEGRITY CHECKSUM, not evidence: nothing signs it. The authority of the completed document comes from the participants' signatures over the original document and their field values, not from any signature over the rendering. A platform vault cannot supply one — it is provisioned with a placeholder key and advertises no key-binding certificate, so a naive verifier following the standard chain would return valid=true for anything at all. The bytes are served only through the platform's authorised endpoint and never uploaded to a vault."
+    },
+    "expiresAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "initiatorSignedPayload": {
+      "type": "string",
+      "description": "The exact string the initiator sealed, composed as `docusigner.envelope-seal.v1|<envelopeId>|<plaintextSha256>|<fieldSchemaVersion>|sha256(canonical participant eNames)`, then hashed and prefixed with `seal_`. Recorded verbatim; a verifier must recompute it rather than trust it."
+    },
+    "initiatorSignature": {
+      "type": "string",
+      "description": "The initiator's eID signature over initiatorSignedPayload. This is what makes the envelope trustworthy at all. Any admitted platform can rewrite an envelope on any vault via updateMetaEnvelope, replacing fileUri and plaintextSha256 TOGETHER so that the document still matches its recorded hash; checking bytes against the envelope cannot detect a substituted pair. Only this seal can, because forging it needs the initiator's key, which no platform holds. It also pins the participant list against silent additions or eName swaps."
+    },
+    "initiatorAssurance": {
+      "type": "object",
+      "description": "What the platform knew about the INITIATOR's identity when they sealed and sent this envelope. What the signing platform knew about this person's identity at the moment of the act, read from their own vault. RECORDED, not recomputed: a passport check added a year later does not make an earlier signature better evidence, and an attestation withdrawn since does not make it worse, so a reader of the finished document needs what was true then. IMPORTANT: this is an observation made BY the platform, not part of the seal, and must never be presented as a claim the initiator made.",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": [
+            "verified",
+            "attested",
+            "unknown",
+            "unavailable"
+          ],
+          "description": "verified — a licensed identity vendor checked an identity document, and the attestation is signed by an authority whose key is published. attested — no document was checked, but other people have mutually attested to this identity. unknown — we looked and nothing at all is known about who holds this eName. unavailable — we could not look: their storage did not answer at the time. The last two are deliberately distinct and MUST NOT be collapsed by a reader: 'we found nothing' is an observation about the person, 'we could not ask' is an admission about us. This record is written once beside a signature and read for years, so a momentary failure recorded as 'unknown' would be a permanent false statement about somebody whose identity is in fact established."
+        },
+        "verifiedName": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The name the vendor checked. Never a name the person stated about themselves."
+        },
+        "verifiedBy": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Which identity vendor performed the check."
+        },
+        "attestations": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "How many other people had mutually attested to this identity at the time."
+        },
+        "authenticatedBy": {
+          "type": "string",
+          "description": "How the person proved, in this act, that they hold the eName. Currently always 'eid-key-signature' — a signature from the key their eID wallet holds. Named explicitly so a reader is not left to assume something weaker or stronger."
+        },
+        "capturedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the observation was made — the moment of signing or sealing."
+        }
+      },
+      "required": [
+        "level",
+        "authenticatedBy",
+        "capturedAt"
+      ]
+    },
+    "sealSchemaVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Version of the seal canonicalisation (participant-list normalisation and composition order). Deliberately separate from fieldSchemaVersion: the two are independent formats and will need to change at different times."
+    }
+  },
+  "required": [
+    "isReference",
+    "envelopeId",
+    "canonicalOwnerEName",
+    "createdAt"
+  ],
+  "oneOf": [
+    {
+      "title": "CanonicalSigningEnvelope",
+      "properties": {
+        "isReference": {
+          "const": false
+        }
+      },
+      "required": [
+        "isReference",
+        "envelopeId",
+        "canonicalOwnerEName",
+        "title",
+        "fileUri",
+        "contentEncoding",
+        "hashSubject",
+        "plaintextSha256",
+        "keyCustody",
+        "fieldSchemaVersion",
+        "status",
+        "participants",
+        "createdAt",
+        "initiatorSignedPayload",
+        "initiatorSignature",
+        "sealSchemaVersion"
+      ],
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "canonicalEnvelopeId"
+            ]
+          },
+          {
+            "required": [
+              "role"
+            ]
+          },
+          {
+            "required": [
+              "order"
+            ]
+          },
+          {
+            "required": [
+              "sharedBy"
+            ]
+          },
+          {
+            "required": [
+              "sharedAt"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "SigningEnvelopeReference",
+      "properties": {
+        "isReference": {
+          "const": true
+        }
+      },
+      "required": [
+        "isReference",
+        "envelopeId",
+        "canonicalOwnerEName",
+        "canonicalEnvelopeId",
+        "role",
+        "sharedBy",
+        "sharedAt",
+        "createdAt"
+      ],
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "participants"
+            ]
+          },
+          {
+            "required": [
+              "initiatorSignature"
+            ]
+          },
+          {
+            "required": [
+              "initiatorSignedPayload"
+            ]
+          },
+          {
+            "required": [
+              "sealSchemaVersion"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
