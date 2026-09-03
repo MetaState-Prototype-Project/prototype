@@ -51,6 +51,9 @@ firestore-debug.log
 keystore.properties
 evault-cache.json
 
+# Identities the ACL demonstrator provisions for itself
+services/acl-demo/.cast.json
+
 .pnpm-store
 .pnpm-store/
 

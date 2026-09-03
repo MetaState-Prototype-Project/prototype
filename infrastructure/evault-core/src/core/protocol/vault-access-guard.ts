@@ -72,10 +72,10 @@ export class VaultAccessGuard {
      * still applies at its own specificity. Otherwise the platform itself is
      * the party.
      *
-     * Group membership is not resolved yet, so a grant or denial naming a
-     * group matches nothing. For grants that is fail-closed; for denials it is
-     * fail-open, so group denials are not usable until a membership lookup is
-     * wired in here.
+     * A group named in a policy is resolved to its members by the injected
+     * {@link GroupResolver}. Where none is configured, groups resolve to
+     * nobody: a group grant hands out nothing, and a group denial removes
+     * nothing.
      */
     private principalFor(context: VaultContext): Principal | null {
         const platform = isEName(context.tokenPayload?.platform)

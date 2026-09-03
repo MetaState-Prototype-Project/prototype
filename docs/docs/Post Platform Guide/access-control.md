@@ -225,5 +225,6 @@ Enforcement is eVault-side. Platforms and the adapter do not evaluate policies t
 ## See also
 
 - [Access Control](/docs/W3DS%20Protocol/Access-Control) — the protocol model and wire format
+- [ACL demonstrator](/docs/Post%20Platform%20Guide/acl-demonstrator) — every shape on this page, running against a live eVault, with the gotchas visible rather than described
 - [eVault](/docs/Infrastructure/eVault) — where policies are stored and enforced
 - [Webhook Controller](/docs/Post%20Platform%20Guide/webhook-controller) — the inbound side, unaffected by policies

@@ -278,6 +278,7 @@ Reserved permission bits exist for the same reason: they are refused today so th
 ## See also
 
 - [Implementing Access Control](/docs/Post%20Platform%20Guide/access-control) — how a platform sets a policy, with worked examples and the current gotchas
+- [ACL demonstrator](/docs/Post%20Platform%20Guide/acl-demonstrator) — the model above, running: real records, real tokens, and every decision on this page taken against a live eVault
 - [Access Policy](/docs/W3DS%20Basics/Access-Policy) — the owner's signed statement about *which platforms they will deal with at all*. That runs before this; the two are separate gates and neither can widen the other.
 - [eVault](/docs/Infrastructure/eVault) — where the policy is stored and enforced.
 - [eName](/docs/W3DS%20Basics/eName) — the party identifier.
