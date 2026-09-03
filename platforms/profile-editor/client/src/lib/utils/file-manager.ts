@@ -8,14 +8,24 @@ export function isHttpUrl(value?: string | null): boolean {
 }
 
 /**
+ * Anything the browser can render as-is: an http(s) or protocol-relative URL,
+ * an inline `data:` URI (avatars synced in from other platforms are often
+ * stored base64-inline) or a local `blob:` preview.
+ */
+export function isRenderableUrl(value?: string | null): boolean {
+	return isHttpUrl(value) || /^(data|blob):/i.test(value ?? '');
+}
+
+/**
  * Resolve a stored profile asset (avatar/banner/cv/video) to a renderable URL.
- * New uploads store a public eVault-blob URL and are used as-is. Legacy
- * profiles stored a bare file-manager id — resolve it against the configured
- * file-manager (defaulting to the public deployment) so the old asset renders.
+ * New uploads store a public eVault-blob URL and are used as-is, as are inline
+ * `data:` URIs. Legacy profiles stored a bare file-manager id — resolve it
+ * against the configured file-manager (defaulting to the public deployment) so
+ * the old asset renders.
  */
 export function resolveAssetUrl(value?: string | null): string | null {
 	if (!value) return null;
-	if (isHttpUrl(value)) return value;
+	if (isRenderableUrl(value)) return value;
 	const base = (PUBLIC_FILE_MANAGER_BASE_URL || DEFAULT_FILE_MANAGER_BASE_URL).replace(
 		/\/$/,
 		''
