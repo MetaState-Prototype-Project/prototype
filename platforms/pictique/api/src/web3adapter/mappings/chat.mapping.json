@@ -6,8 +6,8 @@
     "localToUniversalMap": {
         "name": "name",
         "type": "type",
-        "participants": "users(participants[].id),participantIds",
-        "admins": "users(admins[].id),admins",
+        "participants": "__ename(participants[].ename),participantIds",
+        "admins": "__ename(admins[].ename),admins",
         "createdAt": "createdAt",
         "updatedAt": "updatedAt",
         "ename": "ename"

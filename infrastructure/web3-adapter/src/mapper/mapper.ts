@@ -1,4 +1,5 @@
 import type { EVaultClient } from "../evault/evault";
+import { normaliseENameList, toEName } from "../w3ds/ename";
 import { dereferenceFileUri, referenceFileValue } from "../w3ds/resolver";
 import { isFileUri } from "../w3ds/uri";
 import type {
@@ -13,6 +14,22 @@ import type {
  * `fromGlobal` each URI is dereferenced back to a public URL.
  */
 const FILE_DIRECTIVE_RE = /^__file\((.+?)\)(?:,(.+))?$/;
+
+/**
+ * Matches the `__ename(<path>)` directive with an optional `,<alias>` suffix.
+ *
+ * `__ename()` marks a field as carrying entity references — the people in a
+ * chat, or the sender of a message. On `toGlobal` each value is rendered as an
+ * `@`-prefixed eName; on `fromGlobal` each is handed back as an eName with
+ * unusable entries dropped.
+ *
+ * This exists as a directive rather than as per-platform parsing because every
+ * platform previously hand-rolled `ref.split("(")[1].split(")")[0]`, which
+ * throws on any reference that is not the legacy `table(uuid)` form. Stating
+ * the intent in the mapping keeps the shape of an entity reference in one
+ * place, so it can only change in one place.
+ */
+const ENAME_DIRECTIVE_RE = /^__ename\((.+?)\)(?:,(.+))?$/;
 
 /**
  * Dereferences a single file value: a `w3ds://file` URI becomes its public
@@ -186,6 +203,20 @@ export async function fromGlobal({
 			continue;
 		}
 
+		const enameMatch = globalPathRaw.match(ENAME_DIRECTIVE_RE);
+		if (enameMatch) {
+			const [, localPath, alias] = enameMatch;
+			const raw = getValueByPath(data, alias ?? localPath);
+			// Whether the field is a list is a property of the mapping, not of
+			// whatever happened to arrive. A participant list that shows up as
+			// `null` is still a list — an empty one — and must not collapse into
+			// a scalar that downstream code then iterates.
+			result[localKey] = localPath.includes("[]")
+				? normaliseENameList(raw)
+				: (normaliseENameList(raw)[0] ?? null);
+			continue;
+		}
+
 		const internalFnMatch = globalPathRaw.match(/^__(\w+)\((.+)\)$/);
 		if (internalFnMatch) {
 			const [, outerFn, innerExpr] = internalFnMatch;
@@ -325,6 +356,25 @@ export async function toGlobal({
 			} else {
 				// No client/owner available — pass the value through unchanged.
 				result[fileTargetKey] = rawVal;
+			}
+			continue;
+		}
+
+		const enameMatch = globalPathRaw.match(ENAME_DIRECTIVE_RE);
+		if (enameMatch) {
+			const [, localPath, alias] = enameMatch;
+			const enameTargetKey = alias ?? localPath;
+			const rawVal = getValueByPath(data, localPath);
+
+			if (localPath.includes("[]")) {
+				// Unrenderable entries are dropped rather than emitted as null:
+				// a participant list is a set of people, and a hole in it is not
+				// a person.
+				result[enameTargetKey] = Array.isArray(rawVal)
+					? rawVal.map(toEName).filter((v): v is string => v !== null)
+					: [];
+			} else {
+				result[enameTargetKey] = toEName(rawVal) ?? undefined;
 			}
 			continue;
 		}

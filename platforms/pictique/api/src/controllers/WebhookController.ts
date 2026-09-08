@@ -9,6 +9,10 @@ import { Chat } from "database/entities/Chat";
 import { Message } from "database/entities/Message";
 import { MessageService } from "../services/MessageService";
 import { Post } from "database/entities/Post";
+import {
+    resolveEntityRef,
+    resolveParticipants,
+} from "../web3adapter/entity-refs";
 import axios from "axios";
 
 export class WebhookController {
@@ -227,41 +231,21 @@ export class WebhookController {
                 }
 
                 let participants: User[] = [];
-                if (
-                    local.data.participants &&
-                    Array.isArray(local.data.participants)
-                ) {
-                    const participantPromises = local.data.participants.map(
-                        async (ref: string) => {
-                            if (ref && typeof ref === "string") {
-                                const userId = ref.split("(")[1].split(")")[0];
-                                return await this.userService.findById(userId);
-                            }
-                            return null;
-                        }
+                if (local.data.participants !== undefined) {
+                    participants = await resolveParticipants(
+                        local.data.participants,
+                        this.userService,
+                        `chat ${globalId} participants`
                     );
-                    participants = (
-                        await Promise.all(participantPromises)
-                    ).filter((user): user is User => user !== null);
                 }
 
                 let admins: User[] = [];
-                if (
-                    local.data.admins &&
-                    Array.isArray(local.data.admins)
-                ) {
-                    const adminPromises = local.data.admins.map(
-                        async (ref: string) => {
-                            if (ref && typeof ref === "string") {
-                                const userId = ref.split("(")[1].split(")")[0];
-                                return await this.userService.findById(userId);
-                            }
-                            return null;
-                        }
+                if (local.data.admins !== undefined) {
+                    admins = await resolveParticipants(
+                        local.data.admins,
+                        this.userService,
+                        `chat ${globalId} admins`
                     );
-                    admins = (
-                        await Promise.all(adminPromises)
-                    ).filter((user): user is User => user !== null);
                 }
 
                 if (localId) {
@@ -388,20 +372,29 @@ export class WebhookController {
                 const isSystemMessage = !local.data.sender || (typeof local.data.text === 'string' && local.data.text.startsWith('$$system-message$$'));
 
                 let sender: User | null = null;
-                if (
-                    local.data.sender &&
-                    typeof local.data.sender === "string"
-                ) {
-                    const senderId = local.data.sender
-                        .split("(")[1]
-                        .split(")")[0];
-                    sender = await this.userService.findById(senderId);
+                if (local.data.sender) {
+                    sender = await resolveEntityRef(
+                        local.data.sender,
+                        this.userService,
+                        `message ${globalId} sender`
+                    );
                 }
 
                 let chat: Chat | null = null;
                 if (local.data.chat && typeof local.data.chat === "string") {
-                    const chatId = local.data.chat.split("(")[1].split(")")[0];
-                    chat = await this.chatService.findById(chatId);
+                    // Unlike a participant, the chat reference stays a local
+                    // relation: it is resolved through the mapping store, not
+                    // by eName. Guard the parse anyway so a malformed value
+                    // logs and drops the message rather than throwing.
+                    const chatId = local.data.chat.split("(")[1]?.split(")")[0];
+                    if (chatId) {
+                        chat = await this.chatService.findById(chatId);
+                    } else {
+                        console.warn(
+                            `[chat] message ${globalId}: unusable chat reference`,
+                            local.data.chat
+                        );
+                    }
                 }
 
                 // For system messages, we only need the chat, not the sender

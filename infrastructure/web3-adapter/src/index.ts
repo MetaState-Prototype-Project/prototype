@@ -14,6 +14,15 @@ export type {
 	UploadFileInput,
 	UploadFileResult,
 } from "./evault/evault";
+export type { EName } from "./w3ds/ename";
+export {
+	isEName,
+	normaliseEName,
+	normaliseENameList,
+	toEName,
+} from "./w3ds/ename";
+export type { ENameProfileCacheOptions } from "./w3ds/ename-profile-cache";
+export { ENameProfileCache } from "./w3ds/ename-profile-cache";
 
 /**
  * Standalone function to spin up an eVault

@@ -5,7 +5,7 @@
     "localToUniversalMap": {
         "chat": "chats(chat.id),chatId",
         "text": "content",
-        "sender": "users(sender.id),senderId",
+        "sender": "__ename(sender.ename),senderId",
         "createdAt": "createdAt",
         "updatedAt": "updatedAt"
     }
