@@ -22,8 +22,6 @@ export {
 	normaliseENameList,
 	toEName,
 } from "./w3ds/ename";
-export type { ENameProfileCacheOptions } from "./w3ds/ename-profile-cache";
-export { ENameProfileCache } from "./w3ds/ename-profile-cache";
 export type { ENameLookup, ResolveOptions } from "./w3ds/entity-refs";
 export { resolveENameRef, resolveENameRefs } from "./w3ds/entity-refs";
 export { enrichGroupOwnership } from "./w3ds/group-ownership";
