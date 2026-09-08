@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "5b1a2c3d-6e7f-4a80-9b1c-2d3e4f5a6b7c",
+  "title": "Summary",
+  "type": "object",
+  "description": "A generated summary of a bounded subject — a call, or a day of conversation — stored ONCE on the subject's vault (the chat/group vault for a call, the group vault for a day digest) rather than recomputed per reader. `subject` names what is summarised; `actionItems`/`events` are structured extractions any platform may render or turn into Tasks/CalendarEvents. Cross-vault copies use the reference mixin (isReference + canonicalOwnerEName + canonicalSummaryId) — the canonical is never duplicated.",
+  "properties": {
+    "id": { "type": "string", "description": "Body id" },
+    "type": { "type": "string", "const": "summary" },
+    "subject": {
+      "type": "object",
+      "description": "What is summarised: {kind: 'call'|'day', chatId?, callId?, dayKey?, ref?} — `ref` is a w3ds envelope URI of the source",
+      "properties": {
+        "kind": { "type": "string" },
+        "chatId": { "type": "string" },
+        "callId": { "type": "string" },
+        "dayKey": { "type": "string", "description": "YYYY-MM-DD for a day digest" },
+        "ref": { "type": "string" }
+      }
+    },
+    "summaryLine": { "type": "string", "description": "One-line headline" },
+    "summary": { "type": "string", "description": "The full summary text" },
+    "actionItems": { "type": "array", "items": { "type": "object" }, "description": "Structured to-dos extracted from the subject" },
+    "events": { "type": "array", "items": { "type": "object" }, "description": "Structured calendar-shaped extractions" },
+    "startedAt": { "type": "string", "format": "date-time", "description": "When the summarised call actually started" },
+    "endedAt": { "type": "string", "format": "date-time" },
+    "durationSeconds": { "type": "number" },
+    "generatedBy": { "type": "string", "description": "@-prefixed eName on whose behalf the summary was generated" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "isReference": { "type": "boolean" },
+    "canonicalOwnerEName": { "type": "string" },
+    "canonicalSummaryId": { "type": "string" },
+    "sharedBy": { "type": "string" },
+    "sharedAt": { "type": "string", "format": "date-time" }
+  },
+  "required": ["id", "type", "subject"],
+  "additionalProperties": true
+}

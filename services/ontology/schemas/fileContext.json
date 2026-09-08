@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "b65218b4-62fb-44ea-b2f6-ffb34d83a629",
+  "title": "FileContext",
+  "type": "object",
+  "description": "An m:n join between a File and a context it appears in (a chat message, a task, a post): `fileRef` and `contextRef` are w3ds envelope URIs. Exists because the same File can be referenced by many contexts and a context can carry many files, while neither side should embed the other. Written by the platform that placed the file into the context; public ACL so any platform can answer 'where has this file been used'.",
+  "properties": {
+    "fileRef": { "type": "string", "description": "w3ds://file?id=@vault/<fileId> — the File being placed" },
+    "contextRef": { "type": "string", "description": "w3ds://envelope?id=@vault/<envelopeId> — where it was placed" },
+    "kind": { "type": "string", "description": "The context's nature: 'message', 'task', 'post', …" }
+  },
+  "required": ["fileRef", "contextRef", "kind"],
+  "additionalProperties": true
+}
