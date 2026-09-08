@@ -127,7 +127,11 @@ describe("__ename mapping directive", () => {
 	describe("fromGlobal — consumers accept eNames only", () => {
 		it("hands back an eName participant list unchanged", async () => {
 			const local = await fromGlobal({
-				data: { ename: "@group", participantIds: [ALICE, BOB], admins: [ALICE] },
+				data: {
+					ename: "@group",
+					participantIds: [ALICE, BOB],
+					admins: [ALICE],
+				},
 				mapping: chatMapping,
 				mappingStore,
 			});

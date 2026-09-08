@@ -5,8 +5,9 @@ const ALICE = "@48468c9a-dc1b-5663-92fb-5e46e3d2a7f0";
 const BOB = "@7f3d2e1a-9b8c-4d5e-8f0a-1b2c3d4e5f60";
 
 /** Maps local ids to eNames for alice and bob, and knows nobody else. */
-const lookup = vi.fn(async (id: string) =>
-	({ "local-alice": ALICE, "local-bob": BOB })[id] ?? null,
+const lookup = vi.fn(
+	async (id: string) =>
+		({ "local-alice": ALICE, "local-bob": BOB })[id] ?? null,
 );
 
 describe("enrichGroupOwnership", () => {
@@ -50,7 +51,10 @@ describe("enrichGroupOwnership", () => {
 		// Emitting a raw local id would put a reference on the wire that no
 		// consumer accepts, which is the failure this whole change removes.
 		const group = await enrichGroupOwnership(
-			{ owner: "local-alice", admins: ["local-alice", "who-is-this", null, 42] },
+			{
+				owner: "local-alice",
+				admins: ["local-alice", "who-is-this", null, 42],
+			},
 			lookup,
 		);
 		expect(group.admins).toEqual([ALICE]);

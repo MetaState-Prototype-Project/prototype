@@ -33,14 +33,21 @@ const MAPPINGS: { platform: string; path: string }[] = [
 	{ platform: "ecurrency", path: "platforms/ecurrency/api" },
 	{ platform: "dreamsync", path: "platforms/dreamsync/api" },
 	{ platform: "evoting", path: "platforms/evoting/api" },
-	{ platform: "group-charter-manager", path: "platforms/group-charter-manager/api" },
+	{
+		platform: "group-charter-manager",
+		path: "platforms/group-charter-manager/api",
+	},
 	{ platform: "cerberus", path: "platforms/cerberus/client" },
 ];
 
 function loadMappings(dir: string): IMapping[] {
 	const base = join(REPO, dir, "src/web3adapter/mappings");
 	const out: IMapping[] = [];
-	for (const file of ["chat.mapping.json", "group.mapping.json", "message.mapping.json"]) {
+	for (const file of [
+		"chat.mapping.json",
+		"group.mapping.json",
+		"message.mapping.json",
+	]) {
 		try {
 			out.push(JSON.parse(readFileSync(join(base, file), "utf8")));
 		} catch {
@@ -75,7 +82,9 @@ const emptyStore = {
 describe("shipped chat mappings", () => {
 	const chatLike = MAPPINGS.flatMap(({ platform, path }) =>
 		loadMappings(path)
-			.filter((m) => m.schemaId === CHAT_SCHEMA || m.schemaId === MESSAGE_SCHEMA)
+			.filter(
+				(m) => m.schemaId === CHAT_SCHEMA || m.schemaId === MESSAGE_SCHEMA,
+			)
 			.map((mapping) => ({ platform, mapping })),
 	);
 
