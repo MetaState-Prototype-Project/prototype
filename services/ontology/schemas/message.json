@@ -60,15 +60,19 @@
     "isArchived": {
       "type": "boolean",
       "description": "Whether the message is archived"
+    },
+    "isSystemMessage": {
+      "type": "boolean",
+      "description": "Whether this is a system message. A system message has no sender, so senderId is absent."
     }
   },
   "required": [
     "id",
     "chatId",
-    "senderId",
     "content",
     "type",
     "createdAt"
   ],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "description": "Entity references \u2014 senderId and readBy \u2014 are eNames: @-prefixed W3IDs such as @48468c9a-dc1b-5663-92fb-5e46e3d2a7f0, not User profile MetaEnvelope ids. senderId is absent on a system message. chatId is a record reference, resolved through the producing platform's id mapping, and is not an eName."
 }

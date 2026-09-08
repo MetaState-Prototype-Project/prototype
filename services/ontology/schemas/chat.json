@@ -65,6 +65,69 @@
     "ename": {
       "type": "string",
       "description": "The chat's own eName, when the chat is backed by a group eVault."
+    },
+    "adminIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^@.+"
+      },
+      "description": "Array of eNames of the chat or group's administrators. Alias of `admins` used by some platforms."
+    },
+    "memberIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^@.+"
+      },
+      "description": "Array of eNames of the group's members. Members, admins and the owner are all participants."
+    },
+    "description": {
+      "type": "string",
+      "description": "Free-text description of the group."
+    },
+    "charter": {
+      "type": "string",
+      "description": "Markdown charter for the group."
+    },
+    "isPrivate": {
+      "type": "boolean",
+      "description": "Whether the group is private."
+    },
+    "visibility": {
+      "type": "string",
+      "enum": [
+        "public",
+        "private",
+        "restricted"
+      ],
+      "description": "Who can see the group."
+    },
+    "signatureIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Ids of charter signature records. A record reference, not an entity reference."
+    },
+    "originalMatchParticipants": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Participants of the match this group originated from."
+    },
+    "avatarUrl": {
+      "type": "string",
+      "description": "Group avatar. A w3ds://file URI at rest."
+    },
+    "bannerUrl": {
+      "type": "string",
+      "description": "Group banner. A w3ds://file URI at rest."
+    },
+    "eName": {
+      "type": "string",
+      "description": "Deprecated casing of `ename`, still emitted by cerberus."
     }
   },
   "required": [
@@ -73,5 +136,6 @@
     "participantIds",
     "createdAt"
   ],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "description": "Chat and Group share this schema. Entity references \u2014 participantIds, admins/adminIds, memberIds and owner \u2014 are eNames: @-prefixed W3IDs such as @48468c9a-dc1b-5663-92fb-5e46e3d2a7f0. They are not User profile MetaEnvelope ids, which are unresolvable on their own and do not exist for an eVault with no profile envelope yet. Consumers skip references they cannot resolve rather than dropping the room."
 }
