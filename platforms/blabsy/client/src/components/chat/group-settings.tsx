@@ -2,8 +2,9 @@ import { useEffect, useState, useRef, ChangeEvent } from 'react';
 import { useChat } from '@lib/context/chat-context';
 import { useAuth } from '@lib/context/auth-context';
 import Image from 'next/image';
-import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@lib/firebase/app';
+import { getParticipant } from '@lib/firebase/participants';
 import type { User } from '@lib/types/user';
 import { Dialog } from '@headlessui/react';
 import { UserIcon, XMarkIcon } from '@heroicons/react/24/outline';
@@ -52,12 +53,9 @@ export function GroupSettings({
 
         const fetchUserData = async (): Promise<void> => {
             try {
-                const userDoc = await getDoc(
-                    doc(db, 'users', otherParticipant)
-                );
-                if (userDoc.exists()) {
-                    setOtherUser(userDoc.data() as User);
-                } else {
+                const other = await getParticipant(otherParticipant);
+                if (other) {
+                    setOtherUser(other);
                 }
             } catch (error) {}
         };

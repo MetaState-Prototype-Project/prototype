@@ -2,10 +2,9 @@ import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
 import { UserIcon } from '@heroicons/react/24/outline';
 import { useEffect, useState } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
 import { useAuth } from '@lib/context/auth-context';
 import { useChat } from '@lib/context/chat-context';
-import { db } from '@lib/firebase/app';
+import { getParticipant } from '@lib/firebase/participants';
 import { Loading } from '@components/ui/loading';
 import type { Chat } from '@lib/types/chat';
 import { getChatType } from '@lib/types/chat';
@@ -36,12 +35,9 @@ export function ChatList(): JSX.Element {
                     otherParticipantId &&
                     !participantData[otherParticipantId]
                 ) {
-                    const userDoc = await getDoc(
-                        doc(db, 'users', otherParticipantId)
-                    );
-                    if (userDoc.exists()) {
-                        newParticipantData[otherParticipantId] =
-                            userDoc.data() as User;
+                    const other = await getParticipant(otherParticipantId);
+                    if (other) {
+                        newParticipantData[otherParticipantId] = other;
                     }
                 }
             }

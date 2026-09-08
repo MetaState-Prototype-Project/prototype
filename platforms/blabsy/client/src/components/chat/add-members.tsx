@@ -10,7 +10,6 @@ import {
 import Image from 'next/image';
 import {
     doc,
-    getDoc,
     Timestamp,
     collection,
     getDocs,
@@ -19,6 +18,7 @@ import {
     limit
 } from 'firebase/firestore';
 import { db } from '@lib/firebase/app';
+import { getParticipant, getParticipants } from '@lib/firebase/participants';
 import type { User } from '@lib/types/user';
 import { Loading } from '@components/ui/loading';
 import { Dialog } from '@headlessui/react';
@@ -73,12 +73,9 @@ export function AddMembers({
 
         const fetchUserData = async (): Promise<void> => {
             try {
-                const userDoc = await getDoc(
-                    doc(db, 'users', otherParticipant)
-                );
-                if (userDoc.exists()) {
-                    setOtherUser(userDoc.data() as User);
-                } else {
+                const other = await getParticipant(otherParticipant);
+                if (other) {
+                    setOtherUser(other);
                 }
             } catch (error) {}
         };
@@ -127,27 +124,9 @@ export function AddMembers({
 
         const fetchParticipantData = async (): Promise<void> => {
             try {
-                const newParticipantData: Record<string, User> = {};
-
-                for (const participantId of currentChat.participants) {
-                    if (participantId === user?.id) {
-                        // Use current user data
-                        if (user) {
-                            newParticipantData[participantId] = user;
-                        }
-                    } else {
-                        // Fetch other participants' data
-                        const userDoc = await getDoc(
-                            doc(db, 'users', participantId)
-                        );
-                        if (userDoc.exists()) {
-                            newParticipantData[participantId] =
-                                userDoc.data() as User;
-                        }
-                    }
-                }
-
-                setParticipantData(newParticipantData);
+                setParticipantData(
+                    await getParticipants(currentChat.participants, user)
+                );
             } catch (error) {
                 console.error('Error fetching participants data:', error);
             }

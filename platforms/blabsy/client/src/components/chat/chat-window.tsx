@@ -12,8 +12,7 @@ import {
     ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 import Image from 'next/image';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@lib/firebase/app';
+import { getParticipants } from '@lib/firebase/participants';
 import { Loading } from '@components/ui/loading';
 import { MemberList } from './member-list';
 import { GroupSettings } from './group-settings';
@@ -181,26 +180,10 @@ export function ChatWindow(): JSX.Element {
 
         const fetchParticipantsData = async (): Promise<void> => {
             try {
-                const newParticipantsData: Record<string, User> = {};
-
-                // Fetch data for all participants
-                for (const participantId of currentChat.participants) {
-                    if (participantId === user?.id) {
-                        // Use current user data
-                        if (user) {
-                            newParticipantsData[participantId] = user;
-                        }
-                    } else {
-                        // Fetch other participants' data
-                        const userDoc = await getDoc(
-                            doc(db, 'users', participantId)
-                        );
-                        if (userDoc.exists()) {
-                            newParticipantsData[participantId] =
-                                userDoc.data() as User;
-                        }
-                    }
-                }
+                const newParticipantsData = await getParticipants(
+                    currentChat.participants,
+                    user
+                );
 
                 setParticipantsData(newParticipantsData);
 
