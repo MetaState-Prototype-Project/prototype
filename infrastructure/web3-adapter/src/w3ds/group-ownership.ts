@@ -1,16 +1,22 @@
 import { toEName } from "./ename";
 
 /**
- * Rewrites a group's `owner` and `admins` from local user ids to eNames.
+ * Rewrites a group's `owner`, and its `admins` when they are bare ids, to
+ * eNames.
  *
  * Participants and members are TypeORM relations, so the mapping can reach
- * their `ename` directly. `owner` and `admins` are not: they are stored as bare
- * local user ids, with no relation to follow. They still name people, so they
- * are entity references and must go on the wire as eNames like every other one.
+ * their `ename` directly. `owner` is never a relation: it is stored as a bare
+ * local user id with nothing to follow. `admins` is one or the other depending
+ * on the platform — a `User[]` relation on most, a `string[]` of local ids on
+ * cerberus and group-charter-manager.
  *
- * This runs on the producer side, just before a group is handed to the mapper,
- * and is a no-op for values that are already eNames so it is safe to apply
- * more than once.
+ * Either way they name people, so they are entity references and must go on the
+ * wire as eNames. A relation is left untouched, because the mapping for those
+ * platforms reads `admins[].ename` and flattening it to strings would leave it
+ * asking for `.ename` on a string and emitting an empty list.
+ *
+ * Runs on the producer side just before a group reaches the mapper, and is a
+ * no-op for values that are already eNames, so it is safe to apply twice.
  */
 export async function enrichGroupOwnership(
 	// biome-ignore lint/suspicious/noExplicitAny: TypeORM entity snapshot
@@ -27,18 +33,18 @@ export async function enrichGroupOwnership(
 	}
 
 	if (Array.isArray(group.admins)) {
-		const admins = await Promise.all(
-			group.admins.map((admin: unknown) =>
-				// An admin may already be a relation object once a platform loads
-				// it as one; prefer its ename before falling back to a lookup.
-				typeof admin === "object" && admin !== null
-					? Promise.resolve(
-							toEName((admin as { ename?: unknown }).ename ?? null),
-						)
-					: idToEName(admin, lookupEnameById),
-			),
+		// A relation already carries `ename`, and the mapping reaches it
+		// directly. Only a list of bare ids needs rewriting.
+		const isRelation = group.admins.some(
+			(admin: unknown) => typeof admin === "object" && admin !== null,
 		);
-		enriched.admins = admins.filter((a): a is string => a !== null);
+
+		if (!isRelation) {
+			const admins = await Promise.all(
+				group.admins.map((admin: unknown) => idToEName(admin, lookupEnameById)),
+			);
+			enriched.admins = admins.filter((a): a is string => a !== null);
+		}
 	}
 
 	return enriched;
@@ -55,7 +61,17 @@ async function idToEName(
 	if (asEName) return asEName;
 
 	try {
-		return toEName(await lookupEnameById(value));
+		const ename = await lookupEnameById(value);
+		// Only a real lookup result becomes an eName. Falling back to the input
+		// would turn an unresolved local id into `@<uuid>` — syntactically a
+		// valid eName, semantically nobody — which is precisely the kind of
+		// silently-wrong reference this whole change exists to remove. An
+		// unresolved owner is better left null and skipped by the consumer.
+		if (!ename) {
+			console.warn(`[chat] no eName for user ${value}, dropping reference`);
+			return null;
+		}
+		return toEName(ename);
 	} catch (error) {
 		console.warn(`[chat] could not resolve eName for user ${value}:`, error);
 		return null;

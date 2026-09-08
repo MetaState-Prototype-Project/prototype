@@ -6,7 +6,7 @@ import {
     RemoveEvent,
     ObjectLiteral,
 } from "typeorm";
-import { Web3Adapter, enrichGroupOwnership } from "web3-adapter";
+import { Web3Adapter } from "web3-adapter";
 import path from "path";
 import dotenv from "dotenv";
 import { AppDataSource } from "../../database/data-source";
@@ -18,6 +18,17 @@ export const adapter = new Web3Adapter({
     dbPath: path.resolve(process.env.EREPUTATION_MAPPING_DB_PATH as string),
     registryUrl: process.env.PUBLIC_REGISTRY_URL as string,
     platform: process.env.VITE_EREPUTATION_BASE_URL as string,
+    // `owner` (and on some platforms `admins`) is a bare local user id, which
+    // the mapping cannot follow to an `ename`. Resolving it here means every
+    // producer path emits eNames, including junction-table and backfill paths
+    // that never touch the watcher's enrichEntity.
+    resolveEnameByUserId: async (id: string) => {
+        const user = await AppDataSource.getRepository("User").findOne({
+            where: { id },
+            select: ["id", "ename"],
+        });
+        return (user as { ename?: string } | null)?.ename ?? null;
+    },
 });
 
 // Map of junction tables to their parent entities
@@ -59,20 +70,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 enrichedEntity.author = author;
             }
 
-            // `owner` and `admins` are stored as bare local user ids with no
-            // relation to follow, but they name people, so they must go on the
-            // wire as eNames like every other entity reference.
-            const plain = this.entityToPlain(enrichedEntity);
-            if (tableName === "groups" || tableName === "group") {
-                return await enrichGroupOwnership(plain, async (id: string) => {
-                    const user = await AppDataSource.getRepository("User").findOne({
-                        where: { id },
-                        select: ["id", "ename"],
-                    });
-                    return (user as { ename?: string } | null)?.ename ?? null;
-                });
-            }
-            return plain;
+            return this.entityToPlain(enrichedEntity);
         } catch (error) {
             console.error("Error loading relations:", error);
             return this.entityToPlain(entity);

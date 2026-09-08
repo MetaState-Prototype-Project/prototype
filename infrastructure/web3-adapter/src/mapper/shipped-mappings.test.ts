@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { MappingDatabase } from "../db";
+import { enrichGroupOwnership } from "../w3ds/group-ownership";
 import { fromGlobal, toGlobal } from "./mapper";
 import type { IMapping } from "./mapper.types";
 
@@ -174,6 +175,105 @@ describe("shipped chat mappings", () => {
 			});
 
 			expect(back.data[senderKey]).toBe(ALICE);
+		},
+	);
+
+	/**
+	 * The full producer path, per platform: a local record shaped the way that
+	 * platform's entity actually stores each field, run through the ownership
+	 * enrichment and then the shipped mapping.
+	 *
+	 * This is the check that matters, because the platforms disagree about the
+	 * shape of `admins` — a `User[]` relation on most, bare local ids on
+	 * cerberus and group-charter-manager — and a mapping that reads
+	 * `admins[].ename` emits an empty list if the producer hands it strings.
+	 * Testing `participants` alone hides that entirely.
+	 */
+	it.each(chatLike.filter((c) => c.mapping.schemaId === CHAT_SCHEMA))(
+		"$platform emits every entity field as eNames from its own local shape",
+		async ({ mapping }) => {
+			const map = mapping.localToUniversalMap;
+			// Blabsy keys its user documents by eName, so its local records
+			// already hold eNames where other platforms hold local ids.
+			const keysAreEnames = mapping.tableName === "chat";
+
+			// Build each field the way this platform's mapping says it is stored.
+			// A `[].ename` path means a relation; a bare `[]` means a list of
+			// scalars, which on Blabsy are already eNames (user documents are
+			// keyed by eName) and elsewhere are local ids.
+			const scalars = keysAreEnames
+				? [ALICE, BOB]
+				: ["local-alice", "local-bob"];
+			const shaped = (spec: string | undefined) =>
+				spec?.includes("[].ename")
+					? [
+							{ id: "local-alice", ename: ALICE },
+							{ id: "local-bob", ename: BOB },
+						]
+					: scalars;
+
+			const local: Record<string, unknown> = { ename: "@group" };
+			if (map.owner) local.owner = keysAreEnames ? ALICE : "local-alice";
+			if (map.participants) local.participants = shaped(map.participants);
+			if (map.admins) local.admins = shaped(map.admins);
+			if (map.members) local.members = shaped(map.members);
+
+			const enriched = await enrichGroupOwnership(local, async (id) =>
+				id === "local-alice" ? ALICE : id === "local-bob" ? BOB : null,
+			);
+
+			const global = await toGlobal({
+				data: enriched,
+				mapping,
+				mappingStore: emptyStore,
+			});
+
+			// Whatever each field is called globally, it must hold eNames and
+			// must not be empty when the local record named someone.
+			for (const [local_, spec] of Object.entries(map)) {
+				if (!ENTITY_FIELDS.has(local_)) continue;
+				const target = spec.includes(",") ? spec.split(",")[1] : local_;
+				const emitted = (global.data as Record<string, unknown>)[target];
+
+				if (local_ === "owner") {
+					expect(emitted, `${mapping.tableName}.owner`).toBe(ALICE);
+					continue;
+				}
+
+				expect(
+					emitted,
+					`${mapping.tableName}.${local_} -> ${target} emitted nothing`,
+				).toEqual([ALICE, BOB]);
+			}
+		},
+	);
+
+	it.each(chatLike.filter((c) => c.mapping.schemaId === MESSAGE_SCHEMA))(
+		"$platform emits a message sender as an eName from its own local shape",
+		async ({ mapping }) => {
+			const map = mapping.localToUniversalMap;
+			const senderSpec = map.sender ?? map.senderId;
+			if (!senderSpec) return;
+
+			// `sender.ename` means a relation; a bare `senderId` is a scalar,
+			// which on Blabsy is already an eName.
+			const local: Record<string, unknown> = { ename: "@group" };
+			if (senderSpec.includes("sender.ename")) {
+				local.sender = { id: "local-alice", ename: ALICE };
+			} else {
+				local.senderId = ALICE;
+			}
+
+			const global = await toGlobal({
+				data: local,
+				mapping,
+				mappingStore: emptyStore,
+			});
+
+			expect(
+				(global.data as Record<string, unknown>).senderId,
+				`${mapping.tableName} senderId`,
+			).toBe(ALICE);
 		},
 	);
 });

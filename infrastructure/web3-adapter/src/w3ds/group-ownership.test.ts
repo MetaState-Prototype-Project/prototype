@@ -39,12 +39,17 @@ describe("enrichGroupOwnership", () => {
 		expect(spy).not.toHaveBeenCalled();
 	});
 
-	it("reads an ename off an admin that arrives as a relation object", async () => {
+	it("leaves a relation-shaped admins list untouched", async () => {
+		// Most platforms store admins as a `User[]` relation, and their mapping
+		// reads `admins[].ename`. Flattening it to strings here would leave the
+		// mapping asking for `.ename` on a string and emitting an empty list, so
+		// a relation must pass through unchanged.
+		const admins = [{ id: "local-bob", ename: BOB }];
 		const group = await enrichGroupOwnership(
-			{ owner: "local-alice", admins: [{ id: "local-bob", ename: BOB }] },
+			{ owner: "local-alice", admins },
 			lookup,
 		);
-		expect(group.admins).toEqual([BOB]);
+		expect(group.admins).toEqual(admins);
 	});
 
 	it("drops admins that cannot be resolved rather than emitting an id", async () => {
@@ -90,5 +95,18 @@ describe("enrichGroupOwnership", () => {
 		);
 		const twice = await enrichGroupOwnership(once, lookup);
 		expect(twice).toEqual(once);
+	});
+
+	it("never fabricates an eName from an unresolved local id", async () => {
+		// `@` + a local uuid is syntactically a valid eName and semantically
+		// nobody. Emitting one would recreate the exact failure this change
+		// removes: a reference that looks fine and resolves to no one.
+		const group = await enrichGroupOwnership(
+			{ owner: "3f8c1e2d-0000-4444-8888-aaaabbbbcccc", admins: [] },
+			async () => null,
+		);
+
+		expect(group.owner).toBeNull();
+		expect(group.owner).not.toBe("@3f8c1e2d-0000-4444-8888-aaaabbbbcccc");
 	});
 });

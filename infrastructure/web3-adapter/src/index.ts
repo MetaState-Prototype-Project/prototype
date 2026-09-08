@@ -7,6 +7,7 @@ import { EVaultClient } from "./evault/evault";
 import { logger } from "./logging";
 import { fromGlobal, toGlobal } from "./mapper/mapper";
 import type { IMapping } from "./mapper/mapper.types";
+import { enrichGroupOwnership } from "./w3ds/group-ownership";
 
 export { EVaultClient } from "./evault/evault";
 export type {
@@ -278,6 +279,21 @@ export class Web3Adapter {
 			registryUrl: string;
 			platform: string;
 			provisionerUrl?: string;
+			/**
+			 * Resolves a local user id to that user's eName.
+			 *
+			 * Supplied by platforms whose group records name their `owner` (and
+			 * sometimes `admins`) with bare local ids rather than a relation the
+			 * mapping can follow to an `ename`. Those fields name people, so they
+			 * have to leave as eNames like every other entity reference.
+			 *
+			 * It lives here rather than in each watcher because a group reaches
+			 * `handleChange` from several call sites — direct writes, junction
+			 * table changes, debounced group webhooks, backfill scripts — and
+			 * enriching at each of them means every new call site is a chance to
+			 * silently emit a local id again.
+			 */
+			resolveEnameByUserId?: (id: string) => Promise<string | null>;
 		},
 	) {
 		this.readPaths();
@@ -314,7 +330,15 @@ export class Web3Adapter {
 		tableName: string;
 		participants?: string[];
 	}) {
-		const { data, tableName, participants } = props;
+		const { tableName, participants } = props;
+
+		// Entity references leave as eNames. Group-shaped records may name their
+		// owner or admins with bare local ids, which the mapping cannot follow to
+		// an `ename`, so they are rewritten here — the one point every producer
+		// path passes through.
+		const data = this.config.resolveEnameByUserId
+			? await enrichGroupOwnership(props.data, this.config.resolveEnameByUserId)
+			: props.data;
 
 		const existingGlobalId = await this.mappingDb.getGlobalId(
 			data.id as string,
