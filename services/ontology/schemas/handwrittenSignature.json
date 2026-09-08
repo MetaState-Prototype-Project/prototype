@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "2a062bd7-c7a3-451e-b4ff-d1ada729bf46",
+  "title": "HandwrittenSignature",
+  "description": "A person's handwritten signature or initials, kept as a property of the person rather than of any one document — like their name or avatar. It lives on their own vault so that ANY signing application can offer it back to them instead of making them draw it again in every service.\n\nIMPORTANT — this is a convenience, not a credential. Possessing this image lets nobody sign anything: what binds a document is the eID signature, and the signature envelope records the SHA-256 of the mark rather than the mark itself. Treat a stolen image as an embarrassment, not a compromise, and do not build any check that trusts it.\n\nIt is still personal, so the image is stored encrypted and referenced by w3ds://file rather than inlined. Be honest about what that buys: it keeps the bytes away from anyone who merely knows the blob URL, which is a real exposure, but not away from platforms — the key is readable by any of them, as everything in a vault is.",
+  "type": "object",
+  "properties": {
+    "signatureId": { "type": "string", "minLength": 1 },
+    "ownerEName": { "type": "string", "minLength": 1, "description": "The person this signature belongs to. Always the vault it lives on." },
+    "kind": { "type": "string", "enum": ["signature", "initials"], "description": "A full signature or a short initials mark. People generally want both." },
+    "label": { "type": "string", "description": "Optional name for this mark, so somebody can keep more than one (a formal signature and a quick one, say)." },
+    "method": {
+      "type": "string",
+      "enum": ["drawn", "typed", "uploaded"],
+      "description": "How the mark was produced. Recorded because it is honest to show, not because it changes what the mark is worth."
+    },
+    "imageUri": { "type": "string", "description": "w3ds://file URI of the image. Referenced rather than inlined: an inline image bloats every read of this envelope, and the File record supplies size and content type for free." },
+    "contentEncoding": { "type": "string", "enum": ["none", "aes-256-gcm"], "description": "How the bytes behind imageUri are protected." },
+    "imageSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$", "description": "SHA-256 of the decrypted image. This is the value a signature envelope records when this mark is used, so a verifier can confirm the mark shown on a document is the one that was signed for." },
+    "widthPx": { "type": "integer", "minimum": 1 },
+    "heightPx": { "type": "integer", "minimum": 1 },
+    "isDefault": { "type": "boolean", "description": "Offer this one first." },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "required": ["signatureId", "ownerEName", "kind", "imageUri", "imageSha256", "createdAt"]
+}

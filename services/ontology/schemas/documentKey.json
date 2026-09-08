@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "83e80d2b-eb06-46f9-9ef8-a2d0ea262801",
+  "title": "DocumentKey",
+  "description": "The key that opens an encrypted document, held in a vault rather than in any application's database.\n\nThis exists for INTEROPERABILITY, not secrecy. A signing document belongs to the people signing it, not to the service that happened to send it — so if the key lived in one platform's database, that platform would be the only software able to open the document, and a signer using a different application simply could not read what they were asked to sign. Putting the key in the participants' own storage is what keeps the document theirs.\n\nBe exact about what this does and does not protect. Encryption keeps the bytes from anyone who merely knows the blob URL — which matters, because blob storage serves those bytes to unauthenticated requests. It does NOT keep them from other platforms: any admitted platform can read this envelope, as it can read any other. Nothing available today changes that; the eID wallet can sign and nothing else, so wrapping a key to a person's own key is not currently possible.\n\nAlso: access here cannot be withdrawn. A key that has been read has been read, and a copy in someone else's vault cannot be deleted. Anything an interface calls 'revoke' is a change of status, never a removal of access.",
+  "type": "object",
+  "properties": {
+    "isReference": { "type": "boolean", "description": "false on the canonical record held by the initiator, true on each participant's reference to it." },
+    "keyId": { "type": "string", "minLength": 1 },
+    "envelopeId": { "type": "string", "minLength": 1, "description": "The signing envelope this key opens." },
+    "canonicalOwnerEName": { "type": "string", "minLength": 1 },
+    "canonicalKeyId": { "type": "string", "minLength": 1, "description": "Meta envelope id of the canonical key record. References only." },
+    "algorithm": { "type": "string", "enum": ["aes-256-gcm"] },
+    "key": { "type": "string", "description": "The symmetric key, base64. Present on the canonical record and on references — a reference that does not carry the key would not let its holder open anything, which is the entire purpose." },
+    "iv": { "type": "string", "description": "Initialisation vector for the document ciphertext, base64. Random per encryption and never reused: two ciphertexts under one key and IV break GCM completely." },
+    "authTag": { "type": "string", "description": "GCM authentication tag, base64." },
+    "plaintextSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$", "description": "SHA-256 of the decrypted document, so a holder can confirm they decrypted the thing that was signed. Deliberately repeated from the signing envelope: a key record that cannot be checked against the document is a key to an unknown lock." },
+    "sharedBy": { "type": "string", "description": "References only." },
+    "sharedAt": { "type": "string", "format": "date-time", "description": "References only." },
+    "createdAt": { "type": "string", "format": "date-time" }
+  },
+  "required": ["isReference", "keyId", "envelopeId", "canonicalOwnerEName", "algorithm", "key", "iv", "authTag", "createdAt"],
+  "oneOf": [
+    {
+      "title": "CanonicalDocumentKey",
+      "properties": { "isReference": { "const": false } },
+      "required": ["isReference", "keyId", "envelopeId", "canonicalOwnerEName", "algorithm", "key", "iv", "authTag", "plaintextSha256", "createdAt"],
+      "not": { "anyOf": [{ "required": ["canonicalKeyId"] }, { "required": ["sharedBy"] }, { "required": ["sharedAt"] }] }
+    },
+    {
+      "title": "DocumentKeyReference",
+      "properties": { "isReference": { "const": true } },
+      "required": ["isReference", "keyId", "envelopeId", "canonicalOwnerEName", "canonicalKeyId", "algorithm", "key", "iv", "authTag", "sharedBy", "sharedAt", "createdAt"]
+    }
+  ]
+}
