@@ -1,5 +1,10 @@
 import { Request, Response } from "express";
 import { Web3Adapter } from "web3-adapter";
+import {
+    mapChatData as mapChatEnvelope,
+    mapMessageData as mapMessageEnvelope,
+    parseLocalRef,
+} from "../web3adapter/chat-mapping";
 import path from "path";
 import dotenv from "dotenv";
 import { getFirestore } from "firebase-admin/firestore";
@@ -59,7 +64,8 @@ type Chat = {
 
 type Message = {
     id: string;
-    chatId: string;
+    /** null when the inbound reference was unusable; the record is skipped. */
+    chatId: string | null;
     senderId: string | null; // null for system messages
     text: string;
     createdAt: Timestamp;
@@ -153,12 +159,20 @@ export class WebhookController {
     }
 
     private async createRecord(tableName: string, data: any, globalId: string) {
-        const chatId = data.chatId
-            ? data.chatId.split("(")[1].split(")")[0]
-            : null;
+        const chatId = parseLocalRef(data.chatId);
 
         let collection;
-        if (tableName === "messages" && data.chatId) {
+        if (tableName === "messages") {
+            // A message lives in a subcollection of its chat, so with no
+            // resolvable chat there is nowhere to put it. Skip it rather than
+            // writing it under a path built from "null".
+            if (!chatId) {
+                console.warn(
+                    `Skipping message ${globalId}: unusable chat reference`,
+                    data.chatId,
+                );
+                return;
+            }
             collection = this.db.collection(`chats/${chatId}/messages`);
         } else {
             collection = this.db.collection(tableName);
@@ -387,88 +401,10 @@ export class WebhookController {
     }
 
     private mapChatData(data: any, now: Timestamp): Partial<Chat> {
-        const participants = data.participants.map(
-            (p: string) => p.split("(")[1].split(")")[0],
-        ) || [];
-        const admins = (data.admins ?? []).map(
-            (p: string) => p.split("(")[1].split(")")[0],
-        ) || [];
-        
-        
-        // Derive type from participant count
-        const type = participants.length > 2 ? "group" : "direct";
-        
-        // Log ename processing for debugging
-        if (data.ename) {
-            console.log(`Processing chat with ename: ${data.ename}`);
-        }
-        
-        return {
-            type,
-            name: data.name,
-            participants,
-            ename: data.ename || null, // Include eVault identifier if available
-            admins: admins,
-            createdAt: data.createdAt
-                ? Timestamp.fromDate(new Date(data.createdAt))
-                : now,
-            updatedAt: now,
-            lastMessage: data.lastMessage
-                ? {
-                    ...data.lastMessage,
-                    timestamp: Timestamp.fromDate(
-                        new Date(data.lastMessage.timestamp),
-                    ),
-                }
-                : null,
-        };
+        return mapChatEnvelope(data, now) as Partial<Chat>;
     }
 
     private mapMessageData(data: any, now: Timestamp): Partial<Message> {
-        // Check if this is a system message
-        const isSystemMessage = !data.senderId || data.text?.startsWith('$$system-message$$');
-        
-        // For system messages, we don't need a sender
-        if (isSystemMessage) {
-            return {
-                chatId: data.chatId.split("(")[1].split(")")[0],
-                senderId: null, // System messages have no sender
-                text: data.text,
-                createdAt: data.createdAt
-                    ? Timestamp.fromDate(new Date(data.createdAt))
-                    : now,
-                updatedAt: now,
-                readBy: data.readBy || [],
-                isSystemMessage: true,
-            };
-        }
-        
-        // Regular user messages - ensure senderId exists before splitting
-        if (!data.senderId) {
-            console.warn("Message has no senderId but is not a system message:", data);
-            return {
-                chatId: data.chatId.split("(")[1].split(")")[0],
-                senderId: null,
-                text: data.text,
-                createdAt: data.createdAt
-                    ? Timestamp.fromDate(new Date(data.createdAt))
-                    : now,
-                updatedAt: now,
-                readBy: data.readBy || [],
-                isSystemMessage: true, // Treat as system message if no sender
-            };
-        }
-        
-        return {
-            chatId: data.chatId.split("(")[1].split(")")[0],
-            senderId: data.senderId.split("(")[1].split(")")[0],
-            text: data.text,
-            createdAt: data.createdAt
-                ? Timestamp.fromDate(new Date(data.createdAt))
-                : now,
-            updatedAt: now,
-            readBy: data.readBy || [],
-            isSystemMessage: false,
-        };
+        return mapMessageEnvelope(data, now) as Partial<Message>;
     }
 }

@@ -4,7 +4,7 @@
     "ownerEnamePath": "chat(chat.ename)||user(senderId)",
     "localToUniversalMap": {
         "chatId": "chat(chatId),chatId",
-        "senderId": "user(senderId),senderId",
+        "senderId": "__ename(senderId),senderId",
         "text": "content",
         "type": "type",
         "mediaUrl": "__file(mediaUrl)",
