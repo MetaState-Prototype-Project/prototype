@@ -20,23 +20,6 @@ export class Web3Adapter {
     async initialize(): Promise<void> {
         console.log("Initializing Web3Adapter...");
 
-        // Outbound sync can be switched off for local work.
-        //
-        // The watchers replicate every Firestore change to the eVaults named by
-        // PUBLIC_REGISTRY_URL, which is a shared environment. Running the API
-        // locally against a real Firestore therefore publishes to it, which is
-        // rarely what you want while developing and is actively unsafe while a
-        // change to the wire format is still being rolled out: producers must
-        // not emit a format consumers have not been deployed to accept yet.
-        if (process.env.BLABSY_DISABLE_EVAULT_SYNC === "true") {
-            console.warn(
-                "⚠️  BLABSY_DISABLE_EVAULT_SYNC=true — Firestore watchers are off, " +
-                    "so no changes will be replicated to eVaults. Inbound webhooks " +
-                    "still work.",
-            );
-            return;
-        }
-
         // Initialize watchers for each collection
         const collections = [
             { name: "users", type: "user" },

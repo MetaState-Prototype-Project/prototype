@@ -206,15 +206,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      * Process the change and send it to the Web3Adapter
      */
     private async handleChange(entity: any, tableName: string): Promise<void> {
-        // Outbound sync can be switched off for local work.
-        //
-        // Every local write is otherwise replicated to the eVaults named by
-        // PUBLIC_REGISTRY_URL, which is a shared environment. That is rarely
-        // wanted while developing, and is actively unsafe while a change to the
-        // wire format is mid-rollout: a producer must not emit a format that
-        // consumers have not been deployed to accept yet.
-        if (process.env.PICTIQUE_DISABLE_EVAULT_SYNC === "true") return;
-
         // Check if this is a junction table
         if (
             tableName === "message_read_status" ||
