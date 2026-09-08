@@ -455,7 +455,11 @@ export class WebhookController {
             }
             res.status(200).send();
         } catch (e) {
-            console.error(e);
+            // Without a response here the request simply hangs: the sender waits
+            // out its own timeout and learns nothing, which is how a crash in
+            // this handler stayed invisible. Answer, and say it failed.
+            console.error("[webhook] failed to process envelope", e);
+            if (!res.headersSent) res.status(500).send();
         }
     };
 }
