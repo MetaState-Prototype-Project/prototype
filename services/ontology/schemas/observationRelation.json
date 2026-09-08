@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/772ea2b3-82e7-4ce3-9a4d-a4445c57bd6c",
+  "schemaId": "772ea2b3-82e7-4ce3-9a4d-a4445c57bd6c",
+  "title": "ObservationRelation",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "recordedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "supersedes": {
+      "type": "string",
+      "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "deleted": {
+      "type": "boolean"
+    },
+    "observationRef": {
+      "type": "string",
+      "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "logicalFieldRef": {
+      "type": "string",
+      "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "relationType": {
+      "type": "string",
+      "enum": [
+        "about",
+        "covers",
+        "intersects"
+      ]
+    },
+    "method": {
+      "type": "string",
+      "enum": [
+        "user-confirmed",
+        "source-provided",
+        "geometry-derived"
+      ]
+    },
+    "assertedBy": {
+      "type": "string",
+      "pattern": "^@?[^\\s/@][^\\s/]*$"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "algorithm": {
+      "type": "string",
+      "minLength": 1
+    },
+    "algorithmVersion": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "recordedAt",
+    "observationRef",
+    "logicalFieldRef",
+    "relationType",
+    "method",
+    "assertedBy"
+  ],
+  "additionalProperties": false
+}
