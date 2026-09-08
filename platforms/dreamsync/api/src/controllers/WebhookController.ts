@@ -1,3 +1,4 @@
+import { resolveENameRef, resolveENameRefs } from "web3-adapter";
 import { Request, Response } from "express";
 import { UserService } from "../services/UserService";
 import { GroupService } from "../services/GroupService";
@@ -177,30 +178,34 @@ export class WebhookController {
         }
 
                 let participants: User[] = [];
-                if (
-                    local.data.participants &&
-                    Array.isArray(local.data.participants)
-                ) {
-                    console.log("Processing participants:", local.data.participants);
-                    const participantPromises = local.data.participants.map(
-                        async (ref: string) => {
-                            if (ref && typeof ref === "string") {
-                                const userId = ref.split("(")[1].split(")")[0];
-                                console.log("Extracted userId:", userId);
-                                return await this.userService.getUserById(userId);
-                            }
-                            return null;
-                        }
+                if (local.data.participants !== undefined) {
+                    participants = await resolveENameRefs<User>(
+                        local.data.participants,
+                        (ename) => this.userService.getUserByEname(ename),
+                        { context: `group ${globalId} participants` }
                     );
-
-                    participants = (
-                        await Promise.all(participantPromises)
-                    ).filter((user: User | null): user is User => user !== null);
-                    console.log("Found participants:", participants.length);
                 }
 
-                let adminIds = local?.data?.admins as string[] ?? []
-                adminIds = adminIds.map((a) => a.includes("(") ? a.split("(")[1].split(")")[0]: a)
+                // Admins are eNames on the wire but a User relation locally, so
+                // they are resolved the same way participants are; an admin this
+                // instance does not know is skipped rather than being stored as a
+                // dangling id.
+                const admins = await resolveENameRefs<User>(
+                    local?.data?.admins,
+                    (ename) => this.userService.getUserByEname(ename),
+                    { context: `group ${globalId} admins` }
+                );
+                const adminIds = admins.map((a) => a.id);
+
+                // `owner` is an eName on the wire and a local user id in the
+                // column, so it is resolved back. An owner this instance does
+                // not know leaves the column untouched rather than storing an
+                // eName where an id belongs.
+                const ownerUser = await resolveENameRef<User>(
+                    local?.data?.owner,
+                    (ename) => this.userService.getUserByEname(ename),
+                    { context: `group ${globalId} owner` }
+                );
 
                 if (localId) {
                     console.log("Updating existing group with localId:", localId);
@@ -212,7 +217,7 @@ export class WebhookController {
 
                     group.name = local.data.name as string;
                     group.description = local.data.description as string;
-                    group.owner = local.data.owner as string;
+                    if (ownerUser) group.owner = ownerUser.id;
                     group.admins = adminIds.map(id => ({ id } as User));
                     group.participants = participants;
                     group.charter = local.data.charter as string;
@@ -246,7 +251,7 @@ export class WebhookController {
                         const group = await this.groupService.createGroup(
                             local.data.name as string,
                             local.data.description as string,
-                            local.data.owner as string,
+                            ownerUser?.id as string,
                             adminIds,
                             participants.map(p => p.id),
                             local.data.charter as string | undefined,
@@ -269,10 +274,11 @@ export class WebhookController {
                 let sender: User | null = null;
                 let group: Group | null = null;
 
-                if (local.data.sender && typeof local.data.sender === "string") {
-                    const senderId = local.data.sender.split("(")[1].split(")")[0];
-                    sender = await this.userService.getUserById(senderId);
-                }
+                sender = await resolveENameRef<User>(
+                    local.data.sender,
+                    (ename) => this.userService.getUserByEname(ename),
+                    { context: `message ${globalId} sender` }
+                );
 
                 if (local.data.group && typeof local.data.group === "string") {
                     const groupId = local.data.group.split("(")[1].split(")")[0];

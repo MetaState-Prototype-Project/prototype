@@ -4,7 +4,7 @@ import { GroupService } from "../services/GroupService";
 import { MessageService } from "../services/MessageService";
 import { CerberusTriggerService } from "../services/CerberusTriggerService";
 import { CharterSignatureService } from "../services/CharterSignatureService";
-import { Web3Adapter } from "web3-adapter";
+import { Web3Adapter, resolveENameRef, resolveENameRefs } from "web3-adapter";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
 import { Message } from "../database/entities/Message";
@@ -110,71 +110,37 @@ export class WebhookController {
                 console.log("Local ID from mapping:", localId);
 
                 let participants: User[] = [];
-                if (
-                    local.data.participants &&
-                    Array.isArray(local.data.participants)
-                ) {
-                    console.log("Processing participants:", local.data.participants);
-                    
-                    // Use Promise.allSettled with timeout to prevent webhook hang
-                    const participantPromises = local.data.participants.map(
-                        async (ref: string, index: number) => {
-                            if (!ref || typeof ref !== "string") {
-                                return null;
-                            }
-                            
-                            try {
-                                const userId = ref.split("(")[1]?.split(")")[0];
-                                if (!userId) {
-                                    console.warn(`⚠️ Could not extract userId from ref: ${ref}`);
-                                    return null;
-                                }
-                                
-                                console.log(`Extracted userId [${index}]: ${userId}`);
-                                
-                                // Add 5-second timeout to prevent indefinite hang
-                                const timeoutPromise = new Promise<null>((_, reject) => 
-                                    setTimeout(() => reject(new Error(`Timeout loading user ${userId}`)), 5000)
-                                );
-                                
-                                const userPromise = this.userService.userRepository.findOne({
-                                    where: { id: userId },
-                                    // Skip heavy relations in webhook context - only need basic user data
-                                });
-                                
-                                const user = await Promise.race([userPromise, timeoutPromise]);
-                                
-                                if (user) {
-                                    console.log(`✅ Loaded user [${index}]: ${userId}`);
-                                } else {
-                                    console.warn(`⚠️ User not found [${index}]: ${userId}`);
-                                }
-                                
-                                return user;
-                            } catch (error) {
-                                console.error(`❌ Error loading participant [${index}]:`, error instanceof Error ? error.message : error);
-                                return null;
-                            }
-                        }
+                if (local.data.participants !== undefined) {
+                    // A slow or missing user must not hang the webhook, so each
+                    // lookup keeps its own timeout; the shared resolver turns a
+                    // rejection into a skipped participant rather than a lost room.
+                    participants = await resolveENameRefs<User>(
+                        local.data.participants,
+                        (ename) => withTimeout(
+                            this.userService.getUserByEname(ename),
+                            5000,
+                            `loading user ${ename}`
+                        ),
+                        { context: `group ${globalId} participants` }
                     );
-
-                    // Use allSettled to handle failures gracefully without blocking
-                    const settledResults = await Promise.allSettled(participantPromises);
-                    
-                    participants = settledResults
-                        .filter((result): result is PromiseFulfilledResult<User | null> => 
-                            result.status === 'fulfilled' && result.value !== null
-                        )
-                        .map(result => result.value as User);
-                    
-                    console.log(`Found ${participants.length} participants (${settledResults.filter(r => r.status === 'rejected').length} failed)`);
+                    console.log(`Found ${participants.length} participants`);
                 }
 
-                // Process admins - filter out nulls and extract IDs
-                let admins = local?.data?.admins as string[] ?? []
-                admins = admins
-                    .filter(a => a !== null && a !== undefined)
-                    .map((a) => a.includes("(") ? a.split("(")[1].split(")")[0] : a)
+                // `admins` and `owner` are eNames on the wire but local user ids
+                // in the columns, so they are resolved back. Anyone this instance
+                // does not know is skipped rather than stored as a dangling id.
+                const adminUsers = await resolveENameRefs<User>(
+                    local?.data?.admins,
+                    (ename) => this.userService.getUserByEname(ename),
+                    { context: `group ${globalId} admins` }
+                );
+                const admins = adminUsers.map((a) => a.id);
+
+                const ownerUser = await resolveENameRef<User>(
+                    local?.data?.owner,
+                    (ename) => this.userService.getUserByEname(ename),
+                    { context: `group ${globalId} owner` }
+                );
 
                 if (localId) {
                     const group = await this.groupService.getGroupById(localId);
@@ -194,8 +160,8 @@ export class WebhookController {
                     if (local.data.description !== undefined) {
                         group.description = local.data.description as string;
                     }
-                    if (local.data.owner !== undefined) {
-                        group.owner = local.data.owner as string;
+                    if (ownerUser) {
+                        group.owner = ownerUser.id;
                     }
                     if (admins.length > 0) {
                         group.admins = admins;
@@ -247,7 +213,7 @@ export class WebhookController {
                         group = await this.groupService.createGroup({
                             name: local.data.name as string,
                             description: local.data.description as string,
-                            owner: local.data.owner as string,
+                            owner: ownerUser?.id as string,
                             admins,
                             participants: participants,
                             charter: local.data.charter as string,
@@ -281,10 +247,11 @@ export class WebhookController {
                 let sender: User | null = null;
                 let group: Group | null = null;
 
-                if (local.data.sender && typeof local.data.sender === "string") {
-                    const senderId = local.data.sender.split("(")[1].split(")")[0];
-                    sender = await this.userService.getUserById(senderId);
-                }
+                sender = await resolveENameRef<User>(
+                    local.data.sender,
+                    (ename) => this.userService.getUserByEname(ename),
+                    { context: `message ${globalId} sender` }
+                );
 
                 if (local.data.group && typeof local.data.group === "string") {
                     const groupId = local.data.group.split("(")[1].split(")")[0];
@@ -448,4 +415,24 @@ export class WebhookController {
             res.status(500).send();
         }
     };
+}
+
+/**
+ * Rejects if a lookup takes too long.
+ *
+ * Cerberus resolves participants during webhook handling, where a slow user
+ * query would otherwise hold the request open; the caller treats a rejection as
+ * one skipped participant.
+ */
+function withTimeout<T>(
+    promise: Promise<T>,
+    ms: number,
+    description: string
+): Promise<T> {
+    return Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+            setTimeout(() => reject(new Error(`Timeout ${description}`)), ms)
+        ),
+    ]);
 }

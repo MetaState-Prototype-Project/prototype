@@ -6,7 +6,7 @@ import {
     RemoveEvent,
     ObjectLiteral,
 } from "typeorm";
-import { Web3Adapter } from "web3-adapter";
+import { Web3Adapter, enrichGroupOwnership } from "web3-adapter";
 import path from "path";
 import dotenv from "dotenv";
 import { AppDataSource } from "../../database/data-source";
@@ -69,7 +69,20 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 }
             }
 
-            return this.entityToPlain(enrichedEntity);
+            // `owner` and `admins` are stored as bare local user ids with no
+            // relation to follow, but they name people, so they must go on the
+            // wire as eNames like every other entity reference.
+            const plain = this.entityToPlain(enrichedEntity);
+            if (tableName === "groups" || tableName === "group") {
+                return await enrichGroupOwnership(plain, async (id: string) => {
+                    const user = await AppDataSource.getRepository("User").findOne({
+                        where: { id },
+                        select: ["id", "ename"],
+                    });
+                    return (user as { ename?: string } | null)?.ename ?? null;
+                });
+            }
+            return plain;
         } catch (error) {
             console.error("Error loading relations:", error);
             return this.entityToPlain(entity);

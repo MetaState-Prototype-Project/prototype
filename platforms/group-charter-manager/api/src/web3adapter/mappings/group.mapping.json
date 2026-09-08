@@ -6,10 +6,10 @@
     "localToUniversalMap": {
         "name": "name",
         "description": "description",
-        "owner": "owner",
-        "admins": "users(admins),admins",
+        "owner": "__ename(owner),owner",
+        "admins": "__ename(admins[]),admins",
         "charter": "charter",
-        "participants": "users(participants[].id),participantIds",
+        "participants": "__ename(participants[].ename),participantIds",
         "charterSignatures": "charter_signatures(charterSignatures[].id),signatureIds",
         "createdAt": "createdAt",
         "updatedAt": "updatedAt",

@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { UserService } from "../services/UserService";
 import { GroupService } from "../services/GroupService";
-import { Web3Adapter } from "web3-adapter";
+import { Web3Adapter, resolveENameRef, resolveENameRefs } from "web3-adapter";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
 import axios from "axios";
@@ -107,30 +107,29 @@ export class WebhookController {
                 console.log("Processing group with data:", local.data);
 
                 let participants: User[] = [];
-                if (
-                    local.data.participants &&
-                    Array.isArray(local.data.participants)
-                ) {
-                    console.log("Processing participants:", local.data.participants);
-                    const participantPromises = local.data.participants.map(
-                        async (ref: string) => {
-                            if (ref && typeof ref === "string") {
-                                const userId = ref.split("(")[1].split(")")[0];
-                                console.log("Extracted userId:", userId);
-                                return await this.userService.getUserById(userId);
-                            }
-                            return null;
-                        }
+                if (local.data.participants !== undefined) {
+                    participants = await resolveENameRefs<User>(
+                        local.data.participants,
+                        (ename) => this.userService.findByEname(ename),
+                        { context: `group ${globalId} participants` }
                     );
-
-                    participants = (
-                        await Promise.all(participantPromises)
-                    ).filter((user): user is User => user !== null);
-                    console.log("Found participants:", participants.length);
                 }
 
-                let admins = local?.data?.admins as string[] ?? []
-                admins = admins.map((a) => a.includes("(") ? a.split("(")[1].split(")")[0]: a)
+                // `admins` and `owner` are eNames on the wire but local user ids
+                // in the columns, so they are resolved back. Anyone this instance
+                // does not know is skipped rather than stored as a dangling id.
+                const adminUsers = await resolveENameRefs<User>(
+                    local?.data?.admins,
+                    (ename) => this.userService.findByEname(ename),
+                    { context: `group ${globalId} admins` }
+                );
+                const admins = adminUsers.map((a) => a.id);
+
+                const ownerUser = await resolveENameRef<User>(
+                    local?.data?.owner,
+                    (ename) => this.userService.findByEname(ename),
+                    { context: `group ${globalId} owner` }
+                );
 
                 if (localId) {
                     console.log("Updating existing group with localId:", localId);
@@ -142,7 +141,7 @@ export class WebhookController {
 
                     group.name = local.data.name as string;
                     group.description = local.data.description as string;
-                    group.owner = local.data.owner as string;
+                    if (ownerUser) group.owner = ownerUser.id;
                     group.admins = admins;
                     group.participants = participants;
 
@@ -154,7 +153,7 @@ export class WebhookController {
                     const group = await this.groupService.createGroup({
                         name: local.data.name as string,
                         description: local.data.description as string,
-                        owner: local.data.owner as string,
+                        owner: ownerUser?.id as string,
                         admins,
                         participants: participants,
                     });
