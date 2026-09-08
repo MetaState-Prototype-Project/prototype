@@ -48,14 +48,49 @@ Maps a local relation to a global field, where:
 ### Array Relation Mapping
 
 ```json
-"participants": "users(participants[].id),participantIds"
+"charterSignatures": "charter_signatures(charterSignatures[].id),signatureIds"
 ```
 
 Maps an array of relations:
 
-- `participants[].id` extracts the `id` field from each item in the `participants` array
-- `users()` resolves each ID to a global user reference
-- `participantIds` is the target global field name
+- `charterSignatures[].id` extracts the `id` field from each item in the array
+- `charter_signatures()` resolves each id to a global reference
+- `signatureIds` is the target global field name
+
+Use this for references to *records*. References to *people* use `__ename()`
+instead — see below.
+
+### Entity References (`__ename`)
+
+```json
+"participants": "__ename(participants[].ename),participantIds",
+"sender": "__ename(sender.ename),senderId"
+```
+
+Marks a field as naming people rather than records. Chat participants, admins,
+members, a group's owner, and a message's sender are all entity references.
+
+They carry an **eName** — an `@`-prefixed W3ID such as
+`@48468c9a-dc1b-5663-92fb-5e46e3d2a7f0` — and not the id of the referent's User
+profile MetaEnvelope. An eName is stable, self-describing, and resolvable
+without a profile envelope; an envelope id is none of those, and a user whose
+eVault has no profile envelope yet does not have one at all.
+
+Behaviour:
+
+- On `toGlobal` each value is emitted as an `@`-prefixed eName. A bare W3ID
+  gains the `@`, so the wire format is uniform.
+- On `fromGlobal` each value comes back as an eName. Entries that are not usable
+  eNames are dropped rather than throwing, because one bad entry in a
+  participant list must not cost the room its other participants.
+- Whether the field is a list is decided by the mapping (`[]` in the path), not
+  by whatever happened to arrive, so a participant list that arrives as `null`
+  is an empty list rather than a scalar.
+
+Resolving an eName to a local user is the consumer's job. `resolveENameRefs` and
+`resolveENameRef` in `web3-adapter` do it, skipping and logging anyone this
+platform does not know — members may legitimately live on a platform this
+instance has never heard of.
 
 ## Special Functions
 
@@ -175,9 +210,9 @@ When junction table data changes, it triggers updates to the parent entity.
     "localToUniversalMap": {
         "name": "name",
         "description": "description",
-        "owner": "owner",
-        "admins": "users(admins),admins",
-        "participants": "users(participants[].id),participantIds",
+        "owner": "__ename(owner),owner",
+        "admins": "__ename(admins[].ename),admins",
+        "participants": "__ename(participants[].ename),participantIds",
         "createdAt": "__date(createdAt)",
         "updatedAt": "__date(updatedAt)"
     }

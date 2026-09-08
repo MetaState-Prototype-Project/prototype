@@ -163,7 +163,7 @@ A grant or denial can name a group eName, and it resolves to the group's members
   "require": [] }
 ```
 
-You do not have to normalise your group records first. Participants are read from `members`, `memberIds`, `participants`, `participantIds`, `admins` and `owner`, and each entry may be **either an eName or the id of that member's profile record** — the two shapes platforms actually write. A profile id resolves through the record's own `ename` field, falling back to the vault it lives in.
+You do not have to normalise your group records first. Participants are read from `members`, `memberIds`, `participants`, `participantIds`, `admins` and `owner`. Each entry should be an **eName**, which is what platforms write today; the id of a member's profile record is still resolved, for records written before that convention was settled, through the record's own `ename` field falling back to the vault it lives in.
 
 Worth knowing:
 

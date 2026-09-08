@@ -26,9 +26,9 @@
       "type": "array",
       "items": {
         "type": "string",
-        "format": "uuid"
+        "pattern": "^@.+"
       },
-      "description": "Array of user IDs participating in the chat"
+      "description": "Array of eNames of the users participating in the chat. Entity references are eNames: an @-prefixed W3ID such as @48468c9a-dc1b-5663-92fb-5e46e3d2a7f0. eNames are used rather than User profile MetaEnvelope ids because they are stable, self-describing, and resolvable without a profile envelope, which a newly provisioned eVault may not have yet."
     },
     "lastMessageId": {
       "type": "string",
@@ -48,6 +48,23 @@
     "isArchived": {
       "type": "boolean",
       "description": "Whether the chat is archived"
+    },
+    "admins": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^@.+"
+      },
+      "description": "Array of eNames of the chat's administrators."
+    },
+    "owner": {
+      "type": "string",
+      "pattern": "^@.+",
+      "description": "eName of the chat's owner."
+    },
+    "ename": {
+      "type": "string",
+      "description": "The chat's own eName, when the chat is backed by a group eVault."
     }
   },
   "required": [

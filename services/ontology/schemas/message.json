@@ -17,8 +17,8 @@
     },
     "senderId": {
       "type": "string",
-      "format": "uuid",
-      "description": "The ID of the user who sent the message"
+      "pattern": "^@.+",
+      "description": "The eName of the user who sent the message. Entity references are eNames: an @-prefixed W3ID such as @48468c9a-dc1b-5663-92fb-5e46e3d2a7f0. eNames are used rather than User profile MetaEnvelope ids because they are stable, self-describing, and resolvable without a profile envelope, which a newly provisioned eVault may not have yet."
     },
     "content": {
       "type": "string",
@@ -43,9 +43,9 @@
       "type": "array",
       "items": {
         "type": "string",
-        "format": "uuid"
+        "pattern": "^@.+"
       },
-      "description": "Array of user IDs who have read the message"
+      "description": "Array of eNames of users who have read the message."
     },
     "createdAt": {
       "type": "string",

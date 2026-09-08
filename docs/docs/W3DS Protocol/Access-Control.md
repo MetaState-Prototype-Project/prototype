@@ -64,14 +64,18 @@ A group eName is not a party in its own right — it stands for the people in it
 
 The group's record is found either in the group's own vault or by its `ename` field naming the group, and its participants are read from whichever fields it carries — `members`, `memberIds`, `participants`, `participantIds`, `admins`, `owner`. A group's members are the union of all of them, so an admin is a member.
 
-A participant may be named two ways, and both are accepted:
+**An eName is the canonical way to name a participant**, and the only shape
+platforms write today. A profile record's id is also accepted, but only because
+records written before that convention was settled are still at rest in eVaults.
 
 | Written as | Example | Resolved by |
 |---|---|---|
-| An eName | `@7b9c2e1a-…` | Taken as-is. |
-| A profile record's id | `4f1a8c30-…` | Following the record to the eName behind it. |
+| An eName — canonical | `@7b9c2e1a-…` | Taken as-is. |
+| A profile record's id — legacy, read-only | `4f1a8c30-…` | Following the record to the eName behind it. |
 
-Both occur in practice — `GroupManifest.members` holds eNames while `Group.participantIds` holds profile ids — so a policy naming a group works regardless of which shape the group was written with.
+Reading both keeps a policy working against groups written at any point in time.
+Do not write the legacy shape: an envelope id is not resolvable on its own, and
+a user whose eVault has no profile envelope yet does not have one to write.
 
 When a participant is given as a profile id, the eName is taken from the record's own `ename` field where it has one, and otherwise from the vault the record lives in. The record's own statement wins because the same profile syncs into several vaults, so the vault it happens to sit in does not reliably identify its subject.
 
