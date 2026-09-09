@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "7c1e5a90-3f42-4b8d-9e77-2a5f0c6b41d3",
+  "title": "PersonalNote",
+  "type": "object",
+  "description": "Something a person wrote down for themselves — a thought, an observation, a fact they want to find again years later. Domain-level and deliberately general: what the note is ABOUT belongs in `about`/`keywords`, never in a more specific type, so that a note about paint and a note about a bike ride are the same kind of thing. Modelled on schema.org/NoteDigitalDocument (text → text, dateCreated → createdAt, author → authorEName), with the identity and time fields following this registry's convention rather than schema.org's. NOT for platform documentation — the existing `Note` ontology is used for integration notes and marketplace listings and has neither an author nor a creation time. NOT for a note attached to a task (use TaskNote). NOT for a machine-generated digest of other records. A PersonalNote is the person's own words; anything derived from it should reference it via `derivedRecords` rather than replace it, because a derived reading can be wrong and redone while the original cannot.",
+  "properties": {
+    "id": { "type": "string", "description": "Stable identifier for this note" },
+    "text": { "type": "string", "description": "The person's own words, verbatim — never a summary or a cleaned-up rewrite" },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the note was made, as distinct from when the envelope was last written" },
+    "authorEName": { "type": "string", "description": "eName (W3ID) of the person whose note this is. An eName, never a display name: people change how they are called, the eName is stable for life." },
+    "about": { "type": "string", "description": "What the note concerns, in plain words" },
+    "keywords": { "type": "array", "items": { "type": "string" }, "description": "Terms for finding this note again" },
+    "contentLocation": { "type": "string", "description": "Where the note was made, or the place it concerns, when either is known" },
+    "attachments": { "type": "array", "items": { "type": "string" }, "description": "References to files that came with the note — a photo, a recording, a document" },
+    "derivedRecords": {
+      "type": "array",
+      "description": "References to records extracted FROM this note — a purchase read off a photographed letter, a product identified in it. The note stays authoritative for what was actually said.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "ontologyId": { "type": "string", "description": "Which ontology the derived record was written under" },
+          "canonicalOwnerEName": { "type": "string" },
+          "confidence": { "type": "number", "description": "0…1 when the record was inferred rather than read verbatim; absent when stated outright" }
+        },
+        "required": ["id"]
+      }
+    },
+    "capturedBy": { "type": "string", "description": "eName of the application that recorded the note, so a reader can tell an app-assisted capture from a hand-typed one" },
+    "isArchived": { "type": "boolean", "default": false }
+  },
+  "required": ["id", "text", "createdAt", "authorEName"],
+  "additionalProperties": true
+}
