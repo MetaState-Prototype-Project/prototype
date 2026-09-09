@@ -29,11 +29,17 @@ export interface BindingDocEdge {
 // Registry resolution
 // ---------------------------------------------------------------------------
 
-/**
- * Resolve an eName to its eVault GraphQL endpoint via the registry.
- */
-export async function resolveVaultUri(ename: string): Promise<string> {
-    const normalized = ename.startsWith("@") ? ename : `@${ename}`;
+const VAULT_URI_TTL_MS = 5 * 60_000;
+const vaultUriCache = new Map<string, { uri: string; at: number }>();
+const vaultUriInFlight = new Map<string, Promise<string>>();
+
+/** Drop the memoised registry lookups (sign-out, tests). */
+export function clearVaultUriCache(): void {
+    vaultUriCache.clear();
+    vaultUriInFlight.clear();
+}
+
+async function fetchVaultUri(normalized: string): Promise<string> {
     const url = new URL(
         `resolve?w3id=${encodeURIComponent(normalized)}`,
         PUBLIC_REGISTRY_URL,
@@ -50,6 +56,37 @@ export async function resolveVaultUri(ename: string): Promise<string> {
     return base.endsWith("/graphql")
         ? base
         : new URL("/graphql", base).toString();
+}
+
+/**
+ * Resolve an eName to its eVault GraphQL endpoint via the registry.
+ *
+ * Memoised: an eName→URI mapping only changes when a vault is re-provisioned,
+ * but several layers resolve the same counterparty independently on one screen
+ * load (the binding reconcile and the name lookup, for a start), so the same
+ * round trip was being paid 3-4× per contact. Concurrent callers share one
+ * in-flight request; failures are not cached.
+ */
+export async function resolveVaultUri(ename: string): Promise<string> {
+    const normalized = ename.startsWith("@") ? ename : `@${ename}`;
+
+    const cached = vaultUriCache.get(normalized);
+    if (cached && Date.now() - cached.at < VAULT_URI_TTL_MS) return cached.uri;
+
+    const pending = vaultUriInFlight.get(normalized);
+    if (pending) return pending;
+
+    const request = fetchVaultUri(normalized)
+        .then((uri) => {
+            vaultUriCache.set(normalized, { uri, at: Date.now() });
+            return uri;
+        })
+        .finally(() => {
+            vaultUriInFlight.delete(normalized);
+        });
+
+    vaultUriInFlight.set(normalized, request);
+    return request;
 }
 
 // ---------------------------------------------------------------------------
