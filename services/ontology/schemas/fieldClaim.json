@@ -3,6 +3,7 @@
   "$id": "https://ontology.w3ds.metastate.foundation/schemas/f577eb36-8230-494d-866b-45af25e83f16",
   "schemaId": "f577eb36-8230-494d-866b-45af25e83f16",
   "title": "FieldClaim",
+  "domain": "agriculture",
   "type": "object",
   "properties": {
     "schemaVersion": {

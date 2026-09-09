@@ -3,6 +3,7 @@
   "$id": "https://ontology.w3ds.metastate.foundation/schemas/65586839-24ad-4875-921e-578e3c284a0f",
   "schemaId": "65586839-24ad-4875-921e-578e3c284a0f",
   "title": "MediaAsset",
+  "domain": "agriculture",
   "type": "object",
   "properties": {
     "schemaVersion": {

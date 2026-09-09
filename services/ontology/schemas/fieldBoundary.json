@@ -3,6 +3,7 @@
   "$id": "https://ontology.w3ds.metastate.foundation/schemas/207a6b1a-19b4-468d-9641-68ba661c2291",
   "schemaId": "207a6b1a-19b4-468d-9641-68ba661c2291",
   "title": "FieldBoundary",
+  "domain": "agriculture",
   "type": "object",
   "properties": {
     "schemaVersion": {

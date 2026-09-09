@@ -3,6 +3,7 @@
   "$id": "https://ontology.w3ds.metastate.foundation/schemas/a9723f8c-9aa1-48ff-9698-9447353736c3",
   "schemaId": "a9723f8c-9aa1-48ff-9698-9447353736c3",
   "title": "Observation",
+  "domain": "agriculture",
   "type": "object",
   "properties": {
     "schemaVersion": {

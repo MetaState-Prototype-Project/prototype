@@ -3,6 +3,7 @@
   "$id": "https://ontology.w3ds.metastate.foundation/schemas/63d0e376-2522-4799-b82d-990267965dd9",
   "schemaId": "63d0e376-2522-4799-b82d-990267965dd9",
   "title": "FieldAccessGrant",
+  "domain": "agriculture",
   "type": "object",
   "properties": {
     "schemaVersion": {

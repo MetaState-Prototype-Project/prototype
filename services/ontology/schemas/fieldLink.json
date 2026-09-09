@@ -3,6 +3,7 @@
   "$id": "https://ontology.w3ds.metastate.foundation/schemas/339723ce-4771-48d6-a7e1-a0fdf736d584",
   "schemaId": "339723ce-4771-48d6-a7e1-a0fdf736d584",
   "title": "FieldLink",
+  "domain": "agriculture",
   "type": "object",
   "properties": {
     "schemaVersion": {

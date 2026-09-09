@@ -3,6 +3,7 @@
   "$id": "https://ontology.w3ds.metastate.foundation/schemas/a1abfd8e-4f0a-4c1d-98de-f351586c03e8",
   "schemaId": "a1abfd8e-4f0a-4c1d-98de-f351586c03e8",
   "title": "LogicalField",
+  "domain": "agriculture",
   "type": "object",
   "properties": {
     "schemaVersion": {
