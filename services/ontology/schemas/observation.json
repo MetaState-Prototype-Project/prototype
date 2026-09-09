@@ -1,0 +1,296 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/a9723f8c-9aa1-48ff-9698-9447353736c3",
+  "schemaId": "a9723f8c-9aa1-48ff-9698-9447353736c3",
+  "title": "Observation",
+  "domain": "agriculture",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "recordedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "supersedes": {
+      "type": "string",
+      "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "deleted": {
+      "type": "boolean"
+    },
+    "type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "phenomenonTime": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "end": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "start",
+            "end"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "resultTime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "deviceRef": {
+      "type": "string",
+      "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "sourceClass": {
+      "type": "string",
+      "minLength": 1
+    },
+    "footprint": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "Point"
+            },
+            "coordinates": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 3
+            }
+          },
+          "required": [
+            "type",
+            "coordinates"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "MultiPoint"
+            },
+            "coordinates": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 2,
+                "maxItems": 3
+              }
+            }
+          },
+          "required": [
+            "type",
+            "coordinates"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "LineString"
+            },
+            "coordinates": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 2,
+                "maxItems": 3
+              },
+              "minItems": 2
+            }
+          },
+          "required": [
+            "type",
+            "coordinates"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "MultiLineString"
+            },
+            "coordinates": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 3
+                },
+                "minItems": 2
+              }
+            }
+          },
+          "required": [
+            "type",
+            "coordinates"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "Polygon"
+            },
+            "coordinates": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 3
+                },
+                "minItems": 4
+              }
+            }
+          },
+          "required": [
+            "type",
+            "coordinates"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "MultiPolygon"
+            },
+            "coordinates": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 2,
+                    "maxItems": 3
+                  },
+                  "minItems": 4
+                }
+              }
+            }
+          },
+          "required": [
+            "type",
+            "coordinates"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "footprintType": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "bbox",
+        "centroid",
+        "unknown"
+      ]
+    },
+    "pinPoint": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "Point"
+        },
+        "coordinates": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 3
+        }
+      },
+      "required": [
+        "type",
+        "coordinates"
+      ],
+      "additionalProperties": false
+    },
+    "result": {},
+    "observedBy": {
+      "type": "string",
+      "pattern": "^@?[^\\s/@][^\\s/]*$"
+    },
+    "uploadedBy": {
+      "type": "string",
+      "pattern": "^@?[^\\s/@][^\\s/]*$"
+    },
+    "batchUid": {
+      "type": "string",
+      "minLength": 1
+    },
+    "datasetName": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "recordedAt",
+    "type",
+    "phenomenonTime",
+    "observedBy",
+    "uploadedBy"
+  ],
+  "additionalProperties": false,
+  "dependencies": {
+    "footprint": [
+      "footprintType"
+    ]
+  }
+}
