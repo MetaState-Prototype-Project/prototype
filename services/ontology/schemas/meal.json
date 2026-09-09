@@ -1,0 +1,186 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "879df524-f062-44eb-9a05-52dc62884e6c",
+  "title": "Meal",
+  "description": "One meal. The photo is NOT embedded here: `photo.ref` points at the HealthPhoto envelope that holds the bytes (canonical + reference, never a copy). nutritionEstimate is STRUCTURALLY an estimate (AI vision output, `derivedFrom` names the photo it was read from) — readers must present it as an estimate, never as a measured fact.",
+  "type": "object",
+  "properties": {
+    "subject": {
+      "type": "string",
+      "description": "@-prefixed eName of the person this data is about"
+    },
+    "device": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "w3id (@eName) of the measuring device's OWN eVault, where its Device passport lives; null if unknown"
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Import provenance. Vendor identity lives HERE only (source), never in metric keys.",
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string",
+          "description": "w3id (@eName) of the platform that wrote this envelope — machine-readable authorship; resolve it to read that platform's self-description"
+        },
+        "externalId": {
+          "type": "string"
+        },
+        "sourceName": {
+          "type": "string"
+        },
+        "deviceSignature": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "source"
+      ]
+    },
+    "dedupKey": {
+      "type": "string",
+      "description": "Writer's idempotency key, unique within this ontology on the vault"
+    },
+    "contentHash": {
+      "type": "string",
+      "description": "Writer-maintained md5 of the payload; recomputed on every rewrite"
+    },
+    "updatedAt": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "mealType": {
+      "type": "string",
+      "enum": [
+        "breakfast",
+        "lunch",
+        "dinner",
+        "snack"
+      ]
+    },
+    "mealTypeSource": {
+      "type": "string",
+      "enum": [
+        "user",
+        "inferred"
+      ],
+      "description": "user = stated by the person; inferred = guessed from local time of day + dish. An inferred type must not be presented as stated."
+    },
+    "comment": {
+      "type": "string",
+      "description": "The person's own words, stored verbatim"
+    },
+    "place": {
+      "type": "string"
+    },
+    "photo": {
+      "type": "object",
+      "description": "REFERENCE to the HealthPhoto envelope holding the bytes — never a copy of the image.",
+      "properties": {
+        "ref": {
+          "type": "string",
+          "description": "w3ds://envelope?id=@owner/<metaEnvelopeId>"
+        },
+        "mediaType": {
+          "type": "string"
+        },
+        "width": {
+          "type": "integer"
+        },
+        "height": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "ref"
+      ]
+    },
+    "nutritionEstimate": {
+      "type": "object",
+      "description": "AI ESTIMATE — not a measurement",
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": [
+            "ai-vision",
+            "food-log"
+          ],
+          "description": "ai-vision = AI photo analysis; food-log = user-entered food-app values"
+        },
+        "estimatedAt": {
+          "type": "string"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "massG": {
+                "type": "number"
+              },
+              "kcal": {
+                "type": "number"
+              },
+              "proteinG": {
+                "type": "number"
+              },
+              "fatG": {
+                "type": "number"
+              },
+              "carbsG": {
+                "type": "number"
+              },
+              "confidence": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          }
+        },
+        "totalKcal": {
+          "type": "number"
+        },
+        "model": {
+          "type": "string",
+          "description": "Estimator identity (model id) — provenance of the estimate itself"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Estimator's stated assumptions/uncertainties"
+        },
+        "derivedFrom": {
+          "type": "string",
+          "description": "w3ds:// reference to the HealthPhoto this estimate was derived from"
+        }
+      },
+      "required": [
+        "method",
+        "estimatedAt",
+        "items"
+      ]
+    }
+  },
+  "required": [
+    "subject",
+    "provenance",
+    "dedupKey",
+    "contentHash",
+    "timestamp",
+    "date"
+  ]
+}

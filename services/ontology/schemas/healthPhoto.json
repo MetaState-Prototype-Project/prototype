@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "30b4bb28-494b-4d78-b99b-18f58a008da0",
+  "title": "HealthPhoto",
+  "description": "One private health image = one envelope, ACL [@owner]. The bytes are INLINE (data URI) by design: the platform blob store serves uploaded files from a public CDN regardless of the envelope ACL, so health imagery must not be stored there. Other envelopes (e.g. Meal) reference this envelope and never carry a second copy of the bytes.",
+  "type": "object",
+  "properties": {
+    "subject": {
+      "type": "string",
+      "description": "@-prefixed eName of the person this data is about"
+    },
+    "device": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "w3id (@eName) of the measuring device's OWN eVault, where its Device passport lives; null if unknown"
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Import provenance. Vendor identity lives HERE only (source), never in metric keys.",
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string",
+          "description": "w3id (@eName) of the platform that wrote this envelope — machine-readable authorship; resolve it to read that platform's self-description"
+        },
+        "externalId": {
+          "type": "string"
+        },
+        "sourceName": {
+          "type": "string"
+        },
+        "deviceSignature": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "source"
+      ]
+    },
+    "dedupKey": {
+      "type": "string",
+      "description": "Writer's idempotency key, unique within this ontology on the vault"
+    },
+    "contentHash": {
+      "type": "string",
+      "description": "Writer-maintained md5 of the payload; recomputed on every rewrite"
+    },
+    "updatedAt": {
+      "type": "string"
+    },
+    "mediaType": {
+      "type": "string",
+      "enum": [
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+      ]
+    },
+    "dataUri": {
+      "type": "string",
+      "description": "The image itself: data:<mediaType>;base64,…"
+    },
+    "byteSize": {
+      "type": "integer"
+    },
+    "width": {
+      "type": "integer"
+    },
+    "height": {
+      "type": "integer"
+    },
+    "md5": {
+      "type": "string",
+      "description": "md5 of the bytes — dedup key for re-uploads of the same photo"
+    },
+    "capturedAt": {
+      "type": "string"
+    },
+    "purpose": {
+      "type": "string",
+      "description": "What the photo is of, in neutral terms (\"meal\", \"document\", \"other\")"
+    }
+  },
+  "required": [
+    "subject",
+    "provenance",
+    "dedupKey",
+    "contentHash",
+    "mediaType",
+    "dataUri",
+    "byteSize",
+    "md5",
+    "capturedAt"
+  ]
+}
