@@ -4,7 +4,6 @@ import {
     Entity,
     Index,
     PrimaryGeneratedColumn,
-    Unique,
 } from "typeorm";
 
 export type DeliveryStatus =
@@ -15,19 +14,22 @@ export type DeliveryStatus =
     | "dead";
 
 /**
- * A queued webhook delivery of one packet to one subscription. The unique
- * (subscriptionId, packetId, contentHash) constraint dedupes by content: a
- * retried POST of the same payload is idempotent, while re-ingesting an updated
- * envelope (new contentHash) queues a fresh delivery.
+ * A queued webhook delivery of one immutable event to one subscription.
  */
 @Entity("deliveries")
-@Unique("uq_delivery_subscription_packet_content", [
-    "subscriptionId",
-    "packetId",
-    "contentHash",
-])
+@Index("uq_delivery_subscription_event", ["subscriptionId", "eventId"], {
+    unique: true,
+})
 // Serves the consumer dashboard's newest-first delivery list.
 @Index("idx_deliveries_subscription_created", ["subscriptionId", "createdAt"])
+@Index(
+    "idx_deliveries_active_stream_order",
+    ["subscriptionId", "packetId", "createdAt", "id"],
+    { where: `"status" IN ('pending', 'failed', 'delivering')` },
+)
+@Index("idx_deliveries_claim_due", ["nextAttemptAt", "createdAt", "id"], {
+    where: `"status" IN ('pending', 'failed')`,
+})
 export class Delivery {
     @PrimaryGeneratedColumn("uuid")
     id!: string;
@@ -39,7 +41,12 @@ export class Delivery {
     @Column({ type: "varchar" })
     packetId!: string;
 
-    /** SHA-256 of the packet payload at ingest; dedupes deliveries by content. */
+    /** Immutable source event id. Legacy rows are backfilled during migration. */
+    @Index("idx_deliveries_event")
+    @Column({ type: "varchar" })
+    eventId!: string;
+
+    /** SHA-256 audit fingerprint of the exact payload at ingest. */
     @Column({ type: "varchar" })
     contentHash!: string;
 
@@ -69,4 +76,19 @@ export class Delivery {
 
     @Column({ type: "timestamptz", nullable: true })
     deliveredAt!: Date | null;
+
+    /** Start of the current automatic retry window (reset by admin replay). */
+    @Column({ type: "timestamptz", default: () => "now()" })
+    retryStartedAt!: Date;
+
+    /** Token-fenced lease; stale workers cannot complete a reclaimed row. */
+    @Column({ type: "varchar", nullable: true })
+    leaseOwner!: string | null;
+
+    @Column({ type: "uuid", nullable: true })
+    leaseToken!: string | null;
+
+    @Index("idx_deliveries_lease_expires")
+    @Column({ type: "timestamptz", nullable: true })
+    leaseExpiresAt!: Date | null;
 }

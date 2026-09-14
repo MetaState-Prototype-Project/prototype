@@ -1,4 +1,5 @@
 import neo4j, { type Driver } from "neo4j-driver";
+import { randomUUID } from "node:crypto";
 import { W3IDBuilder } from "w3id";
 import { timed } from "../utils/timing";
 import { parseStoredAclBlock, serializeAclBlock } from "../acl";
@@ -20,6 +21,56 @@ import type {
     SearchMetaEnvelopesResult,
     StoreMetaEnvelopeResult,
 } from "./types";
+
+export interface AwarenessWriteContext {
+    evaultPublicKey: string | null;
+    requestingPlatform?: string | null;
+    skipAwareness?: boolean;
+}
+
+function awarenessOutboxParams(
+    packetId: string,
+    schemaId: string,
+    eName: string,
+    data: unknown,
+    operation: "create" | "update" | "delete",
+    context: AwarenessWriteContext,
+): Record<string, unknown> {
+    return {
+        awarenessEventId: randomUUID(),
+        awarenessPacketId: packetId,
+        awarenessSchemaId: schemaId,
+        awarenessW3id: eName,
+        awarenessEvaultPublicKey: context.evaultPublicKey,
+        awarenessDataJson: JSON.stringify(data ?? null),
+        awarenessOperation: operation,
+        awarenessRequestingPlatform: context.requestingPlatform ?? null,
+        awarenessOccurredAt: new Date().toISOString(),
+        awarenessNow: Date.now(),
+    };
+}
+
+const CREATE_AWARENESS_OUTBOX = `
+    WITH m
+    MERGE (s:AwarenessStream { packetId: $awarenessPacketId })
+    SET s.version = coalesce(s.version, 0) + 1
+    CREATE (a:AwarenessOutbox {
+        eventId: $awarenessEventId,
+        packetId: $awarenessPacketId,
+        schemaId: $awarenessSchemaId,
+        w3id: $awarenessW3id,
+        evaultPublicKey: $awarenessEvaultPublicKey,
+        dataJson: $awarenessDataJson,
+        operation: $awarenessOperation,
+        requestingPlatform: $awarenessRequestingPlatform,
+        occurredAt: $awarenessOccurredAt,
+        streamVersion: s.version,
+        status: 'pending',
+        attempts: 0,
+        nextAttemptAt: $awarenessNow,
+        createdAt: $awarenessNow
+    })
+`;
 
 /**
  * Service for managing meta-envelopes and their associated envelopes in Neo4j.
@@ -78,40 +129,41 @@ export class DbService {
         meta: Omit<MetaEnvelope<T>, "id">,
         acl: string[],
         eName: string,
+        awareness?: AwarenessWriteContext,
     ): Promise<StoreMetaEnvelopeResult<T>> {
-      return timed("db.storeMetaEnvelope", async () => {
-        if (!eName) {
-            throw new Error("eName is required for storing meta-envelopes");
-        }
+        return timed("db.storeMetaEnvelope", async () => {
+            if (!eName) {
+                throw new Error("eName is required for storing meta-envelopes");
+            }
 
-        const w3id = await timed("db.storeMetaEnvelope.buildMetaId", () =>
-            new W3IDBuilder().build(),
-        );
+            const w3id = await timed("db.storeMetaEnvelope.buildMetaId", () =>
+                new W3IDBuilder().build(),
+            );
 
-        const cypher: string[] = [
-            `CREATE (m:MetaEnvelope { id: $metaId, ontology: $ontology, acl: $acl, aclBlock: $aclBlock, eName: $eName })`,
-        ];
+            const cypher: string[] = [
+                `CREATE (m:MetaEnvelope { id: $metaId, ontology: $ontology, acl: $acl, aclBlock: $aclBlock, eName: $eName })`,
+            ];
 
-        const envelopeParams: Record<string, any> = {
-            metaId: w3id.id,
-            ontology: meta.ontology,
-            acl: acl,
-            aclBlock: serializeAclBlock(meta._acl),
-            eName: eName,
-        };
+            const envelopeParams: Record<string, any> = {
+                metaId: w3id.id,
+                ontology: meta.ontology,
+                acl: acl,
+                aclBlock: serializeAclBlock(meta._acl),
+                eName: eName,
+            };
 
-        const createdEnvelopes: Envelope<T[keyof T]>[] = [];
-        let counter = 0;
+            const createdEnvelopes: Envelope<T[keyof T]>[] = [];
+            let counter = 0;
 
-        for (const [key, value] of Object.entries(meta.payload)) {
-            const envW3id = await new W3IDBuilder().build();
-            const envelopeId = envW3id.id;
-            const alias = `e${counter}`;
+            for (const [key, value] of Object.entries(meta.payload)) {
+                const envW3id = await new W3IDBuilder().build();
+                const envelopeId = envW3id.id;
+                const alias = `e${counter}`;
 
-            const { value: storedValue, type: valueType } =
-                serializeValue(value);
+                const { value: storedValue, type: valueType } =
+                    serializeValue(value);
 
-            cypher.push(`
+                cypher.push(`
       CREATE (${alias}:Envelope {
         id: $${alias}_id,
         ontology: $${alias}_ontology,
@@ -122,35 +174,50 @@ export class DbService {
       MERGE (m)-[:LINKS_TO]->(${alias})
     `);
 
-            envelopeParams[`${alias}_id`] = envelopeId;
-            envelopeParams[`${alias}_ontology`] = key;
-            envelopeParams[`${alias}_value`] = storedValue;
-            envelopeParams[`${alias}_type`] = valueType;
+                envelopeParams[`${alias}_id`] = envelopeId;
+                envelopeParams[`${alias}_ontology`] = key;
+                envelopeParams[`${alias}_value`] = storedValue;
+                envelopeParams[`${alias}_type`] = valueType;
 
-            createdEnvelopes.push({
-                id: envelopeId,
-                ontology: key,
-                value: value as T[keyof T],
-                valueType,
-            });
+                createdEnvelopes.push({
+                    id: envelopeId,
+                    ontology: key,
+                    value: value as T[keyof T],
+                    valueType,
+                });
 
-            counter++;
-        }
+                counter++;
+            }
 
-        await timed("db.storeMetaEnvelope.runQuery", () =>
-            this.runQueryInternal(cypher.join("\n"), envelopeParams),
-        );
+            if (awareness && !awareness.skipAwareness) {
+                cypher.push(CREATE_AWARENESS_OUTBOX);
+                Object.assign(
+                    envelopeParams,
+                    awarenessOutboxParams(
+                        w3id.id,
+                        meta.ontology,
+                        eName,
+                        meta.payload,
+                        "create",
+                        awareness,
+                    ),
+                );
+            }
 
-        return {
-            metaEnvelope: {
-                id: w3id.id,
-                ontology: meta.ontology,
-                acl: acl,
-                _acl: meta._acl,
-            },
-            envelopes: createdEnvelopes,
-        };
-      });
+            await timed("db.storeMetaEnvelope.runQuery", () =>
+                this.runQueryInternal(cypher.join("\n"), envelopeParams),
+            );
+
+            return {
+                metaEnvelope: {
+                    id: w3id.id,
+                    ontology: meta.ontology,
+                    acl: acl,
+                    _acl: meta._acl,
+                },
+                envelopes: createdEnvelopes,
+            };
+        });
     }
 
     /**
@@ -169,6 +236,7 @@ export class DbService {
         acl: string[],
         eName: string,
         id?: string,
+        awareness?: AwarenessWriteContext,
     ): Promise<StoreMetaEnvelopeResult<T>> {
         if (!eName) {
             throw new Error("eName is required for storing meta-envelopes");
@@ -221,6 +289,21 @@ export class DbService {
             });
 
             counter++;
+        }
+
+        if (awareness && !awareness.skipAwareness) {
+            cypher.push(CREATE_AWARENESS_OUTBOX);
+            Object.assign(
+                envelopeParams,
+                awarenessOutboxParams(
+                    metaId,
+                    meta.ontology,
+                    eName,
+                    meta.payload,
+                    "create",
+                    awareness,
+                ),
+            );
         }
 
         await this.runQueryInternal(cypher.join("\n"), envelopeParams);
@@ -541,17 +624,53 @@ export class DbService {
      * @param id - The ID of the meta-envelope to delete
      * @param eName - The eName identifier for multi-tenant isolation
      */
-    async deleteMetaEnvelope(id: string, eName: string): Promise<void> {
+    async deleteMetaEnvelope(
+        id: string,
+        eName: string,
+        awareness?: AwarenessWriteContext,
+    ): Promise<void> {
         if (!eName) {
             throw new Error("eName is required for deleting meta-envelopes");
         }
 
+        const params: Record<string, unknown> = { id, eName };
+        const outbox = awareness && !awareness.skipAwareness;
+        if (outbox) {
+            Object.assign(
+                params,
+                awarenessOutboxParams(id, "", eName, null, "delete", awareness),
+            );
+        }
         await this.runQueryInternal(
             `
-      MATCH (m:MetaEnvelope { id: $id, eName: $eName })-[:LINKS_TO]->(e:Envelope)
-      DETACH DELETE m, e
+      MATCH (m:MetaEnvelope { id: $id, eName: $eName })
+      OPTIONAL MATCH (m)-[:LINKS_TO]->(e:Envelope)
+      WITH m, collect(e) AS envelopes
+      ${
+          outbox
+              ? `MERGE (s:AwarenessStream { packetId: $awarenessPacketId })
+                 SET s.version = coalesce(s.version, 0) + 1
+                 CREATE (a:AwarenessOutbox {
+                    eventId: $awarenessEventId,
+                    packetId: $awarenessPacketId,
+                    schemaId: m.ontology,
+                    w3id: $awarenessW3id,
+                    evaultPublicKey: $awarenessEvaultPublicKey,
+                    dataJson: $awarenessDataJson,
+                    operation: $awarenessOperation,
+                    requestingPlatform: $awarenessRequestingPlatform,
+                    occurredAt: $awarenessOccurredAt,
+                    streamVersion: s.version,
+                    status: 'pending', attempts: 0,
+                    nextAttemptAt: $awarenessNow, createdAt: $awarenessNow
+                 })
+                 WITH m, envelopes`
+              : ""
+      }
+      FOREACH (node IN envelopes | DETACH DELETE node)
+      DETACH DELETE m
       `,
-            { id, eName },
+            params,
         );
     }
 
@@ -565,6 +684,7 @@ export class DbService {
         envelopeId: string,
         newValue: T,
         eName: string,
+        awareness?: AwarenessWriteContext,
     ): Promise<void> {
         if (!eName) {
             throw new Error("eName is required for updating envelope values");
@@ -573,14 +693,44 @@ export class DbService {
         const { value: storedValue, type: valueType } =
             serializeValue(newValue);
 
-        // First verify the envelope belongs to a meta-envelope with the correct eName
-        await this.runQueryInternal(
-            `
-      MATCH (m:MetaEnvelope { eName: $eName })-[:LINKS_TO]->(e:Envelope { id: $envelopeId })
-      SET e.value = $newValue, e.valueType = $valueType
-      `,
-            { envelopeId, newValue: storedValue, valueType, eName },
-        );
+        const session = this.driver.session();
+        try {
+            await session.executeWrite(async (tx) => {
+                const result = await tx.run(
+                    `
+                    MATCH (m:MetaEnvelope { eName: $eName })-[:LINKS_TO]->(e:Envelope { id: $envelopeId })
+                    SET e.value = $newValue, e.valueType = $valueType
+                    WITH m
+                    MATCH (m)-[:LINKS_TO]->(allEnvelope:Envelope)
+                    RETURN m.id AS id, m.ontology AS ontology, collect(allEnvelope) AS envelopes
+                    `,
+                    { envelopeId, newValue: storedValue, valueType, eName },
+                );
+                const record = result.records[0];
+                if (!record || !awareness || awareness.skipAwareness) return;
+                const payload: Record<string, unknown> = {};
+                for (const node of record.get("envelopes")) {
+                    payload[node.properties.ontology] = deserializeValue(
+                        node.properties.value,
+                        node.properties.valueType,
+                    );
+                }
+                await tx.run(
+                    `MATCH (m:MetaEnvelope { id: $awarenessPacketId, eName: $awarenessW3id })
+                     ${CREATE_AWARENESS_OUTBOX}`,
+                    awarenessOutboxParams(
+                        record.get("id"),
+                        record.get("ontology"),
+                        eName,
+                        payload,
+                        "update",
+                        awareness,
+                    ),
+                );
+            });
+        } finally {
+            await session.close();
+        }
     }
 
     /**
@@ -598,22 +748,25 @@ export class DbService {
         meta: Omit<MetaEnvelope<T>, "id">,
         acl: string[],
         eName: string,
+        awareness?: AwarenessWriteContext,
     ): Promise<StoreMetaEnvelopeResult<T>> {
-      return timed("db.updateMetaEnvelopeById", async () => {
-        if (!eName) {
-            throw new Error("eName is required for updating meta-envelopes");
-        }
+        return timed("db.updateMetaEnvelopeById", async () => {
+            if (!eName) {
+                throw new Error(
+                    "eName is required for updating meta-envelopes",
+                );
+            }
 
-        // The whole read-modify-write cycle runs inside a single Neo4j write
-        // transaction. The opening MERGE+SET acquires a write lock on the
-        // MetaEnvelope node, so concurrent updates to the same id serialize
-        // here — without this, request B's "delete stale envelopes" step
-        // could clobber fields that request A just wrote.
-        const session = this.driver.session();
-        try {
-            return await session.executeWrite(async (tx) => {
-                const findResult = await tx.run(
-                    `
+            // The whole read-modify-write cycle runs inside a single Neo4j write
+            // transaction. The opening MERGE+SET acquires a write lock on the
+            // MetaEnvelope node, so concurrent updates to the same id serialize
+            // here — without this, request B's "delete stale envelopes" step
+            // could clobber fields that request A just wrote.
+            const session = this.driver.session();
+            try {
+                return await session.executeWrite(async (tx) => {
+                    const findResult = await tx.run(
+                        `
                     MERGE (m:MetaEnvelope { id: $id, eName: $eName })
                     ON CREATE SET m.ontology = $ontology, m.acl = $acl, m.aclBlock = $aclBlock
                     ON MATCH SET m.ontology = $ontology, m.acl = $acl, m.aclBlock = coalesce($aclBlock, m.aclBlock)
@@ -621,149 +774,164 @@ export class DbService {
                     OPTIONAL MATCH (m)-[:LINKS_TO]->(e:Envelope)
                     RETURN collect(e) AS envelopes
                     `,
-                    {
-                        id,
-                        eName,
-                        ontology: meta.ontology,
-                        acl,
-                        aclBlock: serializeAclBlock(meta._acl),
-                    },
-                );
+                        {
+                            id,
+                            eName,
+                            ontology: meta.ontology,
+                            acl,
+                            aclBlock: serializeAclBlock(meta._acl),
+                        },
+                    );
 
-                const envelopeNodes: any[] = (
-                    findResult.records[0]?.get("envelopes") ?? []
-                ).filter((n: any) => n !== null && n !== undefined);
+                    const envelopeNodes: any[] = (
+                        findResult.records[0]?.get("envelopes") ?? []
+                    ).filter((n: any) => n !== null && n !== undefined);
 
-                let workingEnvelopes: Envelope<T[keyof T]>[] =
-                    envelopeNodes.map((node: any) => ({
-                        id: node.properties.id,
-                        ontology: node.properties.ontology,
-                        value: deserializeValue(
-                            node.properties.value,
-                            node.properties.valueType,
-                        ) as T[keyof T],
-                        valueType: node.properties.valueType,
-                    }));
+                    let workingEnvelopes: Envelope<T[keyof T]>[] =
+                        envelopeNodes.map((node: any) => ({
+                            id: node.properties.id,
+                            ontology: node.properties.ontology,
+                            value: deserializeValue(
+                                node.properties.value,
+                                node.properties.valueType,
+                            ) as T[keyof T],
+                            valueType: node.properties.valueType,
+                        }));
 
-                // Deduplicate envelopes — if multiple Envelope nodes share the
-                // same ontology, keep the first and delete the rest.
-                const seen = new Map<string, string>();
-                const dupsToDelete: string[] = [];
-                for (const env of workingEnvelopes) {
-                    if (seen.has(env.ontology)) {
-                        dupsToDelete.push(env.id);
-                    } else {
-                        seen.set(env.ontology, env.id);
+                    // Deduplicate envelopes — if multiple Envelope nodes share the
+                    // same ontology, keep the first and delete the rest.
+                    const seen = new Map<string, string>();
+                    const dupsToDelete: string[] = [];
+                    for (const env of workingEnvelopes) {
+                        if (seen.has(env.ontology)) {
+                            dupsToDelete.push(env.id);
+                        } else {
+                            seen.set(env.ontology, env.id);
+                        }
                     }
-                }
-                if (dupsToDelete.length > 0) {
-                    console.warn(
-                        `[eVault] Cleaning ${dupsToDelete.length} duplicate envelope(s) for MetaEnvelope ${id}`,
-                    );
-                    await tx.run(
-                        `MATCH (e:Envelope) WHERE e.id IN $ids DETACH DELETE e`,
-                        { ids: dupsToDelete },
-                    );
-                    workingEnvelopes = workingEnvelopes.filter(
-                        (e) => !dupsToDelete.includes(e.id),
-                    );
-                }
-
-                const createdEnvelopes: Envelope<T[keyof T]>[] = [];
-
-                for (const [key, value] of Object.entries(meta.payload)) {
-                    const { value: storedValue, type: valueType } =
-                        serializeValue(value);
-                    const existingEnvelope = workingEnvelopes.find(
-                        (e) => e.ontology === key,
-                    );
-
-                    if (existingEnvelope) {
+                    if (dupsToDelete.length > 0) {
+                        console.warn(
+                            `[eVault] Cleaning ${dupsToDelete.length} duplicate envelope(s) for MetaEnvelope ${id}`,
+                        );
                         await tx.run(
-                            `
+                            `MATCH (e:Envelope) WHERE e.id IN $ids DETACH DELETE e`,
+                            { ids: dupsToDelete },
+                        );
+                        workingEnvelopes = workingEnvelopes.filter(
+                            (e) => !dupsToDelete.includes(e.id),
+                        );
+                    }
+
+                    const createdEnvelopes: Envelope<T[keyof T]>[] = [];
+
+                    for (const [key, value] of Object.entries(meta.payload)) {
+                        const { value: storedValue, type: valueType } =
+                            serializeValue(value);
+                        const existingEnvelope = workingEnvelopes.find(
+                            (e) => e.ontology === key,
+                        );
+
+                        if (existingEnvelope) {
+                            await tx.run(
+                                `
                             MATCH (e:Envelope { id: $envelopeId })
                             SET e.value = $newValue, e.valueType = $valueType
                             `,
-                            {
-                                envelopeId: existingEnvelope.id,
-                                newValue: storedValue,
+                                {
+                                    envelopeId: existingEnvelope.id,
+                                    newValue: storedValue,
+                                    valueType,
+                                },
+                            );
+                            createdEnvelopes.push({
+                                id: existingEnvelope.id,
+                                ontology: key,
+                                value: value as T[keyof T],
                                 valueType,
-                            },
-                        );
-                        createdEnvelopes.push({
-                            id: existingEnvelope.id,
-                            ontology: key,
-                            value: value as T[keyof T],
-                            valueType,
-                        });
-                    } else {
-                        const envW3id = await new W3IDBuilder().build();
-                        const envelopeId = envW3id.id;
-                        await tx.run(
-                            `
+                            });
+                        } else {
+                            const envW3id = await new W3IDBuilder().build();
+                            const envelopeId = envW3id.id;
+                            await tx.run(
+                                `
                             MATCH (m:MetaEnvelope { id: $metaId, eName: $eName })
                             MERGE (m)-[:LINKS_TO]->(e:Envelope { ontology: $ontology })
                             ON CREATE SET e.id = $envelopeId, e.value = $newValue, e.valueType = $valueType
                             ON MATCH SET e.value = $newValue, e.valueType = $valueType
                             `,
-                            {
-                                metaId: id,
-                                eName,
-                                envelopeId,
+                                {
+                                    metaId: id,
+                                    eName,
+                                    envelopeId,
+                                    ontology: key,
+                                    newValue: storedValue,
+                                    valueType,
+                                },
+                            );
+                            createdEnvelopes.push({
+                                id: envelopeId,
                                 ontology: key,
-                                newValue: storedValue,
+                                value: value as T[keyof T],
                                 valueType,
-                            },
-                        );
-                        createdEnvelopes.push({
-                            id: envelopeId,
-                            ontology: key,
-                            value: value as T[keyof T],
-                            valueType,
-                        });
+                            });
+                        }
                     }
-                }
 
-                // PATCH semantics: fields absent from the new payload are
-                // left alone. Callers (notably web3-adapter) project partial
-                // platform updates through toGlobal — if the platform only
-                // touched one column, only one ontology reaches us, and
-                // deleting "stale" envelopes here would clobber every other
-                // field on the meta-envelope (e.g. wiping participantIds when
-                // a read-receipt update arrives).
+                    // PATCH semantics: fields absent from the new payload are
+                    // left alone. Callers (notably web3-adapter) project partial
+                    // platform updates through toGlobal — if the platform only
+                    // touched one column, only one ontology reaches us, and
+                    // deleting "stale" envelopes here would clobber every other
+                    // field on the meta-envelope (e.g. wiping participantIds when
+                    // a read-receipt update arrives).
 
-                // Build the full post-write state by merging the pre-write
-                // envelope set with everything we just wrote. Used by
-                // resolvers to fan out webhooks containing the complete
-                // merged state — receivers overwrite their local row with
-                // whatever the webhook carries, so a partial diff would
-                // make them lose every untouched field.
-                const mergedPayload: Record<string, any> = {};
-                for (const env of workingEnvelopes) {
-                    mergedPayload[env.ontology] = env.value;
-                }
-                for (const env of createdEnvelopes) {
-                    mergedPayload[env.ontology] = env.value;
-                }
+                    // Build the full post-write state by merging the pre-write
+                    // envelope set with everything we just wrote. Used by
+                    // resolvers to fan out webhooks containing the complete
+                    // merged state — receivers overwrite their local row with
+                    // whatever the webhook carries, so a partial diff would
+                    // make them lose every untouched field.
+                    const mergedPayload: Record<string, any> = {};
+                    for (const env of workingEnvelopes) {
+                        mergedPayload[env.ontology] = env.value;
+                    }
+                    for (const env of createdEnvelopes) {
+                        mergedPayload[env.ontology] = env.value;
+                    }
 
-                return {
-                    metaEnvelope: {
-                        id,
-                        ontology: meta.ontology,
-                        acl,
-                        _acl: meta._acl,
-                    },
-                    envelopes: createdEnvelopes,
-                    mergedPayload,
-                };
-            });
-        } catch (error) {
-            console.error("Error in updateMetaEnvelopeById:", error);
-            throw error;
-        } finally {
-            await session.close();
-        }
-      });
+                    if (awareness && !awareness.skipAwareness) {
+                        await tx.run(
+                            `MATCH (m:MetaEnvelope { id: $awarenessPacketId, eName: $awarenessW3id })
+                         ${CREATE_AWARENESS_OUTBOX}`,
+                            awarenessOutboxParams(
+                                id,
+                                meta.ontology,
+                                eName,
+                                mergedPayload,
+                                "update",
+                                awareness,
+                            ),
+                        );
+                    }
+
+                    return {
+                        metaEnvelope: {
+                            id,
+                            ontology: meta.ontology,
+                            acl,
+                            _acl: meta._acl,
+                        },
+                        envelopes: createdEnvelopes,
+                        mergedPayload,
+                    };
+                });
+            } catch (error) {
+                console.error("Error in updateMetaEnvelopeById:", error);
+                throw error;
+            } finally {
+                await session.close();
+            }
+        });
     }
 
     /**

@@ -5,13 +5,15 @@ import {
     Permission,
     resolveAclBlock,
 } from "../acl";
-import axios from "axios";
 import type { GraphQLSchema } from "graphql";
 import { createSchema, createYoga } from "graphql-yoga";
 import { getJWTHeader } from "w3id";
-import { BindingDocumentService, BINDING_DOCUMENT_ONTOLOGY } from "../../services/BindingDocumentService";
+import {
+    BindingDocumentService,
+    BINDING_DOCUMENT_ONTOLOGY,
+} from "../../services/BindingDocumentService";
 import { hashAnswer } from "../utils/security-answer";
-import type { DbService } from "../db/db.service";
+import type { AwarenessWriteContext, DbService } from "../db/db.service";
 import {
     computeEnvelopeHash,
     computeEnvelopeHashForDelete,
@@ -39,7 +41,8 @@ export class GraphQLServer {
     private evaultPublicKey: string | null;
     private evaultW3ID: string | null;
     private evaultInstance: any; // Reference to the eVault instance
-    private messageNotificationService: MessageNotificationService | null = null;
+    private messageNotificationService: MessageNotificationService | null =
+        null;
     private securityQuestionService: SecurityQuestionService | null = null;
 
     constructor(
@@ -87,81 +90,16 @@ export class GraphQLServer {
         return this.securityQuestionService;
     }
 
-    /**
-     * Forwards an awareness packet to Awareness as a Service (AaaS).
-     *
-     * AaaS has replaced eVault's built-in webhook fanout: instead of querying
-     * the registry and POSTing to every platform here, we make a single POST
-     * to AaaS, which owns subscription matching, retry/dead-letter delivery and
-     * the catch-all fanout that preserves the previous behaviour.
-     *
-     * @param webhookPayload - The awareness packet { id, w3id, evaultPublicKey,
-     *                         data, schemaId }
-     * @param requestingPlatform - The platform that triggered the change, if
-     *                         known. AaaS uses it to skip delivering the packet
-     *                         back to its origin (prevents webhook ping-pong).
-     */
-    private async notifyAwareness(
-        webhookPayload: any,
-        requestingPlatform: string | null = null,
-    ): Promise<void> {
-        // One log line per dispatch — this remains the source of truth for
-        // "what eVault claims it sent"; correlate against AaaS ingest logs.
-        try {
-            const payloadJson = JSON.stringify(webhookPayload);
-            console.log(
-                `[webhook] id=${webhookPayload?.id} schemaId=${webhookPayload?.schemaId} w3id=${webhookPayload?.w3id} payload=${payloadJson}`,
-            );
-        } catch {
-            console.log(
-                `[webhook] id=${webhookPayload?.id} schemaId=${webhookPayload?.schemaId} payload=<unserializable>`,
-            );
-        }
-
-        if (!process.env.AWARENESS_SERVICE_URL) {
-            console.log("[webhook] AWARENESS_SERVICE_URL not set, skipping");
-            return;
-        }
-
-        const ingestUrl = new URL(
-            "/ingest",
-            process.env.AWARENESS_SERVICE_URL,
-        ).toString();
-        const maxAttempts = 3;
-
-        for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-            try {
-                const response = await axios.post(
-                    ingestUrl,
-                    { ...webhookPayload, requestingPlatform },
-                    {
-                        headers: {
-                            "Content-Type": "application/json",
-                            "x-ingest-secret":
-                                process.env.AWARENESS_INGEST_SECRET ?? "",
-                        },
-                        timeout: 5000,
-                    },
-                );
-                console.log(
-                    `[webhook] AaaS accepted id=${webhookPayload?.id} status=${response.status} attempt=${attempt}`,
-                );
-                return;
-            } catch (error: any) {
-                const status = error?.response?.status ?? "no-response";
-                const code = error?.code ?? "unknown";
-                const message = error?.message ?? "unknown error";
-                console.error(
-                    `[webhook] AaaS ingest failed id=${webhookPayload?.id} status=${status} code=${code} attempt=${attempt}/${maxAttempts}: ${message}`,
-                );
-
-                if (attempt < maxAttempts) {
-                    await new Promise((resolve) =>
-                        setTimeout(resolve, 250 * 2 ** (attempt - 1)),
-                    );
-                }
-            }
-        }
+    /** Metadata persisted with the mutation's transactional outbox event. */
+    private awarenessContext(
+        context: VaultContext,
+        skipAwareness = false,
+    ): AwarenessWriteContext {
+        return {
+            evaultPublicKey: this.evaultPublicKey,
+            requestingPlatform: context.tokenPayload?.platform ?? null,
+            skipAwareness,
+        };
     }
 
     /**
@@ -406,6 +344,7 @@ export class GraphQLServer {
                                 },
                                 input.acl,
                                 context.eName,
+                                this.awarenessContext(context),
                             );
 
                             // Build parsed from actual written envelopes, not input
@@ -423,26 +362,18 @@ export class GraphQLServer {
                                 parsed: parsedFromEnvelopes,
                             };
 
-                            // Forward the awareness packet for create operation
-                            const webhookPayload = {
-                                id: result.metaEnvelope.id,
-                                w3id: context.eName,
-                                evaultPublicKey: this.evaultPublicKey,
-                                data: input.payload,
-                                schemaId: input.ontology,
-                                operation: "create" as const,
-                            };
-
-                            // Fire-and-forget ingest to AaaS
-                            this.notifyAwareness(
-                                webhookPayload,
-                                context.tokenPayload?.platform || null,
-                            );
-
                             // Send push notifications for new messages
-                            console.log(`[NOTIF] createMetaEnvelope ontology: "${input.ontology}"`);
-                            if (MessageNotificationService.isMessageSchema(input.ontology)) {
-                                console.log(`[NOTIF] Message schema detected, triggering notification for envelope ${result.metaEnvelope.id}`);
+                            console.log(
+                                `[NOTIF] createMetaEnvelope ontology: "${input.ontology}"`,
+                            );
+                            if (
+                                MessageNotificationService.isMessageSchema(
+                                    input.ontology,
+                                )
+                            ) {
+                                console.log(
+                                    `[NOTIF] Message schema detected, triggering notification for envelope ${result.metaEnvelope.id}`,
+                                );
                                 this.getMessageNotificationService()
                                     .notifyParticipants({
                                         messageGlobalId: result.metaEnvelope.id,
@@ -451,7 +382,10 @@ export class GraphQLServer {
                                         acl: input.acl,
                                     })
                                     .catch((err) =>
-                                        console.error("Message notification failed:", err),
+                                        console.error(
+                                            "Message notification failed:",
+                                            err,
+                                        ),
                                     );
                             }
 
@@ -547,6 +481,7 @@ export class GraphQLServer {
                                 },
                                 input.acl,
                                 context.eName,
+                                this.awarenessContext(context),
                             );
 
                             // Build parsed from actual written envelopes, not input
@@ -563,29 +498,6 @@ export class GraphQLServer {
                                 envelopes: result.envelopes,
                                 parsed: parsedFromEnvelopes,
                             };
-
-                            // Deliver webhooks for update operation.
-                            // Use the FULL post-write state, not input.payload —
-                            // input.payload is the partial diff the caller sent,
-                            // and receivers overwrite their local row with
-                            // whatever the webhook carries. Sending the diff
-                            // would make the receiver lose every untouched
-                            // field (e.g. a read-receipt update would wipe
-                            // participantIds on the receiver side).
-                            const webhookPayload = {
-                                id,
-                                w3id: context.eName,
-                                evaultPublicKey: this.evaultPublicKey,
-                                data: result.mergedPayload ?? input.payload,
-                                schemaId: input.ontology,
-                                operation: "update" as const,
-                            };
-
-                            // Fire-and-forget ingest to AaaS
-                            this.notifyAwareness(
-                                webhookPayload,
-                                context.tokenPayload?.platform || null,
-                            );
 
                             // Log envelope operation best-effort
                             const platform =
@@ -676,7 +588,11 @@ export class GraphQLServer {
                                 };
                             }
 
-                            await this.db.deleteMetaEnvelope(id, context.eName);
+                            await this.db.deleteMetaEnvelope(
+                                id,
+                                context.eName,
+                                this.awarenessContext(context),
+                            );
 
                             // Log after delete succeeds, best-effort
                             const platform =
@@ -765,7 +681,7 @@ export class GraphQLServer {
                         const isEmoverMigration =
                             skipWebhooks &&
                             context.tokenPayload?.platform ===
-                            process.env.EMOVER_API_URL;
+                                process.env.EMOVER_API_URL;
 
                         // Only allow webhook skipping for authorized migration platforms
                         const shouldSkipWebhooks = isEmoverMigration;
@@ -791,6 +707,10 @@ export class GraphQLServer {
                                         input.acl,
                                         context.eName,
                                         input.id, // Preserve ID if provided
+                                        this.awarenessContext(
+                                            context,
+                                            shouldSkipWebhooks,
+                                        ),
                                     );
 
                                 results.push({
@@ -798,26 +718,6 @@ export class GraphQLServer {
                                     success: true,
                                 });
                                 successCount++;
-
-                                // Forward awareness packet if not skipping
-                                if (!shouldSkipWebhooks) {
-                                    const webhookPayload = {
-                                        id: result.metaEnvelope.id,
-                                        w3id: context.eName,
-                                        evaultPublicKey: this.evaultPublicKey,
-                                        data: input.payload,
-                                        schemaId: input.ontology,
-                                        operation: "create" as const,
-                                    };
-
-                                    // Fire-and-forget ingest to AaaS
-                                    this.notifyAwareness(
-                                        webhookPayload,
-                                        context.tokenPayload?.platform || null,
-                                    ).catch((err) => {
-                                        console.error(`[WEBHOOK] AaaS ingest failed for bulk-create envelope ${result.metaEnvelope.id}:`, err);
-                                    });
-                                }
 
                                 // Log envelope operation best-effort
                                 const platform =
@@ -947,6 +847,7 @@ export class GraphQLServer {
                                         ownerSignature: input.ownerSignature,
                                     },
                                     context.eName,
+                                    this.awarenessContext(context),
                                 );
 
                             const metaEnvelopeId = result.id;
@@ -954,9 +855,12 @@ export class GraphQLServer {
                                 context.tokenPayload?.platform ?? null;
                             const envelopeHash = computeEnvelopeHash({
                                 id: metaEnvelopeId,
-                                ontology:
-                                    BINDING_DOCUMENT_ONTOLOGY,
-                                payload: result.bindingDocument as unknown as Record<string, unknown>,
+                                ontology: BINDING_DOCUMENT_ONTOLOGY,
+                                payload:
+                                    result.bindingDocument as unknown as Record<
+                                        string,
+                                        unknown
+                                    >,
                             });
 
                             this.db
@@ -967,8 +871,7 @@ export class GraphQLServer {
                                     operation: "create",
                                     platform,
                                     timestamp: new Date().toISOString(),
-                                    ontology:
-                                        BINDING_DOCUMENT_ONTOLOGY,
+                                    ontology: BINDING_DOCUMENT_ONTOLOGY,
                                 })
                                 .catch((err) =>
                                     console.error(
@@ -976,20 +879,6 @@ export class GraphQLServer {
                                         err,
                                     ),
                                 );
-
-                            const webhookPayload = {
-                                id: metaEnvelopeId,
-                                w3id: context.eName,
-                                evaultPublicKey: this.evaultPublicKey,
-                                data: result.bindingDocument,
-                                schemaId:
-                                    BINDING_DOCUMENT_ONTOLOGY,
-                                operation: "create" as const,
-                            };
-                            this.notifyAwareness(
-                                webhookPayload,
-                                context.tokenPayload?.platform || null,
-                            );
 
                             return {
                                 bindingDocument: result.bindingDocument,
@@ -1058,15 +947,18 @@ export class GraphQLServer {
                                         signature: input.signature,
                                     },
                                     context.eName,
+                                    this.awarenessContext(context),
                                 );
 
                             const platform =
                                 context.tokenPayload?.platform ?? null;
                             const envelopeHash = computeEnvelopeHash({
                                 id: input.bindingDocumentId,
-                                ontology:
-                                    BINDING_DOCUMENT_ONTOLOGY,
-                                payload: result as unknown as Record<string, unknown>,
+                                ontology: BINDING_DOCUMENT_ONTOLOGY,
+                                payload: result as unknown as Record<
+                                    string,
+                                    unknown
+                                >,
                             });
 
                             this.db
@@ -1077,8 +969,7 @@ export class GraphQLServer {
                                     operation: "update",
                                     platform,
                                     timestamp: new Date().toISOString(),
-                                    ontology:
-                                        BINDING_DOCUMENT_ONTOLOGY,
+                                    ontology: BINDING_DOCUMENT_ONTOLOGY,
                                 })
                                 .catch((err) =>
                                     console.error(
@@ -1086,20 +977,6 @@ export class GraphQLServer {
                                         err,
                                     ),
                                 );
-
-                            const webhookPayload = {
-                                id: input.bindingDocumentId,
-                                w3id: context.eName,
-                                evaultPublicKey: this.evaultPublicKey,
-                                data: result,
-                                schemaId:
-                                    BINDING_DOCUMENT_ONTOLOGY,
-                                operation: "update" as const,
-                            };
-                            this.notifyAwareness(
-                                webhookPayload,
-                                context.tokenPayload?.platform || null,
-                            );
 
                             return {
                                 bindingDocument: result,
@@ -1193,9 +1070,8 @@ export class GraphQLServer {
                         }
 
                         try {
-                            const result = await this
-                                .getSecurityQuestionService()
-                                .validate(
+                            const result =
+                                await this.getSecurityQuestionService().validate(
                                     context.eName,
                                     input.metaEnvelopeId,
                                     input.candidate,
@@ -1264,6 +1140,7 @@ export class GraphQLServer {
                             },
                             input.acl,
                             context.eName,
+                            this.awarenessContext(context),
                         );
 
                         // Add parsed field to metaEnvelope for GraphQL response
@@ -1272,28 +1149,18 @@ export class GraphQLServer {
                             parsed: input.payload,
                         };
 
-                        // Forward the awareness packet for create operation.
-                        // The requesting platform is passed so AaaS can skip
-                        // delivering the packet back to its origin — the same
-                        // ping-pong guard the old fanout enforced here.
-                        const webhookPayload = {
-                            id: result.metaEnvelope.id,
-                            w3id: context.eName,
-                            evaultPublicKey: this.evaultPublicKey,
-                            data: input.payload,
-                            schemaId: input.ontology,
-                            operation: "create" as const,
-                        };
-
-                        this.notifyAwareness(
-                            webhookPayload,
-                            context.tokenPayload?.platform || null,
-                        );
-
                         // Send push notifications for new messages
-                        console.log(`[NOTIF] storeMetaEnvelope ontology: "${input.ontology}"`);
-                        if (MessageNotificationService.isMessageSchema(input.ontology)) {
-                            console.log(`[NOTIF] Message schema detected in storeMetaEnvelope, triggering notification for envelope ${result.metaEnvelope.id}`);
+                        console.log(
+                            `[NOTIF] storeMetaEnvelope ontology: "${input.ontology}"`,
+                        );
+                        if (
+                            MessageNotificationService.isMessageSchema(
+                                input.ontology,
+                            )
+                        ) {
+                            console.log(
+                                `[NOTIF] Message schema detected in storeMetaEnvelope, triggering notification for envelope ${result.metaEnvelope.id}`,
+                            );
                             this.getMessageNotificationService()
                                 .notifyParticipants({
                                     messageGlobalId: result.metaEnvelope.id,
@@ -1302,7 +1169,10 @@ export class GraphQLServer {
                                     acl: input.acl,
                                 })
                                 .catch((err) =>
-                                    console.error("[NOTIF] Message notification failed:", err),
+                                    console.error(
+                                        "[NOTIF] Message notification failed:",
+                                        err,
+                                    ),
                                 );
                         }
 
@@ -1398,7 +1268,8 @@ export class GraphQLServer {
                                 errors: [
                                     {
                                         field: "content",
-                                        message: "File content is empty or not valid base64",
+                                        message:
+                                            "File content is empty or not valid base64",
                                         code: "INVALID_CONTENT",
                                     },
                                 ],
@@ -1409,7 +1280,9 @@ export class GraphQLServer {
 
                         const MAX_FILE_BYTES = 250 * 1024 * 1024; // 250 MB
                         if (buffer.length > MAX_FILE_BYTES) {
-                            const maxMb = Math.round(MAX_FILE_BYTES / (1024 * 1024));
+                            const maxMb = Math.round(
+                                MAX_FILE_BYTES / (1024 * 1024),
+                            );
                             return {
                                 errors: [
                                     {
@@ -1458,35 +1331,7 @@ export class GraphQLServer {
                                 },
                                 input.acl,
                                 context.eName,
-                            );
-
-                            // Forward the awareness packet, exactly as every
-                            // other write path does. Without this an uploaded
-                            // blob is invisible to AaaS, which forces consumers
-                            // to mirror it as a second envelope under a
-                            // different ontology just to observe the upload.
-                            //
-                            // `data` is the stored payload verbatim so the
-                            // packet matches what a consumer reads back via
-                            // metaEnvelope(id) or GET /api/packets.
-                            //
-                            // Fire-and-forget: the envelope is already
-                            // committed, so an AaaS outage must not fail the
-                            // upload. Awaiting here would drop into the catch
-                            // block below and delete a blob that is still
-                            // referenced by a live envelope.
-                            const webhookPayload = {
-                                id: result.metaEnvelope.id,
-                                w3id: context.eName,
-                                evaultPublicKey: this.evaultPublicKey,
-                                data: payload,
-                                schemaId: FILE_SCHEMA_ID,
-                                operation: "create" as const,
-                            };
-
-                            this.notifyAwareness(
-                                webhookPayload,
-                                context.tokenPayload?.platform || null,
+                                this.awarenessContext(context),
                             );
 
                             // Log envelope operation best-effort (do not fail mutation)
@@ -1582,26 +1427,7 @@ export class GraphQLServer {
                                 },
                                 input.acl,
                                 context.eName,
-                            );
-
-                            // Deliver webhooks with the FULL post-write state.
-                            // See the long comment on the new updateMetaEnvelope
-                            // resolver above — sending input.payload (the
-                            // partial diff) would make receivers clobber their
-                            // own untouched fields.
-                            const webhookPayload = {
-                                id: id,
-                                w3id: context.eName,
-                                evaultPublicKey: this.evaultPublicKey,
-                                data: result.mergedPayload ?? input.payload,
-                                schemaId: input.ontology,
-                                operation: "update" as const,
-                            };
-
-                            // Fire-and-forget ingest to AaaS
-                            this.notifyAwareness(
-                                webhookPayload,
-                                context.tokenPayload?.platform || null,
+                                this.awarenessContext(context),
                             );
 
                             // Log envelope operation best-effort (do not fail mutation)
@@ -1653,7 +1479,11 @@ export class GraphQLServer {
                             id,
                             context.eName,
                         );
-                        await this.db.deleteMetaEnvelope(id, context.eName);
+                        await this.db.deleteMetaEnvelope(
+                            id,
+                            context.eName,
+                            this.awarenessContext(context),
+                        );
                         // Log after delete succeeds, best-effort
                         const platform = context.tokenPayload?.platform ?? null;
                         const envelopeHash = computeEnvelopeHashForDelete(id);
@@ -1698,6 +1528,7 @@ export class GraphQLServer {
                             envelopeId,
                             newValue,
                             context.eName,
+                            this.awarenessContext(context),
                         );
                         if (metaInfo) {
                             const platform =

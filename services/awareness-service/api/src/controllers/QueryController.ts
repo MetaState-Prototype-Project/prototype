@@ -2,6 +2,7 @@ import { Router } from "express";
 import { Brackets, type SelectQueryBuilder } from "typeorm";
 import { AppDataSource } from "../database/data-source";
 import { Packet } from "../database/entities/Packet";
+import { AwarenessEvent } from "../database/entities/AwarenessEvent";
 import { consumerAuth } from "../middleware/consumerAuth";
 import { decodeCursor, encodeCursor } from "../utils/cursor";
 
@@ -24,9 +25,7 @@ export function queryRouter(): Router {
             .filter(Boolean);
         const evault =
             typeof req.query.evault === "string" ? req.query.evault : null;
-        const from = req.query.from
-            ? new Date(String(req.query.from))
-            : null;
+        const from = req.query.from ? new Date(String(req.query.from)) : null;
         const to = req.query.to ? new Date(String(req.query.to)) : null;
 
         let limit = parseInt(String(req.query.limit ?? DEFAULT_LIMIT), 10);
@@ -44,10 +43,11 @@ export function queryRouter(): Router {
 
         // Applies the ontology / eVault / time-range filters (everything
         // except the pagination cursor) to a fresh query builder.
-        const withFilters = (): SelectQueryBuilder<Packet> => {
-            const qb = AppDataSource.getRepository(Packet).createQueryBuilder(
-                "p",
-            );
+        const withFilters = (): SelectQueryBuilder<AwarenessEvent> => {
+            const qb =
+                AppDataSource.getRepository(AwarenessEvent).createQueryBuilder(
+                    "p",
+                );
             if (ontologies.length > 0) {
                 qb.andWhere("p.ontology IN (:...ontologies)", { ontologies });
             }
@@ -69,7 +69,7 @@ export function queryRouter(): Router {
         // whether more pages follow.
         const qb = withFilters()
             .orderBy("p.receivedAt", "ASC")
-            .addOrderBy("p.id", "ASC")
+            .addOrderBy("p.eventId", "ASC")
             .take(limit + 1);
 
         if (typeof req.query.cursor === "string" && req.query.cursor) {
@@ -82,7 +82,7 @@ export function queryRouter(): Router {
                     w.where("p.receivedAt > :cReceived", {
                         cReceived: cursor.receivedAt,
                     }).orWhere(
-                        "(p.receivedAt = :cReceived AND p.id > :cId)",
+                        "(p.receivedAt = :cReceived AND p.eventId > :cId)",
                         { cReceived: cursor.receivedAt, cId: cursor.id },
                     );
                 }),
@@ -91,8 +91,20 @@ export function queryRouter(): Router {
 
         const rows = await qb.getMany();
         const hasMore = rows.length > limit;
-        const packets = hasMore ? rows.slice(0, limit) : rows;
-        const last = packets[packets.length - 1];
+        const events = hasMore ? rows.slice(0, limit) : rows;
+        const packets = events.map((event) => ({
+            eventId: event.eventId,
+            id: event.packetId,
+            ontology: event.ontology,
+            evaultPublicKey: event.evaultPublicKey,
+            w3id: event.w3id,
+            data: event.data,
+            operation: event.operation,
+            streamVersion: event.streamVersion,
+            occurredAt: event.occurredAt,
+            receivedAt: event.receivedAt,
+        }));
+        const last = events[events.length - 1];
 
         return res.json({
             packets,
@@ -105,7 +117,7 @@ export function queryRouter(): Router {
                 hasMore && last
                     ? encodeCursor({
                           receivedAt: last.receivedAt.toISOString(),
-                          id: last.id,
+                          id: last.eventId,
                       })
                     : null,
         });
@@ -118,7 +130,20 @@ export function queryRouter(): Router {
             where: { id: req.params.id },
         });
         if (!packet) return res.status(404).json({ error: "not found" });
-        return res.json({ packet });
+        const latestEvent = await AppDataSource.getRepository(AwarenessEvent)
+            .createQueryBuilder("e")
+            .where("e.packetId = :packetId", { packetId: req.params.id })
+            .orderBy("e.receivedAt", "DESC")
+            .addOrderBy("e.eventId", "DESC")
+            .getOne();
+        return res.json({
+            packet: {
+                ...packet,
+                eventId: latestEvent?.eventId ?? null,
+                streamVersion: latestEvent?.streamVersion ?? null,
+                occurredAt: latestEvent?.occurredAt ?? packet.receivedAt,
+            },
+        });
     });
 
     return router;

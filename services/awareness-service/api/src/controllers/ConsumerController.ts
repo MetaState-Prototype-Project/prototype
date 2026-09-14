@@ -55,10 +55,7 @@ export function consumerRouter(): Router {
     });
 
     router.delete("/api/me/api-keys/:id", async (req, res) => {
-        const ok = await apiKeyService.revoke(
-            req.params.id,
-            req.consumer!.id,
-        );
+        const ok = await apiKeyService.revoke(req.params.id, req.consumer!.id);
         if (!ok) return res.status(404).json({ error: "not found" });
         res.json({ ok: true });
     });
@@ -78,6 +75,7 @@ export function consumerRouter(): Router {
                 "d.id",
                 "d.subscriptionId",
                 "d.packetId",
+                "d.eventId",
                 "d.status",
                 "d.attempts",
                 "d.nextAttemptAt",
