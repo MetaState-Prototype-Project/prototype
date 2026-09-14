@@ -9,8 +9,8 @@ import {
 export type PacketOperation = "create" | "update" | "delete";
 
 /**
- * A single awareness packet ingested from an eVault. `id` is the MetaEnvelope
- * id supplied by evault-core, so re-ingestion of the same envelope upserts.
+ * Latest-state projection for one MetaEnvelope. Immutable event history lives
+ * in AwarenessEvent; `id` is the source MetaEnvelope id and therefore upserts.
  */
 @Entity("packets")
 @Index("idx_packets_ontology_received", ["ontology", "receivedAt"])

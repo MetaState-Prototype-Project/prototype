@@ -26,8 +26,9 @@ export function stableStringify(value: unknown): string {
 
 /**
  * SHA-256 of a packet's payload, computed over a stable serialisation so the
- * hash depends only on content, not key ordering. Used to dedupe deliveries by
- * content: identical re-ingests share a hash, a changed payload yields a new one.
+ * hash depends only on content, not key ordering. This remains useful as an
+ * audit fingerprint and as a compatibility event ID for legacy producers that
+ * do not yet send one. Delivery identity is the source eventId, never this hash.
  */
 export function contentHash(data: unknown): string {
     return crypto

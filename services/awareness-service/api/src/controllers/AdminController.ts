@@ -113,9 +113,7 @@ export function adminRouter(): Router {
         const includeResolved = req.query.resolved === "true";
         // Metadata only - the `payload` column holds the full webhook body and
         // would bloat the list. Fetch it on replay if ever needed.
-        const deadLetters = await AppDataSource.getRepository(
-            DeadLetter,
-        ).find({
+        const deadLetters = await AppDataSource.getRepository(DeadLetter).find({
             select: [
                 "id",
                 "deliveryId",
@@ -146,6 +144,7 @@ export function adminRouter(): Router {
                 .innerJoin(Consumer, "c", "c.id = s.consumerId")
                 .select([
                     'd.id AS "deliveryId"',
+                    'd.eventId AS "eventId"',
                     'd.packetId AS "packetId"',
                     'd.status AS "status"',
                     'd.attempts AS "attempts"',
@@ -184,7 +183,8 @@ export function adminRouter(): Router {
         }
     });
 
-    // Replay re-queues the original delivery and resolves the dead letter.
+    // Replay re-queues the original delivery. The worker resolves the dead
+    // letter only after the subscriber acknowledges a later attempt.
     router.post("/api/admin/dead-letters/:id/replay", async (req, res) => {
         const dlRepo = AppDataSource.getRepository(DeadLetter);
         const deadLetter = await dlRepo.findOne({
@@ -198,12 +198,16 @@ export function adminRouter(): Router {
                 status: "pending",
                 attempts: 0,
                 nextAttemptAt: new Date(),
+                retryStartedAt: new Date(),
                 lastError: null,
                 lastResponseStatus: null,
+                deliveredAt: null,
+                leaseOwner: null,
+                leaseToken: null,
+                leaseExpiresAt: null,
             },
         );
-        deadLetter.resolved = true;
-        await dlRepo.save(deadLetter);
+        // Resolution is recorded by the worker only after a successful POST.
         res.json({ ok: true });
     });
 

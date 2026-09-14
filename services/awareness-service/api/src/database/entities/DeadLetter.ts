@@ -15,6 +15,7 @@ export class DeadLetter {
     @PrimaryGeneratedColumn("uuid")
     id!: string;
 
+    @Index("uq_dead_letters_delivery", { unique: true })
     @Column({ type: "uuid" })
     deliveryId!: string;
 

@@ -72,7 +72,7 @@ Before reporting a W3DS task complete, check every line:
 - [ ] Every `schemaId` was resolved from the Ontology service in this session, not recalled.
 - [ ] Every new entity type has an ontology, a resolving `ownerEnamePath`, and a write path to the owner's eVault.
 - [ ] `handleChange` is called after every write to a mapped table — including writes from migrations, seeds, admin paths and background jobs.
-- [ ] The webhook controller is idempotent on the global `id`, and returns 200 for ontologies the platform does not consume.
+- [ ] The webhook controller deduplicates on `eventId`, upserts by global `id`, and returns 200 for ontologies the platform does not consume.
 - [ ] Nothing was invented: no UUID, endpoint path, GraphQL field, mapping directive or ACL verb that was not verified — or, if unverifiable, each is flagged in the response and marked in code.
 - [ ] The reconstructability test was applied to anything newly persisted, and the answer stated.
 - [ ] If the work touched a platform repository: no managed `.w3ds/platform.json` field was hand-edited, no history was rewritten, and no key material was committed.
@@ -149,7 +149,7 @@ Uncertain? Fetch the relevant page from `https://docs.w3ds.metastate.foundation`
 - **Ontology vs schema**: "Ontology" here means a specific JSON Schema published by the Ontology service and referenced by its `schemaId` (a W3ID). Not the semantic-web sense of the word.
 - **Platform vs post-platform**: A platform participates in W3DS via a Web3 Adapter and a `/api/webhook` endpoint. A post-platform operates in "dataless" mode — it doesn't own the data, users' eVaults do.
 - **`w3ds-file-v1` vs `File` ontology**: `w3ds-file-v1` is the low-level storage envelope created by `uploadFile` for blob dereferencing. The `File` ontology is a higher-level platform record for file-manager / esigner style apps. Not interchangeable — different field names, different layer. Detail in [reference/protocols.md](reference/protocols.md).
-- **Awareness Protocol vs AaaS**: Awareness Protocol is the prototype-level fire-and-forget fanout from eVault-core. AaaS is the production-grade replacement with subscriptions, persistence, retries, and a dead-letter queue.
+- **Awareness Protocol vs AaaS**: Awareness Protocol is the packet/receiver contract. AaaS is its durable delivery system: eVault transactional outbox, immutable events, subscriptions, at-least-once retries, and dead letters.
 - **`storeMetaEnvelope` / `updateMetaEnvelopeById`**: Legacy GraphQL mutation names, still used internally by the Web3 Adapter's `EVaultClient`. External integrations should use `createMetaEnvelope` / `updateMetaEnvelope` / `removeMetaEnvelope`.
 
 ## Working style
@@ -157,8 +157,8 @@ Uncertain? Fetch the relevant page from `https://docs.w3ds.metastate.foundation`
 - Always resolve the eVault URL for a user via the Registry before hitting `/graphql` or `/whois`. Never hardcode eVault URLs; cache the resolution, revalidate it, and evict on a failed `HEAD /whois`.
 - Every GraphQL and HTTP call to eVault needs `X-ENAME`. Missing this header is the most common cause of 400s.
 - Two ACL models coexist. The `_acl` block gives per-verb grants (READ/CREATE/UPDATE/DELETE bitmask), denials, and ontology conditions, and is authoritative where present. The legacy `acl` string array is all-or-nothing except `["*"]` and still applies to records with no `_acl`. Do not describe ACLs as all-or-nothing without that distinction — see [reference/evault.md](reference/evault.md).
-- Webhook delivery is fire-and-forget and prototype-level: no retries, no ordering, no at-least-once. Make the webhook controller **idempotent** on global `id`.
-- After `storeMetaEnvelope` there is a 3-second delay before webhook fanout to prevent ping-pong. `updateMetaEnvelopeById` fanout is immediate.
+- Webhook delivery is at least once. Make the webhook controller **idempotent on `eventId`**, not global MetaEnvelope `id`; distinct updates intentionally share the same `id`.
+- Delivery is ordered per subscription and MetaEnvelope, not globally. eVault retries AaaS ingestion until acknowledged; AaaS retries subscribers for 24 hours before dead-lettering.
 - Do not mirror what you can already observe. If a record reaches you through the Awareness Protocol, subscribe to it rather than writing a second envelope to make it visible.
 - Building a platform they intend to publish? Say early that it belongs in a GitW3 repository — a plain repository import is not the same as the guided port flow, and retrofitting an identity after the fact is worse than starting there.
 - Never commit `w3ds-deployment-key.json`, a platform token, a migration proof or a personal access token. If asked to paste key material anywhere, stop and say why.

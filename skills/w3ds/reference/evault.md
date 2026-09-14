@@ -328,18 +328,18 @@ Special cases:
 
 ## Webhook delivery (Awareness Protocol)
 
-After a `createMetaEnvelope` (or legacy `storeMetaEnvelope`), eVault:
+After a create, update, delete, file upload, or binding-document mutation:
 
-1. Persists to Neo4j.
-2. Waits **3 seconds** (create only — `updateMetaEnvelope` fires immediately).
-3. `GET /platforms` on the Registry → list of platform base URLs.
-4. Filters out the requesting platform (identified from the Bearer token's `platform` claim, URL-normalized).
-5. `POST /api/webhook` on every remaining platform in parallel. 5s timeout per call. No retries. Fire-and-forget.
+1. eVault atomically persists the data and a uniquely identified awareness outbox event in Neo4j.
+2. Its dispatcher retries `POST /ingest` until AaaS durably acknowledges the event.
+3. AaaS atomically records the immutable event and matching delivery rows, excluding the requesting platform by normalized origin.
+4. Lease-based AaaS workers send `POST /api/webhook`. Non-2xx responses and timeouts retry with backoff for 24 hours, then dead-letter.
 
 Payload:
 
 ```json
 {
+  "eventId": "7fd6c06c-80ae-4137-9d62-c15af53f92cf",
   "id": "a1b2c3d4-...",
   "w3id": "@user-a.w3id",
   "schemaId": "<the SocialMediaPost schemaId>",
@@ -349,7 +349,10 @@ Payload:
     "authorId": "@e4d909c2-...",
     "createdAt": "2025-01-24T10:00:00Z"
   },
-  "evaultPublicKey": "z..."
+  "evaultPublicKey": "z...",
+  "operation": "update",
+  "streamVersion": 4,
+  "occurredAt": "2026-09-15T03:00:00.000Z"
 }
 ```
 

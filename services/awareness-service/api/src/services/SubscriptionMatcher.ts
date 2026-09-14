@@ -1,4 +1,5 @@
 import { AppDataSource } from "../database/data-source";
+import type { EntityManager } from "typeorm";
 import { Subscription } from "../database/entities/Subscription";
 import type { Packet } from "../database/entities/Packet";
 
@@ -10,12 +11,16 @@ import type { Packet } from "../database/entities/Packet";
  *  - its evaultFilter is empty OR contains the packet's w3id / evaultPublicKey.
  */
 export class SubscriptionMatcher {
-    async match(packet: Packet): Promise<Subscription[]> {
+    async match(
+        packet: Packet,
+        manager: EntityManager = AppDataSource.manager,
+    ): Promise<Subscription[]> {
         const evaultIds = [packet.w3id, packet.evaultPublicKey].filter(
             (v): v is string => Boolean(v),
         );
 
-        return AppDataSource.getRepository(Subscription)
+        return manager
+            .getRepository(Subscription)
             .createQueryBuilder("s")
             .innerJoin("consumers", "c", "c.id = s.consumerId")
             .where("s.active = true")

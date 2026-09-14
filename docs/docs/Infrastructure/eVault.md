@@ -649,20 +649,22 @@ A valid Registry-issued platform token satisfies the *legacy* path — but it do
 
 ## Webhook Delivery
 
-When data is stored or updated, eVault automatically sends webhooks to all registered platforms.
+When data is created, updated, or deleted, eVault atomically records an
+awareness outbox event beside the mutation. A restart-safe dispatcher sends it
+to AaaS, which owns subscription matching and webhook delivery.
 
 ### Webhook Process
 
-1. **Data Stored**: MetaEnvelope is stored in Neo4j
-2. **Wait 3 Seconds**: Delay prevents webhook ping-pong (same platform receiving its own webhook)
-3. **Get Active Platforms**: Query [Registry](/docs/Infrastructure/Registry) for list of active platforms
-4. **Filter Requesting Platform**: Exclude the platform that made the request
-5. **Send Webhooks**: POST to each platform's `/api/webhook` endpoint (see [Webhook Controller Guide](/docs/Post%20Platform%20Guide/webhook-controller))
+1. **Atomic capture**: The MetaEnvelope mutation and immutable outbox event commit in one Neo4j transaction.
+2. **Durable ingest**: The outbox dispatcher retries `POST AWARENESS_SERVICE_URL/ingest` until AaaS acknowledges persistence.
+3. **Match and filter**: AaaS matches subscriptions and excludes the requesting platform.
+4. **Send webhooks**: AaaS posts to each matching endpoint (see [Webhook Controller Guide](/docs/Post%20Platform%20Guide/webhook-controller)).
 
 ### Webhook Payload
 
 ```json
 {
+    "eventId": "7fd6c06c-80ae-4137-9d62-c15af53f92cf",
     "id": "global-id-123",
     "w3id": "@user-a.w3id",
     "schemaId": "550e8400-e29b-41d4-a716-446655440001",
@@ -672,16 +674,19 @@ When data is stored or updated, eVault automatically sends webhooks to all regis
         "authorId": "...",
         "createdAt": "2025-01-24T10:00:00Z"
     },
-    "evaultPublicKey": "z..."
+    "evaultPublicKey": "z...",
+    "operation": "update",
+    "streamVersion": 2,
+    "occurredAt": "2026-09-15T03:00:00.000Z"
 }
 ```
 
 ### Webhook Delivery Details
 
-- **Timeout**: 5 seconds per webhook
-- **Retry**: No automatic retries (fire-and-forget)
-- **Error Handling**: Logs failures but doesn't block the operation
-- **Ordering**: Webhooks are sent in parallel to all platforms - sending to platform A does not block sending to platform B. All webhook POST requests are initiated concurrently.
+- **Timeout**: 5 seconds per network attempt.
+- **Retry**: eVault-to-AaaS retries until acknowledged; AaaS-to-subscriber retries with backoff for 24 hours and then dead-letters.
+- **Idempotency**: Subscribers must deduplicate by `eventId` because delivery is at least once.
+- **Ordering**: Events are ordered per subscription and MetaEnvelope while unrelated streams are delivered concurrently.
 
 ## Key Binding Certificates
 

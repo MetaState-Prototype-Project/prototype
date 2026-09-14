@@ -3,6 +3,7 @@ import path from "path";
 import cors from "cors";
 import dotenv from "dotenv";
 import express, { type Request, type Response } from "express";
+import type { Server as HttpServer } from "node:http";
 import { AppDataSource } from "./config/database";
 import { NotificationController } from "./controllers/NotificationController";
 import { ProvisioningController } from "./controllers/ProvisioningController";
@@ -29,6 +30,7 @@ import { connectWithRetry } from "./core/db/retry-neo4j";
 import { registerHttpRoutes } from "./core/http/server";
 import { GraphQLServer } from "./core/protocol/graphql-server";
 import { LogService } from "./core/w3id/log-service";
+import { AwarenessOutboxDispatcher } from "./core/awareness/awareness-outbox-dispatcher";
 
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
@@ -41,7 +43,13 @@ expressApp.use(
     cors({
         origin: "*",
         methods: ["GET", "POST", "OPTIONS", "PATCH"],
-        allowedHeaders: ["Content-Type", "Authorization", "X-ENAME", "X-ON-BEHALF-OF", "x-shared-secret"],
+        allowedHeaders: [
+            "Content-Type",
+            "Authorization",
+            "X-ENAME",
+            "X-ON-BEHALF-OF",
+            "x-shared-secret",
+        ],
         credentials: true,
     }),
 );
@@ -74,6 +82,8 @@ let graphqlServer: GraphQLServer;
 let logService: LogService;
 let driver: Driver;
 let provisioningService: ProvisioningService | undefined;
+let awarenessOutboxDispatcher: AwarenessOutboxDispatcher | undefined;
+let expressServer: HttpServer | undefined;
 
 // Initialize eVault Core
 const initializeEVault = async (
@@ -146,6 +156,15 @@ const initializeEVault = async (
         console.warn("Failed to create EnvelopeOperationLog indexes:", error);
     }
 
+    try {
+        const { createAwarenessOutboxIndexes } = await import(
+            "./core/db/migrations/add-awareness-outbox-indexes"
+        );
+        await createAwarenessOutboxIndexes(driver);
+    } catch (error) {
+        console.warn("Failed to create awareness outbox indexes:", error);
+    }
+
     // One-time backfill: create operation logs for existing metaenvelopes (platform inferred from ontology)
     try {
         const { backfillEnvelopeOperationLogs } = await import(
@@ -157,6 +176,8 @@ const initializeEVault = async (
     }
 
     const dbService = new DbService(driver);
+    awarenessOutboxDispatcher = new AwarenessOutboxDispatcher(driver);
+    awarenessOutboxDispatcher.start();
     const protectedZoneService = new ProtectedZoneService(driver);
     logService = new LogService(driver);
     const publicKey = process.env.EVAULT_PUBLIC_KEY || null;
@@ -188,7 +209,13 @@ const initializeEVault = async (
     await fastifyServer.register(fastifyCors, {
         origin: true, // Allow all origins
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization", "X-ENAME", "X-ON-BEHALF-OF", "x-shared-secret"],
+        allowedHeaders: [
+            "Content-Type",
+            "Authorization",
+            "X-ENAME",
+            "X-ON-BEHALF-OF",
+            "x-shared-secret",
+        ],
         credentials: true,
     });
 
@@ -264,7 +291,9 @@ const initializeEVault = async (
 // Provisioner JWKs — must be on Express (provisioner URL port) for signer URL resolution
 expressApp.get("/.well-known/jwks.json", (_req: Request, res: Response) => {
     try {
-        const { getProvisionerJwk } = require("./core/utils/provisioner-signer");
+        const {
+            getProvisionerJwk,
+        } = require("./core/utils/provisioner-signer");
         res.json({ keys: [getProvisionerJwk()] });
     } catch {
         res.json({ keys: [] });
@@ -274,6 +303,95 @@ expressApp.get("/.well-known/jwks.json", (_req: Request, res: Response) => {
 // Health check endpoint
 expressApp.get("/health", (req: Request, res: Response) => {
     res.json({ status: "ok" });
+});
+
+expressApp.get("/ready", async (_req: Request, res: Response) => {
+    try {
+        await driver.getServerInfo();
+        const dispatcher = awarenessOutboxDispatcher?.health();
+        const dispatcherReady = Boolean(
+            dispatcher?.configured && dispatcher.running,
+        );
+        const session = driver.session();
+        try {
+            const result = await session.run(`
+                MATCH (a:AwarenessOutbox)
+                WHERE a.status IN ['pending', 'failed', 'delivering']
+                RETURN count(a) AS queued,
+                       coalesce(max(timestamp() - a.createdAt), 0) AS oldestAgeMs
+            `);
+            const record = result.records[0];
+            return res.status(dispatcherReady ? 200 : 503).json({
+                status: dispatcherReady ? "ready" : "not-ready",
+                neo4j: "ok",
+                awarenessDispatcher: dispatcher ?? {
+                    configured: false,
+                    running: false,
+                },
+                awarenessOutbox: {
+                    queued: record.get("queued").toNumber(),
+                    oldestAgeMs: record.get("oldestAgeMs").toNumber(),
+                },
+            });
+        } finally {
+            await session.close();
+        }
+    } catch (error) {
+        return res.status(503).json({
+            status: "not-ready",
+            neo4j: "unavailable",
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+});
+
+expressApp.get("/metrics", async (_req: Request, res: Response) => {
+    try {
+        const dispatcher = awarenessOutboxDispatcher?.health();
+        const lastCycleAgeSeconds = dispatcher?.lastCycleAt
+            ? Math.max(
+                  0,
+                  (Date.now() - dispatcher.lastCycleAt.getTime()) / 1000,
+              )
+            : -1;
+        const session = driver.session();
+        try {
+            const result = await session.run(`
+                MATCH (a:AwarenessOutbox)
+                RETURN count(CASE WHEN a.status IN ['pending', 'failed', 'delivering'] THEN 1 END) AS queued,
+                       count(CASE WHEN a.status = 'failed' THEN 1 END) AS failed,
+                       coalesce(max(CASE WHEN a.status IN ['pending', 'failed', 'delivering'] THEN timestamp() - a.createdAt ELSE 0 END), 0) AS oldestAgeMs
+            `);
+            const record = result.records[0];
+            return res
+                .type("text/plain; version=0.0.4")
+                .send(
+                    [
+                        "# TYPE evault_awareness_outbox_events gauge",
+                        `evault_awareness_outbox_events{status=\"active\"} ${record.get("queued").toNumber()}`,
+                        `evault_awareness_outbox_events{status=\"failed\"} ${record.get("failed").toNumber()}`,
+                        "# TYPE evault_awareness_outbox_oldest_seconds gauge",
+                        `evault_awareness_outbox_oldest_seconds ${record.get("oldestAgeMs").toNumber() / 1000}`,
+                        "# TYPE evault_awareness_dispatcher_running gauge",
+                        `evault_awareness_dispatcher_running ${dispatcher?.running ? 1 : 0}`,
+                        "# TYPE evault_awareness_dispatcher_configured gauge",
+                        `evault_awareness_dispatcher_configured ${dispatcher?.configured ? 1 : 0}`,
+                        "# TYPE evault_awareness_dispatcher_last_cycle_age_seconds gauge",
+                        `evault_awareness_dispatcher_last_cycle_age_seconds ${lastCycleAgeSeconds}`,
+                        "",
+                    ].join("\n"),
+                );
+        } finally {
+            await session.close();
+        }
+    } catch (error) {
+        return res
+            .status(503)
+            .type("text/plain")
+            .send(
+                `# metrics unavailable: ${error instanceof Error ? error.message : String(error)}\n`,
+            );
+    }
 });
 
 // Start the server
@@ -316,7 +434,7 @@ const start = async () => {
         await initializeEVault(provisioningService);
 
         // Start Express server for provisioning (after Fastify is ready)
-        expressApp.listen(expressPort, () => {
+        expressServer = expressApp.listen(expressPort, () => {
             console.log(
                 `Express server (Provisioning API) running on port ${expressPort}`,
             );
@@ -328,3 +446,19 @@ const start = async () => {
 };
 
 start();
+
+async function shutdown(signal: string): Promise<void> {
+    console.log(`${signal} received, shutting down eVault`);
+    await awarenessOutboxDispatcher?.stop();
+    await fastifyServer?.close();
+    if (expressServer) {
+        await new Promise<void>((resolve) =>
+            expressServer!.close(() => resolve()),
+        );
+    }
+    await driver?.close();
+    if (AppDataSource.isInitialized) await AppDataSource.destroy();
+}
+
+process.once("SIGTERM", () => void shutdown("SIGTERM"));
+process.once("SIGINT", () => void shutdown("SIGINT"));
