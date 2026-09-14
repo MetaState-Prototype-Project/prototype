@@ -78,14 +78,14 @@ Duplication is its own failure. [File URIs](/docs/W3DS%20Protocol/File-URIs) mak
 
 ## Bounds on how much a projection can be trusted
 
-Synchronisation is eventual, and the [Awareness Protocol](/docs/W3DS%20Protocol/Awareness-Protocol) is prototype-level. Design the projection to tolerate all of this:
+Synchronisation is eventual, and the [Awareness Protocol](/docs/W3DS%20Protocol/Awareness-Protocol) is delivered at least once. Design the projection to tolerate all of this:
 
 - **Last-write-wins.** No merge, no CRDT.
-- **No ordering guarantee**, and no at-least-once delivery.
-- **Fire-and-forget fanout** with no retries at the protocol level. The requesting platform is excluded from its own fanout.
-- **A delay after creation** before fanout, to prevent ping-pong; updates fan out immediately.
+- **Per-stream ordering, not global ordering.** Events for one subscription and MetaEnvelope are ordered; independent streams are concurrent.
+- **At-least-once delivery.** Retries and crash recovery can produce duplicates; the requesting platform is excluded from its own fanout.
+- **A bounded subscriber retry window.** AaaS retries for 24 hours and then requires dead-letter replay.
 
-Consequences for your code: webhook handling must be **idempotent on the global `id`**, reads must tolerate a record that has not arrived yet, and nothing user-visible should depend on two platforms agreeing at the same instant.
+Consequences for your code: webhook handling must deduplicate by **`eventId`** (not the MetaEnvelope `id`, which is shared by legitimate updates), reads must tolerate a record that has not arrived yet, and nothing user-visible should depend on two platforms agreeing at the same instant.
 
 ## Stateless applications
 

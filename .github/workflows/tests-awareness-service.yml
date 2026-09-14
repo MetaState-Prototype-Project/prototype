@@ -1,0 +1,63 @@
+name: Tests [awareness-service]
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+        paths:
+            - "services/awareness-service/**"
+            - "infrastructure/evault-core/src/core/awareness/**"
+            - "infrastructure/evault-core/src/core/db/**"
+            - "infrastructure/evault-core/src/core/protocol/**"
+            - "pnpm-lock.yaml"
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Set up pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 10.25.0
+                  run_install: false
+
+            - name: Set up Node.js 22
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: pnpm
+
+            - name: Install build dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y build-essential python3
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Build affected services
+              run: |
+                  pnpm --filter awareness-service-api build
+                  pnpm --filter evault-core build
+
+            - name: Run AaaS reliability tests
+              env:
+                  CI: true
+                  DOCKER_HOST: unix:///var/run/docker.sock
+                  TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
+                  TESTCONTAINERS_HOST_OVERRIDE: localhost
+              run: pnpm --filter awareness-service-api test
+
+            - name: Run eVault awareness outbox tests
+              env:
+                  CI: true
+                  DOCKER_HOST: unix:///var/run/docker.sock
+                  TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
+                  TESTCONTAINERS_HOST_OVERRIDE: localhost
+              run: |
+                  pnpm --filter evault-core exec vitest run src/core/protocol/graphql-server.spec.ts src/core/protocol/uploadFile-awareness.spec.ts --silent

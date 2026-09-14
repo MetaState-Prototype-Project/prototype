@@ -123,10 +123,11 @@ Same pattern for `w3ds://sign` — paste the URI, click Perform, watch your call
 
 Check in order:
 
-1. Is your platform registered? Query `GET http://localhost:4321/list` and confirm your platform's URL is in the response.
-2. If the write is a **create** (not update), remember there is a **3-second delay** before fanout. Wait, then re-check.
-3. Is your `/api/webhook` endpoint publicly reachable from eVault-core? (In local dev, `localhost` works. In containers, use the service name or host.docker.internal.)
-4. Does the packet's `schemaId` match a mapping in your Web3 Adapter? If not, your controller correctly drops it — that's expected.
+1. Does eVault `GET /ready` report an active/configured awareness dispatcher? Check `evault_awareness_outbox_*` metrics for a source backlog.
+2. Does AaaS `GET /ready` report current migrations and a fresh worker heartbeat? Check `aaas_oldest_pending_seconds` and `aaas_expired_leases`.
+3. Is your platform registered and does AaaS have an active catch-all or matching granular subscription?
+4. Is your `/api/webhook` endpoint reachable from the AaaS worker? (In containers, use the service name or `host.docker.internal`.)
+5. Does the packet's `schemaId` match a mapping in your Web3 Adapter? Unknown ontologies should be acknowledged with 200.
 
 ### Duplicate entities on sync
 

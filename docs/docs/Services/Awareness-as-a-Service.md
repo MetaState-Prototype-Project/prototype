@@ -22,16 +22,17 @@ to all of them. That design had three problems:
 - **Ungoverned** — any registered platform received everything; there was no
   access gate.
 
-AaaS fixes all three. evault-core now makes **one** POST per change to
-`AWARENESS_SERVICE_URL/ingest`, and AaaS owns persistence, polling, subscription
-matching, and retrying delivery.
+AaaS fixes all three. Every eVault mutation now commits an immutable event to a
+Neo4j transactional outbox alongside the user's data. The outbox retries
+`AWARENESS_SERVICE_URL/ingest` until AaaS atomically commits the event and its
+matching deliveries; AaaS then owns polling and retrying subscriber delivery.
 
 ## Architecture
 
 ```
                          ┌─────────────────────────────┐
-   evault-core ──POST───▶ │  AaaS  /ingest              │
-   (per change)           │   • persist packet          │
+   eVault outbox ─POST───▶ │  AaaS  /ingest              │
+   (retry-until-ack)       │   • persist immutable event │
                           │   • match subscriptions     │
                           │   • queue deliveries        │
                           └──────────────┬──────────────┘
@@ -63,9 +64,14 @@ existing receivers need no changes:
 }
 ```
 
-`/ingest` additionally accepts a `requestingPlatform` field, used only to skip
+New producers add `eventId`, `streamVersion`, and `occurredAt`. `eventId` is the
+stable idempotency key across outbox retries, while `id` remains the
+MetaEnvelope id. These fields are delivered additively to existing receivers.
+
+`/ingest` additionally accepts a `requestingPlatform` field, used to skip
 delivering a packet back to its origin (the ping-pong guard the old fanout
-enforced). It is never persisted or delivered.
+enforced). It is retained in immutable event history for audit/reconciliation,
+but is not included in subscriber payloads.
 
 ### File uploads
 
@@ -113,16 +119,16 @@ subscription has a `secret`, each delivery carries an `x-aaas-signature` header
 (HMAC-SHA256 of the body).
 
 Because catch-all subscriptions receive every ontology, a receiver **must ack
-packets it does not consume with a 200**. There is no 4xx short-circuit in the
-delivery engine: a 400 on an unknown `schemaId` is retried up to
-`AWARENESS_MAX_ATTEMPTS` and then dead-lettered.
+packets it does not consume with a 200**. All non-2xx responses remain retryable
+for the 24-hour window, after which the event is dead-lettered and alerted.
 
 ### 3. Retrying delivery + dead-letters
 
-A background engine drains the delivery queue. Failed deliveries are retried
-with exponential backoff (30s → 1m → 2m → 5m → 15m → 1h → 6h → 24h). After
-`AWARENESS_MAX_ATTEMPTS` attempts the delivery is moved to a **dead-letter**
-table, visible to admins in the portal, where it can be replayed.
+A lease-based worker drains the delivery queue. Every Postgres operation and
+batch has a deadline, so a poisoned connection cannot permanently wedge the
+polling loop. Failed deliveries use jittered exponential backoff for 24 hours;
+expired leases are reclaimed after crashes. After the retry window the delivery
+moves to a **dead-letter** table, visible to admins in the portal for replay.
 
 ### 4. Public access portal
 
@@ -157,14 +163,16 @@ AaaS is designed to be dropped in with **zero receiver-side changes**:
 
 1. **Backfill.** AaaS runs on the same node as evault-core's Neo4j. The
    `backfill` script reads existing MetaEnvelopes straight from the graph and
-   seeds the `packets` table (history only — it does not queue deliveries).
+   seeds both immutable query history and the latest-state projection. It does
+   not queue deliveries.
 2. **Catch-all reconciliation.** On every launch and once per configured sync
    interval, AaaS ensures each platform currently in the registry has an
    approved consumer and an active catch-all subscription pointing at
    `<platform>/api/webhook`. Existing and newly registered platforms therefore
    keep receiving every packet exactly as before.
-3. **evault-core switch.** evault-core's `deliverWebhooks`/`getActivePlatforms`
-   are removed; a single `notifyAwareness` POST forwards each packet to AaaS.
+3. **eVault transactional outbox.** Every mutation and its awareness event
+   commit together in Neo4j. A dispatcher retries ingestion until AaaS returns a
+   durable acknowledgement, including across eVault and AaaS restarts.
 
 ## Configuration
 
@@ -177,8 +185,12 @@ AaaS is designed to be dropped in with **zero receiver-side changes**:
 | `AWARENESS_SERVICE_URL` | (evault-core) where to POST packets |
 | `AAAS_ADMIN_ENAMES` | Comma-separated admin eNames |
 | `AAAS_JWT_SECRET` | Signs portal session JWTs |
-| `AWARENESS_MAX_ATTEMPTS` | Delivery attempts before dead-lettering (default 3) |
 | `AWARENESS_DELIVERY_POLL_MS` | Delivery engine poll interval (default 2000) |
+| `AWARENESS_DELIVERY_LEASE_MS` | Expiring worker lease duration (default 30000) |
+| `AWARENESS_DELIVERY_BATCH_TIMEOUT_MS` | Hard batch deadline (default 25000) |
+| `AWARENESS_DELIVERY_RETRY_WINDOW_MS` | Subscriber retry window (default 24 hours) |
+| `AWARENESS_DB_STATEMENT_TIMEOUT_MS` / `AWARENESS_DB_QUERY_TIMEOUT_MS` / `AWARENESS_DB_LOCK_TIMEOUT_MS` | Postgres anti-wedge deadlines |
+| `AWARENESS_OUTBOX_POLL_MS` / `AWARENESS_OUTBOX_LEASE_MS` / `AWARENESS_OUTBOX_DB_TIMEOUT_MS` / `AWARENESS_OUTBOX_RETENTION_MS` | Durable eVault outbox tuning |
 | `AWARENESS_REGISTRY_SYNC_MS` | Registry catch-all reconciliation interval (default 60000; 0 disables periodic sync) |
 | `NEO4J_URI` / `NEO4J_USER` / `NEO4J_PASSWORD` | Standard eVault Neo4j vars — reused by the one-time backfill |
 | `PUBLIC_AWARENESS_API_URL` | (portal) AaaS API base URL |
@@ -190,6 +202,6 @@ AaaS is designed to be dropped in with **zero receiver-side changes**:
 pnpm --filter awareness-service-api build
 pnpm --filter awareness-service-api migration:run
 pnpm --filter awareness-service-api backfill        # one-time, from Neo4j
-pnpm --filter awareness-service-api dev             # API (keeps registry catch-alls synced)
+pnpm --filter awareness-service-api dev # API + worker in one process
 pnpm --filter awareness-portal dev                  # portal
 ```

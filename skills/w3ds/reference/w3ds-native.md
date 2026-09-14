@@ -120,9 +120,9 @@ Common thread: none of it is data about a user that a user would expect to take 
 
 **Wrong** — write locally, then immediately read back the eVault-derived version and assume it is there.
 
-**Right** — design for last-write-wins, no ordering, no at-least-once delivery, a delay after create before fanout (immediate on update), and the requesting platform excluded from its own fanout. Idempotent on the global `id`, tolerant of a record that has not arrived.
+**Right** — design for last-write-wins and eventual consistency. Delivery is at least once, ordered only within a subscription/MetaEnvelope stream, and excludes the requesting platform. Deduplicate on `eventId` and tolerate a record that has not arrived yet.
 
-**Why** — the Awareness Protocol is prototype-level and fire-and-forget. Anything user-visible that assumes otherwise breaks intermittently and unreproducibly.
+**Why** — durable retries prevent silent loss, but cross-stream timing is still asynchronous and duplicate delivery is an intentional consequence of at-least-once semantics.
 
 ## Proposing a new ontology
 
@@ -175,5 +175,5 @@ For an existing platform, in order:
 2. For each, find the `mapping.json`. No mapping → is it operational state, or claimed user data?
 3. For each mapping, check `ownerEnamePath` resolves to the data subject for every row, not just the common case.
 4. Find every write path per mapped table — migrations, seeds, admin endpoints, background jobs included — and confirm each reaches `handleChange`.
-5. Check the webhook controller is idempotent on global `id` and 200s ontologies it does not consume.
+5. Check the webhook controller deduplicates on `eventId`, upserts by global `id`, and 200s ontologies it does not consume.
 6. Run the reconstructability test over the whole set and state what would be lost.

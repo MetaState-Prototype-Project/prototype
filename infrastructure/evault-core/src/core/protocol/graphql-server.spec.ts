@@ -1,5 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
-import axios from "axios";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import * as jose from "jose";
 import {
     setupE2ETestServer,
@@ -10,20 +9,75 @@ import {
     type ProvisionedEVault,
 } from "../../test-utils/e2e-setup";
 import { getSharedTestKeyPair } from "../../test-utils/shared-test-keys";
+import { AwarenessOutboxDispatcher } from "../awareness/awareness-outbox-dispatcher";
+import { createServer } from "node:http";
+import { createServer as createNetServer } from "node:net";
+import type { AddressInfo } from "node:net";
 
-// Store original axios functions before any spying happens
-const originalAxiosPost = axios.post;
+interface OutboxPayload {
+    eventId: string;
+    packetId: string;
+    w3id: string;
+    schemaId: string;
+    data: Record<string, unknown> | null;
+    operation: string;
+    requestingPlatform: string | null;
+    streamVersion: number;
+    status: string;
+}
 
-// evault-core forwards every awareness packet to AaaS at
-// AWARENESS_SERVICE_URL/ingest; point it somewhere the spy can intercept.
-process.env.AWARENESS_SERVICE_URL = "http://localhost:9999";
+async function outboxPayloads(server: E2ETestServer): Promise<OutboxPayload[]> {
+    const session = server.neo4jDriver.session();
+    try {
+        const result = await session.run(
+            "MATCH (a:AwarenessOutbox) RETURN a ORDER BY a.createdAt",
+        );
+        return result.records.map((record) => {
+            const p = record.get("a").properties;
+            return {
+                eventId: p.eventId,
+                packetId: p.packetId,
+                w3id: p.w3id,
+                schemaId: p.schemaId,
+                data: JSON.parse(p.dataJson),
+                operation: p.operation,
+                requestingPlatform: p.requestingPlatform ?? null,
+                streamVersion: p.streamVersion.toNumber(),
+                status: p.status,
+            };
+        });
+    } finally {
+        await session.close();
+    }
+}
 
-describe("GraphQLServer Awareness Ingest Payload W3ID", () => {
+async function availablePort(): Promise<number> {
+    return new Promise((resolve, reject) => {
+        const socket = createNetServer();
+        socket.once("error", reject);
+        socket.listen(0, "127.0.0.1", () => {
+            const port = (socket.address() as AddressInfo).port;
+            socket.close((error) => (error ? reject(error) : resolve(port)));
+        });
+    });
+}
+
+async function waitFor(
+    predicate: () => Promise<boolean>,
+    timeoutMs = 5_000,
+): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        if (await predicate()) return;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    throw new Error("condition not reached before timeout");
+}
+
+describe("GraphQL transactional awareness outbox", () => {
     let server: E2ETestServer;
     let evault1: ProvisionedEVault;
     let evault2: ProvisionedEVault;
-    const evaultW3ID = "evault-w3id-123";
-    let axiosPostSpy: any;
 
     beforeAll(async () => {
         server = await setupE2ETestServer();
@@ -31,234 +85,288 @@ describe("GraphQLServer Awareness Ingest Payload W3ID", () => {
         evault2 = await provisionTestEVault(server);
     }, 120000);
 
-    afterAll(async () => {
-        await teardownE2ETestServer(server);
-        if (axiosPostSpy) {
-            axiosPostSpy.mockRestore();
+    afterAll(async () => teardownE2ETestServer(server));
+
+    beforeEach(async () => {
+        const session = server.neo4jDriver.session();
+        try {
+            await session.run("MATCH (a:AwarenessOutbox) DETACH DELETE a");
+        } finally {
+            await session.close();
         }
     });
 
-    beforeEach(() => {
-        if (axiosPostSpy) {
-            axiosPostSpy.mockRestore();
-        }
+    it("atomically records the owner's W3ID and payload on create", async () => {
+        const data = { field: "value", test: "store-test" };
+        const result = await makeGraphQLRequest(
+            server,
+            `mutation Store($input: MetaEnvelopeInput!) {
+                storeMetaEnvelope(input: $input) { metaEnvelope { id ontology } }
+            }`,
+            { input: { ontology: "OutboxCreate", payload: data, acl: ["*"] } },
+            { "X-ENAME": evault1.w3id },
+        );
 
-        vi.clearAllMocks();
+        const events = await outboxPayloads(server);
+        expect(events).toHaveLength(1);
+        expect(events[0]).toMatchObject({
+            packetId: result.storeMetaEnvelope.metaEnvelope.id,
+            w3id: evault1.w3id,
+            schemaId: "OutboxCreate",
+            data,
+            operation: "create",
+            streamVersion: 1,
+            status: "pending",
+        });
+        expect(events[0].eventId).toBeTruthy();
+    });
 
-        // Spy on axios.post to capture the awareness ingest payload.
-        axiosPostSpy = vi.spyOn(axios, "post").mockImplementation((url: string | any, data?: any, config?: any) => {
-            // If it's the AaaS ingest call, capture it and return success.
-            if (typeof url === "string" && url.includes("/ingest")) {
-                console.log("Ingest intercepted:", { url, data });
-                return Promise.resolve({ status: 200, data: { ok: true } }) as any;
+    it("keeps events for different owners distinct", async () => {
+        const mutation = `mutation Store($input: MetaEnvelopeInput!) {
+            storeMetaEnvelope(input: $input) { metaEnvelope { id } }
+        }`;
+        await makeGraphQLRequest(
+            server,
+            mutation,
+            {
+                input: {
+                    ontology: "OutboxOwner",
+                    payload: { user: 1 },
+                    acl: ["*"],
+                },
+            },
+            { "X-ENAME": evault1.w3id },
+        );
+        await makeGraphQLRequest(
+            server,
+            mutation,
+            {
+                input: {
+                    ontology: "OutboxOwner",
+                    payload: { user: 2 },
+                    acl: ["*"],
+                },
+            },
+            { "X-ENAME": evault2.w3id },
+        );
+
+        const events = await outboxPayloads(server);
+        expect(events.map((event) => event.w3id)).toEqual([
+            evault1.w3id,
+            evault2.w3id,
+        ]);
+        expect(new Set(events.map((event) => event.eventId)).size).toBe(2);
+    });
+
+    it("records ordered full-state updates and origin metadata", async () => {
+        const create = await makeGraphQLRequest(
+            server,
+            `mutation Store($input: MetaEnvelopeInput!) {
+                storeMetaEnvelope(input: $input) { metaEnvelope { id } }
+            }`,
+            {
+                input: {
+                    ontology: "OutboxUpdate",
+                    payload: { field: "initial", preserved: true },
+                    acl: ["*"],
+                },
+            },
+            { "X-ENAME": evault1.w3id },
+        );
+        const id = create.storeMetaEnvelope.metaEnvelope.id;
+        const { privateKey } = await getSharedTestKeyPair();
+        const platform = "http://localhost:3000";
+        const token = await new jose.SignJWT({ platform })
+            .setProtectedHeader({ alg: "ES256", kid: "entropy-key-1" })
+            .setIssuedAt()
+            .setExpirationTime("1h")
+            .sign(privateKey);
+
+        await makeGraphQLRequest(
+            server,
+            `mutation Update($id: String!, $input: MetaEnvelopeInput!) {
+                updateMetaEnvelopeById(id: $id, input: $input) { metaEnvelope { id } }
+            }`,
+            {
+                id,
+                input: {
+                    ontology: "OutboxUpdate",
+                    payload: { field: "updated" },
+                    acl: ["*"],
+                },
+            },
+            { "X-ENAME": evault1.w3id, Authorization: `Bearer ${token}` },
+        );
+
+        const events = await outboxPayloads(server);
+        expect(events).toHaveLength(2);
+        expect(events[1]).toMatchObject({
+            packetId: id,
+            operation: "update",
+            streamVersion: 2,
+            requestingPlatform: platform,
+            data: { field: "updated", preserved: true },
+        });
+    });
+
+    it("records a delete tombstone and keeps stream versions monotonic after recreation", async () => {
+        const create = await makeGraphQLRequest(
+            server,
+            `mutation Store($input: MetaEnvelopeInput!) {
+                storeMetaEnvelope(input: $input) { metaEnvelope { id } }
+            }`,
+            {
+                input: {
+                    ontology: "OutboxDelete",
+                    payload: { value: "gone" },
+                    acl: ["*"],
+                },
+            },
+            { "X-ENAME": evault1.w3id },
+        );
+        const id = create.storeMetaEnvelope.metaEnvelope.id;
+        const { privateKey } = await getSharedTestKeyPair();
+        const token = await new jose.SignJWT({
+            platform: "http://localhost:3000",
+        })
+            .setProtectedHeader({ alg: "ES256", kid: "entropy-key-1" })
+            .setIssuedAt()
+            .setExpirationTime("1h")
+            .sign(privateKey);
+        await makeGraphQLRequest(
+            server,
+            `mutation Delete($id: String!) { deleteMetaEnvelope(id: $id) }`,
+            { id },
+            {
+                "X-ENAME": evault1.w3id,
+                Authorization: `Bearer ${token}`,
+            },
+        );
+
+        const events = await outboxPayloads(server);
+        expect(events.at(-1)).toMatchObject({
+            packetId: id,
+            schemaId: "OutboxDelete",
+            operation: "delete",
+            data: null,
+            streamVersion: 2,
+        });
+
+        const recreate = await makeGraphQLRequest(
+            server,
+            `mutation Recreate($inputs: [BulkMetaEnvelopeInput!]!) {
+                bulkCreateMetaEnvelopes(inputs: $inputs) {
+                    successCount
+                }
+            }`,
+            {
+                inputs: [
+                    {
+                        id,
+                        ontology: "OutboxDelete",
+                        payload: { value: "back" },
+                        acl: ["*"],
+                    },
+                ],
+            },
+            {
+                "X-ENAME": evault1.w3id,
+                Authorization: `Bearer ${token}`,
+            },
+        );
+        expect(recreate.bulkCreateMetaEnvelopes.successCount).toBe(1);
+        expect((await outboxPayloads(server)).at(-1)).toMatchObject({
+            packetId: id,
+            operation: "create",
+            data: { value: "back" },
+            streamVersion: 3,
+        });
+    });
+
+    it("resumes a failed outbox event after dispatcher restart", async () => {
+        await makeGraphQLRequest(
+            server,
+            `mutation Store($input: MetaEnvelopeInput!) {
+                storeMetaEnvelope(input: $input) { metaEnvelope { id } }
+            }`,
+            {
+                input: {
+                    ontology: "OutboxRestart",
+                    payload: { durable: true },
+                    acl: ["*"],
+                },
+            },
+            { "X-ENAME": evault1.w3id },
+        );
+
+        const port = await availablePort();
+        const previousUrl = process.env.AWARENESS_SERVICE_URL;
+        const previousPollMs = process.env.AWARENESS_OUTBOX_POLL_MS;
+        process.env.AWARENESS_SERVICE_URL = `http://127.0.0.1:${port}`;
+        process.env.AWARENESS_OUTBOX_POLL_MS = "20";
+
+        let received: Record<string, unknown> | null = null;
+        let first: AwarenessOutboxDispatcher | undefined;
+        let second: AwarenessOutboxDispatcher | undefined;
+        let inlet: ReturnType<typeof createServer> | undefined;
+        try {
+            first = new AwarenessOutboxDispatcher(server.neo4jDriver);
+            first.start();
+            await waitFor(async () => {
+                const event = (await outboxPayloads(server))[0];
+                return event?.status === "failed";
+            });
+            await first.stop();
+            first = undefined;
+
+            inlet = createServer((request, response) => {
+                const chunks: Buffer[] = [];
+                request.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+                request.on("end", () => {
+                    received = JSON.parse(
+                        Buffer.concat(chunks).toString("utf8"),
+                    );
+                    response.writeHead(200, {
+                        "content-type": "application/json",
+                    });
+                    response.end('{"ok":true}');
+                });
+            });
+            await new Promise<void>((resolve) =>
+                inlet!.listen(port, "127.0.0.1", () => resolve()),
+            );
+
+            second = new AwarenessOutboxDispatcher(server.neo4jDriver);
+            second.start();
+            await waitFor(async () => {
+                const event = (await outboxPayloads(server))[0];
+                return event?.status === "delivered";
+            });
+
+            expect(received).toMatchObject({
+                eventId: expect.any(String),
+                schemaId: "OutboxRestart",
+                data: { durable: true },
+                streamVersion: 1,
+            });
+        } finally {
+            await first?.stop();
+            await second?.stop();
+            if (inlet?.listening) {
+                await new Promise<void>((resolve) =>
+                    inlet!.close(() => resolve()),
+                );
             }
-            // For GraphQL and other requests, call through to original.
-            return originalAxiosPost.call(axios, url, data, config);
-        });
-    });
-
-    describe("storeMetaEnvelope ingest payload", () => {
-        it("should include X-ENAME in the ingest payload", async () => {
-            const testData = { field: "value", test: "store-test" };
-            const testOntology = "WebhookTestOntology";
-
-            // Make GraphQL mutation with user's W3ID in X-ENAME header
-            const mutation = `
-                mutation StoreMetaEnvelope($input: MetaEnvelopeInput!) {
-                    storeMetaEnvelope(input: $input) {
-                        metaEnvelope {
-                            id
-                            ontology
-                        }
-                    }
-                }
-            `;
-
-            await makeGraphQLRequest(server, mutation, {
-                input: {
-                    ontology: testOntology,
-                    payload: testData,
-                    acl: ["*"],
-                },
-            }, {
-                "X-ENAME": evault1.w3id,
-            });
-
-            // notifyAwareness is fire-and-forget; give it a moment to run.
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            // Verify axios.post was called (awareness ingest)
-            expect(axios.post).toHaveBeenCalled();
-
-            // Get the ingest payload from the axios.post call
-            const ingestCalls = (axios.post as any).mock.calls;
-            const ingestCall = ingestCalls.find((call: any[]) =>
-                typeof call[0] === "string" && call[0].includes("/ingest")
-            );
-
-            expect(ingestCall).toBeDefined();
-            const ingestPayload = ingestCall[1]; // Second argument is the payload
-
-            console.log("Ingest payload:", JSON.stringify(ingestPayload, null, 2));
-            console.log("Expected w3id:", evault1.w3id);
-
-            // Verify the payload contains the user's W3ID, not the eVault's W3ID
-            expect(ingestPayload).toBeDefined();
-            expect(ingestPayload.w3id).toBe(evault1.w3id);
-            expect(ingestPayload.w3id).not.toBe(evaultW3ID);
-            expect(ingestPayload.data).toEqual(testData);
-            expect(ingestPayload.schemaId).toBe(testOntology);
-        });
-
-        it("should use different W3IDs for different users in ingest payloads", async () => {
-            const testData1 = { user: "1", data: "test1" };
-            const testData2 = { user: "2", data: "test2" };
-            const testOntology = "MultiUserWebhookTest";
-
-            const mutation = `
-                mutation StoreMetaEnvelope($input: MetaEnvelopeInput!) {
-                    storeMetaEnvelope(input: $input) {
-                        metaEnvelope {
-                            id
-                            ontology
-                        }
-                    }
-                }
-            `;
-
-            // Store for user1
-            await makeGraphQLRequest(server, mutation, {
-                input: {
-                    ontology: testOntology,
-                    payload: testData1,
-                    acl: ["*"],
-                },
-            }, {
-                "X-ENAME": evault1.w3id,
-            });
-
-            // Store for user2
-            await makeGraphQLRequest(server, mutation, {
-                input: {
-                    ontology: testOntology,
-                    payload: testData2,
-                    acl: ["*"],
-                },
-            }, {
-                "X-ENAME": evault2.w3id,
-            });
-
-            // Give the fire-and-forget ingest calls a moment to run.
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            // Get all ingest calls
-            const ingestCalls = (axios.post as any).mock.calls.filter((call: any[]) =>
-                typeof call[0] === "string" && call[0].includes("/ingest")
-            );
-
-            expect(ingestCalls.length).toBeGreaterThanOrEqual(2);
-
-            // Find payloads by their data
-            const payload1 = ingestCalls.find((call: any[]) =>
-                call[1]?.data?.user === "1"
-            )?.[1];
-            const payload2 = ingestCalls.find((call: any[]) =>
-                call[1]?.data?.user === "2"
-            )?.[1];
-
-            expect(payload1).toBeDefined();
-            expect(payload1.w3id).toBe(evault1.w3id);
-            expect(payload2).toBeDefined();
-            expect(payload2.w3id).toBe(evault2.w3id);
-            expect(payload1.w3id).not.toBe(payload2.w3id);
-        });
-    });
-
-    describe("updateMetaEnvelopeById ingest payload", () => {
-        it("should include user's W3ID (eName) in the ingest payload, not eVault's W3ID", async () => {
-            const testData = { field: "updated-value", test: "update-test" };
-            const testOntology = "UpdateWebhookTestOntology";
-
-            // First, create an envelope
-            const createMutation = `
-                mutation StoreMetaEnvelope($input: MetaEnvelopeInput!) {
-                    storeMetaEnvelope(input: $input) {
-                        metaEnvelope {
-                            id
-                            ontology
-                        }
-                    }
-                }
-            `;
-
-            const createResult = await makeGraphQLRequest(server, createMutation, {
-                input: {
-                    ontology: testOntology,
-                    payload: { field: "initial-value" },
-                    acl: ["*"],
-                },
-            }, {
-                "X-ENAME": evault1.w3id,
-            });
-
-            const envelopeId = createResult.storeMetaEnvelope.metaEnvelope.id;
-
-            // Clear previous ingest calls
-            (axios.post as any).mockClear();
-
-            // Now update the envelope
-            const updateMutation = `
-                mutation UpdateMetaEnvelopeById($id: String!, $input: MetaEnvelopeInput!) {
-                    updateMetaEnvelopeById(id: $id, input: $input) {
-                        metaEnvelope {
-                            id
-                            ontology
-                        }
-                    }
-                }
-            `;
-
-            // Create a valid Bearer token for authentication.
-            const { privateKey } = await getSharedTestKeyPair();
-            const testToken = await new jose.SignJWT({ platform: "http://localhost:3000" })
-                .setProtectedHeader({ alg: "ES256", kid: "entropy-key-1" })
-                .setIssuedAt()
-                .setExpirationTime("1h")
-                .sign(privateKey);
-
-            await makeGraphQLRequest(server, updateMutation, {
-                id: envelopeId,
-                input: {
-                    ontology: testOntology,
-                    payload: testData,
-                    acl: ["*"],
-                },
-            }, {
-                "X-ENAME": evault1.w3id,
-                "Authorization": `Bearer ${testToken}`,
-            });
-
-            // Give the fire-and-forget ingest call a moment to run.
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            // Verify axios.post was called (awareness ingest)
-            expect(axios.post).toHaveBeenCalled();
-
-            // Get the ingest payload
-            const ingestCalls = (axios.post as any).mock.calls.filter((call: any[]) =>
-                typeof call[0] === "string" && call[0].includes("/ingest")
-            );
-
-            expect(ingestCalls.length).toBeGreaterThan(0);
-            const ingestPayload = ingestCalls[0][1];
-
-            // Verify the payload contains the user's W3ID, not the eVault's W3ID
-            expect(ingestPayload).toBeDefined();
-            expect(ingestPayload.w3id).toBe(evault1.w3id);
-            expect(ingestPayload.w3id).not.toBe(evaultW3ID);
-            expect(ingestPayload.id).toBe(envelopeId);
-            expect(ingestPayload.data).toEqual(testData);
-            expect(ingestPayload.schemaId).toBe(testOntology);
-        });
+            if (previousUrl === undefined) {
+                delete process.env.AWARENESS_SERVICE_URL;
+            } else {
+                process.env.AWARENESS_SERVICE_URL = previousUrl;
+            }
+            if (previousPollMs === undefined) {
+                delete process.env.AWARENESS_OUTBOX_POLL_MS;
+            } else {
+                process.env.AWARENESS_OUTBOX_POLL_MS = previousPollMs;
+            }
+        }
     });
 });
