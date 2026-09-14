@@ -66,8 +66,13 @@ let globalDeepLinkHandler: ((event: Event) => void) | undefined;
 let mainWrapper: HTMLElement | undefined = $state(undefined);
 let isAppReady = $state(false);
 let pendingDeepLinks: string[] = $state([]);
+let resolveInitialDeepLink = () => {};
+const initialDeepLinkReady = new Promise<void>((resolve) => {
+    resolveInitialDeepLink = resolve;
+});
 
 setContext("globalState", () => globalState);
+setContext("initialDeepLinkReady", initialDeepLinkReady);
 setContext("setGlobalState", (value: GlobalState | undefined) => {
     globalState = value;
 });
@@ -186,6 +191,8 @@ onMount(async () => {
         window.addEventListener("deepLinkReceived", globalDeepLinkHandler);
     } catch (error) {
         console.error("Failed to initialize deep link listener:", error);
+    } finally {
+        resolveInitialDeepLink();
     }
 
     // Helper function to check if user is on an authenticated route.

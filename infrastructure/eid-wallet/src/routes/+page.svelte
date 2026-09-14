@@ -23,6 +23,7 @@ const authOpts: AuthOptions = {
 };
 
 const getGlobalState = getContext<() => GlobalState | undefined>("globalState");
+const initialDeepLinkReady = getContext<Promise<void>>("initialDeepLinkReady");
 
 // Read sync (before first paint) so backward-nav from /onboarding lands
 // directly in state C without flashing state A for a frame.
@@ -93,14 +94,19 @@ onMount(async () => {
             return;
         }
 
+        // The root layout discovers a cold-start URL asynchronously. Wait for
+        // that discovery before deciding whether this is a normal app launch;
+        // otherwise fast biometric authentication can win the race and route
+        // to /main before pendingDeepLink exists.
+        await initialDeepLinkReady;
+
         // A third-party login deep link opened the app. The root layout has
         // already stored it and redirected to /login, which runs its own
         // biometric prompt. If we ALSO prompt here, two native authenticate()
         // calls race on a cold start — the collision, plus a duplicate
         // post-auth routine consuming the pending deep link, leaves the user
         // on /main with the consent screen never shown. Defer to /login as the
-        // single authenticator. The layout writes pendingDeepLink synchronously
-        // and early, so it's reliably visible by the time we reach here.
+        // single authenticator.
         if (sessionStorage.getItem("pendingDeepLink")) {
             await goto("/login");
             return;
