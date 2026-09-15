@@ -180,6 +180,29 @@ export function isAuthPromptInFlight(): boolean {
 }
 
 /**
+ * Should a pre-app screen abandon an async routine it started earlier?
+ *
+ * Unmounting a Svelte component does NOT cancel an `onMount` that is parked on
+ * an `await`; the continuation resumes later and will happily call `goto()`
+ * from a screen the user left long ago. The splash sleeps for its intro
+ * animation and then awaits storage and the deep-link handshake, so on a cold
+ * start it is still suspended while the user authenticates and /scan-qr opens
+ * the consent drawer. Waking up at that point and running its tail is what
+ * tears the drawer back down.
+ *
+ * Callers pass their own destroyed flag (set from onDestroy). The second
+ * condition catches the subtler case where the component has not been
+ * destroyed yet but the session is already authenticated, which means another
+ * screen owns navigation now.
+ *
+ * Bailing out is always safe: it only skips navigation, and never touches the
+ * deep-link payload the live screen still has to consume.
+ */
+export function shouldAbortStaleContinuation(destroyed: boolean): boolean {
+    return destroyed || isWalletAuthenticated();
+}
+
+/**
  * Wipe every trace of this login session. Call on logout.
  *
  * `walletAuthenticated` in particular MUST be cleared here. Logout resets the

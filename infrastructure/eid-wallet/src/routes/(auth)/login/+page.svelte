@@ -8,6 +8,7 @@ import {
     beginAuthPrompt,
     endAuthPrompt,
     isDeepLinkFlowActive,
+    shouldAbortStaleContinuation,
 } from "$lib/utils/deepLinkFlow";
 import { continueAfterSuccessfulAuth } from "$lib/utils/postLogin";
 import {
@@ -113,11 +114,11 @@ onMount(async () => {
     let retries = 0;
     while (!gs && retries < 50) {
         await new Promise((r) => setTimeout(r, 100));
-        if (destroyed) return;
+        if (shouldAbortStaleContinuation(destroyed)) return;
         gs = getGlobalState();
         retries++;
     }
-    if (destroyed) return;
+    if (shouldAbortStaleContinuation(destroyed)) return;
     if (!gs) {
         console.error("Global state never became available");
         await goto("/");
@@ -144,7 +145,7 @@ onMount(async () => {
         (await gs.securityController.biometricSupport) &&
         (await checkStatus()).isAvailable
     ) {
-        if (destroyed) return;
+        if (shouldAbortStaleContinuation(destroyed)) return;
         beginAuthPrompt();
         try {
             await authenticate(

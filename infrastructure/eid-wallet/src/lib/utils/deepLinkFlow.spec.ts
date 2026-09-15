@@ -14,6 +14,7 @@ import {
     peekDeepLinkPayload,
     promotePendingDeepLink,
     resetAuthSession,
+    shouldAbortStaleContinuation,
 } from "./deepLinkFlow";
 
 /**
@@ -296,8 +297,10 @@ describe("superseded splash/login continuation", () => {
     // still suspended while the user authenticates and the consent drawer
     // opens. Both screens guard their continuations with a liveness check
     // that asks this module whether the user is already through the gate.
+    // Bind to the real exported guard, not a local re-statement of it, so
+    // deleting the guard from the app breaks these tests.
     const stillOwnsTheScreen = (destroyed: boolean) =>
-        !destroyed && !isWalletAuthenticated();
+        !shouldAbortStaleContinuation(destroyed);
 
     it("tells a still-mounted splash it may proceed", () => {
         expect(stillOwnsTheScreen(false)).toBe(true);

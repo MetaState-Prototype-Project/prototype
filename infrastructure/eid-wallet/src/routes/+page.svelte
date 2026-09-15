@@ -7,7 +7,7 @@ import {
     beginAuthPrompt,
     endAuthPrompt,
     isDeepLinkFlowActive,
-    isWalletAuthenticated,
+    shouldAbortStaleContinuation,
 } from "$lib/utils/deepLinkFlow";
 import { continueAfterSuccessfulAuth } from "$lib/utils/postLogin";
 import {
@@ -69,7 +69,7 @@ onDestroy(() => {
 
 /** True once this screen is gone or the user is already through the gate. */
 function superseded(): boolean {
-    return destroyed || isWalletAuthenticated();
+    return shouldAbortStaleContinuation(destroyed);
 }
 
 onMount(async () => {
