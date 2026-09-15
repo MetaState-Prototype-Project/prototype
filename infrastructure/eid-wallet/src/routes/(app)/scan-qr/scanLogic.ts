@@ -374,8 +374,17 @@ export function createScanLogic({
 
             const fromScan = get(isFromScan);
 
+            // `redirect` is the platform's API login endpoint (for example
+            // https://host/api/auth), which only accepts POST. How the
+            // credentials reach it differs by flow:
+            //
+            //   scan      the browser that showed the QR is on another device,
+            //             so the wallet POSTs itself and the platform picks the
+            //             session up over SSE.
+            //   deep link the platform opened us on this device and its
+            //             /deeplink-login PAGE does the POST, then signs the
+            //             user in. We just hand it the parameters.
             if (fromScan) {
-                // For scan: Make POST request with JSON payload
                 const payload = {
                     ename: vault.ename,
                     session: get(session) as string,
@@ -384,7 +393,6 @@ export function createScanLogic({
                 };
 
                 console.log(`📤 Making POST request to: ${redirectUrl}`);
-                console.log("📦 Payload:", payload);
 
                 const response = await fetch(redirectUrl, {
                     method: "POST",
@@ -402,14 +410,12 @@ export function createScanLogic({
 
                 console.log("✅ POST request successful");
 
-                // For scan: Close drawer and show success, skip deeplink redirect logic
                 codeScannedDrawerOpen.set(false);
                 loggedInDrawerOpen.set(true);
                 startScan();
                 return;
             }
-            // For deeplink: Open URL with encoded URI
-            // Strip path from redirectUri and append /deeplink-login
+
             const loginUrl = new URL("/deeplink-login", redirectUrl);
             loginUrl.searchParams.set("ename", vault.ename);
             loginUrl.searchParams.set("session", get(session) as string);
@@ -418,58 +424,18 @@ export function createScanLogic({
 
             console.log(`🔗 Opening login URL: ${loginUrl.toString()}`);
 
-            // Ensure we are on home before triggering external deeplink (non-blocking)
-            goto("/main").catch((err) => {
-                console.error(
-                    "Failed to navigate to home before deep link:",
-                    err,
-                );
-            });
-
-            // Open URL in browser using tauri opener
+            // Close the drawer and hand off to the platform in the browser.
+            // Nothing may follow this navigation: the old code went on to set
+            // window.location.href = redirect, pointing the webview at the
+            // POST-only API endpoint, which is what rendered
+            // "Cannot GET /api/auth" right after a successful login.
+            codeScannedDrawerOpen.set(false);
             await openUrl(loginUrl.toString());
 
-            // Close the auth drawer first
-            codeScannedDrawerOpen.set(false);
-
-            // This request came from a deep link (not the camera), so send the
-            // user back to the platform that asked for the login.
-            //
-            // Read the redirect from the in-memory store rather than from
-            // sessionStorage: initialize() clears the deep-link keys as soon
-            // as the consent drawer is on screen, which is long before the
-            // user taps Confirm, so a storage read here always came back empty
-            // and dropped the user on the "logged in" drawer instead of
-            // returning them to the platform.
-            const deepLinkRedirect = get(isFromScan) ? null : get(redirect);
-
-            if (deepLinkRedirect) {
-                let isValidRedirect = false;
-                try {
-                    new URL(deepLinkRedirect);
-                    isValidRedirect = true;
-                } catch (urlError) {
-                    console.error(
-                        "Invalid redirect URL from deep link:",
-                        deepLinkRedirect,
-                        urlError,
-                    );
-                }
-
-                if (isValidRedirect) {
-                    codeScannedDrawerOpen.set(false);
-                    window.location.href = deepLinkRedirect;
-                    return;
-                }
-            } else {
-                console.log(
-                    "No deep link redirect found after auth completion",
-                );
-            }
-
-            // Ensure auth drawer is closed before opening logged in drawer
-            codeScannedDrawerOpen.set(false);
-            loggedInDrawerOpen.set(true);
+            // Only once the handoff has been made do we return the wallet to
+            // its home screen. Doing this before openUrl (as it was) tore the
+            // page down mid-handoff.
+            await goto("/main");
         } catch (error) {
             console.error("Error completing authentication:", error);
 
