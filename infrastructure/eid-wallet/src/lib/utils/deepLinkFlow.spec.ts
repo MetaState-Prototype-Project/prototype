@@ -52,7 +52,17 @@ const AUTH_PAYLOAD = {
 
 beforeEach(() => {
     vi.stubGlobal("sessionStorage", new MemoryStorage());
+    vi.stubGlobal("localStorage", new MemoryStorage());
 });
+
+/**
+ * Simulate Android reloading the webview while the app sits in the background
+ * (which happens when a deep-link login hands off to the browser via openUrl).
+ * sessionStorage does not survive that; localStorage does.
+ */
+function reloadWebview() {
+    vi.stubGlobal("sessionStorage", new MemoryStorage());
+}
 
 describe("deep link flow state", () => {
     it("reports an active flow for a payload awaiting authentication", () => {
@@ -267,6 +277,36 @@ describe("duplicate delivery guard", () => {
         clearDeepLinkFlow();
 
         expect(isDuplicateDelivery(second)).toBe(false);
+    });
+
+    it("still suppresses a replay after the webview reloads in the background", () => {
+        // The warm-resume bug: completing a deep-link login sends the user out
+        // to the browser via openUrl, and Android may reload the backgrounded
+        // webview. The Activity is singleTask and keeps replaying the original
+        // intent from getCurrent(), so a marker that died with the webview let
+        // the finished login start all over again — ending on the PIN screen.
+        const url = "w3ds://auth?session=sess-1&platform=example";
+        expect(isDuplicateDelivery(url)).toBe(false);
+        clearDeepLinkFlow();
+
+        reloadWebview();
+
+        expect(isDuplicateDelivery(url)).toBe(true);
+    });
+});
+
+describe("authentication is deliberately NOT durable", () => {
+    it("forgets the authenticated session when the webview reloads", () => {
+        // Security boundary. walletAuthenticated must not be persisted: the
+        // deep-link router and the splash both treat an authenticated session
+        // as already through the gate, so a durable marker would let a link
+        // arriving after an app kill skip authentication entirely.
+        markWalletAuthenticated();
+        expect(isWalletAuthenticated()).toBe(true);
+
+        reloadWebview();
+
+        expect(isWalletAuthenticated()).toBe(false);
     });
 });
 

@@ -68,6 +68,31 @@ function store(): Storage | null {
     }
 }
 
+/**
+ * Storage for facts that must survive the WEBVIEW being torn down and rebuilt,
+ * not merely the SPA navigations this flow performs.
+ *
+ * Completing a deep-link login calls `openUrl`, which sends the user out to the
+ * browser. Android is free to reload the wallet's webview while it is
+ * backgrounded, and that wipes sessionStorage — but NOT the Activity, which is
+ * `singleTask`, so the deep-link plugin still replays the original intent from
+ * `getCurrent()`. A dedupe marker kept in sessionStorage therefore cannot
+ * survive long enough to recognise the very replay it exists to suppress.
+ *
+ * ONLY the dedupe markers live here. Emphatically NOT `walletAuthenticated`:
+ * making that durable would let a deep link arriving after a full app kill
+ * skip authentication entirely, because the deep-link router and the splash
+ * both treat an authenticated session as "already through the gate". Being
+ * forgotten on relaunch is exactly the property that makes it safe.
+ */
+function durableStore(): Storage | null {
+    try {
+        return typeof localStorage === "undefined" ? null : localStorage;
+    } catch {
+        return null;
+    }
+}
+
 /* ---------------------------------------------------------------- payloads */
 
 /** A deep link arrived and the user still has to authenticate. */
@@ -129,10 +154,11 @@ export function clearDeepLinkFlow(): void {
     // any further delivery of that same URL is a replay to be ignored — but we
     // must remember WHICH url, rather than forgetting it. See
     // isDuplicateDelivery.
-    const inFlight = s.getItem(LAST_URL_KEY);
-    if (inFlight) {
-        s.setItem(HANDLED_URL_KEY, inFlight);
-        s.removeItem(LAST_URL_KEY);
+    const d = durableStore();
+    const inFlight = d?.getItem(LAST_URL_KEY);
+    if (d && inFlight) {
+        d.setItem(HANDLED_URL_KEY, inFlight);
+        d.removeItem(LAST_URL_KEY);
     }
 }
 
@@ -167,7 +193,10 @@ export function clearDeepLinkFlow(): void {
  * this flow performs.
  */
 export function isDuplicateDelivery(urlString: string): boolean {
-    const s = store();
+    // Durable: the replay we are guarding against is delivered by an Activity
+    // that outlives the webview, so a marker that dies with the webview cannot
+    // catch it.
+    const s = durableStore();
     if (!s) return false;
     if (s.getItem(HANDLED_URL_KEY) === urlString) return true;
     if (s.getItem(LAST_URL_KEY) === urlString) return true;
@@ -240,10 +269,10 @@ export function shouldAbortStaleContinuation(destroyed: boolean): boolean {
  */
 export function resetAuthSession(): void {
     const s = store();
-    if (!s) return;
     clearDeepLinkFlow();
-    s.removeItem(HANDLED_URL_KEY);
-    s.removeItem(LAST_URL_KEY);
-    s.removeItem(AUTHED_KEY);
-    s.removeItem(AUTH_IN_FLIGHT_KEY);
+    s?.removeItem(AUTH_IN_FLIGHT_KEY);
+    s?.removeItem(AUTHED_KEY);
+    const d = durableStore();
+    d?.removeItem(HANDLED_URL_KEY);
+    d?.removeItem(LAST_URL_KEY);
 }
