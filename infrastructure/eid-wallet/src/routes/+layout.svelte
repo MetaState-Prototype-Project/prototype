@@ -307,6 +307,7 @@ onNavigate((navigation) => {
     const to = navigation.to?.url.pathname;
 
     if (!from || !to || from === to) return;
+    console.log(`from: ${from}, to: ${to}`);
 
     // Mark routes that have their own mount-time refresh guard. A SvelteKit
     // navigation (link/goto) fires this hook; a hard reload does not — so

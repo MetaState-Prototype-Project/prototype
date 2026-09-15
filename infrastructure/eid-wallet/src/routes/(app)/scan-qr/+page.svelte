@@ -13,8 +13,16 @@ import SigningDrawer from "./components/SigningDrawer.svelte";
 import SocialBindingDrawer from "./components/SocialBindingDrawer.svelte";
 import { createScanLogic } from "./scanLogic";
 
-const globalState = getContext<() => GlobalState>("globalState")();
-const { stores, actions } = createScanLogic({ globalState, goto });
+// Resolve global state LAZILY. /scan-qr is not only the scanner: it renders the
+// deep-link consent drawer, so the deep-link flow navigates here on its own. On
+// a fresh webview load (Android reloads it while the app is backgrounded during
+// the browser handoff) this page is restored as the current route and mounts
+// BEFORE the root layout's onMount has created global state. Calling the
+// context getter once here captured `undefined` forever, and the first
+// `globalState.vaultController` then threw — which scanLogic's catch reported
+// as "authentication check failed" and redirected to /login.
+const getGlobalState = getContext<() => GlobalState | undefined>("globalState");
+const { stores, actions } = createScanLogic({ getGlobalState, goto });
 
 const {
     platform,

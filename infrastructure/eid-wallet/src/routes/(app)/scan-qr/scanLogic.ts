@@ -60,7 +60,11 @@ export interface RevealedVoteData {
 }
 
 interface CreateScanLogicParams {
-    globalState: GlobalState;
+    /**
+     * Lazy accessor rather than a value: this page can mount before the root
+     * layout has finished creating global state (see +page.svelte).
+     */
+    getGlobalState: () => GlobalState | undefined;
     goto: (path: string) => Promise<void>;
 }
 
@@ -147,9 +151,39 @@ interface ScanLogic {
 let scanInFlight = false;
 
 export function createScanLogic({
-    globalState,
+    getGlobalState,
     goto,
 }: CreateScanLogicParams): ScanLogic {
+    /**
+     * Wait for the root layout to publish global state.
+     *
+     * Returns undefined only if it never arrives, which is a genuine failure.
+     * Everything below reads through this instead of capturing the value once,
+     * so a mount that beats the layout recovers instead of throwing.
+     */
+    async function requireGlobalState(): Promise<GlobalState | undefined> {
+        let gs = getGlobalState();
+        let retries = 0;
+        while (!gs && retries < 50) {
+            await new Promise((r) => setTimeout(r, 100));
+            gs = getGlobalState();
+            retries++;
+        }
+        return gs;
+    }
+
+    /**
+     * Same, but for the user-initiated handlers below, which cannot proceed at
+     * all without global state. They all run after the user has interacted with
+     * a drawer, so it is present in practice; this throws a NAMED error rather
+     * than a TypeError on undefined if that ever stops being true.
+     */
+    async function mustGlobalState(): Promise<GlobalState> {
+        const gs = await requireGlobalState();
+        if (!gs) throw new Error("Global state unavailable");
+        return gs;
+    }
+
     const platform = writable<string | null>(null);
     const hostname = writable<string | null>(null);
     const session = writable<string | null>(null);
@@ -342,6 +376,7 @@ export function createScanLogic({
     }
 
     async function handleAuth() {
+        const globalState = await mustGlobalState();
         const vault = await globalState.vaultController.vault;
         if (!vault || !get(redirect)) return;
 
@@ -644,6 +679,7 @@ export function createScanLogic({
     }
 
     async function handleSocialBinding() {
+        const globalState = await mustGlobalState();
         const requesterEname = get(socialBindingRequesterEname);
         if (!requesterEname) return;
 
@@ -815,6 +851,7 @@ export function createScanLogic({
     }
 
     async function handleSignVote() {
+        const globalState = await mustGlobalState();
         const currentSigningData = get(signingData);
         const currentSigningSessionId = get(signingSessionId);
         if (!currentSigningData || !currentSigningSessionId) return;
@@ -917,6 +954,7 @@ export function createScanLogic({
     }
 
     async function handleBlindVote() {
+        const globalState = await mustGlobalState();
         console.log("🔍 DEBUG: handleBlindVote called");
         const currentSelectedOption = get(selectedBlindVoteOption);
         const currentSigningData = get(signingData);
@@ -1163,6 +1201,7 @@ export function createScanLogic({
     }
 
     async function handleRevealVote() {
+        const globalState = await mustGlobalState();
         const currentPollId = get(revealPollId);
         if (!currentPollId) return;
 
@@ -1314,8 +1353,12 @@ export function createScanLogic({
             console.log("Redirect:", data.redirect);
             console.log("Redirect URI:", data.redirect_uri);
 
-            // Ensure globalState is available
-            if (!globalState) {
+            // Wait for global state rather than discarding the request. This
+            // runs on a payload that has already been consumed and cleared, so
+            // returning early here loses the login outright — and arriving
+            // before the root layout has published global state is exactly what
+            // happens when a deep link restores this page on a fresh webview.
+            if (!(await requireGlobalState())) {
                 console.error(
                     "GlobalState not available, cannot handle deep link",
                 );
@@ -1541,8 +1584,21 @@ export function createScanLogic({
     async function initialize() {
         console.log("Scan QR page mounted, checking authentication...");
 
+        // Wait for global state rather than assuming the layout got there
+        // first. This page is a deep-link destination, so it can be restored
+        // as the current route on a fresh webview load and mount before the
+        // root layout has created it.
+        const gs = await requireGlobalState();
+        if (!gs) {
+            console.log(
+                "[SCAN] global state never became available, redirecting to login",
+            );
+            await goto("/login");
+            return () => {};
+        }
+
         try {
-            const vault = await globalState.vaultController.vault;
+            const vault = await gs.vaultController.vault;
             if (!vault) {
                 console.log("User not authenticated, redirecting to login");
                 await goto("/login");
@@ -1552,9 +1608,16 @@ export function createScanLogic({
                 "User authenticated, proceeding with scan functionality",
             );
         } catch (error) {
-            console.log("Authentication check failed, redirecting to login");
-            await goto("/login");
-            return () => {};
+            // A THROWN read is "unknown", not "signed out" — the store IPC is
+            // briefly unavailable after a resume. Treating it as signed out is
+            // what dropped the user on the PIN screen mid deep-link login, and
+            // it discards the very distinction readVaultResilient preserves.
+            // Stay put and let the consent flow below continue; the (app)
+            // layout guard still covers a genuinely unauthenticated visitor.
+            console.warn(
+                "[SCAN] vault read failed, continuing without bouncing to login:",
+                error,
+            );
         }
 
         console.log("Scan QR page mounted, checking for deep link data...");
