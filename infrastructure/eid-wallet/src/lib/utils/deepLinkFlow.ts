@@ -124,11 +124,9 @@ export function clearDeepLinkFlow(): void {
     if (!s) return;
     s.removeItem(PENDING_KEY);
     s.removeItem(DATA_KEY);
-    // Release the dedupe guard too. It only exists to collapse the duplicate
-    // delivery of a single URL; once that URL has been consumed, the very same
-    // link presented again is a legitimate new request and must not be
-    // swallowed.
-    s.removeItem(LAST_URL_KEY);
+    // NOTE: the dedupe guard (LAST_URL_KEY) is deliberately NOT released here.
+    // See isDuplicateDelivery for why releasing it re-armed the very loop it
+    // exists to prevent.
 }
 
 /* ------------------------------------------------------------ dedupe guard */
@@ -140,10 +138,21 @@ export function clearDeepLinkFlow(): void {
  * `onOpenUrl` callback. Handling it twice fires two navigations at the consent
  * screen and the second can unmount the drawer the first just opened.
  *
- * The guard is scoped to the lifetime of one flow rather than to the session:
- * `clearDeepLinkFlow` releases it, so re-presenting the same link after it has
- * been dealt with works normally. Storage-backed rather than a module variable
- * so it survives the navigations this flow performs.
+ * The guard must OUTLIVE the flow it is guarding. Releasing it when the flow
+ * was consumed (as it used to) created a loop: /scan-qr consumes the payload
+ * and clears the flow, which re-arms the guard, and the second delivery of the
+ * SAME url then looks brand new and starts the whole login again. Because the
+ * Android activity is `singleTask`, the plugin also keeps handing the original
+ * intent back from `getCurrent()` on every webview load, so this replayed
+ * forever: consent screen, then another, then another.
+ *
+ * A deep link is identified by its `session`, which the platform generates
+ * fresh per login request (uuid v4). So remembering the last handled URL and
+ * refusing to handle it twice cannot swallow a legitimate new request: that
+ * request carries a different session and therefore a different URL.
+ *
+ * Storage-backed rather than a module variable so it survives the navigations
+ * this flow performs.
  */
 export function isDuplicateDelivery(urlString: string): boolean {
     const s = store();

@@ -216,16 +216,32 @@ describe("duplicate delivery guard", () => {
         expect(isDuplicateDelivery("w3ds://auth?session=b")).toBe(false);
     });
 
-    it("honours the same URL again once the flow has been consumed", () => {
-        // Regression: a session-lifetime guard silently dropped a legitimate
-        // retry of an identical link.
+    it("keeps suppressing a handled URL after the flow is consumed", () => {
+        // Regression: releasing the guard on clearDeepLinkFlow re-armed the
+        // loop it exists to stop. /scan-qr consumes the payload and clears the
+        // flow, and Android (singleTask) keeps replaying the original intent
+        // from getCurrent(), so a released guard let the same login restart
+        // over and over.
         const url = "w3ds://auth?session=sess-1&platform=example";
         expect(isDuplicateDelivery(url)).toBe(false);
         expect(isDuplicateDelivery(url)).toBe(true);
 
         clearDeepLinkFlow();
 
-        expect(isDuplicateDelivery(url)).toBe(false);
+        expect(isDuplicateDelivery(url)).toBe(true);
+    });
+
+    it("still accepts a genuinely new request after one is consumed", () => {
+        // The guard keys on the whole URL, and the platform mints a fresh
+        // `session` uuid per request, so a real second login is never
+        // mistaken for a replay of the first.
+        const first = "w3ds://auth?session=sess-1&platform=example";
+        const second = "w3ds://auth?session=sess-2&platform=example";
+
+        expect(isDuplicateDelivery(first)).toBe(false);
+        clearDeepLinkFlow();
+
+        expect(isDuplicateDelivery(second)).toBe(false);
     });
 });
 
