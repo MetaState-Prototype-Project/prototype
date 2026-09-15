@@ -2,6 +2,7 @@
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
 import type { GlobalState } from "$lib/global";
+import { isWalletAuthenticated } from "$lib/utils/deepLinkFlow";
 import type { PluginListener } from "@tauri-apps/api/core";
 import type { Snippet } from "svelte";
 import { getContext, onDestroy, onMount } from "svelte";
@@ -13,6 +14,26 @@ let currentRoute = $derived(page.url.pathname.split("/").pop() || "home");
 let globalState: GlobalState | undefined = $state(undefined);
 let notificationListener: PluginListener | undefined;
 
+// This guard polls for global state and then retries the vault read, so it can
+// still be parked on an await long after the user has moved on. Unmounting does
+// NOT cancel it, and its failure path calls goto("/login") — which is how a
+// completed login ended up back on the PIN screen. Bail out if this layout is
+// gone, and never bounce a session that has already authenticated.
+let destroyed = false;
+onDestroy(() => {
+    destroyed = true;
+});
+
+/** Send an unauthenticated visitor to /login, unless we are stale. */
+async function bounceToLogin(reason: string) {
+    if (destroyed || isWalletAuthenticated()) {
+        console.log("[APP GUARD] stale, not redirecting |", reason);
+        return;
+    }
+    console.log("[APP GUARD]", reason);
+    await goto("/login");
+}
+
 onMount(async () => {
     // Get global state — poll briefly since root layout's init is async and
     // can land after this guard mounts on a hard reload.
@@ -21,6 +42,7 @@ onMount(async () => {
     let retries = 0;
     while (!globalState && retries < 50) {
         await new Promise((r) => setTimeout(r, 100));
+        if (destroyed) return;
         globalState = getGlobalState();
         retries++;
     }
@@ -28,8 +50,7 @@ onMount(async () => {
     // Authentication guard for all app routes
     try {
         if (!globalState) {
-            console.log("No global state, redirecting to login");
-            await goto("/login");
+            await bounceToLogin("no global state");
             return;
         }
 
@@ -39,17 +60,17 @@ onMount(async () => {
         let vaultRetries = 0;
         while (!vault && vaultRetries < 10) {
             await new Promise((r) => setTimeout(r, 100));
+            if (destroyed) return;
             vault = await globalState.vaultController.vault;
             vaultRetries++;
         }
         if (!vault) {
-            console.log(
-                "[APP GUARD] vault missing after retry, redirecting to login | path:",
-                page.url.pathname,
+            await bounceToLogin(
+                `vault missing after retry | path: ${page.url.pathname}`,
             );
-            await goto("/login");
             return;
         }
+        if (destroyed) return;
 
         console.log("User authenticated, allowing access to app routes");
 
@@ -87,8 +108,7 @@ onMount(async () => {
             console.error("Failed to check notifications:", error);
         }
     } catch (error) {
-        console.log("Authentication check failed, redirecting to login");
-        await goto("/login");
+        await bounceToLogin(`authentication check failed: ${error}`);
         return;
     }
 });

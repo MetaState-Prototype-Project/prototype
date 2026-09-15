@@ -231,6 +231,31 @@ describe("duplicate delivery guard", () => {
         expect(isDuplicateDelivery(url)).toBe(true);
     });
 
+    it("suppresses a replay even if the flow is cleared after one delivery", () => {
+        // The duplicate may arrive AFTER /scan-qr has already consumed the
+        // payload. Clearing must therefore remember the URL as handled rather
+        // than forget it, or the replay restarts the login.
+        const url = "w3ds://auth?session=sess-1&platform=example";
+        expect(isDuplicateDelivery(url)).toBe(false);
+
+        clearDeepLinkFlow();
+
+        expect(isDuplicateDelivery(url)).toBe(true);
+    });
+
+    it("forgets handled URLs on logout so the same link works again", () => {
+        // Logging out and back in with a link the user was previously sent is
+        // a legitimate new request, and the session is torn down anyway.
+        const url = "w3ds://auth?session=sess-1&platform=example";
+        expect(isDuplicateDelivery(url)).toBe(false);
+        clearDeepLinkFlow();
+        expect(isDuplicateDelivery(url)).toBe(true);
+
+        resetAuthSession();
+
+        expect(isDuplicateDelivery(url)).toBe(false);
+    });
+
     it("still accepts a genuinely new request after one is consumed", () => {
         // The guard keys on the whole URL, and the platform mints a fresh
         // `session` uuid per request, so a real second login is never

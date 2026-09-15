@@ -56,6 +56,7 @@ const DATA_KEY = "deepLinkData";
 const AUTHED_KEY = "walletAuthenticated";
 const AUTH_IN_FLIGHT_KEY = "walletAuthInFlight";
 const LAST_URL_KEY = "deepLinkLastUrl";
+const HANDLED_URL_KEY = "deepLinkHandledUrl";
 
 function store(): Storage | null {
     try {
@@ -124,9 +125,15 @@ export function clearDeepLinkFlow(): void {
     if (!s) return;
     s.removeItem(PENDING_KEY);
     s.removeItem(DATA_KEY);
-    // NOTE: the dedupe guard (LAST_URL_KEY) is deliberately NOT released here.
-    // See isDuplicateDelivery for why releasing it re-armed the very loop it
-    // exists to prevent.
+    // Promote the in-flight URL to "already handled". The request is over, so
+    // any further delivery of that same URL is a replay to be ignored — but we
+    // must remember WHICH url, rather than forgetting it. See
+    // isDuplicateDelivery.
+    const inFlight = s.getItem(LAST_URL_KEY);
+    if (inFlight) {
+        s.setItem(HANDLED_URL_KEY, inFlight);
+        s.removeItem(LAST_URL_KEY);
+    }
 }
 
 /* ------------------------------------------------------------ dedupe guard */
@@ -138,18 +145,23 @@ export function clearDeepLinkFlow(): void {
  * `onOpenUrl` callback. Handling it twice fires two navigations at the consent
  * screen and the second can unmount the drawer the first just opened.
  *
- * The guard must OUTLIVE the flow it is guarding. Releasing it when the flow
- * was consumed (as it used to) created a loop: /scan-qr consumes the payload
- * and clears the flow, which re-arms the guard, and the second delivery of the
- * SAME url then looks brand new and starts the whole login again. Because the
- * Android activity is `singleTask`, the plugin also keeps handing the original
- * intent back from `getCurrent()` on every webview load, so this replayed
- * forever: consent screen, then another, then another.
+ * A URL is suppressed in two distinct situations, and conflating them breaks
+ * one flow or the other:
+ *
+ *   in flight  this URL is the request currently being processed. The second
+ *              delivery of it is Android's duplicate and must be dropped.
+ *   handled    the request finished. Every later delivery is the plugin
+ *              replaying a stale intent (the activity is `singleTask` and it
+ *              never clears `currentUrl`), and restarting the login from it
+ *              loops forever.
+ *
+ * Both are suppressed, but the marker is never simply FORGOTTEN: forgetting is
+ * what let the replay look new and restart the loop. It is moved from
+ * "in flight" to "handled" when the flow is cleared.
  *
  * A deep link is identified by its `session`, which the platform generates
- * fresh per login request (uuid v4). So remembering the last handled URL and
- * refusing to handle it twice cannot swallow a legitimate new request: that
- * request carries a different session and therefore a different URL.
+ * fresh per login request (uuid v4), so a genuinely new request carries a
+ * different URL and is never suppressed by either marker.
  *
  * Storage-backed rather than a module variable so it survives the navigations
  * this flow performs.
@@ -157,6 +169,7 @@ export function clearDeepLinkFlow(): void {
 export function isDuplicateDelivery(urlString: string): boolean {
     const s = store();
     if (!s) return false;
+    if (s.getItem(HANDLED_URL_KEY) === urlString) return true;
     if (s.getItem(LAST_URL_KEY) === urlString) return true;
     s.setItem(LAST_URL_KEY, urlString);
     return false;
@@ -229,6 +242,8 @@ export function resetAuthSession(): void {
     const s = store();
     if (!s) return;
     clearDeepLinkFlow();
+    s.removeItem(HANDLED_URL_KEY);
+    s.removeItem(LAST_URL_KEY);
     s.removeItem(AUTHED_KEY);
     s.removeItem(AUTH_IN_FLIGHT_KEY);
 }
