@@ -410,6 +410,10 @@ export function createScanLogic({
 
                 console.log("✅ POST request successful");
 
+                // The request is done with: retire the flow so nothing later
+                // re-offers this same login.
+                clearDeepLinkFlow();
+
                 codeScannedDrawerOpen.set(false);
                 loggedInDrawerOpen.set(true);
                 startScan();
@@ -424,18 +428,24 @@ export function createScanLogic({
 
             console.log(`🔗 Opening login URL: ${loginUrl.toString()}`);
 
-            // Close the drawer and hand off to the platform in the browser.
-            // Nothing may follow this navigation: the old code went on to set
-            // window.location.href = redirect, pointing the webview at the
-            // POST-only API endpoint, which is what rendered
-            // "Cannot GET /api/auth" right after a successful login.
+            // Hand off to the platform in the browser. Nothing may navigate
+            // the webview after this: the old code set window.location.href =
+            // redirect, pointing it at the POST-only API endpoint, which is
+            // what rendered "Cannot GET /api/auth" over a successful login.
             codeScannedDrawerOpen.set(false);
             await openUrl(loginUrl.toString());
 
-            // Only once the handoff has been made do we return the wallet to
-            // its home screen. Doing this before openUrl (as it was) tore the
-            // page down mid-handoff.
-            await goto("/main");
+            // This login is now spent. Retiring the flow here is what stops
+            // the "authentication request pending" banner from being offered
+            // again on every later launch: the sticky deepLinkFlowActive
+            // marker deliberately outlives the payload keys, so clearing the
+            // payload alone would leave the request looking live forever.
+            clearDeepLinkFlow();
+
+            // Show the same "You're logged in!" confirmation the scan flow
+            // gets, rather than dumping the user straight on the home screen.
+            // Its Ok button is what returns them to /main.
+            loggedInDrawerOpen.set(true);
         } catch (error) {
             console.error("Error completing authentication:", error);
 
@@ -1283,6 +1293,12 @@ export function createScanLogic({
         // Clear auth error when drawer is closed
         if (!value) {
             authError.set(null);
+            // The consent drawer is the only place this request is ever
+            // shown, so once it closes the request is over however it ended:
+            // confirmed, declined, or dismissed. Retire the flow here too, or
+            // a declined login stays "pending" and is offered again on the
+            // next launch. Idempotent; the confirm path has already cleared.
+            clearDeepLinkFlow();
         }
     }
 
