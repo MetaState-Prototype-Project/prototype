@@ -21,6 +21,10 @@ import {
     getCanonicalBindingDocString,
     resolveVaultUri,
 } from "$lib/utils";
+import {
+    clearDeepLinkFlow,
+    peekDeepLinkPayload,
+} from "$lib/utils/deepLinkFlow";
 
 export interface SigningData {
     type?: string;
@@ -428,81 +432,39 @@ export function createScanLogic({
             // Close the auth drawer first
             codeScannedDrawerOpen.set(false);
 
-            let deepLinkData = sessionStorage.getItem("deepLinkData");
-            if (!deepLinkData) {
-                deepLinkData = sessionStorage.getItem("pendingDeepLink");
-            }
+            // This request came from a deep link (not the camera), so send the
+            // user back to the platform that asked for the login.
+            //
+            // Read the redirect from the in-memory store rather than from
+            // sessionStorage: initialize() clears the deep-link keys as soon
+            // as the consent drawer is on screen, which is long before the
+            // user taps Confirm, so a storage read here always came back empty
+            // and dropped the user on the "logged in" drawer instead of
+            // returning them to the platform.
+            const deepLinkRedirect = get(isFromScan) ? null : get(redirect);
 
-            if (deepLinkData) {
+            if (deepLinkRedirect) {
+                let isValidRedirect = false;
                 try {
-                    const data = JSON.parse(deepLinkData) as DeepLinkData;
-                    console.log(
-                        "Deep link data found after auth completion:",
-                        data,
-                    );
-
-                    if (data.type === "auth") {
-                        if (
-                            !data.redirect ||
-                            typeof data.redirect !== "string"
-                        ) {
-                            console.error(
-                                "Invalid redirect URL:",
-                                data.redirect,
-                            );
-                            // Ensure auth drawer is closed before opening logged in drawer
-                            codeScannedDrawerOpen.set(false);
-                            loggedInDrawerOpen.set(true);
-                            return;
-                        }
-
-                        try {
-                            new URL(data.redirect);
-                        } catch (urlError) {
-                            console.error("Invalid URL format:", urlError);
-                            // Ensure auth drawer is closed before opening logged in drawer
-                            codeScannedDrawerOpen.set(false);
-                            loggedInDrawerOpen.set(true);
-                            return;
-                        }
-
-                        try {
-                            window.location.href = data.redirect;
-                        } catch (error1) {
-                            console.log(
-                                "Method 1 failed, trying method 2:",
-                                error1,
-                            );
-                            try {
-                                window.location.assign(data.redirect);
-                            } catch (error2) {
-                                console.log(
-                                    "Method 2 failed, trying method 3:",
-                                    error2,
-                                );
-                                try {
-                                    window.location.replace(data.redirect);
-                                } catch (error3) {
-                                    console.log(
-                                        "Method 3 failed, using fallback:",
-                                        error3,
-                                    );
-                                    throw new Error(
-                                        "All redirect methods failed",
-                                    );
-                                }
-                            }
-                        }
-                        return;
-                    }
-                } catch (error) {
+                    new URL(deepLinkRedirect);
+                    isValidRedirect = true;
+                } catch (urlError) {
                     console.error(
-                        "Error parsing deep link data for redirect:",
-                        error,
+                        "Invalid redirect URL from deep link:",
+                        deepLinkRedirect,
+                        urlError,
                     );
                 }
+
+                if (isValidRedirect) {
+                    codeScannedDrawerOpen.set(false);
+                    window.location.href = deepLinkRedirect;
+                    return;
+                }
             } else {
-                console.log("No deep link data found after auth completion");
+                console.log(
+                    "No deep link redirect found after auth completion",
+                );
             }
 
             // Ensure auth drawer is closed before opening logged in drawer
@@ -946,18 +908,13 @@ export function createScanLogic({
             }
             showSigningSuccess.set(true);
 
-            const deepLinkData = sessionStorage.getItem("deepLinkData");
-            if (deepLinkData) {
-                try {
-                    const data = JSON.parse(deepLinkData) as DeepLinkData;
-                    if (data.type === "sign") {
-                        console.log("Signing completed via deep link");
-                        startScan();
-                        return;
-                    }
-                } catch (error) {
-                    console.error("Error parsing deep link data:", error);
-                }
+            // Came from a deep link rather than the camera: resume scanning
+            // behind the success sheet. Uses the in-memory flag because the
+            // deep-link storage keys are cleared once the drawer opens.
+            if (!get(isFromScan)) {
+                console.log("Signing completed via deep link");
+                startScan();
+                return;
             }
         } catch (error) {
             console.error("Error signing vote:", error);
@@ -1666,10 +1623,7 @@ export function createScanLogic({
         window.addEventListener("deepLinkAuth", authHandler);
         window.addEventListener("deepLinkSign", signHandler);
 
-        let deepLinkData = sessionStorage.getItem("deepLinkData");
-        if (!deepLinkData) {
-            deepLinkData = sessionStorage.getItem("pendingDeepLink");
-        }
+        const deepLinkData = peekDeepLinkPayload();
 
         if (deepLinkData) {
             console.log("Found deep link data:", deepLinkData);
@@ -1680,8 +1634,14 @@ export function createScanLogic({
             } catch (error) {
                 console.error("Error parsing deep link data:", error);
             } finally {
-                sessionStorage.removeItem("deepLinkData");
-                sessionStorage.removeItem("pendingDeepLink");
+                // Clear only after the payload has been turned into an open
+                // drawer. handleDeepLinkData is synchronous up to the point
+                // where it sets the drawer store, so by here the consent UI
+                // is already committed and the keys are safe to drop. Doing
+                // this earlier meant a re-mount of /scan-qr (which a racing
+                // navigation can trigger on a cold start) found nothing left
+                // to show and silently fell through to the camera.
+                clearDeepLinkFlow();
             }
         } else {
             console.log("No deep link data found, starting normal scanning");

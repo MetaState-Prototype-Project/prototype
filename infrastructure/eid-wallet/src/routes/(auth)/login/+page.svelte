@@ -4,6 +4,11 @@ import { keyboardInset } from "$lib/actions/keyboardInset";
 import type { GlobalState } from "$lib/global";
 import { LoadingSheet, PinDots } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
+import {
+    beginAuthPrompt,
+    endAuthPrompt,
+    isDeepLinkFlowActive,
+} from "$lib/utils/deepLinkFlow";
 import { continueAfterSuccessfulAuth } from "$lib/utils/postLogin";
 import {
     type AuthOptions,
@@ -61,6 +66,9 @@ async function verifyAndAdvance(currentPin: string) {
     isError = false;
     isPostAuthLoading = true;
 
+    // A deep link arriving mid-verification must not issue its own
+    // navigation; continueAfterSuccessfulAuth below owns where we go next.
+    beginAuthPrompt();
     try {
         const ok = await globalState.securityController.verifyPin(currentPin);
         if (!ok) {
@@ -69,12 +77,14 @@ async function verifyAndAdvance(currentPin: string) {
             return;
         }
 
+        endAuthPrompt();
         await continueAfterSuccessfulAuth(globalState);
     } catch (e) {
         console.error("PIN verification failed", e);
         isError = true;
         pin = "";
     } finally {
+        endAuthPrompt();
         isPostAuthLoading = false;
     }
 }
@@ -100,8 +110,9 @@ onMount(async () => {
     }
     globalState = gs;
 
-    const pendingDeepLink = sessionStorage.getItem("pendingDeepLink");
-    hasPendingDeepLink = !!pendingDeepLink;
+    // Sticky flow flag, not the raw key: the payload may already have been
+    // promoted from pendingDeepLink to deepLinkData by the time we mount.
+    hasPendingDeepLink = isDeepLinkFlowActive();
 
     // If the splash already prompted biometric over its own screen, skip the
     // retry here and let the user enter their PIN. The flag survives the
@@ -118,16 +129,20 @@ onMount(async () => {
         (await gs.securityController.biometricSupport) &&
         (await checkStatus()).isAvailable
     ) {
+        beginAuthPrompt();
         try {
             await authenticate(
                 "You must authenticate with PIN first",
                 authOpts,
             );
             isPostAuthLoading = true;
+            endAuthPrompt();
             await continueAfterSuccessfulAuth(gs);
         } catch (e) {
             console.error("Biometric authentication failed", e);
             isPostAuthLoading = false;
+        } finally {
+            endAuthPrompt();
         }
     }
 });

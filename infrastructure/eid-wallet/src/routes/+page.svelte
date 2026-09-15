@@ -3,6 +3,11 @@ import { browser } from "$app/environment";
 import { goto } from "$app/navigation";
 import SplashScreen from "$lib/fragments/SplashScreen/SplashScreen.svelte";
 import type { GlobalState } from "$lib/global";
+import {
+    beginAuthPrompt,
+    endAuthPrompt,
+    isDeepLinkFlowActive,
+} from "$lib/utils/deepLinkFlow";
 import { continueAfterSuccessfulAuth } from "$lib/utils/postLogin";
 import {
     type AuthOptions,
@@ -95,19 +100,22 @@ onMount(async () => {
         }
 
         // The root layout discovers a cold-start URL asynchronously. Wait for
-        // that discovery before deciding whether this is a normal app launch;
-        // otherwise fast biometric authentication can win the race and route
-        // to /main before pendingDeepLink exists.
+        // that discovery before deciding whether this is an ordinary launch,
+        // otherwise fast biometric authentication wins the race and routes to
+        // /main before the payload has even been stored.
         await initialDeepLinkReady;
 
         // A third-party login deep link opened the app. The root layout has
-        // already stored it and redirected to /login, which runs its own
-        // biometric prompt. If we ALSO prompt here, two native authenticate()
-        // calls race on a cold start — the collision, plus a duplicate
-        // post-auth routine consuming the pending deep link, leaves the user
-        // on /main with the consent screen never shown. Defer to /login as the
-        // single authenticator.
-        if (sessionStorage.getItem("pendingDeepLink")) {
+        // stored it and redirected to /login, which runs its own biometric
+        // prompt. Prompting here as well puts two native authenticate() calls
+        // on screen at once and lets two post-auth routines fight over a
+        // single payload — the user ends up on /main and the consent screen is
+        // never shown. Defer to /login as the single authenticator.
+        //
+        // Ask the sticky flow flag rather than reading pendingDeepLink: by the
+        // time we get here the payload may already have been promoted to
+        // deepLinkData, and the raw key read would report "no deep link".
+        if (isDeepLinkFlowActive()) {
             await goto("/login");
             return;
         }
@@ -129,6 +137,11 @@ onMount(async () => {
 
         if (biometricAvailable && globalState) {
             sessionStorage.setItem(BIOMETRIC_ATTEMPTED_KEY, "true");
+            // Tell the deep-link handler that a prompt owns the screen. A URL
+            // arriving while the user's finger is on the sensor must park its
+            // payload and let continueAfterSuccessfulAuth route, instead of
+            // firing its own competing navigation.
+            beginAuthPrompt();
             try {
                 await authenticate(
                     "You must authenticate with PIN first",
@@ -137,12 +150,15 @@ onMount(async () => {
                 // Success — clear the flag (we won't reach /login at all)
                 // and run the shared post-auth routine.
                 sessionStorage.removeItem(BIOMETRIC_ATTEMPTED_KEY);
+                endAuthPrompt();
                 await continueAfterSuccessfulAuth(globalState);
                 return;
             } catch (e) {
                 // Cancel/fail. Leave the flag set so /login skips its own
                 // biometric retry, then slide into /login for PIN entry.
                 console.warn("Biometric on splash failed", e);
+            } finally {
+                endAuthPrompt();
             }
         }
 

@@ -1,5 +1,11 @@
 import { goto } from "$app/navigation";
 import type { GlobalState } from "$lib/global";
+import {
+    isDeepLinkFlowActive,
+    markWalletAuthenticated,
+    peekDeepLinkPayload,
+    promotePendingDeepLink,
+} from "$lib/utils/deepLinkFlow";
 
 /**
  * Shared post-authentication routine: fires the background eVault chores
@@ -14,6 +20,12 @@ import type { GlobalState } from "$lib/global";
 export async function continueAfterSuccessfulAuth(
     gs: GlobalState,
 ): Promise<void> {
+    // Record the session as authenticated BEFORE any await. A deep link that
+    // lands while the chores below are in flight must be able to see that the
+    // user is already through the gate, so it routes itself straight to the
+    // consent screen instead of parking a payload nobody will collect.
+    markWalletAuthenticated();
+
     // Fire-and-forget post-login chores. They hit the network with no client
     // timeout, so awaiting them here can strand the user on a spinner — the
     // app pages will retry as needed.
@@ -52,17 +64,23 @@ export async function continueAfterSuccessfulAuth(
         console.error("Error reading vault during login:", error);
     }
 
-    const pendingDeepLink = sessionStorage.getItem("pendingDeepLink");
-    if (pendingDeepLink) {
+    // Promote any payload that was parked while the user authenticated, then
+    // re-check the flow flag. Both steps matter: the payload may have been
+    // stored before the prompt (promote finds it) or delivered during the
+    // awaits above and written straight to deepLinkData (only the flag sees
+    // it). Checking just one of the two is what let the consent screen slip
+    // through the cracks on a fast cold start.
+    promotePendingDeepLink();
+
+    if (isDeepLinkFlowActive() && peekDeepLinkPayload()) {
         try {
-            sessionStorage.setItem("deepLinkData", pendingDeepLink);
-            sessionStorage.removeItem("pendingDeepLink");
             await goto("/scan-qr");
             return;
         } catch (error) {
-            console.error("Error processing pending deep link:", error);
-            sessionStorage.removeItem("pendingDeepLink");
-            sessionStorage.removeItem("deepLinkData");
+            // Leave the payload in place — /scan-qr clears it once handled, and
+            // a failed navigation here should not silently discard the user's
+            // pending login request.
+            console.error("Error navigating to pending deep link:", error);
         }
     }
 
