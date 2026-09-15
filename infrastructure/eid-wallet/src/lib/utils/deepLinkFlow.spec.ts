@@ -289,3 +289,39 @@ describe("post-auth handover", () => {
         expect(isAuthPromptInFlight()).toBe(false);
     });
 });
+
+describe("superseded splash/login continuation", () => {
+    // An async onMount is not cancelled when its component unmounts. The
+    // splash sleeps 1.2s and then awaits storage, so on a cold start it is
+    // still suspended while the user authenticates and the consent drawer
+    // opens. Both screens guard their continuations with a liveness check
+    // that asks this module whether the user is already through the gate.
+    const stillOwnsTheScreen = (destroyed: boolean) =>
+        !destroyed && !isWalletAuthenticated();
+
+    it("tells a still-mounted splash it may proceed", () => {
+        expect(stillOwnsTheScreen(false)).toBe(true);
+    });
+
+    it("stops a splash that woke up after authentication completed", () => {
+        // This is the reported bug: the consent drawer is on screen, then the
+        // splash's parked continuation resumes and navigates away from it.
+        markWalletAuthenticated();
+
+        expect(stillOwnsTheScreen(false)).toBe(false);
+    });
+
+    it("stops a splash that woke up after being unmounted", () => {
+        expect(stillOwnsTheScreen(true)).toBe(false);
+    });
+
+    it("keeps the payload intact when a stale continuation is abandoned", () => {
+        // Bailing out must not disturb the flow the live screen is running.
+        markDeepLinkPending(AUTH_PAYLOAD);
+        markWalletAuthenticated();
+
+        expect(stillOwnsTheScreen(false)).toBe(false);
+        expect(isDeepLinkFlowActive()).toBe(true);
+        expect(peekDeepLinkPayload()).toBe(JSON.stringify(AUTH_PAYLOAD));
+    });
+});

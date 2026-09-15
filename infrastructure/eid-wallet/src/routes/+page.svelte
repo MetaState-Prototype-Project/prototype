@@ -7,6 +7,7 @@ import {
     beginAuthPrompt,
     endAuthPrompt,
     isDeepLinkFlowActive,
+    isWalletAuthenticated,
 } from "$lib/utils/deepLinkFlow";
 import { continueAfterSuccessfulAuth } from "$lib/utils/postLogin";
 import {
@@ -14,7 +15,7 @@ import {
     authenticate,
     checkStatus,
 } from "@tauri-apps/plugin-biometric";
-import { getContext, onMount } from "svelte";
+import { getContext, onDestroy, onMount } from "svelte";
 
 const BIOMETRIC_ATTEMPTED_KEY = "biometricAttemptedOnSplash";
 
@@ -53,6 +54,24 @@ async function handleRestoreDigitalSelf() {
     await goto("/recover");
 }
 
+// Unmounting a Svelte component does NOT cancel an async onMount that is
+// parked on an await: the continuation resumes later and happily calls goto()
+// from a screen the user left long ago. This routine sleeps for 1.2s and then
+// awaits storage and the deep-link handshake, so on a cold start it is still
+// suspended while the layout redirects to /login, the user authenticates and
+// /scan-qr opens the consent drawer. When it finally wakes it would navigate
+// away and take that drawer with it. Every await below is therefore followed
+// by a liveness check.
+let destroyed = false;
+onDestroy(() => {
+    destroyed = true;
+});
+
+/** True once this screen is gone or the user is already through the gate. */
+function superseded(): boolean {
+    return destroyed || isWalletAuthenticated();
+}
+
 onMount(async () => {
     if (skipIntro) {
         // Backward nav from /onboarding — already at state C, nothing to do.
@@ -61,16 +80,19 @@ onMount(async () => {
 
     // Hold state A briefly so the "logo closed" reads as intentional.
     await new Promise((resolve) => setTimeout(resolve, 800));
+    if (superseded()) return;
     splashOpen = true;
 
     // Give state B a beat to land before deciding what comes next.
     await new Promise((resolve) => setTimeout(resolve, 400));
+    if (superseded()) return;
 
     // Wait for layout's globalState init if it hasn't landed yet.
     let globalState = getGlobalState?.();
     let retries = 0;
     while (!globalState && retries < 50) {
         await new Promise((resolve) => setTimeout(resolve, 100));
+        if (superseded()) return;
         globalState = getGlobalState?.();
         retries++;
     }
@@ -85,12 +107,14 @@ onMount(async () => {
             console.error("Failed to read onboarding state:", error);
         }
     }
+    if (superseded()) return;
 
     if (onboardingComplete && userExists) {
         // Returning user.
         const pinHash = globalState
             ? await globalState.securityController.pinHash
             : null;
+        if (superseded()) return;
 
         // If no PIN is set we bounce back to onboarding to recover; no
         // biometric prompt makes sense from that state.
@@ -104,6 +128,7 @@ onMount(async () => {
         // otherwise fast biometric authentication wins the race and routes to
         // /main before the payload has even been stored.
         await initialDeepLinkReady;
+        if (superseded()) return;
 
         // A third-party login deep link opened the app. The root layout has
         // stored it and redirected to /login, which runs its own biometric
@@ -134,6 +159,7 @@ onMount(async () => {
         } catch (error) {
             console.error("Biometric availability check failed:", error);
         }
+        if (superseded()) return;
 
         if (biometricAvailable && globalState) {
             sessionStorage.setItem(BIOMETRIC_ATTEMPTED_KEY, "true");

@@ -15,7 +15,7 @@ import {
     authenticate,
     checkStatus,
 } from "@tauri-apps/plugin-biometric";
-import { getContext, onMount } from "svelte";
+import { getContext, onDestroy, onMount } from "svelte";
 import StepHeader from "../onboarding/steps/StepHeader.svelte";
 
 // Splash sets this when it has already tried biometric over its own screen.
@@ -40,6 +40,17 @@ function handleBackgroundClick(e: MouseEvent) {
 
 const getGlobalState = getContext<() => GlobalState | undefined>("globalState");
 let globalState: GlobalState | undefined = $state(undefined);
+
+// An async onMount is not cancelled by unmounting. This one polls for global
+// state and then awaits two plugin calls before prompting, so it can still be
+// suspended after the splash's own biometric prompt succeeded and routed the
+// user onward. Waking up then would fire a SECOND native authenticate() over
+// the consent screen and, on success, run a second post-auth routine that
+// navigates away from it.
+let destroyed = false;
+onDestroy(() => {
+    destroyed = true;
+});
 
 const authOpts: AuthOptions = {
     allowDeviceCredential: false,
@@ -102,9 +113,11 @@ onMount(async () => {
     let retries = 0;
     while (!gs && retries < 50) {
         await new Promise((r) => setTimeout(r, 100));
+        if (destroyed) return;
         gs = getGlobalState();
         retries++;
     }
+    if (destroyed) return;
     if (!gs) {
         console.error("Global state never became available");
         await goto("/");
@@ -131,6 +144,7 @@ onMount(async () => {
         (await gs.securityController.biometricSupport) &&
         (await checkStatus()).isAvailable
     ) {
+        if (destroyed) return;
         beginAuthPrompt();
         try {
             await authenticate(
