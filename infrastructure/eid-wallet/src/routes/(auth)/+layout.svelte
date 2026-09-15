@@ -2,7 +2,8 @@
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
 import type { GlobalState } from "$lib/global";
-import { getContext, onMount } from "svelte";
+import { shouldAbortStaleContinuation } from "$lib/utils/deepLinkFlow";
+import { getContext, onDestroy, onMount } from "svelte";
 
 let { children } = $props();
 let isChecking = $state(true);
@@ -10,6 +11,15 @@ let vaultExists = $state(false);
 let guardFailed = $state(false);
 
 const getGlobalState = getContext<() => GlobalState>("globalState");
+let destroyed = false;
+
+onDestroy(() => {
+    destroyed = true;
+});
+
+function superseded(): boolean {
+    return shouldAbortStaleContinuation(destroyed);
+}
 
 onMount(async () => {
     try {
@@ -20,9 +30,11 @@ onMount(async () => {
         let retries = 0;
         while (!globalState && retries < 50) {
             await new Promise((r) => setTimeout(r, 100));
+            if (superseded()) return;
             globalState = getGlobalState();
             retries++;
         }
+        if (superseded()) return;
         if (!globalState) {
             console.error("Global state is not defined");
             guardFailed = true;
@@ -31,6 +43,7 @@ onMount(async () => {
 
         // Check if user is already authenticated
         const vault = await globalState.vaultController.vault;
+        if (superseded()) return;
         const isLoginPage = page.url.pathname === "/login";
         console.log(
             "[AUTH GUARD] path:",
@@ -47,9 +60,11 @@ onMount(async () => {
         }
 
         const onboardingComplete = await globalState.isOnboardingComplete;
+        if (superseded()) return;
         console.log("[AUTH GUARD] onboardingComplete:", onboardingComplete);
         if (onboardingComplete) {
             const pinHash = await globalState.securityController.pinHash;
+            if (superseded()) return;
             const isAlreadyAtLogin = page.url.pathname === "/login";
             console.log(
                 "[AUTH GUARD] pinHash:",

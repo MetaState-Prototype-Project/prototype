@@ -98,7 +98,7 @@ export async function continueAfterSuccessfulAuth(
 
     if (hasPendingDeepLink) {
         try {
-            await goto("/scan-qr");
+            await goto("/scan-qr", { replaceState: true });
             return;
         } catch (error) {
             // Leave the payload in place — /scan-qr clears it once handled, and
@@ -108,5 +108,5 @@ export async function continueAfterSuccessfulAuth(
         }
     }
 
-    await goto("/main");
+    await goto("/main", { replaceState: true });
 }

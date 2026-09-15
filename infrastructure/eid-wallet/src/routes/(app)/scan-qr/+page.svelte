@@ -110,18 +110,19 @@ $effect(() => {
 async function handleAuthDrawerDecline() {
     // Cancel button always navigates to main
     setCodeScannedDrawerOpen(false);
-    await goto("/main");
+    await goto("/main", { replaceState: true });
 }
 
 function handleAuthDrawerOpenChange(value: boolean) {
     setCodeScannedDrawerOpen(value);
 }
 
-function handleLoggedInDrawerConfirm() {
+async function handleLoggedInDrawerConfirm() {
     setLoggedInDrawerOpen(false);
-    goto("/main").then(() => {
-        startScan();
-    });
+    // /scan-qr is a transient deep-link destination. Replace it so Android
+    // back cannot reopen the camera after login, and never start the camera
+    // after this page has navigated away.
+    await goto("/main", { replaceState: true });
 }
 
 function handleLoggedInDrawerOpenChange(value: boolean) {
@@ -131,7 +132,7 @@ function handleLoggedInDrawerOpenChange(value: boolean) {
 async function handleSigningDrawerDecline() {
     // Cancel button always navigates to main
     setSigningDrawerOpen(false);
-    await goto("/main");
+    await goto("/main", { replaceState: true });
 }
 
 function handleSigningDrawerOpenChange(value: boolean) {

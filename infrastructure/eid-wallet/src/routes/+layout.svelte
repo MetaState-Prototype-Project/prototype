@@ -269,7 +269,7 @@ onMount(async () => {
                 return;
             }
 
-            goto("/login").catch((error) => {
+            goto("/login", { replaceState: true }).catch((error) => {
                 console.error("Error navigating to login:", error);
             });
             return;
@@ -284,7 +284,7 @@ onMount(async () => {
         );
 
         if (currentPath !== "/scan-qr") {
-            goto("/scan-qr").catch((error) => {
+            goto("/scan-qr", { replaceState: true }).catch((error) => {
                 console.error("Error navigating to scan-qr:", error);
             });
         }
