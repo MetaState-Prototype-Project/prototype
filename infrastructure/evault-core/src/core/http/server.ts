@@ -13,12 +13,47 @@ import { ProtectedZoneService } from "../db/protected-zone.service";
 import { connectWithRetry } from "../db/retry-neo4j";
 import { validatePassphraseStrength } from "../utils/passphrase";
 import { getProvisionerJwk } from "../utils/provisioner-signer";
-import {
-    checkRateLimit,
-    recordAttempt,
-} from "./passphrase-rate-limiter";
-import { type TypedReply, type TypedRequest, WatcherRequest } from "./types";
 import { FILE_SCHEMA_ID } from "../utils/w3ds-uri";
+import { checkRateLimit, recordAttempt } from "./passphrase-rate-limiter";
+import { type TypedReply, type TypedRequest, WatcherRequest } from "./types";
+
+// Some older platform integrations recorded application-level File records
+// directly and addressed them with a w3ds://file URI. Keep this compatibility
+// boundary narrow: this is the only additional ontology the dereference route
+// accepts, and its legacy `url` field is never used for other records.
+const LEGACY_FILE_RECORD_SCHEMA_ID = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+
+function isDereferenceableFileOntology(ontology: unknown): boolean {
+    return (
+        ontology === FILE_SCHEMA_ID || ontology === LEGACY_FILE_RECORD_SCHEMA_ID
+    );
+}
+
+function resolveFilePublicUrl(
+    ontology: unknown,
+    parsed: unknown,
+): string | null {
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return null;
+    }
+
+    const payload = parsed as Record<string, unknown>;
+    if (typeof payload.publicUrl === "string") {
+        return payload.publicUrl;
+    }
+
+    // The documented application-level File ontology predates w3ds-file-v1
+    // and stores the object URL as `url`. Do not apply this fallback to any
+    // unrelated ontology, even if it happens to contain a `url` property.
+    if (
+        ontology === LEGACY_FILE_RECORD_SCHEMA_ID &&
+        typeof payload.url === "string"
+    ) {
+        return payload.url;
+    }
+
+    return null;
+}
 
 interface WatcherSignatureRequest {
     w3id: string;
@@ -426,15 +461,20 @@ export async function registerHttpRoutes(
                     eName,
                 );
 
-                if (!metaEnvelope || metaEnvelope.ontology !== FILE_SCHEMA_ID) {
+                if (
+                    !metaEnvelope ||
+                    !isDereferenceableFileOntology(metaEnvelope.ontology)
+                ) {
                     return reply.status(404).send({
                         error: `No file found for w3ds://file?id=${eName}/${metaEnvelopeId}`,
                     });
                 }
 
-                const publicUrl = (metaEnvelope.parsed as Record<string, any>)
-                    ?.publicUrl;
-                if (!publicUrl || typeof publicUrl !== "string") {
+                const publicUrl = resolveFilePublicUrl(
+                    metaEnvelope.ontology,
+                    metaEnvelope.parsed,
+                );
+                if (!publicUrl) {
                     return reply.status(404).send({
                         error: "File meta-envelope has no public URL",
                     });
