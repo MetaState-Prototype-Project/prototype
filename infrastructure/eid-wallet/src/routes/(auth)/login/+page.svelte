@@ -77,13 +77,15 @@ async function verifyAndAdvance(currentPin: string) {
             return;
         }
 
-        endAuthPrompt();
+        // Bracket stays open: continueAfterSuccessfulAuth releases it once it
+        // has collected any pending deep link.
         await continueAfterSuccessfulAuth(globalState);
     } catch (e) {
         console.error("PIN verification failed", e);
         isError = true;
         pin = "";
     } finally {
+        // Idempotent — already released on the success path.
         endAuthPrompt();
         isPostAuthLoading = false;
     }
@@ -136,12 +138,14 @@ onMount(async () => {
                 authOpts,
             );
             isPostAuthLoading = true;
-            endAuthPrompt();
+            // Bracket stays open across the post-auth routine, which closes
+            // it itself at the payload handover.
             await continueAfterSuccessfulAuth(gs);
         } catch (e) {
             console.error("Biometric authentication failed", e);
             isPostAuthLoading = false;
         } finally {
+            // Idempotent — already released on the success path.
             endAuthPrompt();
         }
     }

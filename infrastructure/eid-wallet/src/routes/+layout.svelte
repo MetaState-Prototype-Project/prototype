@@ -11,6 +11,7 @@ import { swipedetect } from "$lib/utils";
 import {
     isAuthPromptInFlight,
     isDeepLinkFlowActive,
+    isDuplicateDelivery,
     isWalletAuthenticated,
     markDeepLinkPending,
     markDeepLinkReady,
@@ -70,9 +71,6 @@ function slideOut(
     };
 }
 let mainWrapper: HTMLElement | undefined = $state(undefined);
-// Last URL handed to handleDeepLink, used to drop duplicate deliveries of the
-// same cold-start URL. Not reactive: it never drives rendering.
-let lastHandledDeepLink: string | undefined;
 let resolveInitialDeepLink = () => {};
 const initialDeepLinkReady = new Promise<void>((resolve) => {
     resolveInitialDeepLink = resolve;
@@ -232,15 +230,14 @@ onMount(async () => {
     function handleDeepLink(urlString: string) {
         console.log("Deep link received:", urlString);
 
-        // Android commonly delivers a cold-start URL through BOTH getCurrent()
-        // and the onOpenUrl callback. Handling it twice fires two navigations
-        // at the consent screen, and the second one can unmount the drawer the
-        // first just opened. One delivery per URL is enough.
-        if (urlString === lastHandledDeepLink) {
+        // Android delivers a cold-start URL through both getCurrent() and
+        // onOpenUrl; one delivery per URL is enough. The guard is released
+        // when the flow is cleared, so re-presenting the same link later is
+        // still honoured.
+        if (isDuplicateDelivery(urlString)) {
             console.log("Duplicate deep link delivery ignored:", urlString);
             return;
         }
-        lastHandledDeepLink = urlString;
 
         const payload = parseDeepLink(urlString);
         if (!payload) return;

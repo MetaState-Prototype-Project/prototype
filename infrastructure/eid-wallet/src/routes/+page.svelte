@@ -150,7 +150,11 @@ onMount(async () => {
                 // Success — clear the flag (we won't reach /login at all)
                 // and run the shared post-auth routine.
                 sessionStorage.removeItem(BIOMETRIC_ATTEMPTED_KEY);
-                endAuthPrompt();
+                // NOTE: the prompt bracket stays OPEN here on purpose.
+                // continueAfterSuccessfulAuth closes it itself, at the exact
+                // point where it has collected any pending payload. Closing it
+                // here would leave that routine's awaits unbracketed and
+                // reopen the navigation race.
                 await continueAfterSuccessfulAuth(globalState);
                 return;
             } catch (e) {
@@ -158,6 +162,8 @@ onMount(async () => {
                 // biometric retry, then slide into /login for PIN entry.
                 console.warn("Biometric on splash failed", e);
             } finally {
+                // Idempotent: a no-op on the success path, where
+                // continueAfterSuccessfulAuth has already released it.
                 endAuthPrompt();
             }
         }

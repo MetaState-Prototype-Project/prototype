@@ -47,6 +47,7 @@ const DATA_KEY = "deepLinkData";
 const ACTIVE_KEY = "deepLinkFlowActive";
 const AUTHED_KEY = "walletAuthenticated";
 const AUTH_IN_FLIGHT_KEY = "walletAuthInFlight";
+const LAST_URL_KEY = "deepLinkLastUrl";
 
 function store(): Storage | null {
     try {
@@ -120,6 +121,33 @@ export function clearDeepLinkFlow(): void {
     s.removeItem(PENDING_KEY);
     s.removeItem(DATA_KEY);
     s.removeItem(ACTIVE_KEY);
+    // Release the dedupe guard too. It only exists to collapse the duplicate
+    // delivery of a single URL; once that URL has been consumed, the very same
+    // link presented again is a legitimate new request and must not be
+    // swallowed.
+    s.removeItem(LAST_URL_KEY);
+}
+
+/* ------------------------------------------------------------ dedupe guard */
+
+/**
+ * True when this exact URL is already being handled.
+ *
+ * Android delivers a cold-start URL through BOTH `getCurrent()` and the
+ * `onOpenUrl` callback. Handling it twice fires two navigations at the consent
+ * screen and the second can unmount the drawer the first just opened.
+ *
+ * The guard is scoped to the lifetime of one flow rather than to the session:
+ * `clearDeepLinkFlow` releases it, so re-presenting the same link after it has
+ * been dealt with works normally. Storage-backed rather than a module variable
+ * so it survives the navigations this flow performs.
+ */
+export function isDuplicateDelivery(urlString: string): boolean {
+    const s = store();
+    if (!s) return false;
+    if (s.getItem(LAST_URL_KEY) === urlString) return true;
+    s.setItem(LAST_URL_KEY, urlString);
+    return false;
 }
 
 /* ------------------------------------------------------------ auth signals */
@@ -149,4 +177,23 @@ export function endAuthPrompt(): void {
 
 export function isAuthPromptInFlight(): boolean {
     return store()?.getItem(AUTH_IN_FLIGHT_KEY) === "true";
+}
+
+/**
+ * Wipe every trace of this login session. Call on logout.
+ *
+ * `walletAuthenticated` in particular MUST be cleared here. Logout resets the
+ * global state and does an SPA navigation to "/", which leaves sessionStorage
+ * intact — so without this the session would keep claiming the user is
+ * authenticated, and a deep link arriving afterwards would route itself to the
+ * consent screen instead of to /login. The (app) vault guard does catch that
+ * and bounce the user back, but relying on a second guard for a decision we
+ * can state correctly here is not a safety property worth betting on.
+ */
+export function resetAuthSession(): void {
+    const s = store();
+    if (!s) return;
+    clearDeepLinkFlow();
+    s.removeItem(AUTHED_KEY);
+    s.removeItem(AUTH_IN_FLIGHT_KEY);
 }

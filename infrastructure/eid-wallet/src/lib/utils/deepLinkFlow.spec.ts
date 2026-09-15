@@ -6,12 +6,14 @@ import {
     endAuthPrompt,
     isAuthPromptInFlight,
     isDeepLinkFlowActive,
+    isDuplicateDelivery,
     isWalletAuthenticated,
     markDeepLinkPending,
     markDeepLinkReady,
     markWalletAuthenticated,
     peekDeepLinkPayload,
     promotePendingDeepLink,
+    resetAuthSession,
 } from "./deepLinkFlow";
 
 /**
@@ -182,5 +184,108 @@ describe("cold-start orderings", () => {
         markDeepLinkReady(AUTH_PAYLOAD);
         expect(isWalletAuthenticated()).toBe(true);
         expect(peekDeepLinkPayload()).not.toBeNull();
+    });
+});
+
+describe("duplicate delivery guard", () => {
+    it("collapses the double delivery of one cold-start URL", () => {
+        const url = "w3ds://auth?session=sess-1&platform=example";
+        expect(isDuplicateDelivery(url)).toBe(false);
+        expect(isDuplicateDelivery(url)).toBe(true);
+    });
+
+    it("does not suppress a different URL", () => {
+        expect(isDuplicateDelivery("w3ds://auth?session=a")).toBe(false);
+        expect(isDuplicateDelivery("w3ds://auth?session=b")).toBe(false);
+    });
+
+    it("honours the same URL again once the flow has been consumed", () => {
+        // Regression: a session-lifetime guard silently dropped a legitimate
+        // retry of an identical link.
+        const url = "w3ds://auth?session=sess-1&platform=example";
+        expect(isDuplicateDelivery(url)).toBe(false);
+        expect(isDuplicateDelivery(url)).toBe(true);
+
+        clearDeepLinkFlow();
+
+        expect(isDuplicateDelivery(url)).toBe(false);
+    });
+});
+
+describe("logout", () => {
+    it("clears the authenticated marker so later deep links go to login", () => {
+        // Regression: logout is an SPA navigation, so sessionStorage survives
+        // it. A stale walletAuthenticated made the deep-link router treat the
+        // logged-out session as authenticated.
+        markWalletAuthenticated();
+        markDeepLinkReady(AUTH_PAYLOAD);
+
+        resetAuthSession();
+
+        expect(isWalletAuthenticated()).toBe(false);
+        expect(isDeepLinkFlowActive()).toBe(false);
+        expect(peekDeepLinkPayload()).toBeNull();
+    });
+
+    it("clears a prompt bracket left open by an interrupted login", () => {
+        beginAuthPrompt();
+        resetAuthSession();
+        expect(isAuthPromptInFlight()).toBe(false);
+    });
+});
+
+describe("post-auth handover", () => {
+    /**
+     * The handover in continueAfterSuccessfulAuth must be atomic: collect the
+     * payload, THEN release the prompt bracket, with no await in between.
+     * These cases model the two interleavings either side of that block and
+     * assert that exactly one actor is responsible for navigating in each.
+     */
+
+    it("collects a payload parked during the post-auth awaits", () => {
+        beginAuthPrompt();
+
+        // Auth succeeded; the routine is in its vault-read awaits. A URL
+        // lands. The bracket is still open, so the layout parks it rather than
+        // navigating.
+        markWalletAuthenticated();
+        markDeepLinkPending(AUTH_PAYLOAD);
+        expect(isAuthPromptInFlight()).toBe(true);
+
+        // Handover block: collect first...
+        promotePendingDeepLink();
+        const hasPending = isDeepLinkFlowActive() && !!peekDeepLinkPayload();
+        // ...then release.
+        endAuthPrompt();
+
+        expect(hasPending).toBe(true);
+    });
+
+    it("leaves a URL arriving after the handover to the layout", () => {
+        beginAuthPrompt();
+        markWalletAuthenticated();
+
+        // Handover runs with nothing pending, so the routine heads for /main.
+        promotePendingDeepLink();
+        const hasPending = isDeepLinkFlowActive() && !!peekDeepLinkPayload();
+        endAuthPrompt();
+        expect(hasPending).toBe(false);
+
+        // The URL lands just after. The bracket is closed and the session is
+        // authenticated, so the layout routes it to the consent screen itself
+        // — nobody is waiting on a payload that never arrives.
+        markDeepLinkReady(AUTH_PAYLOAD);
+        expect(isAuthPromptInFlight()).toBe(false);
+        expect(isWalletAuthenticated()).toBe(true);
+        expect(peekDeepLinkPayload()).not.toBeNull();
+    });
+
+    it("is safe for the caller to close an already-released bracket", () => {
+        // Callers close the bracket in a finally block; on the success path
+        // continueAfterSuccessfulAuth has already done it.
+        beginAuthPrompt();
+        endAuthPrompt();
+        expect(() => endAuthPrompt()).not.toThrow();
+        expect(isAuthPromptInFlight()).toBe(false);
     });
 });

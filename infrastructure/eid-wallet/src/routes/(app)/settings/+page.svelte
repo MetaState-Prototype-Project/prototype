@@ -10,6 +10,7 @@ import {
 import { clearAllNotifications } from "$lib/stores/notifications";
 import { BottomSheet, ButtonAction } from "$lib/ui";
 import { PinIcon, PrivacyIcon } from "$lib/ui/icons";
+import { resetAuthSession } from "$lib/utils/deepLinkFlow";
 import { clearAllCachedPhotos } from "$lib/utils/photoCache";
 import { isPermissionGranted } from "@choochmeque/tauri-plugin-notifications-api";
 import { FaceIdIcon, Notification02Icon } from "@hugeicons/core-free-icons";
@@ -84,6 +85,11 @@ async function performLogout() {
     isLogoutDrawerOpen = false;
     clearAllNotifications();
     await clearAllCachedPhotos();
+    // Drop the session's authentication markers and any half-finished deep
+    // link. goto("/") below is an SPA navigation, so sessionStorage would
+    // otherwise survive the logout and keep reporting this session as
+    // authenticated to the deep-link router.
+    resetAuthSession();
     if (!globalState) {
         console.error("Cannot logout: global state not ready");
         return;
@@ -191,4 +197,3 @@ $effect(() => {
         >
     </div>
 </BottomSheet>
-
