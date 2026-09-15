@@ -57,6 +57,23 @@ const AUTHED_KEY = "walletAuthenticated";
 const AUTH_IN_FLIGHT_KEY = "walletAuthInFlight";
 const LAST_URL_KEY = "deepLinkLastUrl";
 const HANDLED_URL_KEY = "deepLinkHandledUrl";
+const HANDLED_AT_KEY = "deepLinkHandledAt";
+
+/**
+ * How long a just-handled URL keeps suppressing further deliveries.
+ *
+ * This must be long enough to cover the plugin replaying a stale intent after
+ * Android reloads the backgrounded webview (which happens within a second or
+ * two of returning from the browser), and short enough that presenting the
+ * SAME link again later is treated as the new request it is.
+ *
+ * That second half is not hypothetical: platforms mint one `session` per
+ * offer, not per launch, and the login QR is only refreshed every 60s. So the
+ * identical URL is genuinely re-delivered when a user retries a login that is
+ * still pending, and a permanent blacklist silently swallowed it — the
+ * approval screen simply never appeared again.
+ */
+const REPLAY_WINDOW_MS = 30_000;
 
 function store(): Storage | null {
     try {
@@ -150,14 +167,16 @@ export function clearDeepLinkFlow(): void {
     if (!s) return;
     s.removeItem(PENDING_KEY);
     s.removeItem(DATA_KEY);
-    // Promote the in-flight URL to "already handled". The request is over, so
-    // any further delivery of that same URL is a replay to be ignored — but we
-    // must remember WHICH url, rather than forgetting it. See
+    // Promote the in-flight URL to "recently handled", with a timestamp. The
+    // request is over, so a delivery of that same URL moments later is the
+    // stale-intent replay and must be dropped — but the same URL arriving
+    // much later is a genuine retry and must be honoured. See
     // isDuplicateDelivery.
     const d = durableStore();
     const inFlight = d?.getItem(LAST_URL_KEY);
     if (d && inFlight) {
         d.setItem(HANDLED_URL_KEY, inFlight);
+        d.setItem(HANDLED_AT_KEY, String(Date.now()));
         d.removeItem(LAST_URL_KEY);
     }
 }
@@ -174,32 +193,48 @@ export function clearDeepLinkFlow(): void {
  * A URL is suppressed in two distinct situations, and conflating them breaks
  * one flow or the other:
  *
- *   in flight  this URL is the request currently being processed. The second
- *              delivery of it is Android's duplicate and must be dropped.
- *   handled    the request finished. Every later delivery is the plugin
- *              replaying a stale intent (the activity is `singleTask` and it
- *              never clears `currentUrl`), and restarting the login from it
- *              loops forever.
+ *   in flight       this URL is the request being processed right now. The
+ *                   second delivery of it is Android's duplicate and is
+ *                   dropped for as long as the request is open.
+ *   recently handled the request just finished. The activity is `singleTask`
+ *                   and the plugin never clears `currentUrl`, so `getCurrent()`
+ *                   replays the original intent on the next webview load;
+ *                   acting on that restarts a finished login.
  *
- * Both are suppressed, but the marker is never simply FORGOTTEN: forgetting is
- * what let the replay look new and restart the loop. It is moved from
- * "in flight" to "handled" when the flow is cleared.
+ * The crucial correction: "recently" is bounded. An earlier version remembered
+ * handled URLs forever, on the assumption that every request carries a unique
+ * session id. That assumption is false — a session belongs to an offer, and the
+ * same offer URI is reused while its QR is on screen — so the permanent marker
+ * blacklisted legitimate retries and the approval screen stopped appearing at
+ * all. Suppression now expires after REPLAY_WINDOW_MS.
  *
- * A deep link is identified by its `session`, which the platform generates
- * fresh per login request (uuid v4), so a genuinely new request carries a
- * different URL and is never suppressed by either marker.
- *
- * Storage-backed rather than a module variable so it survives the navigations
- * this flow performs.
+ * Storage-backed, and durable, because the replay is delivered by an Activity
+ * that outlives the webview.
  */
 export function isDuplicateDelivery(urlString: string): boolean {
-    // Durable: the replay we are guarding against is delivered by an Activity
-    // that outlives the webview, so a marker that dies with the webview cannot
-    // catch it.
     const s = durableStore();
     if (!s) return false;
-    if (s.getItem(HANDLED_URL_KEY) === urlString) return true;
-    if (s.getItem(LAST_URL_KEY) === urlString) return true;
+
+    if (s.getItem(HANDLED_URL_KEY) === urlString) {
+        const handledAt = Number(s.getItem(HANDLED_AT_KEY) ?? 0);
+        if (Date.now() - handledAt < REPLAY_WINDOW_MS) return true;
+        // Expired: this is a genuine retry of the same link. Forget the old
+        // verdict so the request is processed normally from here on.
+        s.removeItem(HANDLED_URL_KEY);
+        s.removeItem(HANDLED_AT_KEY);
+    }
+
+    // "In flight" is scoped to THIS webview, deliberately. It exists to
+    // collapse getCurrent()/onOpenUrl double delivery within a single run, and
+    // a request that never completed (app killed on the consent screen) must
+    // not keep blocking its own URL on the next launch — that is a dead end
+    // the user cannot escape. sessionStorage gives exactly that lifetime.
+    const inFlight = store();
+    if (inFlight?.getItem(LAST_URL_KEY) === urlString) return true;
+    inFlight?.setItem(LAST_URL_KEY, urlString);
+
+    // Mirrored durably so clearDeepLinkFlow can promote it to "recently
+    // handled" even if the webview reloaded in between.
     s.setItem(LAST_URL_KEY, urlString);
     return false;
 }
@@ -272,7 +307,11 @@ export function resetAuthSession(): void {
     clearDeepLinkFlow();
     s?.removeItem(AUTH_IN_FLIGHT_KEY);
     s?.removeItem(AUTHED_KEY);
+    // The in-flight marker is mirrored in both stores; clear both or a link
+    // followed before logging out stays blocked afterwards.
+    s?.removeItem(LAST_URL_KEY);
     const d = durableStore();
     d?.removeItem(HANDLED_URL_KEY);
+    d?.removeItem(HANDLED_AT_KEY);
     d?.removeItem(LAST_URL_KEY);
 }

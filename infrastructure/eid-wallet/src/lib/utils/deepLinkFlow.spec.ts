@@ -293,6 +293,44 @@ describe("duplicate delivery guard", () => {
 
         expect(isDuplicateDelivery(url)).toBe(true);
     });
+
+    it("honours the same URL again once the replay window has passed", () => {
+        // Regression, and the reason deep-link login stopped working entirely:
+        // handled URLs used to be remembered FOREVER, on the false assumption
+        // that every request carries a unique session. A session belongs to an
+        // offer and the same offer URI is reused while its QR is displayed, so
+        // a permanent marker blacklisted real retries and the approval screen
+        // never appeared again.
+        vi.useFakeTimers();
+        try {
+            const url = "w3ds://auth?session=sess-1&platform=example";
+            expect(isDuplicateDelivery(url)).toBe(false);
+            clearDeepLinkFlow();
+            reloadWebview();
+            expect(isDuplicateDelivery(url)).toBe(true);
+
+            vi.advanceTimersByTime(31_000);
+            reloadWebview();
+
+            expect(isDuplicateDelivery(url)).toBe(false);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("does not strand a URL when the app dies mid-request", () => {
+        // The user opens a link, the consent screen appears, and the app is
+        // killed before they confirm. The request never completed, so nothing
+        // promoted it to "handled" — and the in-flight marker must not survive
+        // to block the very same link on the next launch, or that login is
+        // permanently unreachable.
+        const url = "w3ds://auth?session=sess-1&platform=example";
+        expect(isDuplicateDelivery(url)).toBe(false);
+
+        reloadWebview();
+
+        expect(isDuplicateDelivery(url)).toBe(false);
+    });
 });
 
 describe("authentication is deliberately NOT durable", () => {
