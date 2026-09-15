@@ -26,11 +26,6 @@
  *
  *   pendingDeepLink    payload waiting for the user to authenticate
  *   deepLinkData       payload ready for /scan-qr to consume
- *   deepLinkFlowActive sticky marker: a deep link is somewhere in this flow.
- *                      Survives the pending -> data handover, so concurrent
- *                      code can ask "is a deep link in flight?" without
- *                      catching the one-instruction gap where neither payload
- *                      key is set.
  *   walletAuthenticated the user completed authentication this session. Lets a
  *                      LATE-arriving URL route straight to the consent screen
  *                      instead of bouncing off a stale "not on an
@@ -40,11 +35,24 @@
  *                      navigation: the post-auth routine owns routing, and two
  *                      concurrent goto() calls are exactly what used to strand
  *                      the user on /main with the payload unconsumed.
+ *
+ * WHY THERE IS NO SEPARATE "FLOW ACTIVE" MARKER
+ *
+ * There used to be a sticky `deepLinkFlowActive` key here, justified by a
+ * supposed instant during promotion where neither payload key was set. That
+ * instant does not exist: `promotePendingDeepLink` writes `deepLinkData`
+ * BEFORE removing `pendingDeepLink`, with no await in between, and every
+ * reader checks both keys. The payload is therefore visible under one key or
+ * the other at every observable moment.
+ *
+ * The sticky key was not merely redundant, it was harmful. It deliberately
+ * outlived the payload, so a login that had already been used still looked
+ * pending and was offered to the user again and again. The payload IS the
+ * request: when it is gone, the request is over.
  */
 
 const PENDING_KEY = "pendingDeepLink";
 const DATA_KEY = "deepLinkData";
-const ACTIVE_KEY = "deepLinkFlowActive";
 const AUTHED_KEY = "walletAuthenticated";
 const AUTH_IN_FLIGHT_KEY = "walletAuthInFlight";
 const LAST_URL_KEY = "deepLinkLastUrl";
@@ -66,7 +74,6 @@ export function markDeepLinkPending(data: unknown): void {
     const s = store();
     if (!s) return;
     s.setItem(PENDING_KEY, JSON.stringify(data));
-    s.setItem(ACTIVE_KEY, "true");
 }
 
 /** A deep link arrived and the user is already authenticated. */
@@ -75,21 +82,17 @@ export function markDeepLinkReady(data: unknown): void {
     if (!s) return;
     s.setItem(DATA_KEY, JSON.stringify(data));
     s.removeItem(PENDING_KEY);
-    s.setItem(ACTIVE_KEY, "true");
 }
 
 /**
- * True from the moment a deep link is received until /scan-qr has consumed it.
- * Safe to call from code running concurrently with authentication.
+ * True while a deep-link request is still waiting to be dealt with.
+ *
+ * This is exactly "a payload is present", under either key. Once the consent
+ * screen has consumed the payload the request is finished, and this reports
+ * false — which is what stops a spent login being offered again.
  */
 export function isDeepLinkFlowActive(): boolean {
-    const s = store();
-    if (!s) return false;
-    return (
-        s.getItem(ACTIVE_KEY) === "true" ||
-        !!s.getItem(PENDING_KEY) ||
-        !!s.getItem(DATA_KEY)
-    );
+    return !!peekDeepLinkPayload();
 }
 
 /**
@@ -101,9 +104,10 @@ export function promotePendingDeepLink(): boolean {
     if (!s) return false;
     const pending = s.getItem(PENDING_KEY);
     if (!pending) return false;
+    // Order matters: write the new key before dropping the old one, so a
+    // concurrent reader always sees the payload under one key or the other.
     s.setItem(DATA_KEY, pending);
     s.removeItem(PENDING_KEY);
-    s.setItem(ACTIVE_KEY, "true");
     return true;
 }
 
@@ -120,7 +124,6 @@ export function clearDeepLinkFlow(): void {
     if (!s) return;
     s.removeItem(PENDING_KEY);
     s.removeItem(DATA_KEY);
-    s.removeItem(ACTIVE_KEY);
     // Release the dedupe guard too. It only exists to collapse the duplicate
     // delivery of a single URL; once that URL has been consumed, the very same
     // link presented again is a legitimate new request and must not be

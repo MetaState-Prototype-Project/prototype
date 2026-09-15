@@ -64,21 +64,37 @@ describe("deep link flow state", () => {
         );
     });
 
-    it("stays active across the pending -> ready handover", () => {
-        // This is the exact window the original bug fell through: between the
-        // promotion and the consent screen mounting, `pendingDeepLink` is gone
-        // but the flow is very much still in progress. Fast biometric auth hit
-        // this window; slow auth did not, which is why it only reproduced when
-        // the user authenticated quickly.
+    it("never hides the payload during the pending -> ready handover", () => {
+        // The promotion renames the key the payload lives under. It must not
+        // be observable as "no deep link" at any point in between, or code
+        // running concurrently with authentication concludes the request has
+        // gone away. This holds because promote writes the new key before
+        // removing the old one, and readers check both.
         markDeepLinkPending(AUTH_PAYLOAD);
 
         expect(promotePendingDeepLink()).toBe(true);
 
         expect(sessionStorage.getItem("pendingDeepLink")).toBeNull();
+        expect(sessionStorage.getItem("deepLinkData")).not.toBeNull();
         expect(isDeepLinkFlowActive()).toBe(true);
         expect(JSON.parse(peekDeepLinkPayload() as string)).toEqual(
             AUTH_PAYLOAD,
         );
+    });
+
+    it("reports no active flow once the payload has been consumed", () => {
+        // Regression: a sticky "flow active" marker used to outlive the
+        // payload, so a login the user had already completed kept being
+        // offered back to them on /login as a pending request.
+        markDeepLinkPending(AUTH_PAYLOAD);
+        promotePendingDeepLink();
+        expect(isDeepLinkFlowActive()).toBe(true);
+
+        clearDeepLinkFlow();
+
+        expect(isDeepLinkFlowActive()).toBe(false);
+        expect(peekDeepLinkPayload()).toBeNull();
+        expect(sessionStorage.getItem("deepLinkFlowActive")).toBeNull();
     });
 
     it("treats a payload that arrives post-authentication as active", () => {

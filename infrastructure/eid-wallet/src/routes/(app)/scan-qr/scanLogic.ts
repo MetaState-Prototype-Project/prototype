@@ -410,10 +410,6 @@ export function createScanLogic({
 
                 console.log("✅ POST request successful");
 
-                // The request is done with: retire the flow so nothing later
-                // re-offers this same login.
-                clearDeepLinkFlow();
-
                 codeScannedDrawerOpen.set(false);
                 loggedInDrawerOpen.set(true);
                 startScan();
@@ -434,13 +430,6 @@ export function createScanLogic({
             // what rendered "Cannot GET /api/auth" over a successful login.
             codeScannedDrawerOpen.set(false);
             await openUrl(loginUrl.toString());
-
-            // This login is now spent. Retiring the flow here is what stops
-            // the "authentication request pending" banner from being offered
-            // again on every later launch: the sticky deepLinkFlowActive
-            // marker deliberately outlives the payload keys, so clearing the
-            // payload alone would leave the request looking live forever.
-            clearDeepLinkFlow();
 
             // Show the same "You're logged in!" confirmation the scan flow
             // gets, rather than dumping the user straight on the home screen.
@@ -1293,12 +1282,6 @@ export function createScanLogic({
         // Clear auth error when drawer is closed
         if (!value) {
             authError.set(null);
-            // The consent drawer is the only place this request is ever
-            // shown, so once it closes the request is over however it ended:
-            // confirmed, declined, or dismissed. Retire the flow here too, or
-            // a declined login stays "pending" and is offered again on the
-            // next launch. Idempotent; the confirm path has already cleared.
-            clearDeepLinkFlow();
         }
     }
 
