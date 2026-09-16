@@ -194,6 +194,13 @@ export function markDeepLinkHandled(urlString?: string): void {
     d.removeItem(LAST_URL_KEY);
 }
 
+/** What the confirmation drawer needs to render itself after a restart. */
+export interface CompletedDeepLink {
+    platform: string | null;
+    hostname: string | null;
+    redirect: string | null;
+}
+
 /**
  * Record that a deep-link login was approved and handed to the platform, so the
  * confirmation can be shown even if the webview is rebuilt before it renders.
@@ -203,19 +210,41 @@ export function markDeepLinkHandled(urlString?: string): void {
  * Svelte store, so it does not survive that, and the user came back to a bare
  * scanner page instead of "You're logged in!". Durable because the very event
  * we are surviving destroys the webview.
+ *
+ * Store every field the drawer renders, not just the platform name: the app
+ * icon is resolved from the HOSTNAME, so persisting the name alone brought the
+ * drawer back with a blank logo.
  */
-export function markDeepLinkCompleted(platform?: string | null): void {
-    durableStore()?.setItem(COMPLETED_KEY, platform ?? "");
+export function markDeepLinkCompleted(
+    details: Partial<CompletedDeepLink>,
+): void {
+    durableStore()?.setItem(
+        COMPLETED_KEY,
+        JSON.stringify({
+            platform: details.platform ?? null,
+            hostname: details.hostname ?? null,
+            redirect: details.redirect ?? null,
+        }),
+    );
 }
 
 /** Consume the pending confirmation, if one is waiting. Single-use. */
-export function takeCompletedDeepLink(): { platform: string | null } | null {
+export function takeCompletedDeepLink(): CompletedDeepLink | null {
     const d = durableStore();
     if (!d) return null;
     const value = d.getItem(COMPLETED_KEY);
     if (value === null) return null;
     d.removeItem(COMPLETED_KEY);
-    return { platform: value === "" ? null : value };
+    try {
+        const parsed = JSON.parse(value) as Partial<CompletedDeepLink>;
+        return {
+            platform: parsed.platform ?? null,
+            hostname: parsed.hostname ?? null,
+            redirect: parsed.redirect ?? null,
+        };
+    } catch {
+        return { platform: null, hostname: null, redirect: null };
+    }
 }
 
 /* ------------------------------------------------------------ dedupe guard */

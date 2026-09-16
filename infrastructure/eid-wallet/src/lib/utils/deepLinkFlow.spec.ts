@@ -360,17 +360,32 @@ describe("authentication is deliberately NOT durable", () => {
         // browser often restarts the Activity and destroys the webview. The
         // drawer state is an in-memory Svelte store, so without this the user
         // returned to a bare scanner page instead of "You're logged in!".
-        markDeepLinkCompleted("pictique");
+        markDeepLinkCompleted({
+            platform: "pictique",
+            hostname: "pictique.w3ds.metastate.foundation",
+            redirect: "https://pictique.w3ds.metastate.foundation/api/auth",
+        });
 
         reloadWebview();
 
-        expect(takeCompletedDeepLink()).toEqual({ platform: "pictique" });
+        // Every field the drawer renders must survive, not just the name: the
+        // app icon is resolved from the hostname, so a name-only restore came
+        // back with a blank logo.
+        expect(takeCompletedDeepLink()).toEqual({
+            platform: "pictique",
+            hostname: "pictique.w3ds.metastate.foundation",
+            redirect: "https://pictique.w3ds.metastate.foundation/api/auth",
+        });
     });
 
     it("only hands the confirmation over once", () => {
-        markDeepLinkCompleted("pictique");
+        markDeepLinkCompleted({ platform: "pictique" });
 
-        expect(takeCompletedDeepLink()).toEqual({ platform: "pictique" });
+        expect(takeCompletedDeepLink()).toEqual({
+            platform: "pictique",
+            hostname: null,
+            redirect: null,
+        });
         expect(takeCompletedDeepLink()).toBeNull();
     });
 

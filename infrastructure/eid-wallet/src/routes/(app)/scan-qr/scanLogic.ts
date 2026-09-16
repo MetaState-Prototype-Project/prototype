@@ -483,7 +483,11 @@ export function createScanLogic({
             // Activity, which destroys this webview along with every in-memory
             // store. Anything set after this point may never be rendered.
             markDeepLinkHandled();
-            markDeepLinkCompleted(get(platform));
+            markDeepLinkCompleted({
+                platform: get(platform),
+                hostname: get(hostname),
+                redirect: redirectUrl,
+            });
 
             await openUrl(loginUrl.toString());
 
@@ -1708,6 +1712,10 @@ export function createScanLogic({
         if (completed && !deepLinkData) {
             console.log("Restoring post-login confirmation after app restart");
             if (completed.platform) platform.set(completed.platform);
+            // The app icon is resolved from the hostname, so restoring the
+            // name alone rendered the card with a blank logo.
+            if (completed.hostname) hostname.set(completed.hostname);
+            if (completed.redirect) redirect.set(completed.redirect);
             loggedInDrawerOpen.set(true);
             return () => {
                 window.removeEventListener("deepLinkReceived", deepLinkHandler);
