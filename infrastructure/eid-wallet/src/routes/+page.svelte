@@ -5,8 +5,10 @@ import SplashScreen from "$lib/fragments/SplashScreen/SplashScreen.svelte";
 import type { GlobalState } from "$lib/global";
 import {
     beginAuthPrompt,
+    claimSplashAuthOwnership,
     endAuthPrompt,
     isWalletAuthenticated,
+    releaseSplashAuthOwnership,
     shouldAbortStaleContinuation,
 } from "$lib/utils/deepLinkFlow";
 import { continueAfterSuccessfulAuth } from "$lib/utils/postLogin";
@@ -125,76 +127,103 @@ onMount(async () => {
             return;
         }
 
-        // The root layout discovers a cold-start URL asynchronously. Wait for
-        // that discovery before deciding whether this is an ordinary launch,
-        // otherwise fast biometric authentication wins the race and routes to
-        // /main before the payload has even been stored.
-        await initialDeepLinkReady;
-        if (superseded()) return;
-
-        // NOTE: a pending deep link deliberately does NOT divert to /login
-        // here. The splash is the single place a biometric prompt is allowed
-        // to appear, so diverting would mean a deep-link launch never offers
-        // biometrics at all. continueAfterSuccessfulAuth below collects the
-        // parked payload and routes to the consent screen itself.
-
-        // Fire biometric over the splash. This is the ONLY biometric prompt in
-        // the pre-app flow: /login is the PIN fallback and never prompts. That
-        // is what makes the placement deterministic — previously both screens
-        // could prompt, and whichever won the race decided which background
-        // the system dialog appeared over.
+        // From here this screen is the sole owner of pre-app authentication,
+        // and stays the owner until it has handed the user onward. Claimed
+        // BEFORE the await below, because a URL delivered during that await
+        // must already see an owner: otherwise the handler navigates to /login
+        // on its own and the splash's prompt is lost.
         //
-        // On success we run the post-auth chores and route onward (no /login
-        // flash). On cancel/fail/unavailable we slide into /login for PIN
-        // entry, so a user without biometrics is never stuck on the splash.
-        let biometricAvailable = false;
+        // This is a durable claim rather than a pathname check. SvelteKit
+        // navigation is async, so `location.pathname` is still "/" for a while
+        // after we call goto() — inferring ownership from that made the
+        // handler defer to an owner that had already finished, and the parked
+        // payload was never collected.
+        claimSplashAuthOwnership();
         try {
-            biometricAvailable =
-                !!globalState &&
-                (await globalState.securityController.biometricSupport) &&
-                (await checkStatus()).isAvailable;
-        } catch (error) {
-            console.error("Biometric availability check failed:", error);
+            await runReturningUserAuth(globalState);
+        } finally {
+            // Every exit path releases: success (already navigated), cancel,
+            // failure, or a superseded continuation. Leaving it set would make
+            // a later deep link defer to an owner that no longer exists.
+            releaseSplashAuthOwnership();
         }
-        if (superseded()) return;
-
-        if (biometricAvailable && globalState) {
-            // Tell the deep-link handler that a prompt owns the screen. A URL
-            // arriving while the user's finger is on the sensor must park its
-            // payload and let continueAfterSuccessfulAuth route, instead of
-            // firing its own competing navigation.
-            beginAuthPrompt();
-            try {
-                await authenticate(
-                    "You must authenticate with PIN first",
-                    authOpts,
-                );
-                // Success — run the shared post-auth routine, which routes to
-                // the pending deep link if there is one and /main otherwise.
-                // NOTE: the prompt bracket stays OPEN here on purpose.
-                // continueAfterSuccessfulAuth closes it itself, at the exact
-                // point where it has collected any pending payload. Closing it
-                // here would leave that routine's awaits unbracketed and
-                // reopen the navigation race.
-                await continueAfterSuccessfulAuth(globalState);
-                return;
-            } catch (e) {
-                // Cancel/fail — fall through to /login for PIN entry.
-                console.warn("Biometric on splash failed", e);
-            } finally {
-                // Idempotent: a no-op on the success path, where
-                // continueAfterSuccessfulAuth has already released it.
-                endAuthPrompt();
-            }
-        }
-
-        await goto("/login");
         return;
     }
 
     // First-time user — reveal the drawer with CTAs.
     splashShowDrawer = true;
 });
+
+/**
+ * Authenticate a returning user and hand them onward. Split out so the
+ * ownership claim above has exactly one release point.
+ */
+async function runReturningUserAuth(globalState: GlobalState | undefined) {
+    // The root layout discovers a cold-start URL asynchronously. Wait for
+    // that discovery before deciding whether this is an ordinary launch,
+    // otherwise fast biometric authentication wins the race and routes to
+    // /main before the payload has even been stored.
+    await initialDeepLinkReady;
+    if (superseded()) return;
+
+    // NOTE: a pending deep link deliberately does NOT divert to /login
+    // here. The splash is the single place a biometric prompt is allowed
+    // to appear, so diverting would mean a deep-link launch never offers
+    // biometrics at all. continueAfterSuccessfulAuth below collects the
+    // parked payload and routes to the consent screen itself.
+
+    // Fire biometric over the splash. This is the ONLY biometric prompt in
+    // the pre-app flow: /login is the PIN fallback and never prompts. That
+    // is what makes the placement deterministic — previously both screens
+    // could prompt, and whichever won the race decided which background
+    // the system dialog appeared over.
+    //
+    // On success we run the post-auth chores and route onward (no /login
+    // flash). On cancel/fail/unavailable we slide into /login for PIN
+    // entry, so a user without biometrics is never stuck on the splash.
+    let biometricAvailable = false;
+    try {
+        biometricAvailable =
+            !!globalState &&
+            (await globalState.securityController.biometricSupport) &&
+            (await checkStatus()).isAvailable;
+    } catch (error) {
+        console.error("Biometric availability check failed:", error);
+    }
+    if (superseded()) return;
+
+    if (biometricAvailable && globalState) {
+        // Tell the deep-link handler that a prompt owns the screen. A URL
+        // arriving while the user's finger is on the sensor must park its
+        // payload and let continueAfterSuccessfulAuth route, instead of
+        // firing its own competing navigation.
+        beginAuthPrompt();
+        try {
+            await authenticate(
+                "You must authenticate with PIN first",
+                authOpts,
+            );
+            // Success — run the shared post-auth routine, which routes to
+            // the pending deep link if there is one and /main otherwise.
+            // NOTE: the prompt bracket stays OPEN here on purpose.
+            // continueAfterSuccessfulAuth closes it itself, at the exact
+            // point where it has collected any pending payload. Closing it
+            // here would leave that routine's awaits unbracketed and
+            // reopen the navigation race.
+            await continueAfterSuccessfulAuth(globalState);
+            return;
+        } catch (e) {
+            // Cancel/fail — fall through to /login for PIN entry.
+            console.warn("Biometric on splash failed", e);
+        } finally {
+            // Idempotent: a no-op on the success path, where
+            // continueAfterSuccessfulAuth has already released it.
+            endAuthPrompt();
+        }
+    }
+
+    await goto("/login");
+}
 </script>
 
 <SplashScreen

@@ -60,6 +60,7 @@ const HANDLED_URL_KEY = "deepLinkHandledUrl";
 const HANDLED_AT_KEY = "deepLinkHandledAt";
 const COMPLETED_KEY = "deepLinkCompleted";
 const ACKNOWLEDGED_KEY = "deepLinkAcknowledgedAt";
+const SPLASH_OWNS_AUTH_KEY = "splashOwnsAuthPrompt";
 
 /**
  * How long a just-handled URL keeps suppressing further deliveries.
@@ -398,6 +399,34 @@ export function isAuthPromptInFlight(): boolean {
 }
 
 /**
+ * Claim/release the pre-app auth prompt for the splash screen.
+ *
+ * Distinct from beginAuthPrompt, which brackets the moment the user's finger
+ * is actually on the sensor. This is the WIDER window: from the splash
+ * deciding it will authenticate, until it has handed the user onward. During
+ * that window the splash is the one screen responsible for routing a parked
+ * payload, so the deep-link handler must not navigate on its own.
+ *
+ * It exists because "the splash owns the prompt" cannot be inferred from
+ * `window.location.pathname === "/"`. SvelteKit navigation is asynchronous, so
+ * the pathname is still "/" for a while after the splash has called goto().
+ * Treating that as "a prompt is coming" made the handler defer to an owner
+ * that had already finished, and the parked payload was never collected — the
+ * consent screen simply never appeared.
+ */
+export function claimSplashAuthOwnership(): void {
+    store()?.setItem(SPLASH_OWNS_AUTH_KEY, "true");
+}
+
+export function releaseSplashAuthOwnership(): void {
+    store()?.removeItem(SPLASH_OWNS_AUTH_KEY);
+}
+
+export function splashOwnsAuthPrompt(): boolean {
+    return store()?.getItem(SPLASH_OWNS_AUTH_KEY) === "true";
+}
+
+/**
  * Should the deep-link handler navigate an unauthenticated user to /login?
  *
  * Biometric authentication is prompted from exactly one place: the splash.
@@ -411,20 +440,24 @@ export function isAuthPromptInFlight(): boolean {
  *
  *  - A prompt is already up: its post-auth routine collects the parked payload
  *    and routes. A goto() here would race that navigation.
- *  - We are still on the splash: it is about to prompt (or has just decided it
- *    cannot). Unmounting it now would discard the biometric prompt entirely and
- *    dump the user on the PIN pad. It routes to /login by itself when
- *    biometrics are unavailable or refused, so waiting costs nothing.
+ *  - The splash has CLAIMED the prompt: it is about to authenticate, or is
+ *    mid-handover. Unmounting it now would discard the biometric prompt and
+ *    dump the user on the PIN pad. It routes onward by itself in every exit
+ *    path, so waiting costs nothing.
  *
- * Anywhere else there is no prompt owner, so the handler must navigate or the
- * parked payload would sit with nobody to collect it.
+ * Both conditions are explicit claims, never inferred from the pathname. The
+ * regression that made the consent screen vanish on fast authentication came
+ * from inferring ownership from `pathname === "/"`: after the splash's
+ * handover released the prompt bracket, a re-delivered URL still saw "/" for
+ * as long as the goto() took to land, so the handler deferred to an owner that
+ * no longer existed and the payload was left parked forever.
  */
 export function shouldRedirectToLogin(
-    currentPath: string,
     promptInFlight = isAuthPromptInFlight(),
+    splashOwns = splashOwnsAuthPrompt(),
 ): boolean {
     if (promptInFlight) return false;
-    if (currentPath === "/") return false;
+    if (splashOwns) return false;
     return true;
 }
 
@@ -478,6 +511,7 @@ export function resetAuthSession(): void {
     const s = store();
     clearDeepLinkFlow();
     s?.removeItem(AUTH_IN_FLIGHT_KEY);
+    s?.removeItem(SPLASH_OWNS_AUTH_KEY);
     s?.removeItem(AUTHED_KEY);
     // The in-flight marker is mirrored in both stores; clear both or a link
     // followed before logging out stays blocked afterwards.

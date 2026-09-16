@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     beginAuthPrompt,
+    claimSplashAuthOwnership,
     clearDeepLinkAcknowledged,
     clearDeepLinkFlow,
     endAuthPrompt,
@@ -16,6 +17,7 @@ import {
     markWalletAuthenticated,
     peekDeepLinkPayload,
     promotePendingDeepLink,
+    releaseSplashAuthOwnership,
     resetAuthSession,
     shouldAbortStaleContinuation,
     shouldRedirectToLogin,
@@ -179,7 +181,8 @@ describe("cold-start orderings", () => {
         // The splash stays mounted and owns the prompt even when a deep link
         // is pending, so that a deep-link launch still gets biometrics.
         expect(isDeepLinkFlowActive()).toBe(true);
-        expect(shouldRedirectToLogin("/")).toBe(false);
+        claimSplashAuthOwnership();
+        expect(shouldRedirectToLogin()).toBe(false);
 
         beginAuthPrompt();
         endAuthPrompt();
@@ -549,41 +552,83 @@ describe("superseded splash/login continuation", () => {
 describe("single biometric prompt site", () => {
     // The biometric dialog used to be fired from BOTH the splash and /login.
     // Both screens prompted on mount, so whichever won the race decided which
-    // backdrop the system dialog appeared over — users saw it over the purple
-    // splash sometimes and over a half-painted PIN pad other times. The splash
-    // is now the only prompt site, which means the deep-link handler must stop
-    // navigating away from whoever owns that prompt.
+    // backdrop the system dialog appeared over. The splash is now the only
+    // prompt site, which means the deep-link handler must stop navigating away
+    // from whoever owns that prompt.
 
     it("keeps a deep-link launch on the splash so it still gets biometrics", () => {
-        // The regression this pins: the handler used to goto("/login") the
-        // moment a cold-start URL was parked. That unmounted the splash before
-        // it could prompt, so a deep-link launch was PIN-only by construction.
+        // The handler used to goto("/login") the moment a cold-start URL was
+        // parked. That unmounted the splash before it could prompt, so a
+        // deep-link launch was PIN-only by construction.
         markDeepLinkPending(AUTH_PAYLOAD);
+        claimSplashAuthOwnership();
 
-        expect(shouldRedirectToLogin("/", false)).toBe(false);
+        expect(shouldRedirectToLogin(false)).toBe(false);
     });
 
     it("does not navigate while a prompt is on screen", () => {
         beginAuthPrompt();
 
-        // Applies even away from the splash: the post-auth routine owns
-        // routing, and a goto() here would race it.
-        expect(shouldRedirectToLogin("/login", true)).toBe(false);
-        expect(shouldRedirectToLogin("/", true)).toBe(false);
+        expect(shouldRedirectToLogin(true, false)).toBe(false);
     });
 
     it("still routes to login when no screen owns the prompt", () => {
         // Without this the payload would be parked with nobody to collect it.
-        expect(shouldRedirectToLogin("/onboarding", false)).toBe(true);
-        expect(shouldRedirectToLogin("/recover", false)).toBe(true);
+        expect(shouldRedirectToLogin(false, false)).toBe(true);
     });
 
-    it("reads the live prompt bracket when none is supplied", () => {
-        expect(shouldRedirectToLogin("/onboarding")).toBe(true);
+    it("reads the live claims when none are supplied", () => {
+        expect(shouldRedirectToLogin()).toBe(true);
+
+        claimSplashAuthOwnership();
+        expect(shouldRedirectToLogin()).toBe(false);
+        releaseSplashAuthOwnership();
+        expect(shouldRedirectToLogin()).toBe(true);
+
         beginAuthPrompt();
-        expect(shouldRedirectToLogin("/onboarding")).toBe(false);
+        expect(shouldRedirectToLogin()).toBe(false);
         endAuthPrompt();
-        expect(shouldRedirectToLogin("/onboarding")).toBe(true);
+        expect(shouldRedirectToLogin()).toBe(true);
+    });
+
+    it("routes a URL re-delivered after the splash finished its handover", () => {
+        // THE regression that made the consent screen vanish on fast
+        // authentication, and the reason ownership cannot be a pathname check.
+        //
+        // The splash authenticates, continueAfterSuccessfulAuth collects the
+        // payload, releases the prompt bracket and calls goto("/scan-qr").
+        // SvelteKit navigation is async, so location.pathname is STILL "/"
+        // while that goto is in flight. A duplicate delivery landing in that
+        // window used to see path "/" and defer to an owner that had already
+        // finished, leaving the payload parked with nobody to collect it.
+        claimSplashAuthOwnership();
+        beginAuthPrompt();
+
+        // Handover completes and the splash hands off.
+        markWalletAuthenticated();
+        endAuthPrompt();
+        releaseSplashAuthOwnership();
+
+        // The re-delivered URL must now be routed, not deferred, even though
+        // the pathname has not caught up yet.
+        expect(shouldRedirectToLogin()).toBe(true);
+    });
+
+    it("releases ownership when the user declines biometrics", () => {
+        // The splash falls through to /login on cancel. If the claim leaked,
+        // every later deep link would defer to a screen that is gone.
+        claimSplashAuthOwnership();
+        releaseSplashAuthOwnership();
+
+        expect(shouldRedirectToLogin()).toBe(true);
+    });
+
+    it("forgets a leaked ownership claim on logout", () => {
+        claimSplashAuthOwnership();
+
+        resetAuthSession();
+
+        expect(shouldRedirectToLogin()).toBe(true);
     });
 });
 

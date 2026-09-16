@@ -17,6 +17,7 @@ import {
     markDeepLinkPending,
     markDeepLinkReady,
     shouldRedirectToLogin,
+    splashOwnsAuthPrompt,
 } from "$lib/utils/deepLinkFlow";
 import { installTerminalConsoleBridge } from "$lib/utils/terminalConsole";
 import { checkStatus } from "@tauri-apps/plugin-biometric";
@@ -285,11 +286,17 @@ onMount(async () => {
 
             // The splash is the single biometric prompt site, so the handler
             // must not steer away from whoever currently owns that prompt.
-            // See shouldRedirectToLogin for the full reasoning.
-            if (!shouldRedirectToLogin(currentPath)) {
+            // Ownership is an explicit claim, never inferred from the pathname
+            // — see shouldRedirectToLogin for why that distinction is what
+            // makes the consent screen survive fast authentication.
+            if (!shouldRedirectToLogin()) {
                 console.log(
                     "Deferring navigation: the auth prompt owner will route",
-                    { currentPath, authPromptInFlight: isAuthPromptInFlight() },
+                    {
+                        currentPath,
+                        authPromptInFlight: isAuthPromptInFlight(),
+                        splashOwnsAuth: splashOwnsAuthPrompt(),
+                    },
                 );
                 return;
             }
