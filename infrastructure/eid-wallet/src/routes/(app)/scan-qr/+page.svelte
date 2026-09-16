@@ -132,10 +132,17 @@ $effect(() => {
 });
 
 async function handleAuthDrawerDecline() {
-    // Cancel button always navigates to main
-    // The user decided. Record completion so an Activity recreate does not
-    // resurrect a request they just rejected.
-    markDeepLinkHandled();
+    // The user decided. Record completion so Android's second delivery of the
+    // same cold-start URL does not immediately re-open the drawer they just
+    // dismissed.
+    //
+    // Session-scoped, NOT durable: declining keeps the user inside the app, so
+    // no Activity restart is coming and there is no cross-webview replay to
+    // suppress. A durable marker here blocked the retry instead — platforms
+    // reuse one `session` per offer, so tapping the same login link again is a
+    // legitimate new request, and it was being silently dropped, leaving the
+    // user on /main with no consent screen.
+    markDeepLinkHandled(undefined, false);
     setCodeScannedDrawerOpen(false);
     await goto("/main", { replaceState: true });
 }

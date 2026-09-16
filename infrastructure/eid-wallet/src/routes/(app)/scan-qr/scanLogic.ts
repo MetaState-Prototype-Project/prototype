@@ -457,7 +457,12 @@ export function createScanLogic({
 
                 // The user's decision is complete; further deliveries of this
                 // URL are stale replays.
-                markDeepLinkHandled();
+                //
+                // Session-scoped: this branch POSTs from inside the app and
+                // never calls openUrl, so no Activity restart follows and
+                // there is no cross-webview replay to outlive. Marking it
+                // durably would block a legitimate retry of the same offer.
+                markDeepLinkHandled(undefined, false);
 
                 codeScannedDrawerOpen.set(false);
                 loggedInDrawerOpen.set(true);

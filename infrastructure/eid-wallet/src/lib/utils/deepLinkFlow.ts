@@ -183,16 +183,39 @@ export function clearDeepLinkFlow(): void {
  * The user finished with this request: approved, declined, or it errored out.
  *
  * Only now is a further delivery of the same URL a stale replay worth
- * dropping. Durable and timestamped, because the replay is delivered by an
- * Activity that outlives the webview.
+ * dropping.
+ *
+ * `durable` distinguishes the two endings, and conflating them is what made a
+ * declined login impossible to retry:
+ *
+ *   true   the decision handed control to the BROWSER (approve calls openUrl).
+ *          Returning from it restarts the Activity, so the plugin replays the
+ *          original intent into a brand-new webview. Only a durable marker
+ *          outlives that, so it has to be written to localStorage.
+ *
+ *   false  the decision kept the user inside the app (decline, or an error).
+ *          No Activity restart is coming, so the only delivery still to
+ *          suppress is Android's getCurrent()/onOpenUrl double-delivery within
+ *          THIS webview. A durable marker here is actively harmful: platforms
+ *          reuse one `session` per offer while its QR is on screen, so
+ *          presenting the same link again is a legitimate retry — and a
+ *          durable marker silently dropped it, leaving the user on /main with
+ *          no consent screen at all.
  */
-export function markDeepLinkHandled(urlString?: string): void {
+export function markDeepLinkHandled(urlString?: string, durable = true): void {
     const d = durableStore();
     if (!d) return;
     const url = urlString ?? d.getItem(LAST_URL_KEY);
     if (!url) return;
-    d.setItem(HANDLED_URL_KEY, url);
-    d.setItem(HANDLED_AT_KEY, String(Date.now()));
+
+    if (durable) {
+        d.setItem(HANDLED_URL_KEY, url);
+        d.setItem(HANDLED_AT_KEY, String(Date.now()));
+    }
+
+    // Always clear the pointer to the request just finished. The session-scoped
+    // in-flight marker stays put, so this webview still collapses Android's
+    // double delivery of the very same URL.
     d.removeItem(LAST_URL_KEY);
 }
 

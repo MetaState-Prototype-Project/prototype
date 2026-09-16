@@ -68,6 +68,16 @@ beforeEach(() => {
  * (which happens when a deep-link login hands off to the browser via openUrl).
  * sessionStorage does not survive that; localStorage does.
  */
+/**
+ * Mirror of handleAuthDrawerDecline's completion call. Declining keeps the
+ * user in the app, so it must NOT write the durable cross-webview marker.
+ * Kept here as a single definition so that flipping the production call back
+ * to a durable mark fails these tests rather than passing silently.
+ */
+function declineDeepLink() {
+    markDeepLinkHandled(undefined, false);
+}
+
 function reloadWebview() {
     vi.stubGlobal("sessionStorage", new MemoryStorage());
 }
@@ -326,6 +336,47 @@ describe("duplicate delivery guard", () => {
         } finally {
             vi.useRealTimers();
         }
+    });
+
+    it("lets the user retry a login they just declined", () => {
+        // Reported: decline the first Approve/Decline prompt, then open the
+        // same login link again — and the consent screen never appeared, the
+        // app just went to /main.
+        //
+        // Decline recorded the URL as handled DURABLY, which is the marker
+        // built to survive an Activity restart. But declining keeps the user
+        // inside the app; no restart is coming. The durable marker simply
+        // outlived the decision and swallowed the retry, because platforms
+        // reuse one `session` per offer so the retry URL is identical.
+        const url = "w3ds://auth?session=21fcc8a5&platform=pictique";
+        expect(isDuplicateDelivery(url)).toBe(false);
+
+        // Drawer takes the payload, user taps Decline. Mirrors
+        // handleAuthDrawerDecline exactly: no openUrl, so nothing durable.
+        clearDeepLinkFlow();
+        declineDeepLink();
+
+        // The user presents the same link again.
+        reloadWebview();
+
+        expect(isDuplicateDelivery(url)).toBe(false);
+    });
+
+    it("still collapses the double delivery when a decline comes fast", () => {
+        // The half that must keep working: Android delivers a cold-start URL
+        // through both getCurrent() and onOpenUrl. A decline arriving before
+        // the duplicate must not let that second delivery re-open the drawer
+        // inside the SAME webview.
+        //
+        // Note this relies on the in-flight marker, which clearDeepLinkFlow
+        // releases when the drawer takes ownership — that release is
+        // deliberate, so a rebuilt webview can reopen an unanswered request.
+        const url = "w3ds://auth?session=21fcc8a5&platform=pictique";
+        expect(isDuplicateDelivery(url)).toBe(false);
+
+        markDeepLinkHandled(undefined, false);
+
+        expect(isDuplicateDelivery(url)).toBe(true);
     });
 
     it("does not strand a URL when the app dies mid-request", () => {
