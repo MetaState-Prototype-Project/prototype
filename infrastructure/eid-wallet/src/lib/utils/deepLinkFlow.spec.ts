@@ -8,6 +8,7 @@ import {
     isDeepLinkFlowActive,
     isDuplicateDelivery,
     isWalletAuthenticated,
+    markDeepLinkHandled,
     markDeepLinkPending,
     markDeepLinkReady,
     markWalletAuthenticated,
@@ -236,7 +237,7 @@ describe("duplicate delivery guard", () => {
         expect(isDuplicateDelivery(url)).toBe(false);
         expect(isDuplicateDelivery(url)).toBe(true);
 
-        clearDeepLinkFlow();
+        markDeepLinkHandled();
 
         expect(isDuplicateDelivery(url)).toBe(true);
     });
@@ -248,7 +249,7 @@ describe("duplicate delivery guard", () => {
         const url = "w3ds://auth?session=sess-1&platform=example";
         expect(isDuplicateDelivery(url)).toBe(false);
 
-        clearDeepLinkFlow();
+        markDeepLinkHandled();
 
         expect(isDuplicateDelivery(url)).toBe(true);
     });
@@ -258,7 +259,7 @@ describe("duplicate delivery guard", () => {
         // a legitimate new request, and the session is torn down anyway.
         const url = "w3ds://auth?session=sess-1&platform=example";
         expect(isDuplicateDelivery(url)).toBe(false);
-        clearDeepLinkFlow();
+        markDeepLinkHandled();
         expect(isDuplicateDelivery(url)).toBe(true);
 
         resetAuthSession();
@@ -274,7 +275,7 @@ describe("duplicate delivery guard", () => {
         const second = "w3ds://auth?session=sess-2&platform=example";
 
         expect(isDuplicateDelivery(first)).toBe(false);
-        clearDeepLinkFlow();
+        markDeepLinkHandled();
 
         expect(isDuplicateDelivery(second)).toBe(false);
     });
@@ -287,7 +288,7 @@ describe("duplicate delivery guard", () => {
         // the finished login start all over again — ending on the PIN screen.
         const url = "w3ds://auth?session=sess-1&platform=example";
         expect(isDuplicateDelivery(url)).toBe(false);
-        clearDeepLinkFlow();
+        markDeepLinkHandled();
 
         reloadWebview();
 
@@ -305,7 +306,7 @@ describe("duplicate delivery guard", () => {
         try {
             const url = "w3ds://auth?session=sess-1&platform=example";
             expect(isDuplicateDelivery(url)).toBe(false);
-            clearDeepLinkFlow();
+            markDeepLinkHandled();
             reloadWebview();
             expect(isDuplicateDelivery(url)).toBe(true);
 
@@ -332,26 +333,22 @@ describe("duplicate delivery guard", () => {
         expect(isDuplicateDelivery(url)).toBe(false);
     });
 
-    it("clears the in-flight marker from BOTH stores when a flow completes", () => {
-        // Regression: the in-flight marker is written to sessionStorage AND
-        // localStorage, but completion only cleared the durable copy. The
-        // leftover session copy then matched every later delivery of that URL
-        // for the whole life of the webview, so the consent drawer stopped
-        // opening entirely — the request was dropped before reaching /scan-qr.
-        vi.useFakeTimers();
-        try {
-            const url = "w3ds://auth?session=sess-1&platform=example";
-            expect(isDuplicateDelivery(url)).toBe(false);
-            clearDeepLinkFlow();
+    it("lets a rebuilt webview reopen a request the user has not answered", () => {
+        // THE Activity-recreate case. Following a w3ds link from the browser
+        // restarts the Activity, so Tauri builds a fresh webview and the plugin
+        // replays the original intent via getCurrent(). The consent drawer had
+        // been SHOWN but not answered, so that replay is the only delivery the
+        // new webview will ever get and must be honoured — otherwise the user
+        // watches the request appear and then vanish into the camera page.
+        const url = "w3ds://auth?session=sess-1&platform=example";
+        expect(isDuplicateDelivery(url)).toBe(false);
 
-            // Past the replay window, still in the SAME webview: a genuine
-            // retry of that link must be honoured.
-            vi.advanceTimersByTime(31_000);
+        // Drawer took ownership of the payload; the user has NOT decided yet.
+        clearDeepLinkFlow();
 
-            expect(isDuplicateDelivery(url)).toBe(false);
-        } finally {
-            vi.useRealTimers();
-        }
+        reloadWebview();
+
+        expect(isDuplicateDelivery(url)).toBe(false);
     });
 });
 

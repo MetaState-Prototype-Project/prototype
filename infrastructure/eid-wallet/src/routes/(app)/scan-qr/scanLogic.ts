@@ -23,6 +23,7 @@ import {
 } from "$lib/utils";
 import {
     clearDeepLinkFlow,
+    markDeepLinkHandled,
     peekDeepLinkPayload,
 } from "$lib/utils/deepLinkFlow";
 
@@ -451,6 +452,10 @@ export function createScanLogic({
 
                 console.log("✅ POST request successful");
 
+                // The user's decision is complete; further deliveries of this
+                // URL are stale replays.
+                markDeepLinkHandled();
+
                 codeScannedDrawerOpen.set(false);
                 loggedInDrawerOpen.set(true);
                 startScan();
@@ -471,6 +476,9 @@ export function createScanLogic({
             // what rendered "Cannot GET /api/auth" over a successful login.
             codeScannedDrawerOpen.set(false);
             await openUrl(loginUrl.toString());
+
+            // Approved and handed off to the platform: this request is done.
+            markDeepLinkHandled();
 
             // Show the same "You're logged in!" confirmation the scan flow
             // gets, rather than dumping the user straight on the home screen.

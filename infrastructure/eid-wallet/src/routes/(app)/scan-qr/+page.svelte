@@ -2,6 +2,7 @@
 import { goto } from "$app/navigation";
 import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
 import type { GlobalState } from "$lib/global";
+import { markDeepLinkHandled } from "$lib/utils/deepLinkFlow";
 import { getContext, onDestroy, onMount } from "svelte";
 import type { SVGAttributes } from "svelte/elements";
 import { get } from "svelte/store";
@@ -129,6 +130,9 @@ $effect(() => {
 
 async function handleAuthDrawerDecline() {
     // Cancel button always navigates to main
+    // The user decided. Record completion so an Activity recreate does not
+    // resurrect a request they just rejected.
+    markDeepLinkHandled();
     setCodeScannedDrawerOpen(false);
     await goto("/main", { replaceState: true });
 }

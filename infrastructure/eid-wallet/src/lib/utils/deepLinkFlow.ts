@@ -167,24 +167,30 @@ export function clearDeepLinkFlow(): void {
     if (!s) return;
     s.removeItem(PENDING_KEY);
     s.removeItem(DATA_KEY);
-    // Promote the in-flight URL to "recently handled", with a timestamp. The
-    // request is over, so a delivery of that same URL moments later is the
-    // stale-intent replay and must be dropped — but the same URL arriving
-    // much later is a genuine retry and must be honoured. See
-    // isDuplicateDelivery.
-    const d = durableStore();
-    const inFlight = d?.getItem(LAST_URL_KEY);
-    if (d && inFlight) {
-        d.setItem(HANDLED_URL_KEY, inFlight);
-        d.setItem(HANDLED_AT_KEY, String(Date.now()));
-        d.removeItem(LAST_URL_KEY);
-    }
-    // The in-flight marker is written to BOTH stores, so it must be cleared
-    // from both. Leaving the sessionStorage copy behind made every later
-    // delivery of that same URL look like a duplicate for the whole life of
-    // the webview — the consent drawer simply never opened again, because the
-    // request was dropped before it reached /scan-qr.
+    // NOTE: this does NOT mark the URL as handled. It runs when the consent
+    // drawer takes ownership of the payload, which is the START of the user's
+    // decision, not the end of it. Marking it handled here is what made an
+    // Activity recreate fatal: the drawer had been shown, so the replay was
+    // suppressed, and the rebuilt webview had nothing to display.
+    // Completion is recorded by markDeepLinkHandled.
     s.removeItem(LAST_URL_KEY);
+}
+
+/**
+ * The user finished with this request: approved, declined, or it errored out.
+ *
+ * Only now is a further delivery of the same URL a stale replay worth
+ * dropping. Durable and timestamped, because the replay is delivered by an
+ * Activity that outlives the webview.
+ */
+export function markDeepLinkHandled(urlString?: string): void {
+    const d = durableStore();
+    if (!d) return;
+    const url = urlString ?? d.getItem(LAST_URL_KEY);
+    if (!url) return;
+    d.setItem(HANDLED_URL_KEY, url);
+    d.setItem(HANDLED_AT_KEY, String(Date.now()));
+    d.removeItem(LAST_URL_KEY);
 }
 
 /* ------------------------------------------------------------ dedupe guard */
@@ -230,17 +236,21 @@ export function isDuplicateDelivery(urlString: string): boolean {
         s.removeItem(HANDLED_AT_KEY);
     }
 
-    // "In flight" is scoped to THIS webview, deliberately. It exists to
-    // collapse getCurrent()/onOpenUrl double delivery within a single run, and
-    // a request that never completed (app killed on the consent screen) must
-    // not keep blocking its own URL on the next launch — that is a dead end
-    // the user cannot escape. sessionStorage gives exactly that lifetime.
+    // "In flight" is scoped to THIS webview and nothing else. It exists solely
+    // to collapse the getCurrent()/onOpenUrl double delivery that happens
+    // within one run.
+    //
+    // It must NOT be durable. Following a w3ds link from the browser restarts
+    // the Activity, so Tauri builds a fresh webview and the plugin replays the
+    // original intent through getCurrent(). For that new webview the replay is
+    // not a duplicate — it is the ONLY delivery it will ever receive. An empty
+    // sessionStorage is exactly the signal that this is a new run, so the
+    // payload is stored again and the consent drawer can reopen.
     const inFlight = store();
-    if (inFlight?.getItem(LAST_URL_KEY) === urlString) return true;
-    inFlight?.setItem(LAST_URL_KEY, urlString);
-
-    // Mirrored durably so clearDeepLinkFlow can promote it to "recently
-    // handled" even if the webview reloaded in between.
+    if (!inFlight) return false;
+    if (inFlight.getItem(LAST_URL_KEY) === urlString) return true;
+    inFlight.setItem(LAST_URL_KEY, urlString);
+    // Mirrored durably only so markDeepLinkHandled knows which URL completed.
     s.setItem(LAST_URL_KEY, urlString);
     return false;
 }
