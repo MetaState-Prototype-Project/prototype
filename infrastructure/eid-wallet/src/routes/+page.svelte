@@ -76,6 +76,33 @@ function superseded(): boolean {
     return shouldAbortStaleContinuation(destroyed, authenticatedAtStart);
 }
 
+// Claim the pre-app auth prompt SYNCHRONOUSLY, at component init, before any
+// await in onMount.
+//
+// The deep link is delivered from the root layout's onMount, which runs while
+// this screen is still playing its 1.2s intro. Claiming ownership later (after
+// the animation, the globalState poll and three store reads) left a window of
+// well over a second in which a cold-start URL saw no owner at all: the
+// handler concluded nobody would route it, navigated to /login, and unmounted
+// the splash before it could ever prompt. Since /login is now PIN-only, the
+// user got the PIN pad instead of biometrics and the parked payload was left
+// for a screen that no longer routes it.
+//
+// Claiming at init closes that window completely: the claim is written before
+// the layout's onMount can run, so every delivery sees an owner.
+//
+// `skipIntro` is backward-nav from /onboarding, which is a normal in-app
+// navigation and never authenticates, so it must not claim.
+if (browser && !skipIntro) {
+    claimSplashAuthOwnership();
+}
+
+// A splash that is torn down before it hands the user onward must not leave
+// the claim behind, or the next deep link defers to an owner that is gone.
+onDestroy(() => {
+    releaseSplashAuthOwnership();
+});
+
 onMount(async () => {
     if (skipIntro) {
         // Backward nav from /onboarding — already at state C, nothing to do.
@@ -123,34 +150,29 @@ onMount(async () => {
         // If no PIN is set we bounce back to onboarding to recover; no
         // biometric prompt makes sense from that state.
         if (!pinHash) {
+            // Not authenticating here, so stop claiming the prompt before
+            // navigating away.
+            releaseSplashAuthOwnership();
             await goto("/onboarding");
             return;
         }
 
-        // From here this screen is the sole owner of pre-app authentication,
-        // and stays the owner until it has handed the user onward. Claimed
-        // BEFORE the await below, because a URL delivered during that await
-        // must already see an owner: otherwise the handler navigates to /login
-        // on its own and the splash's prompt is lost.
-        //
-        // This is a durable claim rather than a pathname check. SvelteKit
-        // navigation is async, so `location.pathname` is still "/" for a while
-        // after we call goto() — inferring ownership from that made the
-        // handler defer to an owner that had already finished, and the parked
-        // payload was never collected.
-        claimSplashAuthOwnership();
+        // Ownership was claimed at component init (see above), so it is
+        // already held here. Release it on every exit path: success (the user
+        // has been handed onward), cancel, failure, or a superseded
+        // continuation. Leaving it set would make a later deep link defer to
+        // an owner that no longer exists.
         try {
             await runReturningUserAuth(globalState);
         } finally {
-            // Every exit path releases: success (already navigated), cancel,
-            // failure, or a superseded continuation. Leaving it set would make
-            // a later deep link defer to an owner that no longer exists.
             releaseSplashAuthOwnership();
         }
         return;
     }
 
-    // First-time user — reveal the drawer with CTAs.
+    // First-time user — no authentication happens on this launch, so drop the
+    // claim. A deep link arriving now must be free to route itself.
+    releaseSplashAuthOwnership();
     splashShowDrawer = true;
 });
 

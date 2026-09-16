@@ -591,6 +591,28 @@ describe("single biometric prompt site", () => {
         expect(shouldRedirectToLogin()).toBe(true);
     });
 
+    it("keeps the launch on the splash during its intro animation", () => {
+        // THE cold-start case, and the one the pathname check hid. The deep
+        // link is delivered from the root layout's onMount, which runs while
+        // the splash is still playing its ~1.2s intro — long before it reaches
+        // the biometric prompt.
+        //
+        // The splash therefore claims ownership at component INIT, not when it
+        // is finally ready to authenticate. Claiming late left a window of
+        // over a second in which the URL saw no owner, so the handler
+        // navigated to /login and unmounted the splash before it could prompt.
+        // Since /login is PIN-only, the user got the PIN pad instead of
+        // biometrics and the payload was left for a screen that never routes
+        // it.
+        claimSplashAuthOwnership();
+
+        // Delivery lands mid-intro: no prompt is on screen yet.
+        markDeepLinkPending(AUTH_PAYLOAD);
+
+        expect(isAuthPromptInFlight()).toBe(false);
+        expect(shouldRedirectToLogin()).toBe(false);
+    });
+
     it("routes a URL re-delivered after the splash finished its handover", () => {
         // THE regression that made the consent screen vanish on fast
         // authentication, and the reason ownership cannot be a pathname check.
