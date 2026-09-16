@@ -147,8 +147,10 @@ function handleAuthDrawerOpenChange(value: boolean) {
 async function handleLoggedInDrawerConfirm() {
     setLoggedInDrawerOpen(false);
     // Acknowledged: drop the stored confirmation so a later app restart cannot
-    // resurrect it.
-    takeCompletedDeepLink();
+    // resurrect it, and record the dismissal. The Activity restart caused by
+    // this login's own openUrl can still be pending, and the rebuilt webview
+    // would otherwise find no payload and open the camera.
+    takeCompletedDeepLink(true);
     // /scan-qr is a transient deep-link destination. Replace it so Android
     // back cannot reopen the camera after login, and never start the camera
     // after this page has navigated away.

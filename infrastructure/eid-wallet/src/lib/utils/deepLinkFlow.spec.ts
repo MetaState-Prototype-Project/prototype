@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     beginAuthPrompt,
+    clearDeepLinkAcknowledged,
     clearDeepLinkFlow,
     endAuthPrompt,
     isAuthPromptInFlight,
@@ -19,6 +20,7 @@ import {
     shouldAbortStaleContinuation,
     shouldRedirectToLogin,
     takeCompletedDeepLink,
+    wasDeepLinkJustAcknowledged,
 } from "./deepLinkFlow";
 
 /**
@@ -582,5 +584,85 @@ describe("single biometric prompt site", () => {
         expect(shouldRedirectToLogin("/onboarding")).toBe(false);
         endAuthPrompt();
         expect(shouldRedirectToLogin("/onboarding")).toBe(true);
+    });
+});
+
+describe("acknowledged confirmation", () => {
+    // Approving a login calls openUrl, which restarts the Activity. If the
+    // user taps Ok inside the short window BEFORE that restart lands, the
+    // rebuilt webview reloads /scan-qr with the payload suppressed and the
+    // confirmation already consumed. It then saw "no deep link" and opened the
+    // camera — a scanner the user never asked for.
+
+    it("suppresses the scanner after the user dismisses the confirmation", () => {
+        markDeepLinkCompleted({ platform: "pictique", hostname: "p.example" });
+
+        // The user taps Ok before the restart lands.
+        expect(takeCompletedDeepLink(true)).not.toBeNull();
+
+        // The rebuilt webview finds nothing to show and must NOT start the
+        // camera.
+        expect(takeCompletedDeepLink()).toBeNull();
+        expect(wasDeepLinkJustAcknowledged()).toBe(true);
+    });
+
+    it("does not suppress the scanner merely for rendering the confirmation", () => {
+        markDeepLinkCompleted({ platform: "pictique", hostname: "p.example" });
+
+        // Restoring the card after a restart is not a dismissal: the user has
+        // not answered yet, so a later genuine scan must still work.
+        expect(takeCompletedDeepLink()).not.toBeNull();
+
+        expect(wasDeepLinkJustAcknowledged()).toBe(false);
+    });
+
+    it("records the dismissal even when the card was already restored", () => {
+        // The restore path consumes the record when it RENDERS, so by the time
+        // Ok is tapped there is nothing left to take. The acknowledgement must
+        // still be written or the restart reopens the camera.
+        markDeepLinkCompleted({ platform: "pictique", hostname: "p.example" });
+        takeCompletedDeepLink();
+
+        expect(takeCompletedDeepLink(true)).toBeNull();
+
+        expect(wasDeepLinkJustAcknowledged()).toBe(true);
+    });
+
+    it("lets the user open the scanner deliberately right after", () => {
+        markDeepLinkCompleted({ platform: "pictique", hostname: "p.example" });
+        takeCompletedDeepLink(true);
+
+        // Tapping Scan is an in-app navigation, which proves intent. Without
+        // this the user would be bounced back to /main for 30 seconds.
+        clearDeepLinkAcknowledged();
+
+        expect(wasDeepLinkJustAcknowledged()).toBe(false);
+    });
+
+    it("expires so it can never suppress a later scan", () => {
+        vi.useFakeTimers();
+        try {
+            markDeepLinkCompleted({
+                platform: "pictique",
+                hostname: "p.example",
+            });
+            takeCompletedDeepLink(true);
+            expect(wasDeepLinkJustAcknowledged()).toBe(true);
+
+            vi.advanceTimersByTime(31_000);
+
+            expect(wasDeepLinkJustAcknowledged()).toBe(false);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("forgets the acknowledgement on logout", () => {
+        markDeepLinkCompleted({ platform: "pictique", hostname: "p.example" });
+        takeCompletedDeepLink(true);
+
+        resetAuthSession();
+
+        expect(wasDeepLinkJustAcknowledged()).toBe(false);
     });
 });

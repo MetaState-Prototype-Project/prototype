@@ -59,6 +59,7 @@ const LAST_URL_KEY = "deepLinkLastUrl";
 const HANDLED_URL_KEY = "deepLinkHandledUrl";
 const HANDLED_AT_KEY = "deepLinkHandledAt";
 const COMPLETED_KEY = "deepLinkCompleted";
+const ACKNOWLEDGED_KEY = "deepLinkAcknowledgedAt";
 
 /**
  * How long a just-handled URL keeps suppressing further deliveries.
@@ -228,10 +229,27 @@ export function markDeepLinkCompleted(
     );
 }
 
-/** Consume the pending confirmation, if one is waiting. Single-use. */
-export function takeCompletedDeepLink(): CompletedDeepLink | null {
+/**
+ * Consume the pending confirmation, if one is waiting. Single-use.
+ *
+ * `acknowledged` distinguishes the two callers, and the distinction matters
+ * because the Activity restart can still be pending when the user acts:
+ *
+ *   false (default) the confirmation is being RENDERED. It must not be shown
+ *                   twice, but the user has not dismissed it yet.
+ *   true            the user tapped Ok. The request is finished for good, so
+ *                   a webview rebuilt after this must not reopen the scanner
+ *                   as if the user had asked to scan something.
+ */
+export function takeCompletedDeepLink(
+    acknowledged = false,
+): CompletedDeepLink | null {
     const d = durableStore();
     if (!d) return null;
+    // Record the acknowledgement FIRST. On the restore path the confirmation
+    // was already consumed when it was rendered, so by the time the user taps
+    // Ok there is no record left and the early return below would skip this.
+    if (acknowledged) d.setItem(ACKNOWLEDGED_KEY, String(Date.now()));
     const value = d.getItem(COMPLETED_KEY);
     if (value === null) return null;
     d.removeItem(COMPLETED_KEY);
@@ -248,6 +266,47 @@ export function takeCompletedDeepLink(): CompletedDeepLink | null {
 }
 
 /* ------------------------------------------------------------ dedupe guard */
+
+/**
+ * Did the user just dismiss a deep-link confirmation?
+ *
+ * /scan-qr is two different screens wearing one route. Reached from the Scan
+ * button it is a camera; reached by a deep link it is a consent/confirmation
+ * screen that happens to fall through to the camera when it finds no payload.
+ * That fall-through is correct for a deliberate scan and wrong for the tail of
+ * a finished login.
+ *
+ * Tapping Ok can be followed by the Activity restart that the login's own
+ * `openUrl` set in motion. The rebuilt webview reloads /scan-qr with the
+ * payload suppressed and the confirmation consumed, so it sees "no deep link"
+ * and opens the camera — a scanner the user never asked for.
+ *
+ * Bounded by the same window as the replay guard: it suppresses only the
+ * restart caused by the login just acknowledged, never a later genuine scan.
+ */
+export function wasDeepLinkJustAcknowledged(): boolean {
+    const d = durableStore();
+    if (!d) return false;
+    const at = Number(d.getItem(ACKNOWLEDGED_KEY) ?? 0);
+    if (!at) return false;
+    if (Date.now() - at < REPLAY_WINDOW_MS) return true;
+    d.removeItem(ACKNOWLEDGED_KEY);
+    return false;
+}
+
+/**
+ * Forget the acknowledgement, because the user has deliberately asked for the
+ * scanner.
+ *
+ * The marker must only ever suppress a webview REBUILD, never a navigation the
+ * user performed. A SPA navigation proves intent (the Scan button was tapped);
+ * an Activity restart produces a fresh page load and fires no navigation hook
+ * at all. Clearing here is what keeps "tap Ok, then immediately tap Scan" from
+ * bouncing the user straight back to /main.
+ */
+export function clearDeepLinkAcknowledged(): void {
+    durableStore()?.removeItem(ACKNOWLEDGED_KEY);
+}
 
 /**
  * True when this exact URL is already being handled.
@@ -428,4 +487,5 @@ export function resetAuthSession(): void {
     d?.removeItem(HANDLED_AT_KEY);
     d?.removeItem(LAST_URL_KEY);
     d?.removeItem(COMPLETED_KEY);
+    d?.removeItem(ACKNOWLEDGED_KEY);
 }

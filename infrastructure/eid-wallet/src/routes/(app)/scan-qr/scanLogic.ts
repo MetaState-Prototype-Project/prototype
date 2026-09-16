@@ -27,6 +27,7 @@ import {
     markDeepLinkHandled,
     peekDeepLinkPayload,
     takeCompletedDeepLink,
+    wasDeepLinkJustAcknowledged,
 } from "$lib/utils/deepLinkFlow";
 
 export interface SigningData {
@@ -1742,6 +1743,13 @@ export function createScanLogic({
                 // to show and silently fell through to the camera.
                 clearDeepLinkFlow();
             }
+        } else if (wasDeepLinkJustAcknowledged()) {
+            // The Activity restart that this login's own openUrl set in motion
+            // landed after the user had already tapped Ok. There is nothing
+            // left to show, but starting the camera would hand them a scanner
+            // they never asked for. Return home instead.
+            console.log("Deep link already acknowledged, returning to main");
+            await goto("/main");
         } else {
             console.log("No deep link data found, starting normal scanning");
             startScan();

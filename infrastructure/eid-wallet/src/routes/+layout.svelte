@@ -9,6 +9,7 @@ import { GlobalState } from "$lib/global/state";
 import { runtime } from "$lib/global/runtime.svelte";
 import { swipedetect } from "$lib/utils";
 import {
+    clearDeepLinkAcknowledged,
     isAuthPromptInFlight,
     isDeepLinkFlowActive,
     isDuplicateDelivery,
@@ -316,6 +317,15 @@ onNavigate((navigation) => {
     // without thinking about it.
     if (to === "/onboarding") {
         sessionStorage.setItem("navigatingToOnboarding", "true");
+    }
+
+    // Reaching /scan-qr through an in-app navigation means the user tapped
+    // Scan, so the camera is what they want. The "just acknowledged" marker
+    // exists only to stop a webview REBUILD from opening the scanner after a
+    // finished login; a rebuild is a fresh page load and never fires this
+    // hook, so clearing here cannot mask the case it guards.
+    if (to === "/scan-qr") {
+        clearDeepLinkAcknowledged();
     }
 
     // Direction comes from the navigation TYPE, not stack indices. Indexing
