@@ -22,7 +22,19 @@ import { createScanLogic } from "./scanLogic";
 // `globalState.vaultController` then threw — which scanLogic's catch reported
 // as "authentication check failed" and redirected to /login.
 const getGlobalState = getContext<() => GlobalState | undefined>("globalState");
-const { stores, actions } = createScanLogic({ getGlobalState, goto });
+// Tapping a w3ds link from the browser restarts the Activity (singleTask with
+// a VIEW filter, and no onNewIntent override), so Tauri builds a BRAND NEW
+// webview. This page is then restored as the current route and mounts before
+// the root layout's async onMount has even received the URL. Await the
+// layout's discovery signal before concluding there is no payload.
+const initialDeepLinkReady = getContext<Promise<void> | undefined>(
+    "initialDeepLinkReady",
+);
+const { stores, actions } = createScanLogic({
+    getGlobalState,
+    initialDeepLinkReady,
+    goto,
+});
 
 const {
     platform,

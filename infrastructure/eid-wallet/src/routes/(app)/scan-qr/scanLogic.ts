@@ -65,6 +65,11 @@ interface CreateScanLogicParams {
      * layout has finished creating global state (see +page.svelte).
      */
     getGlobalState: () => GlobalState | undefined;
+    /**
+     * Resolves once the root layout has finished asking the deep-link plugin
+     * whether the app was opened by a URL. Undefined outside that layout.
+     */
+    initialDeepLinkReady?: Promise<void>;
     goto: (path: string) => Promise<void>;
 }
 
@@ -152,6 +157,7 @@ let scanInFlight = false;
 
 export function createScanLogic({
     getGlobalState,
+    initialDeepLinkReady,
     goto,
 }: CreateScanLogicParams): ScanLogic {
     /**
@@ -1650,6 +1656,32 @@ export function createScanLogic({
         window.addEventListener("deepLinkReceived", deepLinkHandler);
         window.addEventListener("deepLinkAuth", authHandler);
         window.addEventListener("deepLinkSign", signHandler);
+
+        // Listeners are registered ABOVE this await on purpose: a URL that
+        // arrives while we wait is then delivered by event, and the storage
+        // read below is the fallback for one that arrived before we mounted.
+        //
+        // Without this wait the page loses the race outright on the common
+        // path. Opening a w3ds link from the browser restarts the Activity, so
+        // a fresh webview mounts this route immediately while the root layout
+        // is still asynchronously importing the plugin and calling getCurrent().
+        // We would read empty storage, log "No deep link data found", start the
+        // camera, and only then would the payload be stored — with nobody left
+        // to act on it.
+        if (initialDeepLinkReady) {
+            try {
+                // Bounded: the layout resolves this in a finally, but a hang
+                // in the plugin import must degrade to "no deep link" rather
+                // than leaving this page blank forever.
+                await Promise.race([
+                    initialDeepLinkReady,
+                    new Promise<void>((resolve) => setTimeout(resolve, 3000)),
+                ]);
+            } catch {
+                // The layout resolves this in a finally; a rejection here must
+                // not stop the page from working.
+            }
+        }
 
         const deepLinkData = peekDeepLinkPayload();
 
