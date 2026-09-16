@@ -58,6 +58,7 @@ const AUTH_IN_FLIGHT_KEY = "walletAuthInFlight";
 const LAST_URL_KEY = "deepLinkLastUrl";
 const HANDLED_URL_KEY = "deepLinkHandledUrl";
 const HANDLED_AT_KEY = "deepLinkHandledAt";
+const COMPLETED_KEY = "deepLinkCompleted";
 
 /**
  * How long a just-handled URL keeps suppressing further deliveries.
@@ -191,6 +192,30 @@ export function markDeepLinkHandled(urlString?: string): void {
     d.setItem(HANDLED_URL_KEY, url);
     d.setItem(HANDLED_AT_KEY, String(Date.now()));
     d.removeItem(LAST_URL_KEY);
+}
+
+/**
+ * Record that a deep-link login was approved and handed to the platform, so the
+ * confirmation can be shown even if the webview is rebuilt before it renders.
+ *
+ * Approving calls `openUrl`, which leaves the app; returning from the browser
+ * frequently restarts the Activity. The drawer state lives in an in-memory
+ * Svelte store, so it does not survive that, and the user came back to a bare
+ * scanner page instead of "You're logged in!". Durable because the very event
+ * we are surviving destroys the webview.
+ */
+export function markDeepLinkCompleted(platform?: string | null): void {
+    durableStore()?.setItem(COMPLETED_KEY, platform ?? "");
+}
+
+/** Consume the pending confirmation, if one is waiting. Single-use. */
+export function takeCompletedDeepLink(): { platform: string | null } | null {
+    const d = durableStore();
+    if (!d) return null;
+    const value = d.getItem(COMPLETED_KEY);
+    if (value === null) return null;
+    d.removeItem(COMPLETED_KEY);
+    return { platform: value === "" ? null : value };
 }
 
 /* ------------------------------------------------------------ dedupe guard */
@@ -342,4 +367,5 @@ export function resetAuthSession(): void {
     d?.removeItem(HANDLED_URL_KEY);
     d?.removeItem(HANDLED_AT_KEY);
     d?.removeItem(LAST_URL_KEY);
+    d?.removeItem(COMPLETED_KEY);
 }

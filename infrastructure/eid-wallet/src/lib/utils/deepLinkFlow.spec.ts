@@ -8,6 +8,7 @@ import {
     isDeepLinkFlowActive,
     isDuplicateDelivery,
     isWalletAuthenticated,
+    markDeepLinkCompleted,
     markDeepLinkHandled,
     markDeepLinkPending,
     markDeepLinkReady,
@@ -16,6 +17,7 @@ import {
     promotePendingDeepLink,
     resetAuthSession,
     shouldAbortStaleContinuation,
+    takeCompletedDeepLink,
 } from "./deepLinkFlow";
 
 /**
@@ -353,6 +355,29 @@ describe("duplicate delivery guard", () => {
 });
 
 describe("authentication is deliberately NOT durable", () => {
+    it("keeps the post-login confirmation across an app restart", () => {
+        // Approving calls openUrl, which leaves the app; coming back from the
+        // browser often restarts the Activity and destroys the webview. The
+        // drawer state is an in-memory Svelte store, so without this the user
+        // returned to a bare scanner page instead of "You're logged in!".
+        markDeepLinkCompleted("pictique");
+
+        reloadWebview();
+
+        expect(takeCompletedDeepLink()).toEqual({ platform: "pictique" });
+    });
+
+    it("only hands the confirmation over once", () => {
+        markDeepLinkCompleted("pictique");
+
+        expect(takeCompletedDeepLink()).toEqual({ platform: "pictique" });
+        expect(takeCompletedDeepLink()).toBeNull();
+    });
+
+    it("reports no confirmation when none is pending", () => {
+        expect(takeCompletedDeepLink()).toBeNull();
+    });
+
     it("forgets the authenticated session when the webview reloads", () => {
         // Security boundary. walletAuthenticated must not be persisted: the
         // deep-link router and the splash both treat an authenticated session

@@ -23,8 +23,10 @@ import {
 } from "$lib/utils";
 import {
     clearDeepLinkFlow,
+    markDeepLinkCompleted,
     markDeepLinkHandled,
     peekDeepLinkPayload,
+    takeCompletedDeepLink,
 } from "$lib/utils/deepLinkFlow";
 
 export interface SigningData {
@@ -475,10 +477,15 @@ export function createScanLogic({
             // redirect, pointing it at the POST-only API endpoint, which is
             // what rendered "Cannot GET /api/auth" over a successful login.
             codeScannedDrawerOpen.set(false);
-            await openUrl(loginUrl.toString());
 
-            // Approved and handed off to the platform: this request is done.
+            // Record BOTH facts before leaving the app. openUrl hands control
+            // to the browser, and returning from it often restarts the
+            // Activity, which destroys this webview along with every in-memory
+            // store. Anything set after this point may never be rendered.
             markDeepLinkHandled();
+            markDeepLinkCompleted(get(platform));
+
+            await openUrl(loginUrl.toString());
 
             // Show the same "You're logged in!" confirmation the scan flow
             // gets, rather than dumping the user straight on the home screen.
@@ -1692,6 +1699,22 @@ export function createScanLogic({
         }
 
         const deepLinkData = peekDeepLinkPayload();
+
+        // A login approved just before the app handed off to the browser. If
+        // the Activity was recreated on the way back, the drawer state was
+        // destroyed with the old webview, so restore the confirmation here
+        // rather than dropping the user on a bare scanner page.
+        const completed = takeCompletedDeepLink();
+        if (completed && !deepLinkData) {
+            console.log("Restoring post-login confirmation after app restart");
+            if (completed.platform) platform.set(completed.platform);
+            loggedInDrawerOpen.set(true);
+            return () => {
+                window.removeEventListener("deepLinkReceived", deepLinkHandler);
+                window.removeEventListener("deepLinkAuth", authHandler);
+                window.removeEventListener("deepLinkSign", signHandler);
+            };
+        }
 
         if (deepLinkData) {
             console.log("Found deep link data:", deepLinkData);

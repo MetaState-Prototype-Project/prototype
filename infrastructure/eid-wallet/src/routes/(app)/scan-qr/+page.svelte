@@ -2,7 +2,10 @@
 import { goto } from "$app/navigation";
 import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
 import type { GlobalState } from "$lib/global";
-import { markDeepLinkHandled } from "$lib/utils/deepLinkFlow";
+import {
+    markDeepLinkHandled,
+    takeCompletedDeepLink,
+} from "$lib/utils/deepLinkFlow";
 import { getContext, onDestroy, onMount } from "svelte";
 import type { SVGAttributes } from "svelte/elements";
 import { get } from "svelte/store";
@@ -143,6 +146,9 @@ function handleAuthDrawerOpenChange(value: boolean) {
 
 async function handleLoggedInDrawerConfirm() {
     setLoggedInDrawerOpen(false);
+    // Acknowledged: drop the stored confirmation so a later app restart cannot
+    // resurrect it.
+    takeCompletedDeepLink();
     // /scan-qr is a transient deep-link destination. Replace it so Android
     // back cannot reopen the camera after login, and never start the camera
     // after this page has navigated away.
