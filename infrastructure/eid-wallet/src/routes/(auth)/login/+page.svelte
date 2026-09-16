@@ -8,6 +8,7 @@ import {
     beginAuthPrompt,
     endAuthPrompt,
     isDeepLinkFlowActive,
+    isWalletAuthenticated,
     shouldAbortStaleContinuation,
 } from "$lib/utils/deepLinkFlow";
 import { continueAfterSuccessfulAuth } from "$lib/utils/postLogin";
@@ -52,6 +53,17 @@ let destroyed = false;
 onDestroy(() => {
     destroyed = true;
 });
+
+// Snapshot taken when this screen mounts. Reaching /login while the session is
+// ALREADY authenticated is normal (a deep-link login authenticates, then a
+// guard bounces here), and must still offer biometrics. Only a change from
+// unauthenticated to authenticated while we were waiting means another screen
+// took over.
+const authenticatedAtStart = isWalletAuthenticated();
+
+function superseded(): boolean {
+    return shouldAbortStaleContinuation(destroyed, authenticatedAtStart);
+}
 
 const authOpts: AuthOptions = {
     allowDeviceCredential: false,
@@ -114,11 +126,11 @@ onMount(async () => {
     let retries = 0;
     while (!gs && retries < 50) {
         await new Promise((r) => setTimeout(r, 100));
-        if (shouldAbortStaleContinuation(destroyed)) return;
+        if (superseded()) return;
         gs = getGlobalState();
         retries++;
     }
-    if (shouldAbortStaleContinuation(destroyed)) return;
+    if (superseded()) return;
     if (!gs) {
         console.error("Global state never became available");
         await goto("/");
@@ -145,7 +157,7 @@ onMount(async () => {
         (await gs.securityController.biometricSupport) &&
         (await checkStatus()).isAvailable
     ) {
-        if (shouldAbortStaleContinuation(destroyed)) return;
+        if (superseded()) return;
         beginAuthPrompt();
         try {
             await authenticate(

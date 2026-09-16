@@ -279,16 +279,28 @@ export function isAuthPromptInFlight(): boolean {
  * the consent drawer. Waking up at that point and running its tail is what
  * tears the drawer back down.
  *
- * Callers pass their own destroyed flag (set from onDestroy). The second
- * condition catches the subtler case where the component has not been
- * destroyed yet but the session is already authenticated, which means another
- * screen owns navigation now.
+ * The question is "was this routine SUPERSEDED while it waited?", which is not
+ * the same as "is the session authenticated?". Testing the latter broke
+ * /login: arriving there after having authenticated once in the same session
+ * (which is exactly what a deep-link flow does) made the guard classify a
+ * freshly mounted screen as stale, so it returned before ever prompting and
+ * the user was left with only the PIN pad, unable to use biometrics.
+ *
+ * So callers snapshot the authentication state when the routine STARTS and
+ * pass it back in. Only a transition — not authenticated then, authenticated
+ * now — means another screen took ownership mid-wait. A screen that mounts
+ * already-authenticated sees no transition and proceeds normally.
  *
  * Bailing out is always safe: it only skips navigation, and never touches the
  * deep-link payload the live screen still has to consume.
  */
-export function shouldAbortStaleContinuation(destroyed: boolean): boolean {
-    return destroyed || isWalletAuthenticated();
+export function shouldAbortStaleContinuation(
+    destroyed: boolean,
+    authenticatedAtStart = false,
+): boolean {
+    if (destroyed) return true;
+    // Authentication completed elsewhere while this routine was suspended.
+    return !authenticatedAtStart && isWalletAuthenticated();
 }
 
 /**

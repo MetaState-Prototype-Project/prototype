@@ -7,6 +7,7 @@ import {
     beginAuthPrompt,
     endAuthPrompt,
     isDeepLinkFlowActive,
+    isWalletAuthenticated,
     shouldAbortStaleContinuation,
 } from "$lib/utils/deepLinkFlow";
 import { continueAfterSuccessfulAuth } from "$lib/utils/postLogin";
@@ -67,9 +68,13 @@ onDestroy(() => {
     destroyed = true;
 });
 
+// See /login: only a transition to authenticated while this routine was
+// suspended means another screen took ownership.
+const authenticatedAtStart = isWalletAuthenticated();
+
 /** True once this screen is gone or the user is already through the gate. */
 function superseded(): boolean {
-    return shouldAbortStaleContinuation(destroyed);
+    return shouldAbortStaleContinuation(destroyed, authenticatedAtStart);
 }
 
 onMount(async () => {

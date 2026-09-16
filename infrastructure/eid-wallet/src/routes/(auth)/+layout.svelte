@@ -2,7 +2,10 @@
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
 import type { GlobalState } from "$lib/global";
-import { shouldAbortStaleContinuation } from "$lib/utils/deepLinkFlow";
+import {
+    isWalletAuthenticated,
+    shouldAbortStaleContinuation,
+} from "$lib/utils/deepLinkFlow";
 import { getContext, onDestroy, onMount } from "svelte";
 
 let { children } = $props();
@@ -17,8 +20,12 @@ onDestroy(() => {
     destroyed = true;
 });
 
+// See /login: guards must not treat "mounted while already authenticated" as
+// stale, only a transition that happens while they wait.
+const authenticatedAtStart = isWalletAuthenticated();
+
 function superseded(): boolean {
-    return shouldAbortStaleContinuation(destroyed);
+    return shouldAbortStaleContinuation(destroyed, authenticatedAtStart);
 }
 
 onMount(async () => {

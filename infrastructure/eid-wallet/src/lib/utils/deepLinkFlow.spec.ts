@@ -434,8 +434,11 @@ describe("superseded splash/login continuation", () => {
     // that asks this module whether the user is already through the gate.
     // Bind to the real exported guard, not a local re-statement of it, so
     // deleting the guard from the app breaks these tests.
-    const stillOwnsTheScreen = (destroyed: boolean) =>
-        !shouldAbortStaleContinuation(destroyed);
+    // Screens snapshot the auth state when their routine starts and pass it
+    // back in, so the guard can tell a TRANSITION from a screen that simply
+    // mounted while already authenticated.
+    const stillOwnsTheScreen = (destroyed: boolean, authedAtStart = false) =>
+        !shouldAbortStaleContinuation(destroyed, authedAtStart);
 
     it("tells a still-mounted splash it may proceed", () => {
         expect(stillOwnsTheScreen(false)).toBe(true);
@@ -461,5 +464,21 @@ describe("superseded splash/login continuation", () => {
         expect(stillOwnsTheScreen(false)).toBe(false);
         expect(isDeepLinkFlowActive()).toBe(true);
         expect(peekDeepLinkPayload()).toBe(JSON.stringify(AUTH_PAYLOAD));
+    });
+
+    it("lets a screen that mounted already-authenticated keep running", () => {
+        // Regression: /login is reached WITH an authenticated session during a
+        // deep-link flow (auth completes, then a guard bounces here). Treating
+        // that as a stale continuation made it return before prompting, so the
+        // biometric prompt never appeared and only the PIN pad was offered.
+        markWalletAuthenticated();
+
+        expect(stillOwnsTheScreen(false, true)).toBe(true);
+    });
+
+    it("still stops that screen once it is unmounted", () => {
+        markWalletAuthenticated();
+
+        expect(stillOwnsTheScreen(true, true)).toBe(false);
     });
 });
