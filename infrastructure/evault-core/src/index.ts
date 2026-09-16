@@ -15,6 +15,7 @@ import { VerificationService } from "./services/VerificationService";
 import { createHmacSignature } from "./utils/hmac";
 
 import { checkGlobalRateLimit } from "./core/http/global-rate-limiter";
+import { isGraphQLReadOperation } from "./core/http/graphql-rate-limit-intent";
 import fastifyCors from "@fastify/cors";
 import fastify, {
     type FastifyInstance,
@@ -84,6 +85,43 @@ let driver: Driver;
 let provisioningService: ProvisioningService | undefined;
 let awarenessOutboxDispatcher: AwarenessOutboxDispatcher | undefined;
 let expressServer: HttpServer | undefined;
+
+function rawBearerToken(request: FastifyRequest): string | null {
+    const authHeader = request.headers.authorization;
+    return typeof authHeader === "string" && authHeader.startsWith("Bearer ")
+        ? authHeader.substring(7)
+        : null;
+}
+
+function requestEName(request: FastifyRequest): string | null {
+    const value = request.headers["x-ename"];
+    return typeof value === "string" ? value : null;
+}
+
+function requestPath(request: FastifyRequest): string {
+    return (request.raw.url || request.url).split("?", 1)[0] || "/";
+}
+
+/**
+ * Only operations whose read-only nature is known after Fastify has parsed
+ * the body receive tenant-isolated capacity. Unknown and broad endpoints stay
+ * on the strict legacy budget; this prevents a caller from claiming a read
+ * path for a mutation or cross-tenant enumeration.
+ */
+function isTenantScopedReadRequest(request: FastifyRequest): boolean {
+    const path = requestPath(request);
+    if (
+        (request.method === "GET" || request.method === "HEAD") &&
+        path.startsWith("/files/")
+    ) {
+        return true;
+    }
+    return (
+        request.method === "POST" &&
+        path === "/graphql" &&
+        isGraphQLReadOperation(request.body)
+    );
+}
 
 // Initialize eVault Core
 const initializeEVault = async (
@@ -219,16 +257,18 @@ const initializeEVault = async (
         credentials: true,
     });
 
-    // Global rate limiting by platform token identity (IP fallback)
-    fastifyServer.addHook("onRequest", async (request, reply) => {
-        const authHeader = request.headers.authorization;
-        const token = authHeader?.startsWith("Bearer ")
-            ? authHeader.substring(7)
-            : null;
-        const ip = request.ip;
-        const { allowed, retryAfterSeconds } = checkGlobalRateLimit(token, ip);
+    // Rate-limit after request parsing so a GraphQL operation can be proven to
+    // be a query before it receives tenant-isolated read capacity. Mutations,
+    // unknown documents, and broad HTTP endpoints retain the old strict quota.
+    fastifyServer.addHook("preValidation", async (request, reply) => {
+        const { allowed, retryAfterSeconds } = await checkGlobalRateLimit({
+            token: rawBearerToken(request),
+            ip: request.ip,
+            eName: requestEName(request),
+            intent: isTenantScopedReadRequest(request) ? "read" : "write",
+        });
         if (!allowed) {
-            // In an async onRequest hook, Fastify only short-circuits the
+            // In an async Fastify hook, only returning the reply short-circuits
             // handler chain if you return the reply object. Without the
             // return, the 429 is queued but the downstream handler (GraphQL)
             // still runs — turning the rate limiter into a silent counter.
