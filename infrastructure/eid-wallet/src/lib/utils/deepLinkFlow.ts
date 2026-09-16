@@ -250,7 +250,23 @@ export function takeCompletedDeepLink(
     // Record the acknowledgement FIRST. On the restore path the confirmation
     // was already consumed when it was rendered, so by the time the user taps
     // Ok there is no record left and the early return below would skip this.
-    if (acknowledged) d.setItem(ACKNOWLEDGED_KEY, String(Date.now()));
+    if (acknowledged) {
+        d.setItem(ACKNOWLEDGED_KEY, String(Date.now()));
+        // Restart the replay-suppression window from the dismissal, not from
+        // the approval.
+        //
+        // HANDLED_AT is stamped when the user approves, which is BEFORE the
+        // openUrl handoff, the time spent on the platform in the browser, and
+        // the Activity restart on the way back. By the time the replayed
+        // intent finally arrives, that window may already have expired, so the
+        // finished login was treated as a genuine new request and the consent
+        // drawer re-opened on a login the user had just completed.
+        //
+        // The URL is unchanged, so refreshing the timestamp is enough; a
+        // genuinely new request carries a different `session`.
+        const handledUrl = d.getItem(HANDLED_URL_KEY);
+        if (handledUrl) d.setItem(HANDLED_AT_KEY, String(Date.now()));
+    }
     const value = d.getItem(COMPLETED_KEY);
     if (value === null) return null;
     d.removeItem(COMPLETED_KEY);

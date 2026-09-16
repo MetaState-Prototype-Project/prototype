@@ -724,6 +724,60 @@ describe("acknowledged confirmation", () => {
         }
     });
 
+    it("does not re-offer a finished login after a slow browser round-trip", () => {
+        // Reported: approve in the wallet, spend a while on the platform in
+        // Chrome, come back, tap Ok before the Activity restart lands — and
+        // the consent drawer re-opened on the login just completed.
+        //
+        // HANDLED_AT is stamped at APPROVAL, before the openUrl handoff, the
+        // time on the platform, and the restart on the way back. A leisurely
+        // round-trip outlives the 30s replay window, so the replayed intent
+        // was read as a genuine new request and the payload re-stored.
+        vi.useFakeTimers();
+        try {
+            const url = "w3ds://auth?session=21fcc8a5&platform=pictique";
+            expect(isDuplicateDelivery(url)).toBe(false);
+
+            // User approves and is handed off to the browser.
+            markDeepLinkHandled();
+            markDeepLinkCompleted({ platform: "pictique" });
+
+            // A slow round-trip: longer than the replay window.
+            vi.advanceTimersByTime(45_000);
+
+            // Back in the app, the user taps Ok on the confirmation.
+            takeCompletedDeepLink(true);
+
+            // The Activity restart lands now and replays the original intent.
+            reloadWebview();
+
+            expect(isDuplicateDelivery(url)).toBe(true);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("still honours a genuine retry long after the login was dismissed", () => {
+        // The counterweight: refreshing the window at Ok must not resurrect a
+        // permanent blacklist. The same offer URI is reused while its QR is on
+        // screen, so presenting it again later is a real request.
+        vi.useFakeTimers();
+        try {
+            const url = "w3ds://auth?session=21fcc8a5&platform=pictique";
+            isDuplicateDelivery(url);
+            markDeepLinkHandled();
+            markDeepLinkCompleted({ platform: "pictique" });
+            takeCompletedDeepLink(true);
+
+            vi.advanceTimersByTime(31_000);
+            reloadWebview();
+
+            expect(isDuplicateDelivery(url)).toBe(false);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it("forgets the acknowledgement on logout", () => {
         markDeepLinkCompleted({ platform: "pictique", hostname: "p.example" });
         takeCompletedDeepLink(true);
