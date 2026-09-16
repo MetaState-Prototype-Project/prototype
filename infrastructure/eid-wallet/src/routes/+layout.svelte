@@ -19,7 +19,7 @@ import {
     shouldRedirectToLogin,
 } from "$lib/utils/deepLinkFlow";
 import { installTerminalConsoleBridge } from "$lib/utils/terminalConsole";
-import { type Status, checkStatus } from "@tauri-apps/plugin-biometric";
+import { checkStatus } from "@tauri-apps/plugin-biometric";
 
 // Mirror console.* to the Tauri host stdout so logs land in `pnpm tauri dev`.
 installTerminalConsoleBridge();
@@ -90,16 +90,77 @@ onMount(async () => {
     preloadCode("/onboarding").catch(() => {});
     preloadCode("/recover").catch(() => {});
 
-    let status: Status | undefined = undefined;
-    try {
-        status = await checkStatus();
-    } catch (error) {
-        status = {
-            biometryType: 0,
-            isAvailable: false,
-        };
-    }
-    runtime.biometry = status.biometryType;
+    // Deep-link discovery starts FIRST and runs concurrently with the work
+    // below, because the splash blocks on initialDeepLinkReady before it can
+    // show the biometric prompt.
+    //
+    // It used to sit after `await checkStatus()` and `await
+    // GlobalState.create()`, so the prompt waited on two plugin IPCs and a
+    // disk-backed store load that the deep-link path does not need:
+    // handleDeepLink and parseDeepLink touch neither globalState nor
+    // runtime.biometry. That serialisation was pure latency on the splash,
+    // on every single launch.
+    //
+    // These are function declarations inside this onMount, so they are
+    // hoisted and safe to call from here.
+    const deepLinkReady = (async () => {
+        try {
+            const { onOpenUrl, getCurrent } = await import(
+                "@tauri-apps/plugin-deep-link"
+            );
+
+            // Register first so a URL delivered while getCurrent() is checking
+            // the cold-start payload cannot fall into a gap between the two
+            // calls.
+            await onOpenUrl((urls) => {
+                if (urls && urls.length > 0) {
+                    try {
+                        // handleDeepLink stores pendingDeepLink synchronously
+                        // when authentication is required, before starting
+                        // navigation.
+                        handleDeepLink(urls[0]);
+                    } catch (error) {
+                        console.error(
+                            "Error handling deep link from onOpenUrl:",
+                            error,
+                        );
+                    }
+                }
+            });
+
+            // Check if app was started via deep link.
+            const initialUrls = await getCurrent();
+            if (initialUrls && initialUrls.length > 0) {
+                handleDeepLink(initialUrls[0]);
+            }
+
+            // NOTE: there is deliberately no window-level "deepLinkReceived"
+            // listener here. handleDeepLink dispatches that event itself, so a
+            // listener in this layout would re-handle its own dispatch,
+            // re-write sessionStorage and fire a second goto("/scan-qr") — a
+            // duplicate navigation that could unmount /scan-qr's drawer just
+            // after it opened. /scan-qr subscribes to the event directly; that
+            // is the only consumer it needs.
+        } catch (error) {
+            console.error("Failed to initialize deep link listener:", error);
+        } finally {
+            resolveInitialDeepLink();
+        }
+    })();
+
+    // globalState is what the splash actually polls for before it can read
+    // the PIN hash and prompt, so create it FIRST and let the biometry probe
+    // run alongside. checkStatus() is a plugin IPC whose only product is
+    // runtime.biometry, which nothing reads back yet, so blocking the store
+    // load behind it was pure dead time on the splash.
+    const biometryReady = checkStatus()
+        .then((status) => {
+            runtime.biometry = status.biometryType;
+        })
+        .catch(() => {
+            runtime.biometry = 0;
+        });
+
     try {
         globalState = await GlobalState.create();
     } catch (error) {
@@ -107,47 +168,9 @@ onMount(async () => {
         // Consider adding fallback behavior or user notification
     }
 
-    // Handle deep links
-    try {
-        const { onOpenUrl, getCurrent } = await import(
-            "@tauri-apps/plugin-deep-link"
-        );
-
-        // Register first so a URL delivered while getCurrent() is checking the
-        // cold-start payload cannot fall into a gap between the two calls.
-        await onOpenUrl((urls) => {
-            if (urls && urls.length > 0) {
-                try {
-                    // handleDeepLink stores pendingDeepLink synchronously when
-                    // authentication is required, before starting navigation.
-                    handleDeepLink(urls[0]);
-                } catch (error) {
-                    console.error(
-                        "Error handling deep link from onOpenUrl:",
-                        error,
-                    );
-                }
-            }
-        });
-
-        // Check if app was started via deep link.
-        const initialUrls = await getCurrent();
-        if (initialUrls && initialUrls.length > 0) {
-            handleDeepLink(initialUrls[0]);
-        }
-
-        // NOTE: there is deliberately no window-level "deepLinkReceived"
-        // listener here. handleDeepLink dispatches that event itself, so a
-        // listener in this layout would re-handle its own dispatch, re-write
-        // sessionStorage and fire a second goto("/scan-qr") — a duplicate
-        // navigation that could unmount /scan-qr's drawer just after it
-        // opened. /scan-qr subscribes to the event directly; that is the only
-        // consumer it needs.
-    } catch (error) {
-        console.error("Failed to initialize deep link listener:", error);
-    } finally {
-        resolveInitialDeepLink();
-    }
+    // Both are already running; awaiting them here only keeps onMount's
+    // ordering honest and stops an unexpected rejection going unhandled.
+    await Promise.all([deepLinkReady, biometryReady]);
 
     // Helper function to check if user is on an authenticated route.
     // Routes under (app)/ are protected by the auth guard. Since SvelteKit
