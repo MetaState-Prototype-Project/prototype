@@ -331,6 +331,28 @@ describe("duplicate delivery guard", () => {
 
         expect(isDuplicateDelivery(url)).toBe(false);
     });
+
+    it("clears the in-flight marker from BOTH stores when a flow completes", () => {
+        // Regression: the in-flight marker is written to sessionStorage AND
+        // localStorage, but completion only cleared the durable copy. The
+        // leftover session copy then matched every later delivery of that URL
+        // for the whole life of the webview, so the consent drawer stopped
+        // opening entirely — the request was dropped before reaching /scan-qr.
+        vi.useFakeTimers();
+        try {
+            const url = "w3ds://auth?session=sess-1&platform=example";
+            expect(isDuplicateDelivery(url)).toBe(false);
+            clearDeepLinkFlow();
+
+            // Past the replay window, still in the SAME webview: a genuine
+            // retry of that link must be honoured.
+            vi.advanceTimersByTime(31_000);
+
+            expect(isDuplicateDelivery(url)).toBe(false);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
 });
 
 describe("authentication is deliberately NOT durable", () => {

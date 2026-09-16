@@ -179,6 +179,12 @@ export function clearDeepLinkFlow(): void {
         d.setItem(HANDLED_AT_KEY, String(Date.now()));
         d.removeItem(LAST_URL_KEY);
     }
+    // The in-flight marker is written to BOTH stores, so it must be cleared
+    // from both. Leaving the sessionStorage copy behind made every later
+    // delivery of that same URL look like a duplicate for the whole life of
+    // the webview — the consent drawer simply never opened again, because the
+    // request was dropped before it reached /scan-qr.
+    s.removeItem(LAST_URL_KEY);
 }
 
 /* ------------------------------------------------------------ dedupe guard */
