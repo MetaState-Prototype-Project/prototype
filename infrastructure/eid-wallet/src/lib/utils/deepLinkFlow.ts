@@ -339,6 +339,37 @@ export function isAuthPromptInFlight(): boolean {
 }
 
 /**
+ * Should the deep-link handler navigate an unauthenticated user to /login?
+ *
+ * Biometric authentication is prompted from exactly one place: the splash.
+ * Having two prompt sites made the dialog's backdrop non-deterministic — the
+ * splash and /login each ran their own authenticate() on mount, so whichever
+ * won the race decided whether the system dialog appeared over the purple
+ * splash or over a half-painted PIN pad.
+ *
+ * With a single prompt site, the handler must not steer away from the screen
+ * that owns it:
+ *
+ *  - A prompt is already up: its post-auth routine collects the parked payload
+ *    and routes. A goto() here would race that navigation.
+ *  - We are still on the splash: it is about to prompt (or has just decided it
+ *    cannot). Unmounting it now would discard the biometric prompt entirely and
+ *    dump the user on the PIN pad. It routes to /login by itself when
+ *    biometrics are unavailable or refused, so waiting costs nothing.
+ *
+ * Anywhere else there is no prompt owner, so the handler must navigate or the
+ * parked payload would sit with nobody to collect it.
+ */
+export function shouldRedirectToLogin(
+    currentPath: string,
+    promptInFlight = isAuthPromptInFlight(),
+): boolean {
+    if (promptInFlight) return false;
+    if (currentPath === "/") return false;
+    return true;
+}
+
+/**
  * Should a pre-app screen abandon an async routine it started earlier?
  *
  * Unmounting a Svelte component does NOT cancel an `onMount` that is parked on

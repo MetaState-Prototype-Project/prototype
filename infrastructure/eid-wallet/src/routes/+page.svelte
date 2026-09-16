@@ -6,7 +6,6 @@ import type { GlobalState } from "$lib/global";
 import {
     beginAuthPrompt,
     endAuthPrompt,
-    isDeepLinkFlowActive,
     isWalletAuthenticated,
     shouldAbortStaleContinuation,
 } from "$lib/utils/deepLinkFlow";
@@ -17,8 +16,6 @@ import {
     checkStatus,
 } from "@tauri-apps/plugin-biometric";
 import { getContext, onDestroy, onMount } from "svelte";
-
-const BIOMETRIC_ATTEMPTED_KEY = "biometricAttemptedOnSplash";
 
 const authOpts: AuthOptions = {
     allowDeviceCredential: false,
@@ -135,26 +132,21 @@ onMount(async () => {
         await initialDeepLinkReady;
         if (superseded()) return;
 
-        // A third-party login deep link opened the app. The root layout has
-        // stored it and redirected to /login, which runs its own biometric
-        // prompt. Prompting here as well puts two native authenticate() calls
-        // on screen at once and lets two post-auth routines fight over a
-        // single payload — the user ends up on /main and the consent screen is
-        // never shown. Defer to /login as the single authenticator.
-        //
-        // Ask the sticky flow flag rather than reading pendingDeepLink: by the
-        // time we get here the payload may already have been promoted to
-        // deepLinkData, and the raw key read would report "no deep link".
-        if (isDeepLinkFlowActive()) {
-            await goto("/login");
-            return;
-        }
+        // NOTE: a pending deep link deliberately does NOT divert to /login
+        // here. The splash is the single place a biometric prompt is allowed
+        // to appear, so diverting would mean a deep-link launch never offers
+        // biometrics at all. continueAfterSuccessfulAuth below collects the
+        // parked payload and routes to the consent screen itself.
 
-        // Fire biometric over the splash itself so the prompt isn't competing
-        // with the /login slide-in. On success we run the post-auth chores
-        // and route straight to /main (no /login flash). On cancel/fail we
-        // slide into /login with a sessionStorage flag so /login knows the
-        // biometric attempt already happened and skips re-prompting.
+        // Fire biometric over the splash. This is the ONLY biometric prompt in
+        // the pre-app flow: /login is the PIN fallback and never prompts. That
+        // is what makes the placement deterministic — previously both screens
+        // could prompt, and whichever won the race decided which background
+        // the system dialog appeared over.
+        //
+        // On success we run the post-auth chores and route onward (no /login
+        // flash). On cancel/fail/unavailable we slide into /login for PIN
+        // entry, so a user without biometrics is never stuck on the splash.
         let biometricAvailable = false;
         try {
             biometricAvailable =
@@ -167,7 +159,6 @@ onMount(async () => {
         if (superseded()) return;
 
         if (biometricAvailable && globalState) {
-            sessionStorage.setItem(BIOMETRIC_ATTEMPTED_KEY, "true");
             // Tell the deep-link handler that a prompt owns the screen. A URL
             // arriving while the user's finger is on the sensor must park its
             // payload and let continueAfterSuccessfulAuth route, instead of
@@ -178,9 +169,8 @@ onMount(async () => {
                     "You must authenticate with PIN first",
                     authOpts,
                 );
-                // Success — clear the flag (we won't reach /login at all)
-                // and run the shared post-auth routine.
-                sessionStorage.removeItem(BIOMETRIC_ATTEMPTED_KEY);
+                // Success — run the shared post-auth routine, which routes to
+                // the pending deep link if there is one and /main otherwise.
                 // NOTE: the prompt bracket stays OPEN here on purpose.
                 // continueAfterSuccessfulAuth closes it itself, at the exact
                 // point where it has collected any pending payload. Closing it
@@ -189,8 +179,7 @@ onMount(async () => {
                 await continueAfterSuccessfulAuth(globalState);
                 return;
             } catch (e) {
-                // Cancel/fail. Leave the flag set so /login skips its own
-                // biometric retry, then slide into /login for PIN entry.
+                // Cancel/fail — fall through to /login for PIN entry.
                 console.warn("Biometric on splash failed", e);
             } finally {
                 // Idempotent: a no-op on the success path, where

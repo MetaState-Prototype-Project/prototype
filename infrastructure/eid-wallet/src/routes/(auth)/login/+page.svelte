@@ -12,17 +12,8 @@ import {
     shouldAbortStaleContinuation,
 } from "$lib/utils/deepLinkFlow";
 import { continueAfterSuccessfulAuth } from "$lib/utils/postLogin";
-import {
-    type AuthOptions,
-    authenticate,
-    checkStatus,
-} from "@tauri-apps/plugin-biometric";
 import { getContext, onDestroy, onMount } from "svelte";
 import StepHeader from "../onboarding/steps/StepHeader.svelte";
-
-// Splash sets this when it has already tried biometric over its own screen.
-// /login then skips re-prompting and just shows the PIN UI.
-const BIOMETRIC_ATTEMPTED_KEY = "biometricAttemptedOnSplash";
 
 let pin = $state("");
 let isError = $state(false);
@@ -64,17 +55,6 @@ const authenticatedAtStart = isWalletAuthenticated();
 function superseded(): boolean {
     return shouldAbortStaleContinuation(destroyed, authenticatedAtStart);
 }
-
-const authOpts: AuthOptions = {
-    allowDeviceCredential: false,
-    cancelTitle: "Cancel",
-    // iOS
-    fallbackTitle: "Please enter your PIN",
-    // Android
-    title: "Login",
-    subtitle: "Please authenticate to continue",
-    confirmationRequired: true,
-};
 
 async function clearPin() {
     if (isPostAuthLoading) return;
@@ -142,40 +122,13 @@ onMount(async () => {
     // promoted from pendingDeepLink to deepLinkData by the time we mount.
     hasPendingDeepLink = isDeepLinkFlowActive();
 
-    // If the splash already prompted biometric over its own screen, skip the
-    // retry here and let the user enter their PIN. The flag survives the
-    // route transition but is single-use.
-    const biometricHandledBySplash =
-        sessionStorage.getItem(BIOMETRIC_ATTEMPTED_KEY) === "true";
-    if (biometricHandledBySplash) {
-        sessionStorage.removeItem(BIOMETRIC_ATTEMPTED_KEY);
-        return;
-    }
-
-    // Try biometric first if available.
-    if (
-        (await gs.securityController.biometricSupport) &&
-        (await checkStatus()).isAvailable
-    ) {
-        if (superseded()) return;
-        beginAuthPrompt();
-        try {
-            await authenticate(
-                "You must authenticate with PIN first",
-                authOpts,
-            );
-            isPostAuthLoading = true;
-            // Bracket stays open across the post-auth routine, which closes
-            // it itself at the payload handover.
-            await continueAfterSuccessfulAuth(gs);
-        } catch (e) {
-            console.error("Biometric authentication failed", e);
-            isPostAuthLoading = false;
-        } finally {
-            // Idempotent — already released on the success path.
-            endAuthPrompt();
-        }
-    }
+    // NOTE: this screen deliberately never calls authenticate(). Biometrics
+    // are prompted exclusively from the splash, which only routes here once
+    // that prompt has been declined, has failed, or was never available. A
+    // second prompt site is what made the dialog's placement non-deterministic
+    // — whichever screen won the mount race decided whether the system dialog
+    // appeared over the purple splash or over a half-painted PIN pad. /login
+    // is now purely the PIN fallback.
 });
 </script>
 

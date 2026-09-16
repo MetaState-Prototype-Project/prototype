@@ -17,6 +17,7 @@ import {
     promotePendingDeepLink,
     resetAuthSession,
     shouldAbortStaleContinuation,
+    shouldRedirectToLogin,
     takeCompletedDeepLink,
 } from "./deepLinkFlow";
 
@@ -173,9 +174,10 @@ describe("cold-start orderings", () => {
     it("URL arrives, then the user authenticates (slow biometric)", () => {
         markDeepLinkPending(AUTH_PAYLOAD);
 
-        // Splash sees an active flow, so it defers to /login rather than
-        // running a second competing authenticate() call.
+        // The splash stays mounted and owns the prompt even when a deep link
+        // is pending, so that a deep-link launch still gets biometrics.
         expect(isDeepLinkFlowActive()).toBe(true);
+        expect(shouldRedirectToLogin("/")).toBe(false);
 
         beginAuthPrompt();
         endAuthPrompt();
@@ -539,5 +541,46 @@ describe("superseded splash/login continuation", () => {
         markWalletAuthenticated();
 
         expect(stillOwnsTheScreen(true, true)).toBe(false);
+    });
+});
+
+describe("single biometric prompt site", () => {
+    // The biometric dialog used to be fired from BOTH the splash and /login.
+    // Both screens prompted on mount, so whichever won the race decided which
+    // backdrop the system dialog appeared over — users saw it over the purple
+    // splash sometimes and over a half-painted PIN pad other times. The splash
+    // is now the only prompt site, which means the deep-link handler must stop
+    // navigating away from whoever owns that prompt.
+
+    it("keeps a deep-link launch on the splash so it still gets biometrics", () => {
+        // The regression this pins: the handler used to goto("/login") the
+        // moment a cold-start URL was parked. That unmounted the splash before
+        // it could prompt, so a deep-link launch was PIN-only by construction.
+        markDeepLinkPending(AUTH_PAYLOAD);
+
+        expect(shouldRedirectToLogin("/", false)).toBe(false);
+    });
+
+    it("does not navigate while a prompt is on screen", () => {
+        beginAuthPrompt();
+
+        // Applies even away from the splash: the post-auth routine owns
+        // routing, and a goto() here would race it.
+        expect(shouldRedirectToLogin("/login", true)).toBe(false);
+        expect(shouldRedirectToLogin("/", true)).toBe(false);
+    });
+
+    it("still routes to login when no screen owns the prompt", () => {
+        // Without this the payload would be parked with nobody to collect it.
+        expect(shouldRedirectToLogin("/onboarding", false)).toBe(true);
+        expect(shouldRedirectToLogin("/recover", false)).toBe(true);
+    });
+
+    it("reads the live prompt bracket when none is supplied", () => {
+        expect(shouldRedirectToLogin("/onboarding")).toBe(true);
+        beginAuthPrompt();
+        expect(shouldRedirectToLogin("/onboarding")).toBe(false);
+        endAuthPrompt();
+        expect(shouldRedirectToLogin("/onboarding")).toBe(true);
     });
 });

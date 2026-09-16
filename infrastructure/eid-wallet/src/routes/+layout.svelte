@@ -15,6 +15,7 @@ import {
     isWalletAuthenticated,
     markDeepLinkPending,
     markDeepLinkReady,
+    shouldRedirectToLogin,
 } from "$lib/utils/deepLinkFlow";
 import { installTerminalConsoleBridge } from "$lib/utils/terminalConsole";
 import { type Status, checkStatus } from "@tauri-apps/plugin-biometric";
@@ -258,13 +259,13 @@ onMount(async () => {
         if (!alreadyInsideApp) {
             markDeepLinkPending(payload);
 
-            // A biometric/PIN prompt is already on screen. Its post-auth
-            // routine will pick the payload up and navigate. Issuing our own
-            // goto() here would race that navigation — the bug where the
-            // consent screen flashed and vanished on fast authentication.
-            if (isAuthPromptInFlight()) {
+            // The splash is the single biometric prompt site, so the handler
+            // must not steer away from whoever currently owns that prompt.
+            // See shouldRedirectToLogin for the full reasoning.
+            if (!shouldRedirectToLogin(currentPath)) {
                 console.log(
-                    "Auth prompt in flight, deferring navigation to post-auth routine",
+                    "Deferring navigation: the auth prompt owner will route",
+                    { currentPath, authPromptInFlight: isAuthPromptInFlight() },
                 );
                 return;
             }
@@ -307,7 +308,6 @@ onNavigate((navigation) => {
     const to = navigation.to?.url.pathname;
 
     if (!from || !to || from === to) return;
-    console.log(`from: ${from}, to: ${to}`);
 
     // Mark routes that have their own mount-time refresh guard. A SvelteKit
     // navigation (link/goto) fires this hook; a hard reload does not — so
