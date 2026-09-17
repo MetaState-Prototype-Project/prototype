@@ -91,9 +91,7 @@ async function performLogout() {
     }
     const newGlobalState = await globalState.reset();
     setGlobalState(newGlobalState);
-    // The authenticated flag is cleared by reset() via sessionController.
-    // A deep link parked before logout must go too: goto("/") is an SPA
-    // navigation, so sessionStorage survives it.
+    // goto("/") is an SPA navigation, so sessionStorage survives it.
     clearDeepLink();
     goto("/");
 }
