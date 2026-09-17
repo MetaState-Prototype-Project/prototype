@@ -131,13 +131,25 @@ onward itself; it does not divert a deep-link launch to `/login`, because doing
 so would downgrade a returning user to the PIN pad for the flow most likely to
 be used in a hurry.
 
-Two consequences worth knowing:
+`/login` contains no call to `authenticate()` at all, and the splash is the only
+file in the app that imports it from `@tauri-apps/plugin-biometric`. Everything
+else imports `checkStatus` to read availability. The guarantee is therefore
+structural rather than coordinated: there is no flag to get wrong.
 
-- The splash's async `onMount` carries liveness checks (`destroyed`). Unmounting
-  a Svelte component does not cancel a continuation parked on an `await`, so it
-  could otherwise wake after the consent drawer opened and navigate away from it.
-- `/login` still prompts biometrics when the splash did not, coordinated through
-  the `biometricAttemptedOnSplash` flag inherited from the original design.
+An earlier design had both screens prompt, suppressed by a
+`biometricAttemptedOnSplash` handshake. It was racy — the splash wrote the flag
+only after two awaits resolved `biometricAvailable`, while `/login` read it
+behind a globalState poll of up to five seconds, so anything routing to `/login`
+inside that window got a second prompt. The flag is gone.
+
+One consequence worth knowing: the splash's async `onMount` carries liveness
+checks (`destroyed`). Unmounting a Svelte component does not cancel a
+continuation parked on an `await`, so it could otherwise wake after the consent
+drawer opened and navigate away from it.
+
+The trade-off is deliberate: cancelling the biometric prompt leaves the user on
+the PIN pad with no way to retry biometrics without relaunching. `/login` is
+defined as the fallback, so that is the intended behaviour.
 
 ## What authentication actually means here
 

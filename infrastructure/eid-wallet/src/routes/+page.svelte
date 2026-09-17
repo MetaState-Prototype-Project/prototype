@@ -11,8 +11,6 @@ import {
 } from "@tauri-apps/plugin-biometric";
 import { getContext, onDestroy, onMount } from "svelte";
 
-const BIOMETRIC_ATTEMPTED_KEY = "biometricAttemptedOnSplash";
-
 const authOpts: AuthOptions = {
     allowDeviceCredential: false,
     cancelTitle: "Cancel",
@@ -106,11 +104,10 @@ onMount(async () => {
             return;
         }
 
-        // Fire biometric over the splash itself so the prompt isn't competing
-        // with the /login slide-in. On success we run the post-auth chores
-        // and route straight to /main (no /login flash). On cancel/fail we
-        // slide into /login with a sessionStorage flag so /login knows the
-        // biometric attempt already happened and skips re-prompting.
+        // The ONLY biometric prompt in the app. /login is the PIN fallback and
+        // never prompts, so the dialog always appears over this screen. On
+        // success we run the post-auth chores and route onward with no /login
+        // flash; on cancel, failure or unavailability we slide into /login.
         let biometricAvailable = false;
         try {
             biometricAvailable =
@@ -123,20 +120,15 @@ onMount(async () => {
         if (destroyed) return;
 
         if (biometricAvailable && globalState) {
-            sessionStorage.setItem(BIOMETRIC_ATTEMPTED_KEY, "true");
             try {
                 await authenticate(
                     "You must authenticate with PIN first",
                     authOpts,
                 );
-                // Success — clear the flag (we won't reach /login at all)
-                // and run the shared post-auth routine.
-                sessionStorage.removeItem(BIOMETRIC_ATTEMPTED_KEY);
                 await continueAfterSuccessfulAuth(globalState);
                 return;
             } catch (e) {
-                // Cancel/fail. Leave the flag set so /login skips its own
-                // biometric retry, then slide into /login for PIN entry.
+                // Cancel/fail — slide into /login for PIN entry.
                 console.warn("Biometric on splash failed", e);
             }
         }
