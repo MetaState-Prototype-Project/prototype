@@ -9,6 +9,7 @@ import { storeDeepLink } from "$lib/stores/deepLink";
 
 import { runtime } from "$lib/global/runtime.svelte";
 import { swipedetect } from "$lib/utils";
+import { routeDeepLink } from "$lib/utils/routeDeepLink";
 import { installTerminalConsoleBridge } from "$lib/utils/terminalConsole";
 import { type Status, checkStatus } from "@tauri-apps/plugin-biometric";
 
@@ -183,35 +184,6 @@ onMount(async () => {
         console.error("Failed to initialize deep link listener:", error);
     }
 
-    /**
-     * Route a parsed deep-link payload: the layout's half of the rendezvous.
-     * See docs/architecture/deepLink.md.
-     */
-    function routeDeepLink(deepLinkData: Record<string, unknown>) {
-        // Store it either way: the payload is the same regardless of who
-        // ends up routing it.
-        storeDeepLink(deepLinkData);
-
-        if (!globalState?.sessionController.isAuthenticated) {
-            console.log("Deep link stored: user has not authenticated yet");
-            return;
-        }
-
-        console.log("Deep link routed: user is already authenticated");
-
-        // The event covers an already-mounted /scan-qr; the stored payload
-        // covers the mount that the goto() below triggers.
-        window.dispatchEvent(
-            new CustomEvent("deepLinkReceived", { detail: deepLinkData }),
-        );
-
-        if (window.location.pathname !== "/scan-qr") {
-            goto("/scan-qr").catch((error) => {
-                console.error("Error navigating to scan-qr:", error);
-            });
-        }
-    }
-
     function handleDeepLink(urlString: string) {
         console.log("Deep link received:", urlString);
 
@@ -259,7 +231,7 @@ onMount(async () => {
                         redirect: redirect,
                     };
 
-                    routeDeepLink(deepLinkData);
+                    routeDeepLink(globalState, deepLinkData);
                 } else {
                     console.log("Missing required auth parameters");
                 }
@@ -287,7 +259,7 @@ onMount(async () => {
                         redirect_uri: redirectUri,
                     };
 
-                    routeDeepLink(deepLinkData);
+                    routeDeepLink(globalState, deepLinkData);
                 } else {
                     console.log("Missing required signing parameters");
                 }
@@ -304,7 +276,7 @@ onMount(async () => {
                         pollId: pollId,
                     };
 
-                    routeDeepLink(deepLinkData);
+                    routeDeepLink(globalState, deepLinkData);
                 } else {
                     console.log("Missing required reveal parameters");
                 }
