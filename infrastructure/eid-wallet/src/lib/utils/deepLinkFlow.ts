@@ -1,9 +1,9 @@
 /**
  * Deep-link login: the rendezvous between URL delivery and authentication.
  *
- * A third-party site hands the wallet a `w3ds://auth?session=...` URL. Showing
- * the Approve/Decline consent screen for it requires TWO independent things to
- * finish, in an order nobody controls:
+ * State lives in lib/stores/deepLink.ts; this module is the logic that uses
+ * it. Showing the Approve/Decline consent screen requires TWO independent
+ * things to finish, in an order nobody controls:
  *
  *   1. The URL arriving. The root layout imports the deep-link plugin
  *      asynchronously, then asks it for the launch URL.
@@ -19,43 +19,40 @@
  * Both sides check the same two facts, so neither can act on a half-finished
  * picture. The bug this replaces came from the layout inferring "is the user
  * authenticated?" from `window.location.pathname` at the instant of delivery:
- * on a cold start the path is "/" (the splash) no matter how the race went, so
- * a user who had ALREADY authenticated was still classified as logged out. The
- * payload was parked for a screen that had finished running, and the user
- * landed on /main with the consent screen never shown.
+ * on a cold start the path is "/" for the splash regardless of how the race
+ * went, so a user who had ALREADY authenticated was still classified as
+ * logged out. The payload was parked for a screen that had finished running,
+ * and the user landed on /main with the consent screen never shown.
  *
  * Authentication state is therefore recorded EXPLICITLY, by the code that
  * performs the authentication, and never derived from the URL.
  */
 
-const PENDING_KEY = "pendingDeepLink";
-const DATA_KEY = "deepLinkData";
-const AUTHED_KEY = "walletAuthenticated";
-
-function store(): Storage | null {
-    try {
-        return typeof sessionStorage === "undefined" ? null : sessionStorage;
-    } catch {
-        // Private mode / storage disabled: degrade to "nothing in flight"
-        // rather than throwing inside a deep-link callback.
-        return null;
-    }
-}
+import {
+    clearAuthenticated,
+    clearPayloads,
+    getAuthenticated,
+    getPendingPayload,
+    getReadyPayload,
+    promotePayload,
+    setAuthenticated,
+    setPendingPayload,
+    setReadyPayload,
+} from "$lib/stores/deepLink";
 
 /**
  * Record that the user is through the authentication gate.
  *
- * Deliberately sessionStorage, NOT localStorage. Being forgotten when the app
- * is killed is exactly the property that makes this safe: a deep link arriving
- * after a cold start must trigger a real authentication, not inherit one from
- * a previous run.
+ * Callers must do this BEFORE any await that precedes their navigation, so a
+ * deep link delivered mid-flight sees the user as authenticated and routes
+ * itself rather than parking a payload nobody is left to collect.
  */
 export function markWalletAuthenticated(): void {
-    store()?.setItem(AUTHED_KEY, "true");
+    setAuthenticated();
 }
 
 export function isWalletAuthenticated(): boolean {
-    return store()?.getItem(AUTHED_KEY) === "true";
+    return getAuthenticated();
 }
 
 /**
@@ -63,52 +60,45 @@ export function isWalletAuthenticated(): boolean {
  * Whoever completes authentication collects it.
  */
 export function markDeepLinkPending(data: unknown): void {
-    store()?.setItem(PENDING_KEY, JSON.stringify(data));
+    setPendingPayload(data);
 }
 
 /** Hand a payload directly to /scan-qr: the user is already authenticated. */
 export function markDeepLinkReady(data: unknown): void {
-    store()?.setItem(DATA_KEY, JSON.stringify(data));
+    setReadyPayload(data);
 }
 
 /**
  * Promote a parked payload to a ready one. Called at the end of every
  * authentication path (biometric on the splash, PIN on /login).
  *
- * Returns true if there was something to promote, which is the caller's signal
- * to route to /scan-qr instead of /main.
+ * Returns true if there was something to promote, which is the caller's
+ * signal to route to /scan-qr instead of /main.
  */
 export function promotePendingDeepLink(): boolean {
-    const s = store();
-    const pending = s?.getItem(PENDING_KEY);
-    if (!pending) return false;
-    s?.setItem(DATA_KEY, pending);
-    s?.removeItem(PENDING_KEY);
-    return true;
+    return promotePayload();
 }
 
 /** The payload /scan-qr should render, from either delivery path. */
 export function peekDeepLinkPayload(): string | null {
-    const s = store();
-    return s?.getItem(DATA_KEY) ?? s?.getItem(PENDING_KEY) ?? null;
+    return getReadyPayload() ?? getPendingPayload();
 }
 
 /** Clear the payload once the consent screen has been shown. */
 export function clearDeepLinkFlow(): void {
-    const s = store();
-    s?.removeItem(PENDING_KEY);
-    s?.removeItem(DATA_KEY);
+    clearPayloads();
 }
 
 /**
  * Wipe the session on logout.
  *
- * `walletAuthenticated` MUST be cleared here. Logout resets global state and
+ * The authenticated flag MUST be cleared here. Logout resets global state and
  * does an SPA navigation to "/", which leaves sessionStorage intact, so
- * without this the next deep link would route itself straight to the consent
- * screen on the strength of a login that has already ended.
+ * without this the session would keep claiming the user is authenticated and
+ * the next deep link would route itself straight to the consent screen on the
+ * strength of a login that has already ended.
  */
 export function resetAuthSession(): void {
-    clearDeepLinkFlow();
-    store()?.removeItem(AUTHED_KEY);
+    clearPayloads();
+    clearAuthenticated();
 }
