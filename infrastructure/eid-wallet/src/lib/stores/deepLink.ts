@@ -1,10 +1,6 @@
 /**
  * The pending deep-link payload.
  *
- * Authentication state lives on GlobalState.sessionController, not here: it is
- * the session's business, and this module only owns the payload waiting to be
- * consented to.
- *
  * sessionStorage because the payload has to survive the full-page navigations
  * the wallet performs between the splash, /login and /scan-qr, and the webview
  * rebuild Android may perform while the app is backgrounded by openUrl.
