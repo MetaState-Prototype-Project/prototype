@@ -10,18 +10,23 @@
  *   2. The user authenticating. On a cold start the splash prompts for
  *      biometrics, which can succeed in ~200ms or take seconds.
  *
- * Whoever finishes LAST owns the routing. That is the whole design:
+ * Whoever finishes LAST owns the routing:
  *
- *   - URL arrives while unauthenticated -> park it, route nothing.
- *   - Authentication completes -> check for a parked URL and route to it.
- *   - URL arrives while already authenticated -> route to it immediately.
+ *   - The URL arrives while unauthenticated -> store it, route nothing. The
+ *     screen that completes authentication picks it up.
+ *   - The URL arrives while authenticated -> route to the consent screen now.
  *
- * Both sides check the same two facts, so neither can act on a half-finished
- * picture. The bug this replaces came from the layout inferring "is the user
+ * There is ONE payload slot. Storing a deep link never implies permission to
+ * act on it: that is `isWalletAuthenticated()`, which both sides check. The
+ * earlier design had a pending slot and a ready slot, and "promoted" between
+ * them, but the copy carried no information — the payload was identical and
+ * every consumer had to read both slots anyway.
+ *
+ * The bug this replaces came from the layout inferring "is the user
  * authenticated?" from `window.location.pathname` at the instant of delivery:
  * on a cold start the path is "/" for the splash regardless of how the race
  * went, so a user who had ALREADY authenticated was still classified as
- * logged out. The payload was parked for a screen that had finished running,
+ * logged out. The payload was stored for a screen that had finished running,
  * and the user landed on /main with the consent screen never shown.
  *
  * Authentication state is therefore recorded EXPLICITLY, by the code that
@@ -30,14 +35,11 @@
 
 import {
     clearAuthenticated,
-    clearPayloads,
+    clearPayload,
     getAuthenticated,
-    getPendingPayload,
-    getReadyPayload,
-    promotePayload,
+    getPayload,
     setAuthenticated,
-    setPendingPayload,
-    setReadyPayload,
+    setPayload,
 } from "$lib/stores/deepLink";
 
 /**
@@ -45,7 +47,7 @@ import {
  *
  * Callers must do this BEFORE any await that precedes their navigation, so a
  * deep link delivered mid-flight sees the user as authenticated and routes
- * itself rather than parking a payload nobody is left to collect.
+ * itself rather than storing a payload nobody is left to collect.
  */
 export function markWalletAuthenticated(): void {
     setAuthenticated();
@@ -55,38 +57,24 @@ export function isWalletAuthenticated(): boolean {
     return getAuthenticated();
 }
 
-/**
- * Park a payload that arrived before the user finished authenticating.
- * Whoever completes authentication collects it.
- */
-export function markDeepLinkPending(data: unknown): void {
-    setPendingPayload(data);
+/** Store an incoming deep-link payload, whatever the authentication state. */
+export function storeDeepLink(data: unknown): void {
+    setPayload(data);
 }
 
-/** Hand a payload directly to /scan-qr: the user is already authenticated. */
-export function markDeepLinkReady(data: unknown): void {
-    setReadyPayload(data);
-}
-
-/**
- * Promote a parked payload to a ready one. Called at the end of every
- * authentication path (biometric on the splash, PIN on /login).
- *
- * Returns true if there was something to promote, which is the caller's
- * signal to route to /scan-qr instead of /main.
- */
-export function promotePendingDeepLink(): boolean {
-    return promotePayload();
-}
-
-/** The payload /scan-qr should render, from either delivery path. */
+/** The payload the consent screen should render, if any. */
 export function peekDeepLinkPayload(): string | null {
-    return getReadyPayload() ?? getPendingPayload();
+    return getPayload();
 }
 
-/** Clear the payload once the consent screen has been shown. */
+/** Is there a deep link waiting to be consented to? */
+export function hasDeepLink(): boolean {
+    return getPayload() !== null;
+}
+
+/** Clear the payload once the consent screen has shown it. */
 export function clearDeepLinkFlow(): void {
-    clearPayloads();
+    clearPayload();
 }
 
 /**
@@ -99,6 +87,6 @@ export function clearDeepLinkFlow(): void {
  * strength of a login that has already ended.
  */
 export function resetAuthSession(): void {
-    clearPayloads();
+    clearPayload();
     clearAuthenticated();
 }

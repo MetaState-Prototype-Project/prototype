@@ -1,9 +1,6 @@
 import { goto } from "$app/navigation";
 import type { GlobalState } from "$lib/global";
-import {
-    markWalletAuthenticated,
-    promotePendingDeepLink,
-} from "$lib/utils/deepLinkFlow";
+import { hasDeepLink, markWalletAuthenticated } from "$lib/utils/deepLinkFlow";
 
 /**
  * Shared post-authentication routine: fires the background eVault chores
@@ -63,10 +60,10 @@ export async function continueAfterSuccessfulAuth(
         console.error("Error reading vault during login:", error);
     }
 
-    // Collect a payload that arrived while the user was authenticating. If the
-    // deep link won the race it is already marked ready and this is a no-op;
-    // either way the destination below is correct.
-    if (promotePendingDeepLink()) {
+    // A deep link may have arrived before or during authentication. Either
+    // way it is sitting in the one payload slot, and the user is now allowed
+    // to act on it.
+    if (hasDeepLink()) {
         await goto("/scan-qr");
         return;
     }

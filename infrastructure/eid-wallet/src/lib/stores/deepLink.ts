@@ -2,11 +2,17 @@
  * Storage for the deep-link login flow. This module is just state; the
  * routing decisions that use it live in lib/utils/deepLinkFlow.ts.
  *
+ * ONE payload slot, not a pending/ready pair. A deep link is either present
+ * or it is not; whether it may be ACTED on is answered by the authenticated
+ * flag, which every consumer checks anyway. Two slots meant a copy step whose
+ * only job was to relabel a payload that had not changed, and readers that
+ * had to consult both and fall back.
+ *
  * Deliberately sessionStorage rather than a Svelte store or localStorage:
  *
- *  - A Svelte store is in-memory, and this state has to survive the
- *    full-page navigations the wallet performs between the splash, /login
- *    and /scan-qr. An in-memory store would be empty on the other side.
+ *  - A Svelte store is in-memory, and this state has to survive the full-page
+ *    navigations the wallet performs between the splash, /login and /scan-qr.
+ *    An in-memory store would be empty on the other side.
  *  - localStorage would survive the app being killed, which is exactly wrong
  *    for `walletAuthenticated`: a deep link arriving after a cold start must
  *    trigger a real authentication, not inherit one from a previous run.
@@ -18,8 +24,7 @@
  * strands the flow.
  */
 
-const PENDING_KEY = "pendingDeepLink";
-const DATA_KEY = "deepLinkData";
+const PAYLOAD_KEY = "deepLinkData";
 const AUTHED_KEY = "walletAuthenticated";
 
 function store(): Storage | null {
@@ -43,42 +48,14 @@ export function clearAuthenticated(): void {
     store()?.removeItem(AUTHED_KEY);
 }
 
-/** A payload that arrived before the user finished authenticating. */
-export function setPendingPayload(data: unknown): void {
-    store()?.setItem(PENDING_KEY, JSON.stringify(data));
+export function setPayload(data: unknown): void {
+    store()?.setItem(PAYLOAD_KEY, JSON.stringify(data));
 }
 
-export function getPendingPayload(): string | null {
-    return store()?.getItem(PENDING_KEY) ?? null;
+export function getPayload(): string | null {
+    return store()?.getItem(PAYLOAD_KEY) ?? null;
 }
 
-/** A payload the consent screen can render right now. */
-export function setReadyPayload(data: unknown): void {
-    store()?.setItem(DATA_KEY, JSON.stringify(data));
-}
-
-export function getReadyPayload(): string | null {
-    return store()?.getItem(DATA_KEY) ?? null;
-}
-
-/**
- * Move the parked payload to the ready slot verbatim.
- *
- * Deliberately a raw string copy: re-serialising would mean parsing a payload
- * this layer has no business interpreting, and would corrupt anything JSON
- * does not round-trip exactly.
- */
-export function promotePayload(): boolean {
-    const s = store();
-    const pending = s?.getItem(PENDING_KEY);
-    if (!pending) return false;
-    s?.setItem(DATA_KEY, pending);
-    s?.removeItem(PENDING_KEY);
-    return true;
-}
-
-export function clearPayloads(): void {
-    const s = store();
-    s?.removeItem(PENDING_KEY);
-    s?.removeItem(DATA_KEY);
+export function clearPayload(): void {
+    store()?.removeItem(PAYLOAD_KEY);
 }

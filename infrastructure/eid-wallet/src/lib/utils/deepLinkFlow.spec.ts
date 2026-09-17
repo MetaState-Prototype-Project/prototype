@@ -2,13 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     clearDeepLinkFlow,
+    hasDeepLink,
     isWalletAuthenticated,
-    markDeepLinkPending,
-    markDeepLinkReady,
     markWalletAuthenticated,
     peekDeepLinkPayload,
-    promotePendingDeepLink,
     resetAuthSession,
+    storeDeepLink,
 } from "./deepLinkFlow";
 
 /** Minimal sessionStorage stand-in; the module is deliberately storage-backed. */
@@ -51,11 +50,8 @@ const PAYLOAD = {
  * it parks the payload and routes nothing.
  */
 function layoutRouteDeepLink(): "/scan-qr" | null {
-    if (!isWalletAuthenticated()) {
-        markDeepLinkPending(PAYLOAD);
-        return null;
-    }
-    markDeepLinkReady(PAYLOAD);
+    storeDeepLink(PAYLOAD);
+    if (!isWalletAuthenticated()) return null;
     return "/scan-qr";
 }
 
@@ -65,7 +61,7 @@ function layoutRouteDeepLink(): "/scan-qr" | null {
  */
 function completeAuthentication(): "/scan-qr" | "/main" {
     markWalletAuthenticated();
-    return promotePendingDeepLink() ? "/scan-qr" : "/main";
+    return hasDeepLink() ? "/scan-qr" : "/main";
 }
 
 /** What /scan-qr finds on mount: a payload to consent to, or nothing. */
@@ -127,7 +123,7 @@ describe("deep-link login rendezvous", () => {
         expect(scanQrSeesPayload()).toBe(false);
     });
 
-    it("promotes only once, so a second login does not resurrect it", () => {
+    it("does not resurrect a payload the consent screen already consumed", () => {
         layoutRouteDeepLink();
         expect(completeAuthentication()).toBe("/scan-qr");
         clearDeepLinkFlow();

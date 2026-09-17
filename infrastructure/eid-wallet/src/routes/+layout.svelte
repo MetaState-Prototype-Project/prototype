@@ -5,11 +5,7 @@ import "../app.css";
 import { beforeNavigate, goto, onNavigate, preloadCode } from "$app/navigation";
 import { page } from "$app/state";
 import { GlobalState } from "$lib/global/state";
-import {
-    isWalletAuthenticated,
-    markDeepLinkPending,
-    markDeepLinkReady,
-} from "$lib/utils/deepLinkFlow";
+import { isWalletAuthenticated, storeDeepLink } from "$lib/utils/deepLinkFlow";
 
 import { runtime } from "$lib/global/runtime.svelte";
 import { swipedetect } from "$lib/utils";
@@ -153,10 +149,7 @@ onMount(async () => {
                     console.log(
                         "App not ready, storing deep link data for later",
                     );
-                    sessionStorage.setItem(
-                        "deepLinkData",
-                        JSON.stringify(customEvent.detail),
-                    );
+                    storeDeepLink(customEvent.detail);
                     return;
                 }
 
@@ -175,10 +168,7 @@ onMount(async () => {
                     console.log(
                         "Not on scan page, storing data and navigating",
                     );
-                    sessionStorage.setItem(
-                        "deepLinkData",
-                        JSON.stringify(customEvent.detail),
-                    );
+                    storeDeepLink(customEvent.detail);
                     goto("/scan-qr").catch((error) => {
                         console.error("Error navigating to scan-qr:", error);
                     });
@@ -216,14 +206,16 @@ onMount(async () => {
      * itself in every exit path.
      */
     function routeDeepLink(deepLinkData: Record<string, unknown>) {
+        // Store it either way: the payload is the same regardless of who
+        // ends up routing it.
+        storeDeepLink(deepLinkData);
+
         if (!isWalletAuthenticated()) {
-            console.log("Deep link parked: user has not authenticated yet");
-            markDeepLinkPending(deepLinkData);
+            console.log("Deep link stored: user has not authenticated yet");
             return;
         }
 
         console.log("Deep link routed: user is already authenticated");
-        markDeepLinkReady(deepLinkData);
 
         // The event covers an already-mounted /scan-qr; the stored payload
         // covers the mount that the goto() below triggers.

@@ -1,4 +1,8 @@
 import {
+    clearDeepLinkFlow,
+    peekDeepLinkPayload,
+} from "$lib/utils/deepLinkFlow";
+import {
     Format,
     type PermissionState,
     type Scanned,
@@ -428,10 +432,7 @@ export function createScanLogic({
             // Close the auth drawer first
             codeScannedDrawerOpen.set(false);
 
-            let deepLinkData = sessionStorage.getItem("deepLinkData");
-            if (!deepLinkData) {
-                deepLinkData = sessionStorage.getItem("pendingDeepLink");
-            }
+            const deepLinkData = peekDeepLinkPayload();
 
             if (deepLinkData) {
                 try {
@@ -946,7 +947,7 @@ export function createScanLogic({
             }
             showSigningSuccess.set(true);
 
-            const deepLinkData = sessionStorage.getItem("deepLinkData");
+            const deepLinkData = peekDeepLinkPayload();
             if (deepLinkData) {
                 try {
                     const data = JSON.parse(deepLinkData) as DeepLinkData;
@@ -1666,10 +1667,7 @@ export function createScanLogic({
         window.addEventListener("deepLinkAuth", authHandler);
         window.addEventListener("deepLinkSign", signHandler);
 
-        let deepLinkData = sessionStorage.getItem("deepLinkData");
-        if (!deepLinkData) {
-            deepLinkData = sessionStorage.getItem("pendingDeepLink");
-        }
+        const deepLinkData = peekDeepLinkPayload();
 
         if (deepLinkData) {
             console.log("Found deep link data:", deepLinkData);
@@ -1680,8 +1678,7 @@ export function createScanLogic({
             } catch (error) {
                 console.error("Error parsing deep link data:", error);
             } finally {
-                sessionStorage.removeItem("deepLinkData");
-                sessionStorage.removeItem("pendingDeepLink");
+                clearDeepLinkFlow();
             }
         } else {
             console.log("No deep link data found, starting normal scanning");

@@ -4,6 +4,7 @@ import { keyboardInset } from "$lib/actions/keyboardInset";
 import type { GlobalState } from "$lib/global";
 import { LoadingSheet, PinDots } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
+import { hasDeepLink } from "$lib/utils/deepLinkFlow";
 import { continueAfterSuccessfulAuth } from "$lib/utils/postLogin";
 import {
     type AuthOptions,
@@ -100,8 +101,7 @@ onMount(async () => {
     }
     globalState = gs;
 
-    const pendingDeepLink = sessionStorage.getItem("pendingDeepLink");
-    hasPendingDeepLink = !!pendingDeepLink;
+    hasPendingDeepLink = hasDeepLink();
 
     // If the splash already prompted biometric over its own screen, skip the
     // retry here and let the user enter their PIN. The flag survives the
