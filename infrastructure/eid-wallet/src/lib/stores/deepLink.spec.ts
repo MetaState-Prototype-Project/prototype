@@ -4,7 +4,7 @@ import { goto } from "$app/navigation";
 import type { GlobalState } from "$lib/global";
 import { SessionController } from "$lib/global/controllers/session";
 import { continueAfterSuccessfulAuth } from "$lib/utils/postLogin";
-import { routeDeepLink } from "$lib/utils/routeDeepLink";
+import { handleDeepLinkEvent, routeDeepLink } from "$lib/utils/routeDeepLink";
 import { clearDeepLink, hasDeepLink, peekDeepLink } from "./deepLink";
 
 vi.mock("$app/navigation", () => ({ goto: vi.fn(async () => {}) }));
@@ -58,15 +58,26 @@ function makeGlobalState(
 
 /** Events routeDeepLink() broadcast for an already-mounted /scan-qr. */
 let dispatched: string[];
+/** Listeners registered on the stubbed window, as the real one would hold. */
+let listeners: ((event: Event) => void)[];
+/** Stands in for goto() in handleDeepLinkEvent. */
+let navigate: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
     vi.stubGlobal("sessionStorage", new MemoryStorage());
     vi.mocked(goto).mockClear();
     dispatched = [];
+    listeners = [];
+    navigate = vi.fn(async () => {});
     // The node environment has no DOM; routeDeepLink() notifies a mounted
     // /scan-qr through window and reads the current path off window.location.
     vi.stubGlobal("window", {
-        dispatchEvent: (event: Event) => dispatched.push(event.type),
+        // Record the event, then deliver it to every listener, so a handler
+        // that dispatches the event it listens for really does re-enter.
+        dispatchEvent: (event: Event) => {
+            dispatched.push(event.type);
+            for (const listener of listeners) listener(event);
+        },
         location: { pathname: "/" },
     });
     vi.stubGlobal(
@@ -254,6 +265,52 @@ describe("deep-link login rendezvous", () => {
 
         expect(seenByLayout).toBe("/scan-qr");
         expect(authDestination).toBe("/scan-qr");
+    });
+
+    /**
+     * The layout's deepLinkReceived handler is itself registered for
+     * deepLinkReceived. It must never dispatch that event: doing so re-enters
+     * the handler synchronously and recurses until the stack overflows. When
+     * /scan-qr is the current route it has already received the original event
+     * through its own listener, so there is nothing left to deliver.
+     */
+    it("does not re-dispatch the event it is itself listening for", () => {
+        window.location.pathname = "/scan-qr";
+
+        // Wire the handler up exactly as the layout does.
+        const handler = (event: Event) =>
+            handleDeepLinkEvent((event as CustomEvent).detail, true, navigate);
+        listeners.push(handler);
+
+        expect(() =>
+            window.dispatchEvent(
+                new CustomEvent("deepLinkReceived", { detail: PAYLOAD }),
+            ),
+        ).not.toThrow();
+
+        // One delivery, not thousands, and no navigation to a route we are on.
+        expect(dispatched).toEqual(["deepLinkReceived"]);
+        expect(navigate).not.toHaveBeenCalled();
+        // The payload is still there for the mount that may not have listened.
+        expect(scanQrSeesPayload()).toBe(true);
+    });
+
+    it("stores and navigates when the consent screen is not open", () => {
+        window.location.pathname = "/main";
+
+        handleDeepLinkEvent(PAYLOAD, true, navigate);
+
+        expect(navigate).toHaveBeenCalledWith("/scan-qr");
+        expect(scanQrSeesPayload()).toBe(true);
+    });
+
+    it("parks the payload when the app has not finished starting", () => {
+        window.location.pathname = "/";
+
+        handleDeepLinkEvent(PAYLOAD, false, navigate);
+
+        expect(navigate).not.toHaveBeenCalled();
+        expect(scanQrSeesPayload()).toBe(true);
     });
 
     it("survives storage being unavailable without throwing", async () => {

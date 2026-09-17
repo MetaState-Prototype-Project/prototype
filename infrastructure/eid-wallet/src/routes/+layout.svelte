@@ -5,11 +5,10 @@ import "../app.css";
 import { beforeNavigate, goto, onNavigate, preloadCode } from "$app/navigation";
 import { page } from "$app/state";
 import { GlobalState } from "$lib/global/state";
-import { storeDeepLink } from "$lib/stores/deepLink";
 
 import { runtime } from "$lib/global/runtime.svelte";
 import { swipedetect } from "$lib/utils";
-import { routeDeepLink } from "$lib/utils/routeDeepLink";
+import { handleDeepLinkEvent, routeDeepLink } from "$lib/utils/routeDeepLink";
 import { installTerminalConsoleBridge } from "$lib/utils/terminalConsole";
 import { type Status, checkStatus } from "@tauri-apps/plugin-biometric";
 
@@ -145,35 +144,10 @@ onMount(async () => {
                     "Global deep link event received:",
                     customEvent.detail,
                 );
-
-                if (!isAppReady || !globalState) {
-                    console.log(
-                        "App not ready, storing deep link data for later",
-                    );
-                    storeDeepLink(customEvent.detail);
-                    return;
-                }
-
-                // Check if we're already on the scan page
-                if (window.location.pathname === "/scan-qr") {
-                    // We're already on the scan page, dispatch the event directly
-                    console.log(
-                        "Already on scan page, dispatching event directly",
-                    );
-                    const directEvent = new CustomEvent("deepLinkReceived", {
-                        detail: customEvent.detail,
-                    });
-                    window.dispatchEvent(directEvent);
-                } else {
-                    // Store the deep link data and navigate to scan page
-                    console.log(
-                        "Not on scan page, storing data and navigating",
-                    );
-                    storeDeepLink(customEvent.detail);
-                    goto("/scan-qr").catch((error) => {
-                        console.error("Error navigating to scan-qr:", error);
-                    });
-                }
+                handleDeepLinkEvent(
+                    customEvent.detail,
+                    isAppReady && !!globalState,
+                );
             } catch (error) {
                 console.error("Error in globalDeepLinkHandler:", error);
             }

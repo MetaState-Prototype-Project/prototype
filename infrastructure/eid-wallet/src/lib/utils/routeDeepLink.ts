@@ -39,3 +39,34 @@ export function routeDeepLink(
         });
     }
 }
+
+/**
+ * Handle a `deepLinkReceived` event in the root layout: the payload has
+ * already been parsed, and may have arrived while the app was still starting.
+ *
+ * `/scan-qr` registers its own `deepLinkReceived` listener, so when it is the
+ * current route it has already received this same event directly. This
+ * function must therefore never re-dispatch `deepLinkReceived`: the layout
+ * listens for that event itself, so a re-dispatch re-enters this handler
+ * synchronously and recurses until the stack overflows.
+ *
+ * The payload is stored in every case, which covers both a page that has not
+ * mounted its listener yet and one that is about to be navigated to.
+ */
+export function handleDeepLinkEvent(
+    detail: unknown,
+    isReady: boolean,
+    navigate: (path: string) => Promise<void> = goto,
+): void {
+    storeDeepLink(detail);
+
+    // Not ready, or already where the payload is consented to: the mount reads
+    // the stored payload, so there is nothing left to do.
+    if (!isReady || window.location.pathname === "/scan-qr") {
+        return;
+    }
+
+    navigate("/scan-qr").catch((error) => {
+        console.error("Error navigating to scan-qr:", error);
+    });
+}
