@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { goto } from "$app/navigation";
 import type { GlobalState } from "$lib/global";
 import { SessionController } from "$lib/global/controllers/session";
-import { continueAfterSuccessfulAuth } from "$lib/utils/postLogin";
+import {
+    completeOnboarding,
+    continueAfterSuccessfulAuth,
+} from "$lib/utils/postLogin";
 import { handleDeepLinkEvent, routeDeepLink } from "$lib/utils/routeDeepLink";
 import { clearDeepLink, hasDeepLink, peekDeepLink } from "./deepLink";
 
@@ -47,6 +50,7 @@ function makeGlobalState(
     },
 ): GlobalState {
     return {
+        isOnboardingComplete: false,
         sessionController: session,
         vaultController: {
             get vault() {
@@ -311,6 +315,41 @@ describe("deep-link login rendezvous", () => {
 
         expect(navigate).not.toHaveBeenCalled();
         expect(scanQrSeesPayload()).toBe(true);
+    });
+
+    /**
+     * A user who has just onboarded or recovered has never passed through the
+     * splash or /login, so nothing else marks them signed in. Creating or
+     * restoring an identity IS proving it, and a deep link that arrived during
+     * onboarding has to be actionable the moment they land; otherwise the
+     * layout parks it and the consent screen ambushes them later, whenever
+     * something next mounts /scan-qr.
+     */
+    it("treats finishing onboarding as being signed in", async () => {
+        layoutRouteDeepLink();
+        expect(session.isAuthenticated).toBe(false);
+
+        vi.mocked(goto).mockClear();
+        await completeOnboarding(globalState);
+
+        expect(session.isAuthenticated).toBe(true);
+        expect(destinationFromGoto()).toBe("/scan-qr");
+        expect(scanQrSeesPayload()).toBe(true);
+    });
+
+    it("sends a plain onboarding finish to /main", async () => {
+        vi.mocked(goto).mockClear();
+        await completeOnboarding(globalState);
+
+        expect(destinationFromGoto()).toBe("/main");
+        expect(globalState.isOnboardingComplete).toBe(true);
+    });
+
+    /** A link arriving after onboarding must route immediately, not be parked. */
+    it("routes a link that arrives just after onboarding", async () => {
+        await completeOnboarding(globalState);
+
+        expect(layoutRouteDeepLink()).toBe("/scan-qr");
     });
 
     it("survives storage being unavailable without throwing", async () => {

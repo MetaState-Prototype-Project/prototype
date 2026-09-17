@@ -65,3 +65,27 @@ export async function continueAfterSuccessfulAuth(
 
     await goto("/main");
 }
+
+/**
+ * Finish onboarding or recovery: the user has just proved their identity by
+ * creating or restoring it, so they are signed in for this session.
+ *
+ * Marking the session is what lets a deep link that arrived during onboarding
+ * be acted on straight away. Without it the layout's gate sees a user who has
+ * never been through the splash or /login, parks the payload, and the consent
+ * screen surfaces at some unrelated later moment instead.
+ *
+ * Mirrors continueAfterSuccessfulAuth()'s routing so both ways into the app
+ * honour a waiting deep link.
+ */
+export async function completeOnboarding(gs: GlobalState): Promise<void> {
+    gs.isOnboardingComplete = true;
+    gs.sessionController.markAuthenticated();
+
+    if (hasDeepLink()) {
+        await goto("/scan-qr", { replaceState: true });
+        return;
+    }
+
+    await goto("/main", { replaceState: true });
+}
