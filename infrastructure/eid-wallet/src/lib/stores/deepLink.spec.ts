@@ -1,12 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { SessionController } from "$lib/global/controllers/session";
 import {
     clearDeepLink,
     hasDeepLink,
-    isAuthenticatedForDeepLink,
-    markAuthenticatedForDeepLink,
     peekDeepLink,
-    resetDeepLinkAuthSession,
     storeDeepLink,
 } from "./deepLink";
 
@@ -33,8 +31,11 @@ class MemoryStorage implements Storage {
     }
 }
 
+let session: SessionController;
+
 beforeEach(() => {
     vi.stubGlobal("sessionStorage", new MemoryStorage());
+    session = new SessionController();
 });
 
 const PAYLOAD = {
@@ -51,7 +52,7 @@ const PAYLOAD = {
  */
 function layoutRouteDeepLink(): "/scan-qr" | null {
     storeDeepLink(PAYLOAD);
-    if (!isAuthenticatedForDeepLink()) return null;
+    if (!session.isAuthenticated) return null;
     return "/scan-qr";
 }
 
@@ -60,7 +61,7 @@ function layoutRouteDeepLink(): "/scan-qr" | null {
  * (biometric on the splash, PIN on /login) funnels through.
  */
 function completeAuthentication(): "/scan-qr" | "/main" {
-    markAuthenticatedForDeepLink();
+    session.markAuthenticated();
     return hasDeepLink() ? "/scan-qr" : "/main";
 }
 
@@ -150,14 +151,35 @@ describe("deep-link login rendezvous", () => {
      * intact. Without resetDeepLinkAuthSession() the session would keep claiming the
      * user is authenticated and the next deep link would skip the gate.
      */
-    it("forgets authentication on logout so the next link re-prompts", () => {
+    it("forgets authentication on logout so the next link re-prompts", async () => {
         completeAuthentication();
-        expect(isAuthenticatedForDeepLink()).toBe(true);
+        expect(session.isAuthenticated).toBe(true);
 
-        resetDeepLinkAuthSession();
+        // What GlobalState.reset() does on logout.
+        await session.clear();
+        clearDeepLink();
 
-        expect(isAuthenticatedForDeepLink()).toBe(false);
+        expect(session.isAuthenticated).toBe(false);
         expect(layoutRouteDeepLink()).toBeNull();
+    });
+
+    /**
+     * The webview can be rebuilt without the app being killed: Android may
+     * reload it while the app is backgrounded by openUrl, and the approve path
+     * does a document navigation to the platform's redirect. The flow has no
+     * way to re-prompt mid-handoff, so authentication must survive that.
+     *
+     * A fresh SessionController reading the same sessionStorage is exactly
+     * what a rebuilt webview sees. An in-memory field would fail this.
+     */
+    it("keeps the user authenticated across a webview rebuild", () => {
+        completeAuthentication();
+        layoutRouteDeepLink();
+
+        const rebuilt = new SessionController();
+
+        expect(rebuilt.isAuthenticated).toBe(true);
+        expect(hasDeepLink()).toBe(true);
     });
 
     it("survives storage being unavailable without throwing", () => {

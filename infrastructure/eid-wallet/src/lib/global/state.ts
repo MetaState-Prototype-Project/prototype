@@ -5,6 +5,7 @@ import { createKeyServiceCryptoAdapter } from "../wallet-sdk-adapter";
 import { VaultController } from "./controllers/evault";
 import { KeyService } from "./controllers/key";
 import { SecurityController } from "./controllers/security";
+import { SessionController } from "./controllers/session";
 import { UserController } from "./controllers/user";
 /**
  * @author SoSweetHam <soham@auvo.io>
@@ -28,6 +29,7 @@ export class GlobalState {
     #store: Store;
     #walletSdkAdapter: CryptoAdapter;
     securityController: SecurityController;
+    sessionController: SessionController;
     userController: UserController;
     vaultController: VaultController;
     notificationService: NotificationService;
@@ -41,6 +43,7 @@ export class GlobalState {
         this.#store = store;
         this.#walletSdkAdapter = createKeyServiceCryptoAdapter(keyService);
         this.securityController = new SecurityController(store);
+        this.sessionController = new SessionController();
         this.userController = new UserController(store);
         this.keyService = keyService;
         this.vaultController = new VaultController(
@@ -158,6 +161,7 @@ export class GlobalState {
     async reset() {
         try {
             await this.securityController.clear();
+            await this.sessionController.clear();
             await this.userController.clear();
             await this.vaultController.clear();
             await this.keyService.clear();

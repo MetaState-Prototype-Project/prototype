@@ -1,9 +1,6 @@
 import { goto } from "$app/navigation";
 import type { GlobalState } from "$lib/global";
-import {
-    hasDeepLink,
-    markAuthenticatedForDeepLink,
-} from "$lib/stores/deepLink";
+import { hasDeepLink } from "$lib/stores/deepLink";
 
 /**
  * Shared post-authentication routine: fires the background eVault chores
@@ -21,7 +18,7 @@ export async function continueAfterSuccessfulAuth(
     // Record the fact BEFORE any await: a deep link delivered while the chores
     // below are in flight must see the user as already through the gate.
     // See docs/architecture/deepLink.md.
-    markAuthenticatedForDeepLink();
+    gs.sessionController.markAuthenticated();
     // Fire-and-forget post-login chores. They hit the network with no client
     // timeout, so awaiting them here can strand the user on a spinner — the
     // app pages will retry as needed.

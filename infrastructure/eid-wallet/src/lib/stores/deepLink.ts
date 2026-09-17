@@ -1,38 +1,27 @@
 /**
- * State for the deep-link login flow.
+ * The pending deep-link payload.
  *
- * See docs/architecture/deepLink.md for the flow this state serves.
+ * Authentication state lives on GlobalState.sessionController, not here: it is
+ * the session's business, and this module only owns the payload waiting to be
+ * consented to.
+ *
+ * sessionStorage because the payload has to survive the full-page navigations
+ * the wallet performs between the splash, /login and /scan-qr, and the webview
+ * rebuild Android may perform while the app is backgrounded by openUrl.
+ *
+ * See docs/architecture/deepLink.md.
  */
 
 const PAYLOAD_KEY = "deepLinkData";
-const AUTHED_KEY = "walletAuthenticated";
 
 function store(): Storage | null {
     try {
         return typeof sessionStorage === "undefined" ? null : sessionStorage;
     } catch {
+        // Private mode / storage disabled. Degrade to "no deep link" rather
+        // than throwing inside a deep-link callback.
         return null;
     }
-}
-
-/**
- * Record that the user is through the authentication gate.
- *
- * The "ForDeepLink" suffix describes the CONSUMER, not the scope: this is the
- * session's authentication state, and the deep-link flow is currently its only
- * reader. The (app) route guard checks the vault (enrolment) instead, so do not
- * read this as "the app's auth gate lives here".
- *
- * Callers must do this BEFORE any await that precedes their navigation, so a
- * deep link delivered mid-flight sees the user as authenticated and routes
- * itself rather than storing a payload nobody is left to collect.
- */
-export function markAuthenticatedForDeepLink(): void {
-    store()?.setItem(AUTHED_KEY, "true");
-}
-
-export function isAuthenticatedForDeepLink(): boolean {
-    return store()?.getItem(AUTHED_KEY) === "true";
 }
 
 /** Store an incoming deep-link payload, whatever the authentication state. */
@@ -50,17 +39,7 @@ export function hasDeepLink(): boolean {
     return peekDeepLink() !== null;
 }
 
-/** Clear the payload once the consent screen has shown it. */
+/** Clear the payload once the consent screen has shown it, or on logout. */
 export function clearDeepLink(): void {
     store()?.removeItem(PAYLOAD_KEY);
-}
-
-/**
- * Wipe the deep-link session on logout. Clearing the authenticated flag is
- * required: logout is an SPA navigation and leaves sessionStorage intact.
- */
-export function resetDeepLinkAuthSession(): void {
-    const s = store();
-    s?.removeItem(PAYLOAD_KEY);
-    s?.removeItem(AUTHED_KEY);
 }

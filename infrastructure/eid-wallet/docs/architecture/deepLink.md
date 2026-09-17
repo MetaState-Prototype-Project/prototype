@@ -40,7 +40,7 @@ flowchart TD
     A["Android intent w3ds://"] --> B["root +layout<br/>onOpenUrl / getCurrent"]
     B --> C["parse payload"]
     C --> D["storeDeepLink(payload)"]
-    D --> E{"isAuthenticatedForDeepLink()?"}
+    D --> E{"globalState.sessionController.isAuthenticated?"}
     E -- "no" --> F["route nothing:<br/>the auth path will collect it"]
     E -- "yes" --> G["goto /scan-qr"]
 
@@ -50,7 +50,7 @@ flowchart TD
     S2 -- "cancel / unavailable" --> L["/login PIN pad"]
     L -- "pin ok" --> P
 
-    P --> P1["markAuthenticatedForDeepLink()<br/>BEFORE any await"]
+    P --> P1["sessionController.markAuthenticated()<br/>BEFORE any await"]
     P1 --> P2{"hasDeepLink()?"}
     P2 -- "yes" --> G
     P2 -- "no" --> M["goto /main"]
@@ -63,7 +63,7 @@ flowchart TD
 ## One payload slot
 
 Storing a deep link never implies permission to act on it. That is
-`isAuthenticatedForDeepLink()`, which every consumer checks anyway.
+`globalState.sessionController.isAuthenticated`, which every consumer checks anyway.
 
 An earlier version had two slots, `pendingDeepLink` and `deepLinkData`, and
 "promoted" between them once the user authenticated. The copy carried no
@@ -87,14 +87,15 @@ never shown. That was the bug this design replaces.
 Authentication state is therefore written by the code that performs the
 authentication, and never derived from the URL or the route.
 
-`markAuthenticatedForDeepLink()` must be called **before any await** that precedes the
+`sessionController.markAuthenticated()` must be called **before any await** that precedes the
 caller's navigation. A deep link delivered while post-login chores are in
 flight has to see the user as authenticated, or it will store a payload nobody
 is left to collect.
 
 ## Storage choice
 
-`sessionStorage`, deliberately — not a Svelte store, not `localStorage`.
+`sessionStorage`, deliberately — not a Svelte store, not `localStorage`, and
+not an in-memory field on the controller.
 
 - **A Svelte store is in-memory.** This state has to survive the full-page
   navigations the wallet performs between the splash, `/login` and `/scan-qr`.
@@ -103,6 +104,13 @@ is left to collect.
   for the authenticated flag. A deep link arriving after a cold start must
   trigger a real authentication rather than inheriting one from a previous run.
   Being forgotten on relaunch is the property that makes it safe.
+- **An in-memory field would not survive the WEBVIEW being rebuilt**, which is
+  a different event from the app being killed. Android may reload the webview
+  while the app is backgrounded by `openUrl`, and the approve path does a
+  document navigation to the platform's redirect. Neither is a new run of the
+  app, and the flow has no way to re-prompt mid-handoff, so the user would be
+  stranded. `SessionController` therefore takes no store and reads
+  sessionStorage directly.
 
 Every accessor degrades to "nothing stored" when storage is unavailable
 (private mode, storage disabled) rather than throwing, because these run inside
@@ -110,7 +118,7 @@ deep-link callbacks where a throw is invisible to the user and strands the flow.
 
 ## Logout
 
-`resetDeepLinkAuthSession()` clears both keys. This is required, not defensive: logout
+`GlobalState.reset()` clears both keys. This is required, not defensive: logout
 does `goto("/")`, an SPA navigation that leaves `sessionStorage` intact. Without
 it the session would keep claiming the user is authenticated, and the next deep
 link would route straight to the consent screen on the strength of a login that
@@ -141,9 +149,10 @@ Worth stating plainly, because the names are misleading.
 | `securityController.pinHash` | Is a PIN **configured**? | Disk |
 | `walletAuthenticated` | Has the user authenticated **this session**? | sessionStorage |
 
-The accessors are named `...ForDeepLink` because the deep-link flow is their
-only consumer, not because the underlying fact is deep-link specific. It is the
-session's authentication state; nothing else reads it today.
+`walletAuthenticated` is owned by `GlobalState.sessionController`, alongside the
+other controllers. It is the session's authentication state, not a deep-link
+concept; the deep-link flow is simply its only reader today. `lib/stores/deepLink.ts`
+owns only the pending payload.
 
 The `(app)` route guard checks the **vault**, i.e. enrolment, not
 authentication. It stops a never-onboarded or logged-out user; it does not stop

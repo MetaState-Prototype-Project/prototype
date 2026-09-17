@@ -3,7 +3,7 @@ import { goto } from "$app/navigation";
 import { SettingsNavigationBtn } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
 import { runtime } from "$lib/global/runtime.svelte";
-import { resetDeepLinkAuthSession } from "$lib/stores/deepLink";
+import { clearDeepLink } from "$lib/stores/deepLink";
 import {
     getCurrentLanguage,
     subscribe as subscribeLanguage,
@@ -91,11 +91,10 @@ async function performLogout() {
     }
     const newGlobalState = await globalState.reset();
     setGlobalState(newGlobalState);
-    // goto("/") is an SPA navigation, so sessionStorage survives it. Without
-    // this the session would keep claiming the user is authenticated, and a
-    // deep link arriving afterwards would route straight to the consent screen
-    // instead of prompting for authentication.
-    resetDeepLinkAuthSession();
+    // The authenticated flag is cleared by reset() via sessionController.
+    // A deep link parked before logout must go too: goto("/") is an SPA
+    // navigation, so sessionStorage survives it.
+    clearDeepLink();
     goto("/");
 }
 
