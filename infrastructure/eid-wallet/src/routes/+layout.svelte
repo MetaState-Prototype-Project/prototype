@@ -5,7 +5,7 @@ import "../app.css";
 import { beforeNavigate, goto, onNavigate, preloadCode } from "$app/navigation";
 import { page } from "$app/state";
 import { GlobalState } from "$lib/global/state";
-import { isWalletAuthenticated, storeDeepLink } from "$lib/utils/deepLinkFlow";
+import { isAuthenticated, storeDeepLink } from "$lib/stores/deepLink";
 
 import { runtime } from "$lib/global/runtime.svelte";
 import { swipedetect } from "$lib/utils";
@@ -185,7 +185,7 @@ onMount(async () => {
 
     /**
      * Route a parsed deep-link payload. This is the layout's HALF of the
-     * rendezvous described in deepLinkFlow.ts.
+     * rendezvous described in lib/stores/deepLink.ts.
      *
      * Two outcomes, decided by one explicitly-recorded fact:
      *
@@ -210,7 +210,7 @@ onMount(async () => {
         // ends up routing it.
         storeDeepLink(deepLinkData);
 
-        if (!isWalletAuthenticated()) {
+        if (!isAuthenticated()) {
             console.log("Deep link stored: user has not authenticated yet");
             return;
         }

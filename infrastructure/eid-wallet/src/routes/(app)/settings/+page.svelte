@@ -3,6 +3,7 @@ import { goto } from "$app/navigation";
 import { SettingsNavigationBtn } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
 import { runtime } from "$lib/global/runtime.svelte";
+import { resetAuthSession } from "$lib/stores/deepLink";
 import {
     getCurrentLanguage,
     subscribe as subscribeLanguage,
@@ -10,7 +11,6 @@ import {
 import { clearAllNotifications } from "$lib/stores/notifications";
 import { BottomSheet, ButtonAction } from "$lib/ui";
 import { PinIcon, PrivacyIcon } from "$lib/ui/icons";
-import { resetAuthSession } from "$lib/utils/deepLinkFlow";
 import { clearAllCachedPhotos } from "$lib/utils/photoCache";
 import { isPermissionGranted } from "@choochmeque/tauri-plugin-notifications-api";
 import { FaceIdIcon, Notification02Icon } from "@hugeicons/core-free-icons";

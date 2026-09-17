@@ -2,9 +2,9 @@
 import { goto } from "$app/navigation";
 import { keyboardInset } from "$lib/actions/keyboardInset";
 import type { GlobalState } from "$lib/global";
+import { hasDeepLink } from "$lib/stores/deepLink";
 import { LoadingSheet, PinDots } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
-import { hasDeepLink } from "$lib/utils/deepLinkFlow";
 import { continueAfterSuccessfulAuth } from "$lib/utils/postLogin";
 import {
     type AuthOptions,

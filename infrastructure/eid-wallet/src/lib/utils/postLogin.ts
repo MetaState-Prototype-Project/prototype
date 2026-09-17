@@ -1,6 +1,6 @@
 import { goto } from "$app/navigation";
 import type { GlobalState } from "$lib/global";
-import { hasDeepLink, markWalletAuthenticated } from "$lib/utils/deepLinkFlow";
+import { hasDeepLink, markAuthenticated } from "$lib/stores/deepLink";
 
 /**
  * Shared post-authentication routine: fires the background eVault chores
@@ -15,13 +15,13 @@ import { hasDeepLink, markWalletAuthenticated } from "$lib/utils/deepLinkFlow";
 export async function continueAfterSuccessfulAuth(
     gs: GlobalState,
 ): Promise<void> {
-    // This is the authentication HALF of the rendezvous (see deepLinkFlow.ts).
+    // This is the authentication HALF of the rendezvous (see lib/stores/deepLink.ts).
     //
     // Record the fact BEFORE any await. A deep link delivered while the chores
     // below are in flight must be able to see that the user is already through
     // the gate, so it routes itself to the consent screen instead of parking a
     // payload that nobody is left to collect.
-    markWalletAuthenticated();
+    markAuthenticated();
     // Fire-and-forget post-login chores. They hit the network with no client
     // timeout, so awaiting them here can strand the user on a spinner — the
     // app pages will retry as needed.

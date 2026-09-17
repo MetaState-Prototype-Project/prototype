@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-    clearDeepLinkFlow,
+    clearDeepLink,
     hasDeepLink,
-    isWalletAuthenticated,
-    markWalletAuthenticated,
-    peekDeepLinkPayload,
+    isAuthenticated,
+    markAuthenticated,
+    peekDeepLink,
     resetAuthSession,
     storeDeepLink,
-} from "./deepLinkFlow";
+} from "./deepLink";
 
 /** Minimal sessionStorage stand-in; the module is deliberately storage-backed. */
 class MemoryStorage implements Storage {
@@ -51,7 +51,7 @@ const PAYLOAD = {
  */
 function layoutRouteDeepLink(): "/scan-qr" | null {
     storeDeepLink(PAYLOAD);
-    if (!isWalletAuthenticated()) return null;
+    if (!isAuthenticated()) return null;
     return "/scan-qr";
 }
 
@@ -60,13 +60,13 @@ function layoutRouteDeepLink(): "/scan-qr" | null {
  * (biometric on the splash, PIN on /login) funnels through.
  */
 function completeAuthentication(): "/scan-qr" | "/main" {
-    markWalletAuthenticated();
+    markAuthenticated();
     return hasDeepLink() ? "/scan-qr" : "/main";
 }
 
 /** What /scan-qr finds on mount: a payload to consent to, or nothing. */
 function scanQrSeesPayload(): boolean {
-    return peekDeepLinkPayload() !== null;
+    return peekDeepLink() !== null;
 }
 
 describe("deep-link login rendezvous", () => {
@@ -119,14 +119,14 @@ describe("deep-link login rendezvous", () => {
         completeAuthentication();
         expect(scanQrSeesPayload()).toBe(true);
 
-        clearDeepLinkFlow();
+        clearDeepLink();
         expect(scanQrSeesPayload()).toBe(false);
     });
 
     it("does not resurrect a payload the consent screen already consumed", () => {
         layoutRouteDeepLink();
         expect(completeAuthentication()).toBe("/scan-qr");
-        clearDeepLinkFlow();
+        clearDeepLink();
 
         expect(completeAuthentication()).toBe("/main");
     });
@@ -139,7 +139,7 @@ describe("deep-link login rendezvous", () => {
     it("lets the same URL be presented again after it was dismissed", () => {
         layoutRouteDeepLink();
         completeAuthentication();
-        clearDeepLinkFlow();
+        clearDeepLink();
 
         expect(layoutRouteDeepLink()).toBe("/scan-qr");
         expect(scanQrSeesPayload()).toBe(true);
@@ -152,11 +152,11 @@ describe("deep-link login rendezvous", () => {
      */
     it("forgets authentication on logout so the next link re-prompts", () => {
         completeAuthentication();
-        expect(isWalletAuthenticated()).toBe(true);
+        expect(isAuthenticated()).toBe(true);
 
         resetAuthSession();
 
-        expect(isWalletAuthenticated()).toBe(false);
+        expect(isAuthenticated()).toBe(false);
         expect(layoutRouteDeepLink()).toBeNull();
     });
 
@@ -165,6 +165,6 @@ describe("deep-link login rendezvous", () => {
 
         expect(() => layoutRouteDeepLink()).not.toThrow();
         expect(() => completeAuthentication()).not.toThrow();
-        expect(peekDeepLinkPayload()).toBeNull();
+        expect(peekDeepLink()).toBeNull();
     });
 });
