@@ -8,9 +8,8 @@ import { hasDeepLink } from "$lib/stores/deepLink";
  * either to the deep-link target waiting in sessionStorage or to /main.
  *
  * Called from both the splash (when biometric auth succeeds over the
- * splash screen) and from /login (after PIN or fallback biometric).
- * Keeping the logic here means we don't have to flash the user through
- * /login on biometric success.
+ * splash screen) and from /login (after PIN entry). Keeping the logic here
+ * means we don't have to flash the user through /login on biometric success.
  */
 export async function continueAfterSuccessfulAuth(
     gs: GlobalState,

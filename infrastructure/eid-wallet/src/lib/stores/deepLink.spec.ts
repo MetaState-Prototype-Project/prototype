@@ -201,8 +201,8 @@ describe("deep-link login rendezvous", () => {
 
     /**
      * Logout does an SPA navigation to "/", which leaves sessionStorage
-     * intact. Without resetDeepLinkAuthSession() the session would keep claiming the
-     * user is authenticated and the next deep link would skip the gate.
+     * intact. Without SessionController.clear() the session would keep claiming
+     * the user is authenticated and the next deep link would skip the gate.
      */
     it("forgets authentication on logout so the next link re-prompts", async () => {
         await completeAuthentication();

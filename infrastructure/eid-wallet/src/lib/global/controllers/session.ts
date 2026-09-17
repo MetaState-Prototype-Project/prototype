@@ -18,8 +18,8 @@
  * one, so an in-memory field would strand the user.
  *
  * sessionStorage is exactly that lifetime: dies with the tab/app, survives a
- * reload. Hence a controller that takes the Store like its siblings but
- * deliberately does not use it.
+ * reload. Hence a controller that, unlike its siblings, takes no Store and
+ * reads sessionStorage directly.
  *
  * See docs/architecture/deepLink.md.
  */

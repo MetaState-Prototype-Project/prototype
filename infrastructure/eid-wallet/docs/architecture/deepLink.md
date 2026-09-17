@@ -118,11 +118,12 @@ deep-link callbacks where a throw is invisible to the user and strands the flow.
 
 ## Logout
 
-`GlobalState.reset()` clears both keys. This is required, not defensive: logout
-does `goto("/")`, an SPA navigation that leaves `sessionStorage` intact. Without
-it the session would keep claiming the user is authenticated, and the next deep
-link would route straight to the consent screen on the strength of a login that
-had already ended.
+`GlobalState.reset()` clears the sign-in flag, via `SessionController.clear()`;
+`performLogout()` clears the pending payload alongside it. This is required, not
+defensive: logout does `goto("/")`, an SPA navigation that leaves
+`sessionStorage` intact. Without it the session would keep claiming the user is
+authenticated, and the next deep link would route straight to the consent screen
+on the strength of a login that had already ended.
 
 ## The splash is the only biometric prompt
 
