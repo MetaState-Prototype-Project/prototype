@@ -1,47 +1,7 @@
 /**
  * State for the deep-link login flow.
  *
- * Showing the Approve/Decline consent screen requires TWO independent things
- * to finish, in an order nobody controls:
- *
- *   1. The URL arriving. The root layout imports the deep-link plugin
- *      asynchronously, then asks it for the launch URL.
- *   2. The user authenticating. On a cold start the splash prompts for
- *      biometrics, which can succeed in ~200ms or take seconds.
- *
- * Whoever finishes LAST owns the routing:
- *
- *   - The URL arrives while unauthenticated -> store it, route nothing. The
- *     screen that completes authentication picks it up.
- *   - The URL arrives while authenticated -> route to the consent screen now.
- *
- * There is ONE payload slot. Storing a deep link never implies permission to
- * act on it: that is `isAuthenticated()`, which both sides check.
- *
- * The bug this replaces came from the layout inferring "is the user
- * authenticated?" from `window.location.pathname` at the instant of delivery:
- * on a cold start the path is "/" for the splash regardless of how the race
- * went, so a user who had ALREADY authenticated was still classified as
- * logged out. The payload was stored for a screen that had finished running,
- * and the user landed on /main with the consent screen never shown.
- *
- * Authentication state is therefore recorded EXPLICITLY, by the code that
- * performs the authentication, and never derived from the URL.
- *
- * Deliberately sessionStorage rather than a Svelte store or localStorage:
- *
- *  - A Svelte store is in-memory, and this state has to survive the full-page
- *    navigations the wallet performs between the splash, /login and /scan-qr.
- *    An in-memory store would be empty on the other side.
- *  - localStorage would survive the app being killed, which is exactly wrong
- *    for the authenticated flag: a deep link arriving after a cold start must
- *    trigger a real authentication, not inherit one from a previous run.
- *    Being forgotten on relaunch is the property that makes it safe.
- *
- * Every accessor degrades to "nothing stored" when storage is unavailable
- * (private mode, storage disabled) rather than throwing, because these are
- * called from deep-link callbacks where a throw is invisible to the user and
- * strands the flow.
+ * See docs/architecture/deepLink.md for the flow this state serves.
  */
 
 const PAYLOAD_KEY = "deepLinkData";
@@ -91,13 +51,8 @@ export function clearDeepLink(): void {
 }
 
 /**
- * Wipe the session on logout.
- *
- * The authenticated flag MUST be cleared here. Logout resets global state and
- * does an SPA navigation to "/", which leaves sessionStorage intact, so
- * without this the session would keep claiming the user is authenticated and
- * the next deep link would route itself straight to the consent screen on the
- * strength of a login that has already ended.
+ * Wipe the session on logout. Clearing the authenticated flag is required:
+ * logout is an SPA navigation and leaves sessionStorage intact.
  */
 export function resetAuthSession(): void {
     const s = store();

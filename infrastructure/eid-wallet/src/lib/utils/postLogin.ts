@@ -15,12 +15,9 @@ import { hasDeepLink, markAuthenticated } from "$lib/stores/deepLink";
 export async function continueAfterSuccessfulAuth(
     gs: GlobalState,
 ): Promise<void> {
-    // This is the authentication HALF of the rendezvous (see lib/stores/deepLink.ts).
-    //
-    // Record the fact BEFORE any await. A deep link delivered while the chores
-    // below are in flight must be able to see that the user is already through
-    // the gate, so it routes itself to the consent screen instead of parking a
-    // payload that nobody is left to collect.
+    // Record the fact BEFORE any await: a deep link delivered while the chores
+    // below are in flight must see the user as already through the gate.
+    // See docs/architecture/deepLink.md.
     markAuthenticated();
     // Fire-and-forget post-login chores. They hit the network with no client
     // timeout, so awaiting them here can strand the user on a spinner — the
@@ -60,9 +57,8 @@ export async function continueAfterSuccessfulAuth(
         console.error("Error reading vault during login:", error);
     }
 
-    // A deep link may have arrived before or during authentication. Either
-    // way it is sitting in the one payload slot, and the user is now allowed
-    // to act on it.
+    // A deep link may have arrived before or during authentication; either way
+    // it is stored, and the user is now allowed to act on it.
     if (hasDeepLink()) {
         await goto("/scan-qr");
         return;

@@ -184,26 +184,8 @@ onMount(async () => {
     }
 
     /**
-     * Route a parsed deep-link payload. This is the layout's HALF of the
-     * rendezvous described in lib/stores/deepLink.ts.
-     *
-     * Two outcomes, decided by one explicitly-recorded fact:
-     *
-     *  - Authenticated: hand the payload straight to the consent screen.
-     *  - Not authenticated: PARK it and route nothing. The screen that
-     *    completes authentication (splash after biometrics, or /login after
-     *    PIN) collects it and routes.
-     *
-     * The previous version asked `isAuthenticatedRoute(window.location.pathname)`
-     * instead. That is unsound on a cold start: the path is "/" for the splash
-     * regardless of whether the user has authenticated, so a fast biometric
-     * success was still read as "logged out". The payload was parked for a
-     * screen that had already finished, and the consent screen never appeared.
-     *
-     * Note this no longer navigates to /login on the unauthenticated path. The
-     * splash is where biometrics are prompted, so steering away from it would
-     * downgrade a returning user to the PIN pad. The splash routes onward by
-     * itself in every exit path.
+     * Route a parsed deep-link payload: the layout's half of the rendezvous.
+     * See docs/architecture/deepLink.md.
      */
     function routeDeepLink(deepLinkData: Record<string, unknown>) {
         // Store it either way: the payload is the same regardless of who
