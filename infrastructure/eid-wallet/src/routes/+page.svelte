@@ -106,12 +106,6 @@ onMount(async () => {
             return;
         }
 
-        // NOTE: a pending deep link deliberately does NOT divert to /login.
-        // Biometrics are prompted here, so diverting would downgrade a
-        // returning user to the PIN pad for the one flow most likely to be
-        // used by someone in a hurry. continueAfterSuccessfulAuth collects the
-        // parked payload and routes to the consent screen itself.
-
         // Fire biometric over the splash itself so the prompt isn't competing
         // with the /login slide-in. On success we run the post-auth chores
         // and route straight to /main (no /login flash). On cancel/fail we
