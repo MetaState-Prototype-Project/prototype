@@ -5,7 +5,10 @@ import "../app.css";
 import { beforeNavigate, goto, onNavigate, preloadCode } from "$app/navigation";
 import { page } from "$app/state";
 import { GlobalState } from "$lib/global/state";
-import { isAuthenticated, storeDeepLink } from "$lib/stores/deepLink";
+import {
+    isAuthenticatedForDeepLink,
+    storeDeepLink,
+} from "$lib/stores/deepLink";
 
 import { runtime } from "$lib/global/runtime.svelte";
 import { swipedetect } from "$lib/utils";
@@ -192,7 +195,7 @@ onMount(async () => {
         // ends up routing it.
         storeDeepLink(deepLinkData);
 
-        if (!isAuthenticated()) {
+        if (!isAuthenticatedForDeepLink()) {
             console.log("Deep link stored: user has not authenticated yet");
             return;
         }

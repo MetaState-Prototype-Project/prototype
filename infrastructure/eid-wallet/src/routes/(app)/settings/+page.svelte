@@ -3,7 +3,7 @@ import { goto } from "$app/navigation";
 import { SettingsNavigationBtn } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
 import { runtime } from "$lib/global/runtime.svelte";
-import { resetAuthSession } from "$lib/stores/deepLink";
+import { resetDeepLinkAuthSession } from "$lib/stores/deepLink";
 import {
     getCurrentLanguage,
     subscribe as subscribeLanguage,
@@ -95,7 +95,7 @@ async function performLogout() {
     // this the session would keep claiming the user is authenticated, and a
     // deep link arriving afterwards would route straight to the consent screen
     // instead of prompting for authentication.
-    resetAuthSession();
+    resetDeepLinkAuthSession();
     goto("/");
 }
 

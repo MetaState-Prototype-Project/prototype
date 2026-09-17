@@ -40,7 +40,7 @@ flowchart TD
     A["Android intent w3ds://"] --> B["root +layout<br/>onOpenUrl / getCurrent"]
     B --> C["parse payload"]
     C --> D["storeDeepLink(payload)"]
-    D --> E{"isAuthenticated()?"}
+    D --> E{"isAuthenticatedForDeepLink()?"}
     E -- "no" --> F["route nothing:<br/>the auth path will collect it"]
     E -- "yes" --> G["goto /scan-qr"]
 
@@ -50,7 +50,7 @@ flowchart TD
     S2 -- "cancel / unavailable" --> L["/login PIN pad"]
     L -- "pin ok" --> P
 
-    P --> P1["markAuthenticated()<br/>BEFORE any await"]
+    P --> P1["markAuthenticatedForDeepLink()<br/>BEFORE any await"]
     P1 --> P2{"hasDeepLink()?"}
     P2 -- "yes" --> G
     P2 -- "no" --> M["goto /main"]
@@ -63,7 +63,7 @@ flowchart TD
 ## One payload slot
 
 Storing a deep link never implies permission to act on it. That is
-`isAuthenticated()`, which every consumer checks anyway.
+`isAuthenticatedForDeepLink()`, which every consumer checks anyway.
 
 An earlier version had two slots, `pendingDeepLink` and `deepLinkData`, and
 "promoted" between them once the user authenticated. The copy carried no
@@ -87,7 +87,7 @@ never shown. That was the bug this design replaces.
 Authentication state is therefore written by the code that performs the
 authentication, and never derived from the URL or the route.
 
-`markAuthenticated()` must be called **before any await** that precedes the
+`markAuthenticatedForDeepLink()` must be called **before any await** that precedes the
 caller's navigation. A deep link delivered while post-login chores are in
 flight has to see the user as authenticated, or it will store a payload nobody
 is left to collect.
@@ -110,7 +110,7 @@ deep-link callbacks where a throw is invisible to the user and strands the flow.
 
 ## Logout
 
-`resetAuthSession()` clears both keys. This is required, not defensive: logout
+`resetDeepLinkAuthSession()` clears both keys. This is required, not defensive: logout
 does `goto("/")`, an SPA navigation that leaves `sessionStorage` intact. Without
 it the session would keep claiming the user is authenticated, and the next deep
 link would route straight to the consent screen on the strength of a login that
@@ -140,6 +140,10 @@ Worth stating plainly, because the names are misleading.
 | `vaultController.vault` | Is an identity **enrolled** on this device? | Disk, survives reboot |
 | `securityController.pinHash` | Is a PIN **configured**? | Disk |
 | `walletAuthenticated` | Has the user authenticated **this session**? | sessionStorage |
+
+The accessors are named `...ForDeepLink` because the deep-link flow is their
+only consumer, not because the underlying fact is deep-link specific. It is the
+session's authentication state; nothing else reads it today.
 
 The `(app)` route guard checks the **vault**, i.e. enrolment, not
 authentication. It stops a never-onboarded or logged-out user; it does not stop

@@ -18,15 +18,20 @@ function store(): Storage | null {
 /**
  * Record that the user is through the authentication gate.
  *
+ * The "ForDeepLink" suffix describes the CONSUMER, not the scope: this is the
+ * session's authentication state, and the deep-link flow is currently its only
+ * reader. The (app) route guard checks the vault (enrolment) instead, so do not
+ * read this as "the app's auth gate lives here".
+ *
  * Callers must do this BEFORE any await that precedes their navigation, so a
  * deep link delivered mid-flight sees the user as authenticated and routes
  * itself rather than storing a payload nobody is left to collect.
  */
-export function markAuthenticated(): void {
+export function markAuthenticatedForDeepLink(): void {
     store()?.setItem(AUTHED_KEY, "true");
 }
 
-export function isAuthenticated(): boolean {
+export function isAuthenticatedForDeepLink(): boolean {
     return store()?.getItem(AUTHED_KEY) === "true";
 }
 
@@ -51,10 +56,10 @@ export function clearDeepLink(): void {
 }
 
 /**
- * Wipe the session on logout. Clearing the authenticated flag is required:
- * logout is an SPA navigation and leaves sessionStorage intact.
+ * Wipe the deep-link session on logout. Clearing the authenticated flag is
+ * required: logout is an SPA navigation and leaves sessionStorage intact.
  */
-export function resetAuthSession(): void {
+export function resetDeepLinkAuthSession(): void {
     const s = store();
     s?.removeItem(PAYLOAD_KEY);
     s?.removeItem(AUTHED_KEY);

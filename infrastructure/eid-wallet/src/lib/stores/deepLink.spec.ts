@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
     clearDeepLink,
     hasDeepLink,
-    isAuthenticated,
-    markAuthenticated,
+    isAuthenticatedForDeepLink,
+    markAuthenticatedForDeepLink,
     peekDeepLink,
-    resetAuthSession,
+    resetDeepLinkAuthSession,
     storeDeepLink,
 } from "./deepLink";
 
@@ -51,7 +51,7 @@ const PAYLOAD = {
  */
 function layoutRouteDeepLink(): "/scan-qr" | null {
     storeDeepLink(PAYLOAD);
-    if (!isAuthenticated()) return null;
+    if (!isAuthenticatedForDeepLink()) return null;
     return "/scan-qr";
 }
 
@@ -60,7 +60,7 @@ function layoutRouteDeepLink(): "/scan-qr" | null {
  * (biometric on the splash, PIN on /login) funnels through.
  */
 function completeAuthentication(): "/scan-qr" | "/main" {
-    markAuthenticated();
+    markAuthenticatedForDeepLink();
     return hasDeepLink() ? "/scan-qr" : "/main";
 }
 
@@ -147,16 +147,16 @@ describe("deep-link login rendezvous", () => {
 
     /**
      * Logout does an SPA navigation to "/", which leaves sessionStorage
-     * intact. Without resetAuthSession() the session would keep claiming the
+     * intact. Without resetDeepLinkAuthSession() the session would keep claiming the
      * user is authenticated and the next deep link would skip the gate.
      */
     it("forgets authentication on logout so the next link re-prompts", () => {
         completeAuthentication();
-        expect(isAuthenticated()).toBe(true);
+        expect(isAuthenticatedForDeepLink()).toBe(true);
 
-        resetAuthSession();
+        resetDeepLinkAuthSession();
 
-        expect(isAuthenticated()).toBe(false);
+        expect(isAuthenticatedForDeepLink()).toBe(false);
         expect(layoutRouteDeepLink()).toBeNull();
     });
 
