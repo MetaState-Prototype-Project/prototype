@@ -9,7 +9,7 @@ import {
     authenticate,
     checkStatus,
 } from "@tauri-apps/plugin-biometric";
-import { getContext, onMount } from "svelte";
+import { getContext, onDestroy, onMount } from "svelte";
 
 const BIOMETRIC_ATTEMPTED_KEY = "biometricAttemptedOnSplash";
 
@@ -47,6 +47,17 @@ async function handleRestoreDigitalSelf() {
     await goto("/recover");
 }
 
+// Unmounting a Svelte component does NOT cancel an async onMount parked on an
+// await: the continuation resumes later and calls goto() from a screen the user
+// left long ago. This routine sleeps 1.2s and then polls for global state, so
+// it can still be suspended while the user authenticates by PIN on /login and
+// /scan-qr opens the consent drawer. Waking then would navigate away and take
+// that drawer with it.
+let destroyed = false;
+onDestroy(() => {
+    destroyed = true;
+});
+
 onMount(async () => {
     if (skipIntro) {
         // Backward nav from /onboarding — already at state C, nothing to do.
@@ -68,6 +79,8 @@ onMount(async () => {
         globalState = getGlobalState?.();
         retries++;
     }
+
+    if (destroyed) return;
 
     let onboardingComplete = false;
     let userExists = false;
@@ -93,18 +106,11 @@ onMount(async () => {
             return;
         }
 
-        // A third-party login deep link opened the app. The root layout has
-        // already stored it and redirected to /login, which runs its own
-        // biometric prompt. If we ALSO prompt here, two native authenticate()
-        // calls race on a cold start — the collision, plus a duplicate
-        // post-auth routine consuming the pending deep link, leaves the user
-        // on /main with the consent screen never shown. Defer to /login as the
-        // single authenticator. The layout writes pendingDeepLink synchronously
-        // and early, so it's reliably visible by the time we reach here.
-        if (sessionStorage.getItem("pendingDeepLink")) {
-            await goto("/login");
-            return;
-        }
+        // NOTE: a pending deep link deliberately does NOT divert to /login.
+        // Biometrics are prompted here, so diverting would downgrade a
+        // returning user to the PIN pad for the one flow most likely to be
+        // used by someone in a hurry. continueAfterSuccessfulAuth collects the
+        // parked payload and routes to the consent screen itself.
 
         // Fire biometric over the splash itself so the prompt isn't competing
         // with the /login slide-in. On success we run the post-auth chores
@@ -120,6 +126,7 @@ onMount(async () => {
         } catch (error) {
             console.error("Biometric availability check failed:", error);
         }
+        if (destroyed) return;
 
         if (biometricAvailable && globalState) {
             sessionStorage.setItem(BIOMETRIC_ATTEMPTED_KEY, "true");

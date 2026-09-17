@@ -10,6 +10,7 @@ import {
 import { clearAllNotifications } from "$lib/stores/notifications";
 import { BottomSheet, ButtonAction } from "$lib/ui";
 import { PinIcon, PrivacyIcon } from "$lib/ui/icons";
+import { resetAuthSession } from "$lib/utils/deepLinkFlow";
 import { clearAllCachedPhotos } from "$lib/utils/photoCache";
 import { isPermissionGranted } from "@choochmeque/tauri-plugin-notifications-api";
 import { FaceIdIcon, Notification02Icon } from "@hugeicons/core-free-icons";
@@ -90,6 +91,11 @@ async function performLogout() {
     }
     const newGlobalState = await globalState.reset();
     setGlobalState(newGlobalState);
+    // goto("/") is an SPA navigation, so sessionStorage survives it. Without
+    // this the session would keep claiming the user is authenticated, and a
+    // deep link arriving afterwards would route straight to the consent screen
+    // instead of prompting for authentication.
+    resetAuthSession();
     goto("/");
 }
 
