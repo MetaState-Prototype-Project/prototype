@@ -91,7 +91,7 @@ function handleAddClick(e: MouseEvent) {
                     />
                 {/if}
             </div>
-            <p class="text-black-700 opacity-50 leading-tight truncate">
+            <p class="text-black-700 opacity-50 leading-tight line-clamp-2">
                 {subtitle}
             </p>
         </div>

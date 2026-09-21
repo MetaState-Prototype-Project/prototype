@@ -105,7 +105,7 @@
   "kyc_upgrade_failed_short": "Оновлення не вдалося",
   "kyc_upgrading": "Оновлення вашого eVault…",
   "legal_id_document_number": "Номер документа",
-  "legal_id_empty_subtitle": "Будь-який офіційний документ",
+  "legal_id_empty_subtitle": "Будь-який документ",
   "legal_id_title": "Офіційний документ",
   "loggedin_connected_to": "Ви підключені до {platform}",
   "loggedin_platform_fallback": "платформи",
