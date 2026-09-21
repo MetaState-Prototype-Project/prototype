@@ -654,14 +654,16 @@ async function handleSubmitAnswer() {
 
         if (result.lockedUntil) {
             lockedUntilLabel = formatLockedUntil(result.lockedUntil);
-            answerError = `Too many wrong answers. Try again after ${lockedUntilLabel}.`;
+            answerError = m.recover_error_locked_out({
+                until: lockedUntilLabel,
+            });
             return;
         }
 
         const left = result.attemptsRemaining;
         answerError =
             typeof left === "number"
-                ? `That answer doesn't match. ${left} ${left === 1 ? "try" : "tries"} left.`
+                ? m.recover_error_answer_mismatch_attempts({ count: left })
                 : m.recover_error_answer_mismatch();
     } catch (err: unknown) {
         console.error("[RECOVERY/unverified] answer verify error:", err);
@@ -784,7 +786,7 @@ async function runNotaryRecovery() {
         // they should at least see *something*.
         errorMessage =
             err instanceof Error && err.message
-                ? `Couldn't open the camera: ${err.message}`
+                ? m.recover_error_camera_open_reason({ reason: err.message })
                 : m.recover_error_camera_open();
         errorReason = "generic";
         errorSource = "notary";
