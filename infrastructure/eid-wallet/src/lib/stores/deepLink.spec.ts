@@ -352,6 +352,57 @@ describe("deep-link login rendezvous", () => {
         expect(layoutRouteDeepLink()).toBe("/scan-qr");
     });
 
+    /**
+     * sessionStorage can be reachable but refuse every operation: quota
+     * exhausted, or a private mode where setItem always throws. The typeof
+     * guard cannot see that, so each operation carries its own fallback.
+     *
+     * The cost of a failed write is one extra prompt. The cost of letting it
+     * escape is worse at every call site: the splash treats a throw as failed
+     * biometrics and bounces an authenticated user to /login, and
+     * GlobalState.reset() runs every clear() in one try block, so a throw
+     * there would abandon the rest of logout.
+     */
+    describe("when storage rejects every operation", () => {
+        beforeEach(() => {
+            const throwing = new MemoryStorage();
+            const boom = () => {
+                throw new DOMException("QuotaExceededError");
+            };
+            throwing.setItem = boom;
+            throwing.getItem = boom;
+            throwing.removeItem = boom;
+            vi.stubGlobal("sessionStorage", throwing);
+            session = new SessionController();
+            globalState = makeGlobalState(session);
+        });
+
+        it("still completes authentication when the write fails", async () => {
+            expect(() => session.markAuthenticated()).not.toThrow();
+        });
+
+        it("reports not-authenticated when the read fails", () => {
+            expect(session.isAuthenticated).toBe(false);
+        });
+
+        it("does not reject logout when the delete fails", async () => {
+            await expect(session.clear()).resolves.toBeUndefined();
+        });
+
+        /**
+         * performLogout() calls clearDeepLink() between reset() and the
+         * goto("/") that ends the session, outside any try block.
+         */
+        it("does not stop logout when the payload delete fails", () => {
+            expect(() => clearDeepLink()).not.toThrow();
+        });
+
+        it("keeps the deep-link gate from throwing at the caller", async () => {
+            expect(() => layoutRouteDeepLink()).not.toThrow();
+            await expect(completeAuthentication()).resolves.not.toThrow();
+        });
+    });
+
     it("survives storage being unavailable without throwing", async () => {
         vi.stubGlobal("sessionStorage", undefined);
 

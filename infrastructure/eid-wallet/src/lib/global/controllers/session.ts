@@ -47,14 +47,35 @@ export class SessionController {
      * routes itself rather than storing a payload nobody is left to collect.
      */
     markAuthenticated(): void {
-        this.#storage()?.setItem(SessionController.#AUTHENTICATED_KEY, "true");
+        try {
+            this.#storage()?.setItem(
+                SessionController.#AUTHENTICATED_KEY,
+                "true",
+            );
+        } catch (error) {
+            // Reaching the storage object can succeed while writing to it
+            // fails: quota exhausted, or Safari-style private mode where
+            // setItem always throws. The caller has already authenticated, and
+            // its catch treats a throw as failed authentication, so letting
+            // this escape would bounce a signed-in user back to the PIN screen.
+            console.warn("Could not persist the session marker:", error);
+        }
     }
 
     get isAuthenticated(): boolean {
-        return (
-            this.#storage()?.getItem(SessionController.#AUTHENTICATED_KEY) ===
-            "true"
-        );
+        try {
+            return (
+                this.#storage()?.getItem(
+                    SessionController.#AUTHENTICATED_KEY,
+                ) === "true"
+            );
+        } catch (error) {
+            // Read failures fall back to "not authenticated", which costs the
+            // user a prompt. The alternative is throwing inside the layout's
+            // deep-link gate, which would drop the payload entirely.
+            console.warn("Could not read the session marker:", error);
+            return false;
+        }
     }
 
     /**
@@ -67,6 +88,13 @@ export class SessionController {
      * has already ended.
      */
     async clear(): Promise<void> {
-        this.#storage()?.removeItem(SessionController.#AUTHENTICATED_KEY);
+        try {
+            this.#storage()?.removeItem(SessionController.#AUTHENTICATED_KEY);
+        } catch (error) {
+            // GlobalState.reset() runs every controller's clear() in one try
+            // block, so rejecting here would skip the rest of logout and leave
+            // the vault and keys behind.
+            console.warn("Could not clear the session marker:", error);
+        }
     }
 }

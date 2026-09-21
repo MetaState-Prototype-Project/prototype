@@ -22,12 +22,24 @@ function store(): Storage | null {
 
 /** Store an incoming deep-link payload, whatever the authentication state. */
 export function storeDeepLink(data: unknown): void {
-    store()?.setItem(PAYLOAD_KEY, JSON.stringify(data));
+    try {
+        store()?.setItem(PAYLOAD_KEY, JSON.stringify(data));
+    } catch (error) {
+        // Reaching storage can succeed while writing to it fails. This runs
+        // inside the deep-link callback the comment above describes, so a
+        // throw here is invisible and strands the flow.
+        console.warn("Could not store the deep-link payload:", error);
+    }
 }
 
 /** The payload the consent screen should render, if any. */
 export function peekDeepLink(): string | null {
-    return store()?.getItem(PAYLOAD_KEY) ?? null;
+    try {
+        return store()?.getItem(PAYLOAD_KEY) ?? null;
+    } catch (error) {
+        console.warn("Could not read the deep-link payload:", error);
+        return null;
+    }
 }
 
 /** Is there a deep link waiting to be consented to? */
@@ -37,5 +49,11 @@ export function hasDeepLink(): boolean {
 
 /** Clear the payload once the consent screen has shown it, or on logout. */
 export function clearDeepLink(): void {
-    store()?.removeItem(PAYLOAD_KEY);
+    try {
+        store()?.removeItem(PAYLOAD_KEY);
+    } catch (error) {
+        // Called from performLogout() alongside GlobalState.reset(); a throw
+        // here would skip the navigation that ends the session.
+        console.warn("Could not clear the deep-link payload:", error);
+    }
 }
