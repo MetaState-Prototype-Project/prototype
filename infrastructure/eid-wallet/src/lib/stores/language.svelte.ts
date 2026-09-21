@@ -39,6 +39,16 @@ export const AVAILABLE_LANGUAGES: Language[] = [
 let current = $state<Locale>(getLocale());
 overwriteGetLocale(() => current);
 
+// Paraglide's `reload: false` path deliberately leaves document state alone,
+// so <html lang> would sit at "en" forever and assistive tech would read
+// Russian and Ukrainian with English pronunciation rules.
+function syncDocumentLang(locale: Locale) {
+    if (typeof document === "undefined") return;
+    document.documentElement.lang = locale;
+}
+
+syncDocumentLang(current);
+
 export function getCurrentLanguage(): Language {
     return (
         AVAILABLE_LANGUAGES.find((l) => l.locale === current) ??
@@ -50,5 +60,6 @@ export function setCurrentLanguage(locale: string): void {
     if (!isLocale(locale) || locale === current) return;
     if (!AVAILABLE_LANGUAGES.find((l) => l.locale === locale)?.enabled) return;
     current = locale;
+    syncDocumentLang(locale);
     setLocale(locale, { reload: false });
 }
