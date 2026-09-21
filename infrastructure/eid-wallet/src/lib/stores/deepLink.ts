@@ -23,7 +23,18 @@ function store(): Storage | null {
 /** Store an incoming deep-link payload, whatever the authentication state. */
 export function storeDeepLink(data: unknown): void {
     try {
-        store()?.setItem(PAYLOAD_KEY, JSON.stringify(data));
+        const serialized = JSON.stringify(data);
+
+        // JSON.stringify returns undefined for undefined, a function or a
+        // symbol. setItem would coerce that to the string "undefined", which
+        // hasDeepLink() reports as a waiting payload and the consent screen
+        // then fails to JSON.parse. Storing nothing is the honest answer.
+        if (serialized === undefined) {
+            console.warn("Ignoring a deep-link payload that cannot be stored");
+            return;
+        }
+
+        store()?.setItem(PAYLOAD_KEY, serialized);
     } catch (error) {
         // Reaching storage can succeed while writing to it fails. This runs
         // inside the deep-link callback the comment above describes, so a

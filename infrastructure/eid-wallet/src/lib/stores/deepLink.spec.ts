@@ -8,7 +8,12 @@ import {
     continueAfterSuccessfulAuth,
 } from "$lib/utils/postLogin";
 import { handleDeepLinkEvent, routeDeepLink } from "$lib/utils/routeDeepLink";
-import { clearDeepLink, hasDeepLink, peekDeepLink } from "./deepLink";
+import {
+    clearDeepLink,
+    hasDeepLink,
+    peekDeepLink,
+    storeDeepLink,
+} from "./deepLink";
 
 vi.mock("$app/navigation", () => ({ goto: vi.fn(async () => {}) }));
 
@@ -409,5 +414,27 @@ describe("deep-link login rendezvous", () => {
         expect(() => layoutRouteDeepLink()).not.toThrow();
         await expect(completeAuthentication()).resolves.not.toThrow();
         expect(peekDeepLink()).toBeNull();
+    });
+
+    /**
+     * A `deepLinkReceived` event dispatched with no detail reaches
+     * storeDeepLink() as undefined, which JSON.stringify serialises to
+     * undefined rather than to a string. setItem would coerce that to the
+     * literal "undefined", so hasDeepLink() would announce a waiting payload
+     * that the consent screen cannot parse, sending the user to /scan-qr to
+     * look at nothing.
+     */
+    it("does not record an unserialisable payload as a waiting deep link", () => {
+        storeDeepLink(undefined);
+
+        expect(peekDeepLink()).toBeNull();
+        expect(hasDeepLink()).toBe(false);
+    });
+
+    it("leaves an already-stored payload intact", () => {
+        storeDeepLink({ type: "auth" });
+        storeDeepLink(undefined);
+
+        expect(peekDeepLink()).toBe(JSON.stringify({ type: "auth" }));
     });
 });
