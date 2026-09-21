@@ -1,4 +1,4 @@
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 
 // Identity fields are persisted under their English labels (see
 // UserController), so the stored key doubles as the lookup key here and the

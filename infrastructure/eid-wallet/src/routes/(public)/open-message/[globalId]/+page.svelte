@@ -4,7 +4,7 @@ import {
     PUBLIC_BLABSY_BASE_URL,
     PUBLIC_PICTIQUE_BASE_URL,
 } from "$env/static/public";
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 
 const globalId = page.params.globalId;
 const chatId = page.url.searchParams.get("chatId") || globalId;

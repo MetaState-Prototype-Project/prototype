@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { GlobalState } from "$lib/global";
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { BottomSheet, ButtonAction } from "$lib/ui";
 import {
     type BindingDocParsed,

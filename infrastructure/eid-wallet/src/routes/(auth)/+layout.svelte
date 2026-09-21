@@ -2,7 +2,7 @@
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
 import type { GlobalState } from "$lib/global";
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { getContext, onMount } from "svelte";
 
 let { children } = $props();

@@ -6,7 +6,7 @@ import {
 } from "$env/static/public";
 import { AppNav, IdentityCard } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { ButtonAction, CopyableEName } from "$lib/ui";
 import {
     addCounterpartySignature,

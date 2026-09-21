@@ -2,7 +2,7 @@
 import { page } from "$app/state";
 import { AppNav } from "$lib/fragments";
 import { runtime } from "$lib/global/runtime.svelte";
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 
 const { children } = $props();
 

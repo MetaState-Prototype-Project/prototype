@@ -35,7 +35,7 @@ import {
 } from "$lib/stores/notifications";
 import NotificationService from "$lib/services/NotificationService";
 import { BottomSheet, ButtonAction, Toast } from "$lib/ui";
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { getLocale } from "$lib/paraglide/runtime";
 import * as Button from "$lib/ui/Button";
 import { isPermissionGranted } from "@choochmeque/tauri-plugin-notifications-api";

@@ -3,7 +3,7 @@ import { goto } from "$app/navigation";
 import { SettingsNavigationBtn } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
 import { runtime } from "$lib/global/runtime.svelte";
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { getCurrentLanguage } from "$lib/stores/language.svelte";
 import { clearAllNotifications } from "$lib/stores/notifications";
 import { BottomSheet, ButtonAction } from "$lib/ui";

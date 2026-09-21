@@ -1,5 +1,5 @@
 <script lang="ts">
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { ButtonAction } from "$lib/ui";
 import { onMount } from "svelte";
 import { cubicOut } from "svelte/easing";

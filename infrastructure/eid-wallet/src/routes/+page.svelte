@@ -3,7 +3,7 @@ import { browser } from "$app/environment";
 import { goto } from "$app/navigation";
 import SplashScreen from "$lib/fragments/SplashScreen/SplashScreen.svelte";
 import type { GlobalState } from "$lib/global";
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { continueAfterSuccessfulAuth } from "$lib/utils/postLogin";
 import {
     type AuthOptions,

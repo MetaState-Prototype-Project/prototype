@@ -13,7 +13,7 @@ import {
     PUBLIC_PROVISIONER_URL,
 } from "$env/static/public";
 import type { GlobalState } from "$lib/global";
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { CopyableEName } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { capitalize } from "$lib/utils";

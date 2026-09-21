@@ -1,5 +1,5 @@
 <script lang="ts">
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { ButtonAction } from "$lib/ui";
 import BottomSheet from "$lib/ui/BottomSheet/BottomSheet.svelte";
 import { PERSONAL_BINDING_MAX_LENGTH } from "$lib/utils/personalBinding";

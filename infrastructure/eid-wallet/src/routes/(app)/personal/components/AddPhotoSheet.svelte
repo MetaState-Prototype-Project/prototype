@@ -1,5 +1,5 @@
 <script lang="ts">
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import type { PhotoMark } from "$lib/stores/personalBinding";
 import { ButtonAction, CameraPermissionDialog } from "$lib/ui";
 import BottomSheet from "$lib/ui/BottomSheet/BottomSheet.svelte";

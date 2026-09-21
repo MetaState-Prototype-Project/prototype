@@ -1,5 +1,5 @@
 <script lang="ts">
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { getPlatformKey } from "@metastate-foundation/platform-icons";
 import blabsy from "@metastate-foundation/platform-icons/icons/blabsy.svg";
 import charter from "@metastate-foundation/platform-icons/icons/charter.png";

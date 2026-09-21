@@ -1,5 +1,5 @@
 <script lang="ts">
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { getLocale } from "$lib/paraglide/runtime";
 import { BottomSheet, ButtonAction } from "$lib/ui";
 import type { SocialBindingDisplay } from "./SocialBindingAccordion.svelte";

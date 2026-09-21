@@ -7,7 +7,7 @@ import {
     PUBLIC_REGISTRY_URL,
 } from "$env/static/public";
 import { keyboardInset } from "$lib/actions/keyboardInset";
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { getLocale } from "$lib/paraglide/runtime";
 import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction } from "$lib/ui";

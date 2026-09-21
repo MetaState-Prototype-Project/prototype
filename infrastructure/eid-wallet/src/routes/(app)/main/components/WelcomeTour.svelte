@@ -8,7 +8,7 @@
     bottom panel and the step advancement.
 -->
 <script lang="ts" module>
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 export type TourStep = "ename" | "binding-docs" | "evault" | "apps" | "scan";
 
 export const TOUR_ORDER: TourStep[] = [

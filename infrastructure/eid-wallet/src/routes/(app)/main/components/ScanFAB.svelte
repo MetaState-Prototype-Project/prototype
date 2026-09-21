@@ -1,6 +1,6 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { CameraPermissionDialog } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { QRIcon } from "$lib/ui/icons";

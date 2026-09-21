@@ -2,7 +2,7 @@
 import { goto } from "$app/navigation";
 import { keyboardInset } from "$lib/actions/keyboardInset";
 import type { GlobalState } from "$lib/global";
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { LoadingSheet, PinDots } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { continueAfterSuccessfulAuth } from "$lib/utils/postLogin";

@@ -1,4 +1,4 @@
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import {
     Format,
     type PermissionState,

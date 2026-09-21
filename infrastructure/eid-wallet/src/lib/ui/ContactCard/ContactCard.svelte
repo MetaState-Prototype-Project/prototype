@@ -1,5 +1,5 @@
 <script lang="ts">
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 /**
  * Contact card for person-based scan drawers (social binding).
  * Mirrors PlatformAppCard's stacked layout: avatar above, card below,

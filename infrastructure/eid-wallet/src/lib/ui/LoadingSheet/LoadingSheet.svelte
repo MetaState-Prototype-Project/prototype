@@ -11,7 +11,7 @@
  * optional Cancel button is the only way out, so callers can wire it to
  * abort the in-flight operation when one exists.
  */
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { ButtonAction } from "$lib/ui";
 import { Shadow } from "svelte-loading-spinners";
 import BottomSheet from "../BottomSheet/BottomSheet.svelte";

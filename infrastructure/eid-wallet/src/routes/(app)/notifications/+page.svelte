@@ -1,7 +1,7 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
 import { AppNav } from "$lib/fragments";
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { getLocale } from "$lib/paraglide/runtime";
 import {
     type StoredNotification,

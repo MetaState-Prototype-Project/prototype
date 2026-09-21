@@ -2,7 +2,7 @@
 import { goto } from "$app/navigation";
 import type { GlobalState } from "$lib/global";
 import { runtime } from "$lib/global/runtime.svelte";
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { FaceIdIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import { checkStatus } from "@tauri-apps/plugin-biometric";

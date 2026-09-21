@@ -1,7 +1,7 @@
 <script lang="ts">
 import { AppNav } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { ChevronIcon } from "$lib/ui/icons";
 import {
     type SocialBindingSummary,

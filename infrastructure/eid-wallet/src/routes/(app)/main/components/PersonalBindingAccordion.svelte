@@ -5,7 +5,7 @@
     been filled in. Tapping ADD / EDIT routes to /personal.
 -->
 <script lang="ts">
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { marksAchieved, personalBinding } from "$lib/stores/personalBinding";
 import { ArrowDown01Icon, ArrowUp01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";

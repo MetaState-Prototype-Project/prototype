@@ -8,7 +8,7 @@ import {
 } from "$env/static/public";
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction, CopyableEName, LoadingSheet } from "$lib/ui";
 import { capitalize, getCanonicalBindingDocString } from "$lib/utils";

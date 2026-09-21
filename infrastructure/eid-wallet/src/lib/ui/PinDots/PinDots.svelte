@@ -1,5 +1,5 @@
 <script lang="ts">
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { onMount, tick } from "svelte";
 
 interface IPinDotsProps {

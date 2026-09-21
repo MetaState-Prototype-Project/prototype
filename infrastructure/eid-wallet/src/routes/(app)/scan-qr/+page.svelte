@@ -2,7 +2,7 @@
 import { goto } from "$app/navigation";
 import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
 import type { GlobalState } from "$lib/global";
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { getContext, onDestroy, onMount } from "svelte";
 import type { SVGAttributes } from "svelte/elements";
 import { get } from "svelte/store";

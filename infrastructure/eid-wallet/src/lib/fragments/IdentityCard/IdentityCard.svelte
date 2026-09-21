@@ -1,5 +1,5 @@
 <script lang="ts">
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import * as Button from "$lib/ui/Button";
 import { cn, identityFieldLabel, identityFieldValue } from "$lib/utils";
 import {

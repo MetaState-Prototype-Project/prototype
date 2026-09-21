@@ -1,6 +1,6 @@
 <script lang="ts">
 import { keyboardInset } from "$lib/actions/keyboardInset";
-import { m } from "$lib/paraglide/messages";
+import { m } from "$lib/i18n";
 import { ButtonAction } from "$lib/ui";
 import { onMount } from "svelte";
 import StepHeader from "./StepHeader.svelte";
