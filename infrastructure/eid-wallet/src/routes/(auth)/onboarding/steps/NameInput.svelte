@@ -1,5 +1,6 @@
 <script lang="ts">
 import { keyboardInset } from "$lib/actions/keyboardInset";
+import { m } from "$lib/paraglide/messages";
 import { ButtonAction } from "$lib/ui";
 import { onMount } from "svelte";
 import StepHeader from "./StepHeader.svelte";
@@ -37,17 +38,17 @@ const handleSubmit = async () => {
     class="h-dvh overflow-hidden px-[5vw] flex flex-col bg-white"
     style="padding-top: max(2svh, env(safe-area-inset-top)); padding-bottom: calc(max(16px, env(safe-area-inset-bottom)) + var(--kb-inset, 0px));"
 >
-    <StepHeader title="What's your name?" step={3} {onback} />
+    <StepHeader title={m.onboarding_name_title()} step={3} {onback} />
 
     <section class="flex-1 flex flex-col justify-center">
-        <label for="name" class="text-black opacity-50 text-lg font-medium">Enter your name</label>
+        <label for="name" class="text-black opacity-50 text-lg font-medium">{m.onboarding_name_label()}</label>
         <input
             id="name"
             name="name"
             bind:this={inputEl}
             type="text"
             bind:value={name}
-            placeholder="Alex for example"
+            placeholder={m.onboarding_name_placeholder()}
             autocomplete="given-name"
             autocapitalize="words"
             maxlength="64"
@@ -68,7 +69,7 @@ const handleSubmit = async () => {
             callback={handleSubmit}
             blockingClick={true}
         >
-            Next
+            {m.common_next()}
         </ButtonAction>
     </footer>
 </main>

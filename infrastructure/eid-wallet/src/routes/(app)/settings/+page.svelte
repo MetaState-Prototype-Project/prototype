@@ -3,10 +3,8 @@ import { goto } from "$app/navigation";
 import { SettingsNavigationBtn } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
 import { runtime } from "$lib/global/runtime.svelte";
-import {
-    getCurrentLanguage,
-    subscribe as subscribeLanguage,
-} from "$lib/stores/language";
+import { m } from "$lib/paraglide/messages";
+import { getCurrentLanguage } from "$lib/stores/language.svelte";
 import { clearAllNotifications } from "$lib/stores/notifications";
 import { BottomSheet, ButtonAction } from "$lib/ui";
 import { PinIcon, PrivacyIcon } from "$lib/ui/icons";
@@ -14,7 +12,7 @@ import { clearAllCachedPhotos } from "$lib/utils/photoCache";
 import { isPermissionGranted } from "@choochmeque/tauri-plugin-notifications-api";
 import { FaceIdIcon, Notification02Icon } from "@hugeicons/core-free-icons";
 import { checkStatus } from "@tauri-apps/plugin-biometric";
-import { getContext, onMount } from "svelte";
+import { getContext } from "svelte";
 
 const getGlobalState = getContext<() => GlobalState>("globalState");
 const setGlobalState =
@@ -25,14 +23,23 @@ const globalState = $derived(getGlobalState());
 // at layout init from page.url.pathname). Pushing it through runtime here
 // would re-render the OLD AppNav mid- or post-transition and flash.
 
-let currentLanguage = $state(getCurrentLanguage());
-let biometricsSubtitle = $state("Tap to configure");
-let notificationsSubtitle = $state("Tap to configure");
-onMount(() =>
-    subscribeLanguage(() => {
-        currentLanguage = getCurrentLanguage();
-    }),
-);
+const currentLanguage = $derived(getCurrentLanguage());
+
+// Hold the probed state, not the label, so the rows re-translate when the
+// user switches language without having to re-probe the device.
+type RowState = "unknown" | "on" | "off" | "unavailable";
+let biometricsState = $state<RowState>("unknown");
+let notificationsState = $state<RowState>("unknown");
+
+function rowSubtitle(state: RowState): string {
+    if (state === "unavailable") return m.settings_biometrics_unavailable();
+    if (state === "on") return m.common_on();
+    if (state === "off") return m.common_off();
+    return m.settings_tap_to_configure();
+}
+
+const biometricsSubtitle = $derived(rowSubtitle(biometricsState));
+const notificationsSubtitle = $derived(rowSubtitle(notificationsState));
 
 // Reflect current biometric state in the row subtitle so the user doesn't
 // have to open the page to see whether it's on.
@@ -42,14 +49,14 @@ $effect(() => {
         try {
             const status = await checkStatus();
             if (!status.isAvailable) {
-                biometricsSubtitle = "Unavailable on this device";
+                biometricsState = "unavailable";
                 return;
             }
             const enabled =
                 await globalState.securityController.biometricSupport;
-            biometricsSubtitle = enabled ? "On" : "Off";
+            biometricsState = enabled ? "on" : "off";
         } catch {
-            biometricsSubtitle = "Tap to configure";
+            biometricsState = "unknown";
         }
     })();
 });
@@ -58,10 +65,9 @@ $effect(() => {
 $effect(() => {
     (async () => {
         try {
-            const granted = await isPermissionGranted();
-            notificationsSubtitle = granted ? "On" : "Off";
+            notificationsState = (await isPermissionGranted()) ? "on" : "off";
         } catch {
-            notificationsSubtitle = "Tap to configure";
+            notificationsState = "unknown";
         }
     })();
 });
@@ -104,13 +110,13 @@ async function openPrivacy(e: Event) {
 }
 
 $effect(() => {
-    runtime.header.title = "Settings";
+    runtime.header.title = m.settings_title();
 });
 </script>
 
 <main class="flex flex-col gap-6 mt-6">
     <SettingsNavigationBtn
-        label="Language"
+        label={m.settings_language()}
         subtitle={currentLanguage.name}
         href="/settings/language"
     >
@@ -123,8 +129,8 @@ $effect(() => {
     </SettingsNavigationBtn>
 
     <SettingsNavigationBtn
-        label="Pin-Code"
-        subtitle="Tap to change"
+        label={m.settings_pin_code()}
+        subtitle={m.settings_tap_to_change()}
         href="/settings/pin"
     >
         {#snippet iconSlot()}
@@ -133,22 +139,22 @@ $effect(() => {
     </SettingsNavigationBtn>
 
     <SettingsNavigationBtn
-        label="Biometric login"
+        label={m.settings_biometric_login()}
         subtitle={biometricsSubtitle}
         href="/settings/biometrics"
         icon={FaceIdIcon}
     />
 
     <SettingsNavigationBtn
-        label="Notifications"
+        label={m.settings_notifications()}
         subtitle={notificationsSubtitle}
         href="/settings/notifications"
         icon={Notification02Icon}
     />
 
     <SettingsNavigationBtn
-        label="Privacy policy"
-        subtitle="External link"
+        label={m.settings_privacy_policy()}
+        subtitle={m.settings_external_link()}
         href="https://metastate.foundation/privacy"
         onclick={openPrivacy}
     >
@@ -159,7 +165,7 @@ $effect(() => {
 
     <div class="mt-8">
         <ButtonAction variant="soft" class="w-full text-black uppercase text-md" callback={openLogout}>
-            Logout
+            {m.settings_logout()}
         </ButtonAction>
     </div>
 
@@ -167,27 +173,25 @@ $effect(() => {
 
 <BottomSheet bind:isOpen={isLogoutDrawerOpen}>
     <div class="flex items-start justify-between gap-3">
-        <h3 class="text-2xl font-semibold text-black-900">Logout</h3>
+        <h3 class="text-2xl font-semibold text-black-900">{m.settings_logout()}</h3>
         <button
             type="button"
             onclick={cancelLogout}
-            aria-label="Close"
+            aria-label={m.common_close()}
             class="w-11 h-11 rounded-full bg-black-50 flex items-center justify-center text-black-700 active:opacity-70 shrink-0"
         >
             <span aria-hidden="true" class="text-4xl leading-none">×</span>
         </button>
     </div>
     <p class="text-black-500 leading-snug">
-        Attention: Logging out will unlink this device from your eVault. To
-        regain access, you will need to re-verify and confirm some of the
-        bindings you provided.
+        {m.settings_logout_warning()}
     </p>
     <div class="flex gap-3 mt-2">
         <ButtonAction variant="soft" class="flex-1 text-black uppercase text-lg font-semibold" callback={cancelLogout}
-            >Cancel</ButtonAction
+            >{m.common_cancel()}</ButtonAction
         >
         <ButtonAction variant="soft" class="flex-1 text-black uppercase text-lg font-semibold" callback={performLogout}
-            >Logout</ButtonAction
+            >{m.settings_logout()}</ButtonAction
         >
     </div>
 </BottomSheet>

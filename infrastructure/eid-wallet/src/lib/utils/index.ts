@@ -6,3 +6,4 @@ export * from "./cameraPermission";
 export * from "./bindingDocHash";
 export * from "./socialBinding";
 export * from "./portal";
+export * from "./identityLabels";

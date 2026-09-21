@@ -1,6 +1,8 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
 import { AppNav } from "$lib/fragments";
+import { m } from "$lib/paraglide/messages";
+import { getLocale } from "$lib/paraglide/runtime";
 import {
     type StoredNotification,
     clearAllNotifications,
@@ -51,16 +53,16 @@ function formatTime(dateStr: string): string {
     const diffMs = now.getTime() - date.getTime();
     const diffMin = Math.floor(diffMs / 60000);
 
-    if (diffMin < 1) return "Just now";
-    if (diffMin < 60) return `${diffMin}m ago`;
+    if (diffMin < 1) return m.notif_time_just_now();
+    if (diffMin < 60) return m.notif_time_minutes_ago({ count: diffMin });
 
     const diffHours = Math.floor(diffMin / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffHours < 24) return m.notif_time_hours_ago({ count: diffHours });
 
     const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffDays < 7) return m.notif_time_days_ago({ count: diffDays });
 
-    return date.toLocaleDateString();
+    return date.toLocaleDateString(getLocale());
 }
 
 function handleClearAll() {
@@ -69,24 +71,24 @@ function handleClearAll() {
 }
 </script>
 
-<AppNav title="Notifications" />
+<AppNav title={m.settings_notifications()} />
 
 {#if notifications.length > 0}
     <div class="flex justify-end mb-4">
         <button onclick={handleClearAll} class="text-sm text-primary">
-            Clear all
+            {m.notif_clear_all()}
         </button>
     </div>
 {/if}
 
 {#if !loaded}
     <div class="flex flex-col items-center justify-center mt-20">
-        <p class="text-sm text-black-500">Loading...</p>
+        <p class="text-sm text-black-500">{m.common_loading()}</p>
     </div>
 {:else if notifications.length === 0}
     <div class="flex flex-col items-center justify-center mt-20">
-        <p class="text-lg text-black-700">No notifications</p>
-        <p class="text-sm text-black-500 mt-1">You're all caught up</p>
+        <p class="text-lg text-black-700">{m.notif_empty_title()}</p>
+        <p class="text-sm text-black-500 mt-1">{m.notif_empty_body()}</p>
     </div>
 {:else}
     <div class="flex flex-col gap-4">

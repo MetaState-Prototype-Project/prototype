@@ -2,6 +2,7 @@
 import { goto } from "$app/navigation";
 import { keyboardInset } from "$lib/actions/keyboardInset";
 import type { GlobalState } from "$lib/global";
+import { m } from "$lib/paraglide/messages";
 import { LoadingSheet, PinDots } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { continueAfterSuccessfulAuth } from "$lib/utils/postLogin";
@@ -38,12 +39,12 @@ let globalState: GlobalState | undefined = $state(undefined);
 
 const authOpts: AuthOptions = {
     allowDeviceCredential: false,
-    cancelTitle: "Cancel",
+    cancelTitle: m.common_cancel(),
     // iOS
-    fallbackTitle: "Please enter your PIN",
+    fallbackTitle: m.login_biometric_fallback(),
     // Android
-    title: "Login",
-    subtitle: "Please authenticate to continue",
+    title: m.login_biometric_title(),
+    subtitle: m.login_biometric_subtitle(),
     confirmationRequired: true,
 };
 
@@ -119,10 +120,7 @@ onMount(async () => {
         (await checkStatus()).isAvailable
     ) {
         try {
-            await authenticate(
-                "You must authenticate with PIN first",
-                authOpts,
-            );
+            await authenticate(m.login_biometric_reason(), authOpts);
             isPostAuthLoading = true;
             await continueAfterSuccessfulAuth(gs);
         } catch (e) {
@@ -145,15 +143,15 @@ onMount(async () => {
     class="h-dvh overflow-hidden px-[5vw] flex flex-col bg-white"
     style="padding-top: max(2svh, env(safe-area-inset-top)); padding-bottom: calc(max(16px, env(safe-area-inset-bottom)) + var(--kb-inset, 0px));"
 >
-    <StepHeader title="Enter your PIN" />
+    <StepHeader title={m.login_title()} />
 
     {#if hasPendingDeepLink && !isPostAuthLoading}
         <div
             class="bg-primary-100 border border-primary-200 rounded-xl px-4 py-2.5 mt-4 text-sm text-primary"
             role="status"
         >
-            <strong>Authentication request pending.</strong>
-            Sign in to continue.
+            <strong>{m.login_deeplink_pending_title()}</strong>
+            {m.login_deeplink_pending_body()}
         </div>
     {/if}
 
@@ -163,11 +161,11 @@ onMount(async () => {
         {#if isError}
             <article class="flex flex-col items-center justify-center gap-2">
                 <p class="text-danger text-sm font-medium" role="alert">
-                    Your PIN does not match, try again.
+                    {m.login_pin_mismatch()}
                 </p>
                 <p class="text-black-700 opacity-50 text-sm font-medium">
-                    Forgot your pin? <a href="/recover"
-                        ><u>Recover your eVault.</u></a
+                    {m.login_forgot_pin()} <a href="/recover"
+                        ><u>{m.login_recover_link()}</u></a
                     >
                 </p>
             </article>
@@ -180,7 +178,7 @@ onMount(async () => {
             class="w-full uppercase tracking-wide"
             callback={clearPin}
         >
-            Clear PIN
+            {m.login_clear_pin()}
         </Button.Action>
     </footer>
 </main>
@@ -189,6 +187,6 @@ onMount(async () => {
      user has visual context for the step they just completed. -->
 <LoadingSheet
     isOpen={isPostAuthLoading}
-    title="Signing you in"
-    subtitle="Setting things up. This only takes a moment."
+    title={m.login_signing_in_title()}
+    subtitle={m.login_signing_in_subtitle()}
 />

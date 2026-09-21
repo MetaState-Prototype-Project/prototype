@@ -7,6 +7,11 @@ import { page } from "$app/state";
 import { GlobalState } from "$lib/global/state";
 
 import { runtime } from "$lib/global/runtime.svelte";
+// Side-effect import: installs the rune-backed getLocale override before any
+// route renders, so every m.*() call tracks the locale and repaints on a
+// language switch. Without it only components mounted after the settings
+// screen had loaded would react.
+import "$lib/stores/language.svelte";
 import { swipedetect } from "$lib/utils";
 import { installTerminalConsoleBridge } from "$lib/utils/terminalConsole";
 import { type Status, checkStatus } from "@tauri-apps/plugin-biometric";

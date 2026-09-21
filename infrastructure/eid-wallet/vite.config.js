@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
+import { paraglideVitePlugin } from "@inlang/paraglide-js";
 
 const host = process.env.TAURI_DEV_HOST;
 
@@ -10,6 +11,13 @@ export default defineConfig(async () => ({
     plugins: [
         tailwindcss(), 
         sveltekit(),
+        paraglideVitePlugin({
+            project: "./project.inlang",
+            outdir: "./src/lib/paraglide",
+            // No server and no locale-prefixed URLs in a Tauri build, so the
+            // cookie and url strategies paraglide defaults to never resolve.
+            strategy: ["localStorage", "preferredLanguage", "baseLocale"],
+        }),
         nodePolyfills({
             // Polyfill specific Node.js core modules
             include: ['buffer', 'crypto'],

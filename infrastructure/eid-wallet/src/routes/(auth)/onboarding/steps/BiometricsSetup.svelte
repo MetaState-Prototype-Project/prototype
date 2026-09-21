@@ -1,5 +1,6 @@
 <script lang="ts">
 import { keyboardInset } from "$lib/actions/keyboardInset";
+import { m } from "$lib/paraglide/messages";
 import { ButtonAction } from "$lib/ui";
 import { FaceIdIcon, FingerPrintIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
@@ -41,7 +42,7 @@ const handleEnable = async () => {
     class="h-dvh overflow-hidden px-[5vw] flex flex-col bg-white"
     style="padding-top: max(2svh, env(safe-area-inset-top)); padding-bottom: calc(max(16px, env(safe-area-inset-bottom)) + var(--kb-inset, 0px));"
 >
-    <StepHeader title="Add biometrics" step={3} {onback} />
+    <StepHeader title={m.onboarding_biometrics_title()} step={3} {onback} />
 
     <section class="flex-1 flex flex-col items-center justify-center gap-8">
         <div
@@ -69,17 +70,15 @@ const handleEnable = async () => {
         </div>
 
         <div class="text-center max-w-xs">
-            <h4 class="text-xl font-bold mb-2">Faster, safer sign-in</h4>
+            <h4 class="text-xl font-bold mb-2">{m.onboarding_biometrics_heading()}</h4>
             <p class="text-black-700 text-sm">
-                Use your fingerprint or face to unlock the app instead of typing
-                your PIN every time.
+                {m.onboarding_biometrics_body()}
             </p>
         </div>
 
         {#if isAvailable === false}
             <p class="text-black-500 text-sm text-center px-4">
-                Biometrics aren't available on this device — you can continue
-                with just your PIN.
+                {m.onboarding_biometrics_unavailable()}
             </p>
         {/if}
     </section>
@@ -97,7 +96,7 @@ const handleEnable = async () => {
                     size={18}
                     color="currentColor"
                 />
-                Enable Biometrics
+                {m.onboarding_biometrics_enable()}
             </span>
         </ButtonAction>
         <ButtonAction
@@ -105,7 +104,7 @@ const handleEnable = async () => {
             class="w-full uppercase tracking-wide"
             callback={() => onskip?.()}
         >
-            Skip for now
+            {m.onboarding_biometrics_skip()}
         </ButtonAction>
     </footer>
 </main>

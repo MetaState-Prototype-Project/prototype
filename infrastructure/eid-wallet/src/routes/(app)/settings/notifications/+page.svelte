@@ -2,6 +2,7 @@
 import { goto } from "$app/navigation";
 import type { GlobalState } from "$lib/global";
 import { runtime } from "$lib/global/runtime.svelte";
+import { m } from "$lib/paraglide/messages";
 import NotificationService from "$lib/services/NotificationService";
 import { isPermissionGranted } from "@choochmeque/tauri-plugin-notifications-api";
 import { Notification02Icon } from "@hugeicons/core-free-icons";
@@ -15,7 +16,7 @@ let hint = $state<string | null>(null);
 let working = $state(false);
 
 $effect(() => {
-    runtime.header.title = "Notifications";
+    runtime.header.title = m.settings_notifications();
     runtime.header.onback = () => {
         if (window.history.length > 1) window.history.back();
         else goto("/settings");
@@ -73,7 +74,7 @@ async function toggle() {
         }
     } catch (err) {
         console.error("[settings/notifications] toggle failed:", err);
-        hint = "Something went wrong. Please try again.";
+        hint = m.common_something_went_wrong();
     } finally {
         working = false;
     }
@@ -102,13 +103,13 @@ async function toggle() {
 
         <div class="flex-1 min-w-0">
             <p class="text-base font-semibold text-black-900">
-                Allow notifications
+                {m.notifications_allow()}
             </p>
             <p class="text-sm text-black-500 mt-0.5">
                 {#if enabled}
-                    You'll be notified about new messages and requests.
+                    {m.notifications_enabled_hint()}
                 {:else}
-                    Get notified when there's activity on your eVault.
+                    {m.notifications_disabled_hint()}
                 {/if}
             </p>
         </div>

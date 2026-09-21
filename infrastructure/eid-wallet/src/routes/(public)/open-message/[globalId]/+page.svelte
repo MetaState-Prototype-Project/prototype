@@ -4,6 +4,7 @@ import {
     PUBLIC_BLABSY_BASE_URL,
     PUBLIC_PICTIQUE_BASE_URL,
 } from "$env/static/public";
+import { m } from "$lib/paraglide/messages";
 
 const globalId = page.params.globalId;
 const chatId = page.url.searchParams.get("chatId") || globalId;
@@ -37,10 +38,10 @@ function goBack() {
         <p class="text-black-700 text-sm text-center max-w-sm mb-6">{body}</p>
     {/if}
     {#if !title && !body}
-        <p class="font-medium text-lg mb-6">New Message</p>
+        <p class="font-medium text-lg mb-6">{m.open_message_title()}</p>
     {/if}
 
-    <p class="text-black-500 text-sm mb-6">Open this conversation in</p>
+    <p class="text-black-500 text-sm mb-6">{m.open_message_prompt()}</p>
 
     <div class="flex flex-col gap-3 w-full max-w-xs">
         <button
@@ -71,7 +72,7 @@ function goBack() {
             onclick={goBack}
             class="w-full py-3 text-sm text-black-500 active:opacity-80 transition-opacity mt-2"
         >
-            Cancel
+            {m.common_cancel()}
         </button>
     </div>
 </div>

@@ -8,6 +8,7 @@ import {
 } from "$env/static/public";
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
+import { m } from "$lib/paraglide/messages";
 import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction, CopyableEName, LoadingSheet } from "$lib/ui";
 import { capitalize, getCanonicalBindingDocString } from "$lib/utils";
@@ -93,35 +94,33 @@ let loadingPhase = $state<LoadingPhase>(null);
 const loadingCopy = $derived(
     loadingPhase === "creating-evault"
         ? {
-              title: "Creating your eVault",
-              subtitle:
-                  "Generating your eName and signing your binding document.",
+              title: m.onboarding_loading_creating_title(),
+              subtitle: m.onboarding_loading_creating_subtitle(),
           }
         : loadingPhase === "restoring-evault"
           ? {
-                title: "Restoring your eVault",
-                subtitle: "Loading your identity onto this device.",
+                title: m.onboarding_loading_restoring_title(),
+                subtitle: m.onboarding_loading_restoring_subtitle(),
             }
           : loadingPhase === "starting-verification"
             ? {
-                  title: "Starting verification",
-                  subtitle: "Opening a secure session with our ID partner.",
+                  title: m.onboarding_loading_verification_title(),
+                  subtitle: m.onboarding_loading_verification_subtitle(),
               }
             : loadingPhase === "fetching-decision"
               ? {
-                    title: "Checking your verification",
-                    subtitle: "Hang tight — we're confirming your result.",
+                    title: m.onboarding_loading_decision_title(),
+                    subtitle: m.onboarding_loading_decision_subtitle(),
                 }
               : loadingPhase === "upgrading"
                 ? {
-                      title: "Upgrading your eVault",
-                      subtitle:
-                          "Linking your verified identity to your eVault.",
+                      title: m.onboarding_loading_upgrading_title(),
+                      subtitle: m.onboarding_loading_upgrading_subtitle(),
                   }
                 : loadingPhase === "checking-hardware"
                   ? {
-                        title: "Checking your device",
-                        subtitle: "Looking for hardware-backed key support.",
+                        title: m.onboarding_loading_hardware_title(),
+                        subtitle: m.onboarding_loading_hardware_subtitle(),
                     }
                   : { title: "", subtitle: "" },
 );
@@ -252,7 +251,7 @@ const advancePastBiometrics = async () => {
 const completeRecovery = async () => {
     const recovery = get(pendingRecovery);
     if (!recovery) {
-        recoveryError = "Recovery data lost. Please start recovery again.";
+        recoveryError = m.onboarding_recovery_lost();
         return;
     }
     loadingPhase = "restoring-evault";
@@ -269,8 +268,7 @@ const completeRecovery = async () => {
         await goto("/main", { replaceState: true });
     } catch (err) {
         console.error("[onboarding] recovery completion failed:", err);
-        recoveryError =
-            "Couldn't restore your eVault. Check your connection and try again.";
+        recoveryError = m.onboarding_recovery_failed();
         loadingPhase = null;
     }
 };
@@ -386,8 +384,7 @@ const handleNameComplete = async (enteredName: string) => {
         await goto("/main", { replaceState: true });
     } catch (err) {
         console.error("Failed to provision eVault:", err);
-        nameError =
-            "Couldn't create your eVault. Check your connection and try again.";
+        nameError = m.onboarding_provision_failed();
         loadingPhase = null;
     }
 };
@@ -501,7 +498,7 @@ const handleKycNext = async () => {
         error =
             err instanceof Error
                 ? err.message
-                : "Failed to start verification. Please try again.";
+                : m.onboarding_kyc_start_failed();
         loadingPhase = null;
         setTimeout(() => {
             error = null;
@@ -518,7 +515,7 @@ const handleDiditComplete = async (result: DiditCompleteResult) => {
     }
 
     if (!result.session?.sessionId) {
-        error = "Verification did not return a session ID.";
+        error = m.onboarding_kyc_no_session();
         step = "kyc-panel";
         return;
     }
@@ -554,14 +551,14 @@ const handleDiditComplete = async (result: DiditCompleteResult) => {
                 decision.reviews?.[0]?.comment ??
                 decision.id_verifications?.[0]?.warnings?.[0]
                     ?.short_description ??
-                "Verification could not be completed.";
+                m.onboarding_kyc_incomplete();
         }
 
         loadingPhase = null;
         step = "verif-result";
     } catch (err) {
         console.error("Failed to fetch Didit decision:", err);
-        error = "Failed to retrieve verification result. Please try again.";
+        error = m.onboarding_kyc_decision_failed();
         loadingPhase = null;
         step = "kyc-panel";
         setTimeout(() => {
@@ -642,20 +639,17 @@ const handleProvision = async () => {
         if (result.duplicate) {
             await lookupDuplicateByDocument();
             diditResult = "duplicate";
-            error =
-                "An eVault already exists for this identity. You cannot create a duplicate — please reclaim your existing eVault instead.";
+            error = m.onboarding_duplicate_error();
             loadingPhase = null;
             step = "verif-result";
             return;
         }
 
         if (!result.success) {
-            throw new Error("Provisioning failed");
+            throw new Error(m.onboarding_provisioning_failed());
         }
         if (!result.uri || !result.w3id) {
-            throw new Error(
-                "Provisioning succeeded but did not return uri/w3id",
-            );
+            throw new Error(m.onboarding_provisioning_no_ids());
         }
 
         await globalState.vaultController.setVaultAndPersist({
@@ -670,7 +664,7 @@ const handleProvision = async () => {
         error =
             err instanceof Error
                 ? err.message
-                : "We couldn’t create your eVault after identity verification. Check your connection, then tap Continue again.";
+                : m.onboarding_provision_after_kyc_failed();
         loadingPhase = null;
         step = "verif-result";
         setTimeout(() => {
@@ -683,7 +677,7 @@ const handleProvision = async () => {
 
 const handleAnonymousSubmit = async () => {
     if (!anonName.trim()) {
-        error = "Please enter your name.";
+        error = m.onboarding_name_required();
         setTimeout(() => {
             error = null;
         }, 4000);
@@ -720,7 +714,7 @@ const handleAnonymousSubmit = async () => {
                 "[Onboarding] Missing w3id/uri from anonymous provision result:",
                 provisionResult,
             );
-            error = "Provisioning response is incomplete. Please try again.";
+            error = m.onboarding_provision_incomplete();
             loadingPhase = null;
             step = "anonymous-form";
             return;
@@ -809,8 +803,7 @@ const handleAnonymousSubmit = async () => {
         await goto("/main", { replaceState: true });
     } catch (err) {
         console.error("Anonymous provisioning failed:", err);
-        error =
-            "We couldn’t create your self-declared eVault. Check your connection, then tap Confirm & Create again.";
+        error = m.onboarding_anonymous_provision_failed();
         loadingPhase = null;
         step = "anonymous-form";
         setTimeout(() => {
@@ -824,7 +817,7 @@ const handleUpgrade = async () => {
     const vault = await globalState.vaultController.vault;
     const w3id = vault?.ename;
     if (!w3id) {
-        error = "No active eVault found for upgrade.";
+        error = m.onboarding_upgrade_no_vault();
         return;
     }
 
@@ -833,7 +826,7 @@ const handleUpgrade = async () => {
         diditDecision.session_id ??
         diditDecision.session?.sessionId;
     if (!sessionId) {
-        error = "Missing session ID from verification result.";
+        error = m.kyc_missing_session_id();
         return;
     }
 
@@ -852,16 +845,14 @@ const handleUpgrade = async () => {
             },
         );
         if (!data.success) {
-            throw new Error(data.message ?? "Upgrade failed");
+            throw new Error(data.message ?? m.kyc_upgrade_failed_short());
         }
         loadingPhase = null;
         goto("/ePassport");
     } catch (err) {
         console.error("[Upgrade] failed:", err);
         error =
-            err instanceof Error
-                ? err.message
-                : "Upgrade failed. Please try again.";
+            err instanceof Error ? err.message : m.onboarding_upgrade_failed();
         loadingPhase = null;
         step = "verif-result";
         setTimeout(() => {
@@ -972,19 +963,19 @@ onMount(async () => {
         <section>
             <Hero class="mb-4" titleClasses="text-[42px]/[1.1] font-medium">
                 {#snippet subtitle()}
-                    Your Digital Self consists of three core elements: <br />
-                    <strong>eName</strong> – your unique, permanent digital
-                    identifier, a number
+                    {m.onboarding_hero_intro()} <br />
+                    <strong>eName</strong>
+                    {m.onboarding_hero_ename()}
                     <br />
-                    <strong>ePassport</strong> – your cryptographic keys,
-                    enabling your agency and control
+                    <strong>ePassport</strong>
+                    {m.onboarding_hero_epassport()}
                     <br />
-                    <strong>eVault</strong> – the secure repository of all your
-                    personal data. You will decide who can access it, and how.
+                    <strong>eVault</strong>
+                    {m.onboarding_hero_evault()}
                     <br />
                 {/snippet}
-                Your Digital Self<br />
-                <h4>in Web 3.0 Data Space</h4>
+                {m.onboarding_hero_title()}<br />
+                <h4>{m.onboarding_hero_subtitle()}</h4>
             </Hero>
         </section>
         <section>
@@ -995,31 +986,31 @@ onMount(async () => {
                         step = "new-evault";
                     }}
                 >
-                    Create Digital Self
+                    {m.onboarding_create_cta()}
                 </ButtonAction>
                 <ButtonAction
                     variant="soft"
                     class="w-full"
                     callback={() => goto("/recover")}
                 >
-                    Restore my Digital Self
+                    {m.onboarding_restore_cta()}
                 </ButtonAction>
             </div>
             <p class="text-center small mt-4 text-black-500">
-                By continuing you agree to our <br />
+                {m.onboarding_terms_prefix()} <br />
                 <a
                     href="https://metastate.foundation/"
                     rel="noopener noreferrer"
                     class="text-primary underline underline-offset-4"
-                    target="_blank">Terms & Conditions</a
+                    target="_blank">{m.onboarding_terms_link()}</a
                 >
-                and
+                {m.common_and()}
                 <a
                     href="https://metastate.foundation/privacy"
                     rel="noopener noreferrer"
                     target="_blank"
                     class="text-primary underline underline-offset-4"
-                    >Privacy Policy.</a
+                    >{m.onboarding_privacy_link()}</a
                 >
             </p>
         </section>
@@ -1028,9 +1019,9 @@ onMount(async () => {
     {:else if step === "new-evault"}
         <section class="grow flex flex-col justify-center gap-6">
             <div>
-                <h4 class="text-xl font-bold mb-1">Create your Digital Self</h4>
+                <h4 class="text-xl font-bold mb-1">{m.onboarding_new_title()}</h4>
                 <p class="text-black-700 text-sm">
-                    Choose how you want to prove it’s you.
+                    {m.onboarding_new_subtitle()}
                 </p>
             </div>
             <div class="flex flex-col gap-3">
@@ -1039,12 +1030,10 @@ onMount(async () => {
                     class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
                 >
                     <p class="font-semibold text-base mb-1">
-                        Verify with an official ID
+                        {m.onboarding_path_verified_title()}
                     </p>
                     <p class="text-sm text-black-500">
-                        Use a real-world ID to bind your Digital Self to you.
-                        This gives the strongest proof and makes recovery
-                        easier.
+                        {m.onboarding_path_verified_body()}
                     </p>
                 </button>
                 <button
@@ -1054,11 +1043,10 @@ onMount(async () => {
                     class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
                 >
                     <p class="font-semibold text-base mb-1">
-                        Self-declare for now
+                        {m.onboarding_path_anonymous_title()}
                     </p>
                     <p class="text-sm text-black-500">
-                        Start with a self-signed claim identity – you can add
-                        verified and social binding later.
+                        {m.onboarding_path_anonymous_body()}
                     </p>
                 </button>
             </div>
@@ -1070,7 +1058,7 @@ onMount(async () => {
                 step = "home";
             }}
         >
-            Back
+            {m.common_back()}
         </ButtonAction>
 
         <!-- ── Screen: anonymous form ─────────────────────────────────────────── -->
@@ -1078,12 +1066,10 @@ onMount(async () => {
         <section class="grow flex flex-col justify-start gap-4 pt-2">
             <div>
                 <h4 class="text-xl font-bold mb-1">
-                    Self-declare your identity for now
+                    {m.onboarding_anon_title()}
                 </h4>
                 <p class="text-black-700 text-sm">
-                    Add your full name. Others will see it as unverified until
-                    you support this claim with an official ID or social
-                    binding.
+                    {m.onboarding_anon_body()}
                 </p>
             </div>
 
@@ -1100,21 +1086,23 @@ onMount(async () => {
                     class="text-black-700 font-medium text-sm"
                     for="anonName"
                 >
-                    Full Name <span class="text-danger">*</span>
+                    {m.onboarding_anon_name_label()} <span class="text-danger">*</span>
                 </label>
                 <input
                     id="anonName"
                     type="text"
                     bind:value={anonName}
                     class="border border-gray-200 w-full rounded-md font-medium my-1 p-3 bg-gray-50 focus:bg-white transition-colors"
-                    placeholder="Enter your full name"
+                    placeholder={m.onboarding_anon_name_placeholder()}
                 />
             </div>
 
             <div class="flex flex-col gap-1">
                 <label class="text-black-700 font-medium text-sm" for="anonDob">
-                    Date of Birth
-                    <span class="text-black-400 font-normal">(optional)</span>
+                    {m.onboarding_anon_dob_label()}
+                    <span class="text-black-400 font-normal"
+                        >{m.onboarding_anon_optional()}</span
+                    >
                 </label>
                 <input
                     id="anonDob"
@@ -1123,16 +1111,13 @@ onMount(async () => {
                     class="border border-gray-200 w-full rounded-md font-medium my-1 p-3 bg-gray-50 focus:bg-white transition-colors"
                 />
                 <p class="text-xs text-black-400">
-                    Stored on your device only — not included in the signed
-                    statement.
+                    {m.onboarding_anon_dob_hint()}
                 </p>
             </div>
 
             <div class="rounded-xl bg-primary-50 border border-primary-100 p-4">
                 <p class="text-xs text-primary-700 leading-relaxed">
-                    By continuing, I confirm this is my name and I control this
-                    Digital Self. This statement will be cryptographically
-                    signed and stored as a binding document on your eVault.
+                    {m.onboarding_anon_consent()}
                 </p>
             </div>
         </section>
@@ -1144,7 +1129,7 @@ onMount(async () => {
                 class="w-full"
                 callback={handleAnonymousSubmit}
             >
-                Confirm & Create
+                {m.onboarding_anon_submit()}
             </ButtonAction>
             <ButtonAction
                 variant="soft"
@@ -1154,7 +1139,7 @@ onMount(async () => {
                     error = null;
                 }}
             >
-                Back
+                {m.common_back()}
             </ButtonAction>
         </div>
 
@@ -1185,27 +1170,20 @@ onMount(async () => {
 
                 {#if showHardwareError}
                     <h4 class="mt-2 mb-2 text-red-600 text-left">
-                        Hardware Security Not Available
+                        {m.onboarding_hardware_error_title()}
                     </h4>
                     <p class="text-black-700 mb-4">
-                        Your phone doesn't support hardware crypto keys, which
-                        is a requirement for verified IDs.
+                        {m.onboarding_hardware_error_body()}
                     </p>
                     <p class="text-black-700">
-                        Please use the anonymous option to create an eVault
-                        instead.
+                        {m.onboarding_hardware_error_hint()}
                     </p>
                 {:else}
                     <h4 class="mt-2 mb-4 text-left">
-                        Your Digital Self begins with the Real You
+                        {m.onboarding_kyc_title()}
                     </h4>
                     <p class="text-black-700 leading-relaxed">
-                        In the Web 3.0 Data Space, identity is linked to
-                        reality. We begin by verifying your real-world passport,
-                        which serves as the foundation for issuing your secure
-                        ePassport. At the same time, we generate your eName – a
-                        unique digital identifier – and create your eVault to
-                        store and protect your personal data.
+                        {m.onboarding_kyc_body()}
                     </p>
                 {/if}
             </article>
@@ -1221,14 +1199,14 @@ onMount(async () => {
                                     error = null;
                                 }}
                             >
-                                Go Anonymous
+                                {m.onboarding_go_anonymous()}
                             </ButtonAction>
                         {:else}
                             <ButtonAction
                                 class="w-full"
                                 callback={handleKycNext}
                             >
-                                Next
+                                {m.common_next()}
                             </ButtonAction>
                         {/if}
                         <ButtonAction
@@ -1243,7 +1221,7 @@ onMount(async () => {
                                 }
                             }}
                         >
-                            Back
+                            {m.common_back()}
                         </ButtonAction>
                     </div>
                 {/if}
@@ -1269,7 +1247,7 @@ onMount(async () => {
                     }
                 }}
             >
-                Cancel
+                {m.common_cancel()}
             </button>
         </div>
         <div id="didit-container" class="flex-1 w-full"></div>
@@ -1298,19 +1276,19 @@ onMount(async () => {
                 >
                     ✓
                 </div>
-                <h3 class="text-lg font-bold">Identity Verified</h3>
+                <h3 class="text-lg font-bold">{m.onboarding_result_verified_title()}</h3>
             </div>
             <p class="text-black-700 text-sm">
                 {upgradeMode
-                    ? "Your identity has been verified. Your eVault trust level will now be upgraded."
-                    : "Your identity has been successfully verified. You can now create your eVault."}
+                    ? m.onboarding_result_verified_upgrade_body()
+                    : m.onboarding_result_verified_body()}
             </p>
             <div class="flex flex-col gap-3 pt-2">
                 <ButtonAction
                     class="w-full"
                     callback={upgradeMode ? handleUpgrade : handleProvision}
                 >
-                    Continue
+                    {m.common_continue()}
                 </ButtonAction>
             </div>
         {:else if diditResult === "in_review"}
@@ -1320,11 +1298,10 @@ onMount(async () => {
                 >
                     ⏳
                 </div>
-                <h3 class="text-lg font-bold">Under Review</h3>
+                <h3 class="text-lg font-bold">{m.onboarding_result_review_title()}</h3>
             </div>
             <p class="text-black-700 text-sm">
-                Your verification is being manually reviewed. You'll be notified
-                when it's complete.
+                {m.onboarding_result_review_body()}
             </p>
             <div class="flex flex-col gap-3 pt-2">
                 <ButtonAction
@@ -1335,7 +1312,9 @@ onMount(async () => {
                         else step = "home";
                     }}
                 >
-                    {upgradeMode ? "Back to ePassport" : "Back to Start"}
+                    {upgradeMode
+                        ? m.onboarding_back_to_epassport()
+                        : m.onboarding_back_to_start()}
                 </ButtonAction>
             </div>
         {:else if diditResult === "duplicate"}
@@ -1345,15 +1324,16 @@ onMount(async () => {
                 >
                     !
                 </div>
-                <h3 class="text-lg font-bold">Identity Already Registered</h3>
+                <h3 class="text-lg font-bold">
+                    {m.onboarding_result_duplicate_title()}
+                </h3>
             </div>
             <p class="text-black-700 text-sm">
-                This identity document is already linked to an existing eVault.
-                Please recover that eVault instead of creating a duplicate.
+                {m.onboarding_result_duplicate_body()}
             </p>
             {#if duplicateDocumentNumber}
                 <p class="text-xs text-black-500">
-                    Document: <span class="font-mono"
+                    {m.onboarding_result_duplicate_document()} <span class="font-mono"
                         >{duplicateDocumentNumber}</span
                     >
                 </p>
@@ -1361,12 +1341,12 @@ onMount(async () => {
             {#if duplicateExistingW3id}
                 <CopyableEName
                     ename={duplicateExistingW3id}
-                    label="Existing eVault eName"
+                    label={m.onboarding_result_duplicate_ename_label()}
                 />
             {/if}
             <div class="flex flex-col gap-3 pt-2">
                 <ButtonAction class="w-full" callback={() => goto("/recover")}>
-                    Recover existing eVault
+                    {m.onboarding_recover_existing()}
                 </ButtonAction>
                 <ButtonAction
                     variant="soft"
@@ -1375,7 +1355,7 @@ onMount(async () => {
                         step = "home";
                     }}
                 >
-                    Back to Start
+                    {m.onboarding_back_to_start()}
                 </ButtonAction>
             </div>
         {:else}
@@ -1385,19 +1365,18 @@ onMount(async () => {
                 >
                     ✗
                 </div>
-                <h3 class="text-lg font-bold">Verification Failed</h3>
+                <h3 class="text-lg font-bold">{m.onboarding_result_failed_title()}</h3>
             </div>
             <p class="text-black-700 text-sm">
-                {diditRejectionReason ??
-                    "Your verification could not be completed."}
+                {diditRejectionReason ?? m.onboarding_result_failed_body()}
             </p>
             <p class="text-black-500 text-xs">
-                If you believe this was a mistake, please contact us at
+                {m.onboarding_result_failed_contact()}
                 <a href="mailto:info@metastate.foundation" class="text-primary underline">info@metastate.foundation</a>.
             </p>
             <div class="flex flex-col gap-3 pt-2">
                 <ButtonAction class="w-full" callback={handleKycNext}>
-                    Try Again
+                    {m.common_try_again()}
                 </ButtonAction>
                 {#if !upgradeMode}
                     <ButtonAction
@@ -1407,7 +1386,7 @@ onMount(async () => {
                             step = "anonymous-form";
                         }}
                     >
-                        Self-declare instead
+                        {m.onboarding_self_declare_instead()}
                     </ButtonAction>
                 {/if}
                 <ButtonAction
@@ -1418,7 +1397,7 @@ onMount(async () => {
                         else step = "home";
                     }}
                 >
-                    Back
+                    {m.common_back()}
                 </ButtonAction>
             </div>
         {/if}

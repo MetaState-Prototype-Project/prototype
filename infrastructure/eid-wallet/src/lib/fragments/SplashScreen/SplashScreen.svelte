@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/paraglide/messages";
 import { ButtonAction } from "$lib/ui";
 import { onMount } from "svelte";
 import { cubicOut } from "svelte/easing";
@@ -69,7 +70,7 @@ onMount(async () => {
                 aria-hidden={!open}
             >
                 <p class="text-white text-2xl font-medium leading-[120%]">
-                    Your Digital Self
+                    {m.onboarding_hero_title()}
                 </p>
             </div>
             <img
@@ -98,35 +99,35 @@ onMount(async () => {
                 callback={oncreate}
                 class="w-full uppercase tracking-wide active:bg-primary-400"
             >
-                Create Digital Self
+                {m.onboarding_create_cta()}
             </ButtonAction>
             <ButtonAction
                 variant="soft"
                 callback={onrestore}
                 class="w-full uppercase tracking-wide text-black active:bg-primary-200"
             >
-                Restore Digital Self
+                {m.splash_restore_cta()}
             </ButtonAction>
             <p
                 class="text-center font-medium text-md text-black-700/50 leading-normal"
             >
-                By continuing you agree to our
+                {m.onboarding_terms_prefix()}
                 <a
                     href="https://metastate.foundation/"
                     target="_blank"
                     rel="noopener noreferrer"
                     class="text-primary"
                 >
-                    Terms &amp; Conditions
+                    {m.onboarding_terms_link()}
                 </a>
-                and
+                {m.common_and()}
                 <a
                     href="https://metastate.foundation/"
                     target="_blank"
                     rel="noopener noreferrer"
                     class="text-primary"
                 >
-                    Privacy Policy
+                    {m.common_privacy_policy()}
                 </a>
             </p>
         </div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/paraglide/messages";
 import { InformationCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 
@@ -15,15 +16,17 @@ const { available, oninfo }: IEVaultCardProps = $props();
     class="bg-white rounded-2xl p-4 shadow-card flex items-start justify-between gap-3"
 >
     <div>
-        <p class="text-lg text-black-700 font-medium">Your eVault</p>
+        <p class="text-lg text-black-700 font-medium">{m.main_evault_title()}</p>
         <p class="text-2xl font-medium text-black mt-0.5">
             {available}
-            <span class="font-medium text-black opacity-50">available</span>
+            <span class="font-medium text-black opacity-50"
+                >{m.main_evault_available()}</span
+            >
         </p>
     </div>
     <button
         type="button"
-        aria-label="About eVault"
+        aria-label={m.main_evault_about_aria()}
         onclick={oninfo}
         class="text-black-300 active:opacity-60 mt-0.5"
     >

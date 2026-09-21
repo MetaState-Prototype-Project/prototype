@@ -1,17 +1,18 @@
 <script lang="ts">
 import { runtime } from "$lib/global/runtime.svelte";
+import { m } from "$lib/paraglide/messages";
 import {
     AVAILABLE_LANGUAGES,
     getCurrentLanguage,
     setCurrentLanguage,
-} from "$lib/stores/language";
+} from "$lib/stores/language.svelte";
 import { Tick01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 
-let selected = $state(getCurrentLanguage().name);
+let selected = $state(getCurrentLanguage().locale);
 
 $effect(() => {
-    runtime.header.title = "Language";
+    runtime.header.title = m.settings_language();
 });
 
 $effect(() => {
@@ -20,7 +21,7 @@ $effect(() => {
 </script>
 
 <main class="flex flex-col gap-1 mt-4">
-    {#each AVAILABLE_LANGUAGES as lang (lang.name)}
+    {#each AVAILABLE_LANGUAGES as lang (lang.locale)}
         <label
             class="w-full flex items-center gap-3 py-3 active:opacity-70"
             class:opacity-50={!lang.enabled}
@@ -29,7 +30,7 @@ $effect(() => {
             <input
                 type="radio"
                 name="language"
-                value={lang.name}
+                value={lang.locale}
                 bind:group={selected}
                 disabled={!lang.enabled}
                 class="sr-only"
@@ -45,7 +46,7 @@ $effect(() => {
             <p class="font-semibold text-black-700 text-lg flex-1">
                 {lang.name}
             </p>
-            {#if selected === lang.name}
+            {#if selected === lang.locale}
                 <div
                     class="w-6 h-6 rounded-full bg-success-300 flex items-center justify-center shrink-0"
                 >

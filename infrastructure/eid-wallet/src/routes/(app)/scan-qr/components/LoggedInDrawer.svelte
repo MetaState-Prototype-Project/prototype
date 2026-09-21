@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/paraglide/messages";
 import { BottomSheet, PlatformAppCard } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { untrack } from "svelte";
@@ -55,10 +56,12 @@ $effect(() => {
                         id="loggedin-title"
                         class="text-2xl font-bold text-black-900 text-center leading-tight"
                     >
-                        You're logged in!
+                        {m.loggedin_title()}
                     </h4>
                     <p class="text-sm leading-relaxed text-black-500 text-center">
-                        You're now connected to {platform ?? "the platform"}
+                        {m.loggedin_connected_to({
+                            platform: platform ?? m.loggedin_platform_fallback(),
+                        })}
                     </p>
                 </div>
 
@@ -69,8 +72,9 @@ $effect(() => {
 
                 {#if redirect && platform}
                     <p class="text-sm text-black-500 text-center px-4">
-                        You may return to <strong>{platform}</strong> and continue
-                        there
+                        {m.loggedin_return_prefix()}
+                        <strong>{platform}</strong>
+                        {m.loggedin_return_suffix()}
                     </p>
                 {/if}
             </div>
@@ -81,7 +85,7 @@ $effect(() => {
                     class="w-full"
                     callback={onConfirm}
                 >
-                    Ok
+                    {m.common_ok()}
                 </Button.Action>
             </div>
         </div>

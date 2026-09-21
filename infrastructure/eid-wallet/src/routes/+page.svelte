@@ -3,6 +3,7 @@ import { browser } from "$app/environment";
 import { goto } from "$app/navigation";
 import SplashScreen from "$lib/fragments/SplashScreen/SplashScreen.svelte";
 import type { GlobalState } from "$lib/global";
+import { m } from "$lib/paraglide/messages";
 import { continueAfterSuccessfulAuth } from "$lib/utils/postLogin";
 import {
     type AuthOptions,
@@ -15,10 +16,10 @@ const BIOMETRIC_ATTEMPTED_KEY = "biometricAttemptedOnSplash";
 
 const authOpts: AuthOptions = {
     allowDeviceCredential: false,
-    cancelTitle: "Cancel",
-    fallbackTitle: "Please enter your PIN",
-    title: "Login",
-    subtitle: "Please authenticate to continue",
+    cancelTitle: m.common_cancel(),
+    fallbackTitle: m.login_biometric_fallback(),
+    title: m.login_biometric_title(),
+    subtitle: m.login_biometric_subtitle(),
     confirmationRequired: true,
 };
 
@@ -124,10 +125,7 @@ onMount(async () => {
         if (biometricAvailable && globalState) {
             sessionStorage.setItem(BIOMETRIC_ATTEMPTED_KEY, "true");
             try {
-                await authenticate(
-                    "You must authenticate with PIN first",
-                    authOpts,
-                );
+                await authenticate(m.login_biometric_reason(), authOpts);
                 // Success — clear the flag (we won't reach /login at all)
                 // and run the shared post-auth routine.
                 sessionStorage.removeItem(BIOMETRIC_ATTEMPTED_KEY);

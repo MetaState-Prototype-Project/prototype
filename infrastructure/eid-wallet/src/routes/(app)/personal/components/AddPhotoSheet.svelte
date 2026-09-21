@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/paraglide/messages";
 import type { PhotoMark } from "$lib/stores/personalBinding";
 import { ButtonAction, CameraPermissionDialog } from "$lib/ui";
 import BottomSheet from "$lib/ui/BottomSheet/BottomSheet.svelte";
@@ -170,7 +171,9 @@ function save() {
 }
 
 const fullScreen = $derived(mode !== "pick");
-const sheetTitle = $derived(editing ? "Edit photo mark" : "Add photo mark");
+const sheetTitle = $derived(
+    editing ? m.photo_sheet_edit_title() : m.photo_sheet_add_title(),
+);
 </script>
 
 <BottomSheet
@@ -187,7 +190,7 @@ const sheetTitle = $derived(editing ? "Edit photo mark" : "Add photo mark");
         <h2 class="text-2xl font-bold text-black-900">{sheetTitle}</h2>
         <button
             type="button"
-            aria-label="Close"
+            aria-label={m.common_close()}
             class="w-9 h-9 rounded-full bg-black-50 flex items-center justify-center active:opacity-70"
             onclick={close}
         >
@@ -201,20 +204,20 @@ const sheetTitle = $derived(editing ? "Edit photo mark" : "Add photo mark");
 
     {#if mode === "pick"}
         <div class="flex flex-col gap-3 mt-2">
-            <p class="text-black-500">Take from</p>
+            <p class="text-black-500">{m.photo_take_from()}</p>
             <button
                 type="button"
                 onclick={chooseCamera}
                 class="w-full bg-white border border-black-100 text-black-900 font-bold uppercase tracking-wide rounded-full py-4 active:bg-black-50"
             >
-                Camera
+                {m.photo_source_camera()}
             </button>
             <button
                 type="button"
                 onclick={chooseGallery}
                 class="w-full bg-white border border-black-100 text-black-900 font-bold uppercase tracking-wide rounded-full py-4 active:bg-black-50"
             >
-                Gallery
+                {m.photo_source_gallery()}
             </button>
             <input
                 bind:this={galleryInput}
@@ -229,14 +232,14 @@ const sheetTitle = $derived(editing ? "Edit photo mark" : "Add photo mark");
                     for="photo-description-pre"
                     class="block text-black-500 mb-2"
                 >
-                    Description
+                    {m.photo_description_label()}
                 </label>
                 <input
                     id="photo-description-pre"
                     type="text"
                     bind:value={description}
                     maxlength={PERSONAL_BINDING_MAX_LENGTH}
-                    placeholder="Describe this photo"
+                    placeholder={m.photo_description_placeholder()}
                     class="w-full bg-card-alternative rounded-full px-5 py-4 placeholder:text-black-300 outline-none focus:ring-2 focus:ring-primary"
                 />
                 {#if description.length > PERSONAL_BINDING_MAX_LENGTH - 150}
@@ -248,7 +251,7 @@ const sheetTitle = $derived(editing ? "Edit photo mark" : "Add photo mark");
         </div>
     {:else if mode === "capture"}
         <div class="flex flex-col gap-4 flex-1">
-            <p class="text-black-500">Taken from camera</p>
+            <p class="text-black-500">{m.photo_taken_from_camera()}</p>
             <div class="relative w-full flex-1 min-h-0">
                 <!-- svelte-ignore a11y_media_has_caption -->
                 <video
@@ -260,15 +263,15 @@ const sheetTitle = $derived(editing ? "Edit photo mark" : "Add photo mark");
                 <canvas bind:this={canvas} class="hidden"></canvas>
             </div>
             <ButtonAction class="w-full" callback={capturePhoto}>
-                Capture
+                {m.photo_capture()}
             </ButtonAction>
         </div>
     {:else if mode === "preview" && pendingDataUrl}
         <div class="flex flex-col gap-4 flex-1">
             <p class="text-black-500">
                 {pendingSource === "camera"
-                    ? "Taken from camera"
-                    : "Picked from gallery"}
+                    ? m.photo_taken_from_camera()
+                    : m.photo_picked_from_gallery()}
             </p>
 
             <div class="relative w-full">
@@ -279,7 +282,7 @@ const sheetTitle = $derived(editing ? "Edit photo mark" : "Add photo mark");
                 />
                 <button
                     type="button"
-                    aria-label="Discard photo"
+                    aria-label={m.photo_discard_aria()}
                     class="absolute top-3 right-3 w-9 h-9 rounded-full bg-white shadow-md flex items-center justify-center active:opacity-70"
                     onclick={discardPhoto}
                 >
@@ -296,14 +299,14 @@ const sheetTitle = $derived(editing ? "Edit photo mark" : "Add photo mark");
                     for="photo-description"
                     class="block text-black-500 mb-2"
                 >
-                    Description
+                    {m.photo_description_label()}
                 </label>
                 <input
                     id="photo-description"
                     type="text"
                     bind:value={description}
                     maxlength={PERSONAL_BINDING_MAX_LENGTH}
-                    placeholder="Describe this photo"
+                    placeholder={m.photo_description_placeholder()}
                     class="w-full bg-card-alternative rounded-full px-5 py-4 placeholder:text-black-300 outline-none focus:ring-2 focus:ring-primary"
                 />
                 {#if description.length > PERSONAL_BINDING_MAX_LENGTH - 150}
@@ -313,7 +316,7 @@ const sheetTitle = $derived(editing ? "Edit photo mark" : "Add photo mark");
                 {/if}
             </div>
 
-            <ButtonAction class="w-full" callback={save}>Save</ButtonAction>
+            <ButtonAction class="w-full" callback={save}>{m.common_save()}</ButtonAction>
         </div>
     {/if}
 </BottomSheet>
@@ -321,6 +324,6 @@ const sheetTitle = $derived(editing ? "Edit photo mark" : "Add photo mark");
 <CameraPermissionDialog
     isOpen={showPermissionDialog}
     onOpenSettings={handleOpenSettings}
-    title="Camera Access Required"
-    description="To capture a photo mark, please grant camera permission in your device settings."
+    title={m.camera_permission_title()}
+    description={m.photo_camera_permission_description()}
 />

@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/paraglide/messages";
 import { InformationCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import LegalIdAccordion, { type LegalIdDoc } from "./LegalIdAccordion.svelte";
@@ -37,10 +38,10 @@ const {
     class="bg-white rounded-2xl p-4 shadow-card"
 >
     <header class="flex items-center justify-between mb-3">
-        <h3 class="font-medium text-black text-lg">Binding Documents</h3>
+        <h3 class="font-medium text-black text-lg">{m.binding_docs_title()}</h3>
         <button
             type="button"
-            aria-label="About binding documents"
+            aria-label={m.binding_docs_about_aria()}
             onclick={oninfo}
             class="text-black-300 active:opacity-60"
         >

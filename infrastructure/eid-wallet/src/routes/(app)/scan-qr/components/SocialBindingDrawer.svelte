@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/paraglide/messages";
 import { BottomSheet, ContactCard } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
@@ -65,7 +66,7 @@ $effect(() => {
                         type="button"
                         onclick={onDecline}
                         disabled={loading}
-                        aria-label="Close"
+                        aria-label={m.common_close()}
                         class="w-9 h-9 rounded-full bg-gray-100 text-black-700 flex items-center justify-center active:opacity-80 disabled:opacity-40"
                     >
                         <HugeiconsIcon
@@ -88,16 +89,14 @@ $effect(() => {
                             : 'text-black-900'}"
                     >
                         {success
-                            ? "Request sent"
-                            : "You have scanned a\nsocial binding QR code"}
+                            ? m.scan_social_request_sent()
+                            : m.scan_social_scanned()}
                     </h4>
                     <p class="text-sm leading-relaxed text-black-500 text-center">
                         {#if success}
-                            You've signed the social identity binding. The
-                            counterparty will counter-sign to complete the
-                            mutual binding.
+                            {m.scan_social_success_body()}
                         {:else}
-                            Please review the identity below before proceeding.
+                            {m.scan_social_review_body()}
                         {/if}
                     </p>
                 </div>
@@ -113,13 +112,13 @@ $effect(() => {
                             for="relation-description"
                             class="text-xs font-semibold text-black-500 uppercase tracking-wider block mb-1"
                         >
-                            Relationship Description
+                            {m.scan_social_relation_label()}
                         </label>
                         <textarea
                             id="relation-description"
                             class="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-black-700 resize-none focus:outline-none focus:border-primary"
                             rows="3"
-                            placeholder="Describe how you know this person..."
+                            placeholder={m.scan_social_relation_placeholder()}
                             value={relationDescription}
                             oninput={(e) =>
                                 onDescriptionChange(e.currentTarget.value)}
@@ -141,7 +140,7 @@ $effect(() => {
                     <Button.Action
                         variant="solid"
                         class="w-full"
-                        callback={onDecline}>Okay</Button.Action
+                        callback={onDecline}>{m.common_okay()}</Button.Action
                     >
                 {:else}
                     <div class="flex justify-center gap-3 items-center w-full">
@@ -149,13 +148,13 @@ $effect(() => {
                             <Button.Action
                                 variant="solid"
                                 class="w-full"
-                                callback={onDecline}>Okay</Button.Action
+                                callback={onDecline}>{m.common_okay()}</Button.Action
                             >
                         {:else}
                             <Button.Action
                                 variant="soft"
                                 class="w-full"
-                                callback={onDecline}>Decline</Button.Action
+                                callback={onDecline}>{m.common_decline()}</Button.Action
                             >
                             <Button.Action
                                 variant="solid"
@@ -163,7 +162,7 @@ $effect(() => {
                                 callback={onConfirm}
                                 disabled={loading}
                             >
-                                {loading ? "Signing…" : "Sign Binding"}
+                                {loading ? m.scan_social_signing() : m.scan_social_sign_binding()}
                             </Button.Action>
                         {/if}
                     </div>

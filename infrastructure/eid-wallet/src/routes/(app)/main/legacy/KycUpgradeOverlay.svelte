@@ -13,6 +13,7 @@ import {
     PUBLIC_PROVISIONER_URL,
 } from "$env/static/public";
 import type { GlobalState } from "$lib/global";
+import { m } from "$lib/paraglide/messages";
 import { CopyableEName } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { capitalize } from "$lib/utils";
@@ -144,8 +145,10 @@ async function startKycUpgrade() {
         console.error("[KYC] probeHardware failed/timed out:", err);
         kycError =
             err instanceof Error && err.message === "probeHardware timed out"
-                ? "Hardware capability check timed out after 10s. Check adb logcat for crypto-hw plugin errors."
-                : `Hardware check failed: ${err instanceof Error ? err.message : String(err)}`;
+                ? m.kyc_hardware_check_timeout()
+                : m.kyc_hardware_check_failed({
+                      reason: err instanceof Error ? err.message : String(err),
+                  });
         kycStep = "start-error";
         return;
     }
@@ -194,7 +197,7 @@ async function startKycUpgrade() {
         kycError =
             err instanceof Error
                 ? err.message
-                : "Failed to start verification. Please try again.";
+                : m.onboarding_kyc_start_failed();
         kycStep = "start-error";
     }
 }
@@ -208,7 +211,7 @@ const handleDiditComplete = async (result: DiditCompleteResult) => {
     }
 
     if (!result.session?.sessionId) {
-        kycError = "Verification did not return a session ID.";
+        kycError = m.onboarding_kyc_no_session();
         resetKyc();
         return;
     }
@@ -241,13 +244,13 @@ const handleDiditComplete = async (result: DiditCompleteResult) => {
                 decision.reviews?.[0]?.comment ??
                 decision.id_verifications?.[0]?.warnings?.[0]
                     ?.short_description ??
-                "Verification could not be completed.";
+                m.onboarding_kyc_incomplete();
         }
 
         kycStep = "result";
     } catch (err) {
         console.error("[KYC] Failed to fetch decision:", err);
-        kycError = "Failed to retrieve verification result. Please try again.";
+        kycError = m.onboarding_kyc_decision_failed();
         resetKyc();
         setTimeout(() => {
             kycError = null;
@@ -260,7 +263,7 @@ async function handleUpgrade() {
     const vault = await globalState.vaultController.vault;
     const w3id = vault?.ename;
     if (!w3id) {
-        kycError = "No active eVault found for upgrade.";
+        kycError = m.onboarding_upgrade_no_vault();
         return;
     }
 
@@ -269,7 +272,7 @@ async function handleUpgrade() {
         diditDecision.session_id ??
         diditDecision.session?.sessionId;
     if (!sessionId) {
-        kycError = "Missing session ID from verification result.";
+        kycError = m.kyc_missing_session_id();
         return;
     }
 
@@ -292,7 +295,7 @@ async function handleUpgrade() {
                 duplicateEName = data.existingW3id ?? null;
                 kycStep = "duplicate";
             } else {
-                kycError = data.message ?? "Upgrade failed";
+                kycError = data.message ?? m.kyc_upgrade_failed_short();
                 kycStep = "result";
             }
             return;
@@ -346,7 +349,7 @@ async function handleUpgrade() {
                 body?.message ??
                 (err instanceof Error
                     ? err.message
-                    : "Upgrade failed. Please try again.");
+                    : m.onboarding_upgrade_failed());
             kycStep = "result";
             setTimeout(() => {
                 kycError = null;
@@ -385,31 +388,28 @@ async function handleUpgrade() {
                             <Shadow size={40} color="rgb(142, 82, 255)" />
                             <h4 class="text-center">
                                 {kycStep === "checking-hw"
-                                    ? "Checking device capabilities..."
+                                    ? m.kyc_checking_device()
                                     : kycStep === "upgrading"
-                                      ? "Upgrading your eVault…"
-                                      : "Starting verification…"}
+                                      ? m.kyc_upgrading()
+                                      : m.onboarding_loading_verification_title()}
                             </h4>
                         </div>
                     {:else if kycStep === "hw-error"}
                         <h4 class="mt-2 mb-2 text-red-600 text-left">
-                            Hardware Security Not Available
+                            {m.onboarding_hardware_error_title()}
                         </h4>
                         <p class="text-black-700 mb-4">
-                            Your phone doesn't support hardware crypto keys,
-                            which is a requirement for verified IDs.
+                            {m.onboarding_hardware_error_body()}
                         </p>
                         <p class="text-black-700">
-                            Hardware-backed identity verification is not
-                            available on this device.
+                            {m.kyc_hardware_unavailable_body()}
                         </p>
                     {:else if kycStep === "start-error"}
                         <h4 class="mt-2 mb-2 text-red-600 text-left">
-                            Couldn't start verification
+                            {m.kyc_start_error_title()}
                         </h4>
                         <p class="text-black-700 mb-4 wrap-break-word">
-                            {kycError ??
-                                "Failed to start verification. Please try again."}
+                            {kycError ?? m.onboarding_kyc_start_failed()}
                         </p>
                     {/if}
                 </article>
@@ -421,7 +421,7 @@ async function handleUpgrade() {
                             class="w-full"
                             callback={resetKyc}
                         >
-                            Cancel
+                            {m.common_cancel()}
                         </Button.Action>
                     </div>
                 {:else if kycStep === "start-error"}
@@ -430,14 +430,14 @@ async function handleUpgrade() {
                             class="w-full"
                             callback={startKycUpgrade}
                         >
-                            Try Again
+                            {m.common_try_again()}
                         </Button.Action>
                         <Button.Action
                             variant="soft"
                             class="w-full"
                             callback={resetKyc}
                         >
-                            Cancel
+                            {m.common_cancel()}
                         </Button.Action>
                     </div>
                 {/if}
@@ -455,7 +455,7 @@ async function handleUpgrade() {
                     class="text-sm text-black-500 underline"
                     onclick={resetKyc}
                 >
-                    Cancel
+                    {m.common_cancel()}
                 </button>
             </div>
             <div id="didit-container-home" class="flex-1 w-full"></div>
@@ -474,21 +474,18 @@ async function handleUpgrade() {
                 >
                     !
                 </div>
-                <h3 class="text-lg font-bold">Identity Already Registered</h3>
+                <h3 class="text-lg font-bold">{m.kyc_duplicate_title()}</h3>
             </div>
             <p class="text-black-700 text-sm leading-relaxed">
-                This identity document is already linked to an existing eVault.
-                You can't create a duplicate — each person gets one verified
-                eVault.
+                {m.kyc_duplicate_body()}
             </p>
             {#if duplicateEName}
                 <CopyableEName
                     ename={duplicateEName}
-                    label="Your existing eVault eName"
+                    label={m.kyc_duplicate_ename_label()}
                 />
                 <p class="text-sm text-black-500">
-                    Use the eName above to recover access to your existing
-                    eVault instead.
+                    {m.kyc_duplicate_hint()}
                 </p>
             {/if}
             <div class="flex flex-col gap-3 pt-2">
@@ -497,7 +494,7 @@ async function handleUpgrade() {
                     class="w-full"
                     callback={resetKyc}
                 >
-                    Got it
+                    {m.tour_cta_got_it()}
                 </Button.Action>
             </div>
         </div>
@@ -524,15 +521,14 @@ async function handleUpgrade() {
                     >
                         ✓
                     </div>
-                    <h3 class="text-lg font-bold">Identity Verified</h3>
+                    <h3 class="text-lg font-bold">{m.onboarding_result_verified_title()}</h3>
                 </div>
                 <p class="text-black-700 text-sm">
-                    Your identity has been verified. Your eVault trust level
-                    will now be upgraded.
+                    {m.kyc_result_verified_body()}
                 </p>
                 <div class="flex flex-col gap-3 pt-2">
                     <Button.Action class="w-full" callback={handleUpgrade}>
-                        Continue
+                        {m.common_continue()}
                     </Button.Action>
                 </div>
             {:else if diditResult === "in_review"}
@@ -542,11 +538,10 @@ async function handleUpgrade() {
                     >
                         ⏳
                     </div>
-                    <h3 class="text-lg font-bold">Under Review</h3>
+                    <h3 class="text-lg font-bold">{m.onboarding_result_review_title()}</h3>
                 </div>
                 <p class="text-black-700 text-sm">
-                    Your verification is being manually reviewed. You'll be
-                    notified when it's complete.
+                    {m.kyc_result_review_body()}
                 </p>
                 <div class="flex flex-col gap-3 pt-2">
                     <Button.Action
@@ -554,7 +549,7 @@ async function handleUpgrade() {
                         class="w-full"
                         callback={resetKyc}
                     >
-                        Close
+                        {m.common_close()}
                     </Button.Action>
                 </div>
             {:else}
@@ -564,22 +559,21 @@ async function handleUpgrade() {
                     >
                         ✗
                     </div>
-                    <h3 class="text-lg font-bold">Verification Failed</h3>
+                    <h3 class="text-lg font-bold">{m.onboarding_result_failed_title()}</h3>
                 </div>
                 <p class="text-black-700 text-sm">
-                    {diditRejectionReason ??
-                        "Your verification could not be completed."}
+                    {diditRejectionReason ?? m.onboarding_result_failed_body()}
                 </p>
                 <div class="flex flex-col gap-3 pt-2">
                     <Button.Action class="w-full" callback={startKycUpgrade}>
-                        Try Again
+                        {m.common_try_again()}
                     </Button.Action>
                     <Button.Action
                         variant="soft"
                         class="w-full"
                         callback={resetKyc}
                     >
-                        Cancel
+                        {m.common_cancel()}
                     </Button.Action>
                 </div>
             {/if}

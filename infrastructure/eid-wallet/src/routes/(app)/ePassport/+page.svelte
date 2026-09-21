@@ -6,6 +6,7 @@ import {
 } from "$env/static/public";
 import { AppNav, IdentityCard } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
+import { m } from "$lib/paraglide/messages";
 import { ButtonAction, CopyableEName } from "$lib/ui";
 import {
     addCounterpartySignature,
@@ -14,6 +15,8 @@ import {
     fetchNameFromVault,
     fetchUnsignedSocialDocs,
     getCanonicalBindingDocString,
+    identityFieldLabel,
+    identityFieldValue,
     resolveVaultUri,
 } from "$lib/utils";
 import axios from "axios";
@@ -208,7 +211,7 @@ async function startKycUpgrade() {
         kycError =
             err instanceof Error
                 ? err.message
-                : "Failed to start verification. Please try again.";
+                : m.onboarding_kyc_start_failed();
         kycStep = "idle";
         setTimeout(() => {
             kycError = null;
@@ -224,7 +227,7 @@ const handleDiditComplete = async (result: DiditCompleteResult) => {
 
     if (!result.session?.sessionId) {
         resetKyc();
-        kycError = "Verification did not return a session ID.";
+        kycError = m.onboarding_kyc_no_session();
         return;
     }
 
@@ -256,14 +259,14 @@ const handleDiditComplete = async (result: DiditCompleteResult) => {
                 decision.reviews?.[0]?.comment ??
                 decision.id_verifications?.[0]?.warnings?.[0]
                     ?.short_description ??
-                "Verification could not be completed.";
+                m.onboarding_kyc_incomplete();
         }
 
         kycStep = "result";
     } catch (err) {
         console.error("[KYC] Failed to fetch decision:", err);
         resetKyc();
-        kycError = "Failed to retrieve verification result. Please try again.";
+        kycError = m.onboarding_kyc_decision_failed();
         setTimeout(() => {
             kycError = null;
         }, 6000);
@@ -275,7 +278,7 @@ async function handleUpgrade() {
     const vault = await globalState.vaultController.vault;
     const w3id = vault?.ename;
     if (!w3id) {
-        kycError = "No active eVault found for upgrade.";
+        kycError = m.onboarding_upgrade_no_vault();
         return;
     }
 
@@ -284,7 +287,7 @@ async function handleUpgrade() {
         diditDecision.session_id ??
         diditDecision.session?.sessionId;
     if (!sessionId) {
-        kycError = "Missing session ID from verification result.";
+        kycError = m.kyc_missing_session_id();
         return;
     }
 
@@ -307,7 +310,7 @@ async function handleUpgrade() {
                 duplicateEName = data.existingW3id ?? null;
                 kycStep = "duplicate";
             } else {
-                kycError = data.message ?? "Upgrade failed";
+                kycError = data.message ?? m.kyc_upgrade_failed_short();
                 kycStep = "result";
             }
             return;
@@ -380,7 +383,7 @@ async function handleUpgrade() {
                 body?.message ??
                 (err instanceof Error
                     ? err.message
-                    : "Upgrade failed. Please try again.");
+                    : m.onboarding_upgrade_failed());
             kycStep = "result";
             setTimeout(() => {
                 kycError = null;
@@ -505,7 +508,7 @@ async function confirmSocialBinding() {
 
     const vault = await globalState.vaultController.vault;
     if (!vault?.ename || !vault?.uri) {
-        socialBindingError = "No active vault found.";
+        socialBindingError = m.social_drawer_no_vault();
         socialBindingAwaitingConsent = false;
         socialBindingCounterSigning = false;
         startSocialBindingPolling();
@@ -513,7 +516,7 @@ async function confirmSocialBinding() {
     }
 
     if (!socialBindingPendingDocId || !socialBindingPendingDocParsed) {
-        socialBindingError = "No pending social binding request found.";
+        socialBindingError = m.epassport_no_pending_request();
         socialBindingAwaitingConsent = false;
         socialBindingCounterSigning = false;
         startSocialBindingPolling();
@@ -548,7 +551,9 @@ async function confirmSocialBinding() {
     } catch (err) {
         console.error("[Social Binding] counter-sign error:", err);
         socialBindingError =
-            err instanceof Error ? err.message : "Something went wrong.";
+            err instanceof Error
+                ? err.message
+                : m.social_drawer_error_generic();
         socialBindingAwaitingConsent = false;
         startSocialBindingPolling();
     } finally {
@@ -607,7 +612,7 @@ onMount(async () => {
 });
 </script>
 
-<AppNav title="ePassport" class="mb-8" />
+<AppNav title={m.epassport_title()} class="mb-8" />
 
 <div>
     {#if userData}
@@ -619,8 +624,12 @@ onMount(async () => {
         >
             {#each Object.entries(docData) as [fieldName, value]}
                 <div class="flex justify-between">
-                    <p class="text-black-700 font-normal">{fieldName}</p>
-                    <p class="text-black-500 font-medium">{value}</p>
+                    <p class="text-black-700 font-normal">
+                        {identityFieldLabel(fieldName)}
+                    </p>
+                    <p class="text-black-500 font-medium">
+                        {identityFieldValue(String(value))}
+                    </p>
                 </div>
             {/each}
         </div>
@@ -633,29 +642,25 @@ onMount(async () => {
                     class="mb-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl"
                 >
                     <p class="text-sm font-medium text-emerald-800 mb-1">
-                        Upgrade available
+                        {m.epassport_upgrade_available()}
                     </p>
                     <p class="text-sm text-emerald-700 leading-relaxed">
-                        Your identity is verified locally but your eVault is
-                        missing the binding documents to prove it. Add them now
-                        to unlock the full trust level.
+                        {m.epassport_missing_docs_body()}
                     </p>
                 </div>
                 <ButtonAction class="w-full" callback={startKycUpgrade}>
-                    Add Binding Documents
+                    {m.epassport_add_binding_docs()}
                 </ButtonAction>
             {:else}
                 <div
                     class="mb-3 p-4 bg-amber-50 border border-amber-200 rounded-xl"
                 >
                     <p class="text-sm text-amber-800 leading-relaxed">
-                        Your eVault only contains a self-declared binding
-                        document. Verify your identity to increase your trust
-                        level.
+                        {m.epassport_self_declared_body()}
                     </p>
                 </div>
                 <ButtonAction class="w-full" callback={startKycUpgrade}>
-                    Enhance Trust Level
+                    {m.epassport_enhance_trust()}
                 </ButtonAction>
             {/if}
         </div>
@@ -669,7 +674,7 @@ onMount(async () => {
                 class="w-full"
                 callback={openSocialBindingDrawer}
             >
-                Request Social Binding
+                {m.epassport_request_social_binding()}
             </ButtonAction>
         </div>
     {/if}
@@ -689,37 +694,37 @@ onMount(async () => {
                 >
                     ✓
                 </div>
-                <h4>Binding Complete!</h4>
+                <h4>{m.social_drawer_success_title()}</h4>
             </div>
             <p class="text-black-700">
-                {socialBindingSignerName ?? "Someone"} has signed your identity binding.
-                Both eVaults now hold a mutually-signed social connection document.
+                {m.social_drawer_success_body({
+                    name: socialBindingSignerName ?? m.social_drawer_someone(),
+                })}
             </p>
             <ButtonAction class="w-full" callback={closeSocialBindingDrawer}
-                >Done</ButtonAction
+                >{m.common_done()}</ButtonAction
             >
         {:else if socialBindingCounterSigning}
             <div class="flex flex-col items-center justify-center gap-4 py-6">
                 <Shadow size={36} color="rgb(142, 82, 255)" />
                 <p class="text-black-700 text-center">
-                    Completing mutual binding…
+                    {m.social_drawer_counter_signing()}
                 </p>
             </div>
         {:else if socialBindingAwaitingConsent}
             <div>
-                <h4 class="mb-1">Social Connection Request</h4>
+                <h4 class="mb-1">{m.social_drawer_request_title()}</h4>
                 <p class="text-black-700">
                     <strong
                         >{socialBindingSignerName ??
                             socialBindingSignerEname ??
-                            "Someone"}</strong
+                            m.social_drawer_someone()}</strong
                     >
-                    wants to establish a social connection with you. Accept to confirm
-                    the binding.
+                    {m.social_drawer_request_body()}
                 </p>
             </div>
             <div class="bg-gray rounded-2xl p-4 flex flex-col gap-1">
-                <p class="small text-black-500">From</p>
+                <p class="small text-black-500">{m.epassport_social_from()}</p>
                 <p class="font-semibold">
                     {socialBindingSignerName ?? socialBindingSignerEname}
                 </p>
@@ -731,7 +736,7 @@ onMount(async () => {
             </div>
             {#if typeof socialBindingPendingDocParsed?.data?.relation_description === "string" && socialBindingPendingDocParsed.data.relation_description}
                 <div class="bg-gray rounded-2xl p-4 flex flex-col gap-1">
-                    <p class="small text-black-500">Relationship Description</p>
+                    <p class="small text-black-500">{m.scan_social_relation_label()}</p>
                     <p class="text-sm text-black-700">
                         {socialBindingPendingDocParsed.data.relation_description}
                     </p>
@@ -742,22 +747,20 @@ onMount(async () => {
             {/if}
             <div class="flex flex-col gap-3">
                 <ButtonAction class="w-full" callback={confirmSocialBinding}
-                    >Accept</ButtonAction
+                    >{m.common_accept()}</ButtonAction
                 >
                 <ButtonAction
                     variant="soft"
                     class="w-full"
-                    callback={declineSocialBinding}>Decline</ButtonAction
+                    callback={declineSocialBinding}>{m.common_decline()}</ButtonAction
                 >
             </div>
         {:else}
             <div>
-                <h4 class="mb-1">Request Social Binding</h4>
+                <h4 class="mb-1">{m.epassport_request_social_binding()}</h4>
                 <p class="text-black-700">
-                    Ask a trusted person with an eID Wallet to scan this QR and
-                    confirm it’s you. <br />
-                    They will sign a social binding for your Digital Self – no access
-                    to your data.
+                    {m.epassport_social_qr_body()} <br />
+                    {m.epassport_social_qr_note()}
                 </p>
             </div>
 
@@ -773,7 +776,7 @@ onMount(async () => {
             {#if socialBindingPolling}
                 <div class="flex items-center gap-2 justify-center">
                     <Shadow size={16} color="rgb(142, 82, 255)" />
-                    <p class="small text-black-500">Waiting for signature…</p>
+                    <p class="small text-black-500">{m.epassport_social_waiting()}</p>
                 </div>
             {/if}
 
@@ -786,7 +789,7 @@ onMount(async () => {
                 class="w-full"
                 callback={closeSocialBindingDrawer}
             >
-                Cancel
+                {m.common_cancel()}
             </ButtonAction>
         {/if}
     </div>
@@ -822,19 +825,18 @@ onMount(async () => {
                             <Shadow size={40} color="rgb(142, 82, 255)" />
                             <h4 class="text-center">
                                 {kycStep === "checking-hw"
-                                    ? "Checking device capabilities..."
+                                    ? m.kyc_checking_device()
                                     : kycStep === "upgrading"
-                                      ? "Upgrading your eVault…"
-                                      : "Starting verification…"}
+                                      ? m.kyc_upgrading()
+                                      : m.onboarding_loading_verification_title()}
                             </h4>
                         </div>
                     {:else if kycStep === "hw-error"}
                         <h4 class="mt-2 mb-2 text-red-600 text-left">
-                            Hardware Security Not Available
+                            {m.onboarding_hardware_error_title()}
                         </h4>
                         <p class="text-black-700 mb-4">
-                            Your phone doesn't support hardware crypto keys,
-                            which is a requirement for verified IDs.
+                            {m.onboarding_hardware_error_body()}
                         </p>
                     {/if}
                 </article>
@@ -846,7 +848,7 @@ onMount(async () => {
                             class="w-full"
                             callback={resetKyc}
                         >
-                            Cancel
+                            {m.common_cancel()}
                         </ButtonAction>
                     </div>
                 {/if}
@@ -864,7 +866,7 @@ onMount(async () => {
                     class="text-sm text-black-500 underline"
                     onclick={resetKyc}
                 >
-                    Cancel
+                    {m.common_cancel()}
                 </button>
             </div>
             <div id="didit-container-epassport" class="flex-1 w-full"></div>
@@ -883,26 +885,23 @@ onMount(async () => {
                 >
                     !
                 </div>
-                <h3 class="text-lg font-bold">Identity Already Registered</h3>
+                <h3 class="text-lg font-bold">{m.kyc_duplicate_title()}</h3>
             </div>
             <p class="text-black-700 text-sm leading-relaxed">
-                This identity document is already linked to an existing eVault.
-                You can't create a duplicate — each person gets one verified
-                eVault.
+                {m.kyc_duplicate_body()}
             </p>
             {#if duplicateEName}
                 <CopyableEName
                     ename={duplicateEName}
-                    label="Your existing eVault eName"
+                    label={m.kyc_duplicate_ename_label()}
                 />
                 <p class="text-sm text-black-500">
-                    Use the eName above to recover access to your existing
-                    eVault instead.
+                    {m.kyc_duplicate_hint()}
                 </p>
             {/if}
             <div class="flex flex-col gap-3 pt-2">
                 <ButtonAction variant="soft" class="w-full" callback={resetKyc}>
-                    Got it
+                    {m.tour_cta_got_it()}
                 </ButtonAction>
             </div>
         </div>
@@ -929,15 +928,14 @@ onMount(async () => {
                     >
                         ✓
                     </div>
-                    <h3 class="text-lg font-bold">Identity Verified</h3>
+                    <h3 class="text-lg font-bold">{m.onboarding_result_verified_title()}</h3>
                 </div>
                 <p class="text-black-700 text-sm">
-                    Your identity has been verified. Your eVault trust level
-                    will now be upgraded.
+                    {m.kyc_result_verified_body()}
                 </p>
                 <div class="flex flex-col gap-3 pt-2">
                     <ButtonAction class="w-full" callback={handleUpgrade}
-                        >Continue</ButtonAction
+                        >{m.common_continue()}</ButtonAction
                     >
                 </div>
             {:else if diditResult === "in_review"}
@@ -947,17 +945,16 @@ onMount(async () => {
                     >
                         ⏳
                     </div>
-                    <h3 class="text-lg font-bold">Under Review</h3>
+                    <h3 class="text-lg font-bold">{m.onboarding_result_review_title()}</h3>
                 </div>
                 <p class="text-black-700 text-sm">
-                    Your verification is being manually reviewed. You'll be
-                    notified when it's complete.
+                    {m.kyc_result_review_body()}
                 </p>
                 <div class="flex flex-col gap-3 pt-2">
                     <ButtonAction
                         variant="soft"
                         class="w-full"
-                        callback={resetKyc}>Close</ButtonAction
+                        callback={resetKyc}>{m.common_close()}</ButtonAction
                     >
                 </div>
             {:else}
@@ -967,20 +964,19 @@ onMount(async () => {
                     >
                         ✗
                     </div>
-                    <h3 class="text-lg font-bold">Verification Failed</h3>
+                    <h3 class="text-lg font-bold">{m.onboarding_result_failed_title()}</h3>
                 </div>
                 <p class="text-black-700 text-sm">
-                    {diditRejectionReason ??
-                        "Your verification could not be completed."}
+                    {diditRejectionReason ?? m.onboarding_result_failed_body()}
                 </p>
                 <div class="flex flex-col gap-3 pt-2">
                     <ButtonAction class="w-full" callback={startKycUpgrade}
-                        >Try Again</ButtonAction
+                        >{m.common_try_again()}</ButtonAction
                     >
                     <ButtonAction
                         variant="soft"
                         class="w-full"
-                        callback={resetKyc}>Cancel</ButtonAction
+                        callback={resetKyc}>{m.common_cancel()}</ButtonAction
                     >
                 </div>
             {/if}

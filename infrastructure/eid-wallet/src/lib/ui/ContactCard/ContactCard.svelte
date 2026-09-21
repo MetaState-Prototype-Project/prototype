@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/paraglide/messages";
 /**
  * Contact card for person-based scan drawers (social binding).
  * Mirrors PlatformAppCard's stacked layout: avatar above, card below,
@@ -13,7 +14,7 @@ interface IContactCardProps {
 
 const { eName, name, class: classes = "" }: IContactCardProps = $props();
 
-const displayName = $derived(name ?? eName ?? "Unknown");
+const displayName = $derived(name ?? eName ?? m.common_unknown());
 
 const initials = $derived.by(() => {
     const source = name ?? "";

@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/paraglide/messages";
 import * as Button from "$lib/ui/Button";
 import { EditIcon, GearIcon, MessageIcon } from "$lib/ui/icons";
 
@@ -33,7 +34,7 @@ const {
             {#if !tourActive}
                 <button
                     type="button"
-                    aria-label="Edit name"
+                    aria-label={m.main_edit_name_aria()}
                     onclick={onedit}
                     class="text-black bg-black-50 p-2 rounded-full active:opacity-60"
                 >
@@ -49,8 +50,10 @@ const {
                 href="/notifications"
                 class="relative"
                 aria-label={notificationCount > 0
-                    ? `Notifications (${notificationCount} unread)`
-                    : "Notifications"}
+                    ? m.main_notifications_unread_aria({
+                          count: notificationCount,
+                      })
+                    : m.main_notifications_aria()}
             >
                 <MessageIcon size={24} />
                 {#if notificationCount > 0}
@@ -61,7 +64,7 @@ const {
                     </span>
                 {/if}
             </Button.Nav>
-            <Button.Nav href="/settings" aria-label="Settings">
+            <Button.Nav href="/settings" aria-label={m.main_settings_aria()}>
                 <GearIcon size={24} />
             </Button.Nav>
         </div>

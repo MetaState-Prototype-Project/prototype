@@ -1,8 +1,9 @@
 <script lang="ts">
 import { runtime } from "$lib/global/runtime.svelte";
+import { m } from "$lib/paraglide/messages";
 
 $effect(() => {
-    runtime.header.title = "Privacy";
+    runtime.header.title = m.privacy_title();
 });
 </script>
 

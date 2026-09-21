@@ -4,6 +4,7 @@
     row with an ADD button.
 -->
 <script lang="ts">
+import { m } from "$lib/paraglide/messages";
 import { ArrowDown01Icon, ArrowUp01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import { slide } from "svelte/transition";
@@ -26,7 +27,7 @@ const { doc, onadd }: ILegalIdAccordionProps = $props();
 let expanded = $state(false);
 
 const hasDoc = $derived(!!doc);
-const subtitle = $derived(doc?.title ?? "Any legal doc");
+const subtitle = $derived(doc?.title ?? m.legal_id_empty_subtitle());
 
 function toggle() {
     if (!hasDoc) return;
@@ -80,7 +81,7 @@ function handleAddClick(e: MouseEvent) {
         <div class="flex-1 min-w-0">
             <div class="flex items-center gap-1">
                 <p class="font-medium text-lg text-black-900 leading-tight">
-                    Legal ID
+                    {m.legal_id_title()}
                 </p>
                 {#if hasDoc}
                     <HugeiconsIcon
@@ -100,7 +101,7 @@ function handleAddClick(e: MouseEvent) {
                 onclick={handleAddClick}
                 class="bg-white text-black-700 text-pill font-bold uppercase tracking-wide px-4 py-1.5 rounded-full active:opacity-70 shrink-0 h-11"
             >
-                Add
+                {m.common_add()}
             </button>
         {/if}
     </div>
@@ -115,7 +116,9 @@ function handleAddClick(e: MouseEvent) {
             </h3>
             {#if doc.name}
                 <div>
-                    <p class="text-xs text-black-700 leading-tight">Name</p>
+                    <p class="text-xs text-black-700 leading-tight">
+                        {m.identity_name()}
+                    </p>
                     <p class="font-semibold text-black-900 leading-tight">
                         {doc.name}
                     </p>
@@ -124,7 +127,7 @@ function handleAddClick(e: MouseEvent) {
             {#if doc.dateOfBirth}
                 <div>
                     <p class="text-xs text-black-700 leading-tight">
-                        Date of Birth
+                        {m.identity_date_of_birth()}
                     </p>
                     <p class="font-semibold text-black-900 leading-tight">
                         {doc.dateOfBirth}
@@ -134,7 +137,7 @@ function handleAddClick(e: MouseEvent) {
             {#if doc.documentNumber}
                 <div>
                     <p class="text-xs text-black-700 leading-tight">
-                        Document number
+                        {m.legal_id_document_number()}
                     </p>
                     <p class="font-semibold text-black-900 leading-tight">
                         {doc.documentNumber}

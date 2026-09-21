@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/paraglide/messages";
 import { ButtonAction } from "$lib/ui";
 import BottomSheet from "$lib/ui/BottomSheet/BottomSheet.svelte";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
@@ -48,10 +49,10 @@ function close() {
 
 <BottomSheet bind:isOpen dismissible={!saving}>
     <header class="flex items-center justify-between">
-        <h2 class="text-2xl font-bold text-black-900">Edit name</h2>
+        <h2 class="text-2xl font-bold text-black-900">{m.edit_name_title()}</h2>
         <button
             type="button"
-            aria-label="Close"
+            aria-label={m.common_close()}
             class="w-9 h-9 rounded-full bg-black-50 flex items-center justify-center active:opacity-70 disabled:opacity-40"
             onclick={close}
             disabled={saving}
@@ -62,13 +63,12 @@ function close() {
 
     <div class="flex flex-col gap-4">
         <p class="text-black-500 leading-snug">
-            This is the name shown on your home screen. Your legal name (from
-            your verified ID) and your eName are not affected.
+            {m.edit_name_body()}
         </p>
 
         <div>
             <label for="edit-name" class="block text-black-500 mb-2">
-                Display name
+                {m.edit_name_label()}
             </label>
             <input
                 id="edit-name"
@@ -95,7 +95,7 @@ function close() {
             isLoading={saving}
             blockingClick
         >
-            Save
+            {m.common_save()}
         </ButtonAction>
     </div>
 </BottomSheet>

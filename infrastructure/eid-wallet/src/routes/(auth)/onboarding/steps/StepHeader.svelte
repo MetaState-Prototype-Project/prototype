@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/paraglide/messages";
 import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 
@@ -25,7 +26,7 @@ const { title, step, total = 3, onback }: IStepHeaderProps = $props();
         <button
             type="button"
             onclick={onback}
-            aria-label="Back"
+            aria-label={m.common_back()}
             class="w-10 h-10 absolute rounded-full bg-black-100 flex items-center justify-center cursor-pointer shrink-0 active:opacity-70"
         >
             <HugeiconsIcon
@@ -40,7 +41,7 @@ const { title, step, total = 3, onback }: IStepHeaderProps = $props();
         <h3 class="font-semibold leading-none">{title}</h3>
         {#if step !== undefined}
             <p class="text-black-500 text-sm mt-1 leading-none">
-                {step} of {total} steps
+                {m.onboarding_step_counter({ step, total })}
             </p>
         {/if}
     </div>

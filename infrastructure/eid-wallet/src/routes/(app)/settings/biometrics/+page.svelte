@@ -2,6 +2,7 @@
 import { goto } from "$app/navigation";
 import type { GlobalState } from "$lib/global";
 import { runtime } from "$lib/global/runtime.svelte";
+import { m } from "$lib/paraglide/messages";
 import { FaceIdIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import { checkStatus } from "@tauri-apps/plugin-biometric";
@@ -13,7 +14,7 @@ let isAvailable = $state<boolean | null>(null);
 let error = $state<string | null>(null);
 
 $effect(() => {
-    runtime.header.title = "Biometric login";
+    runtime.header.title = m.settings_biometric_login();
     runtime.header.onback = () => {
         if (window.history.length > 1) window.history.back();
         else goto("/settings");
@@ -43,7 +44,7 @@ function toggle() {
     if (!globalState) return;
     const next = !enabled;
     if (next && !isAvailable) {
-        error = "Biometrics aren't available on this device.";
+        error = m.biometrics_unavailable_error();
         return;
     }
     error = null;
@@ -77,13 +78,13 @@ function toggle() {
 
         <div class="flex-1 min-w-0">
             <p class="text-base font-semibold text-black-900">
-                Use biometrics
+                {m.biometrics_use()}
             </p>
             <p class="text-sm text-black-500 mt-0.5">
                 {#if isAvailable === false}
-                    Unavailable on this device
+                    {m.settings_biometrics_unavailable()}
                 {:else}
-                    Unlock the app with your fingerprint or face
+                    {m.biometrics_unlock_hint()}
                 {/if}
             </p>
         </div>

@@ -1,6 +1,7 @@
 <script lang="ts">
 import { AppNav } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
+import { m } from "$lib/paraglide/messages";
 import { ChevronIcon } from "$lib/ui/icons";
 import {
     type SocialBindingSummary,
@@ -111,9 +112,9 @@ async function init() {
 }
 
 function roleLabel(role: SocialBindingDisplay["role"]): string {
-    if (role === "both") return "Sent & Received";
-    if (role === "sent") return "Sent";
-    return "Received";
+    if (role === "both") return m.social_role_sent_received();
+    if (role === "sent") return m.social_role_sent();
+    return m.social_role_received();
 }
 
 function openDetails(contact: SocialBindingDisplay) {
@@ -123,23 +124,23 @@ function openDetails(contact: SocialBindingDisplay) {
 
 const subtitle = $derived(
     loaded
-        ? `${contacts.length} ${contacts.length === 1 ? "contact" : "contacts"}`
+        ? m.social_binding_contact_count({ count: contacts.length })
         : undefined,
 );
 </script>
 
-<AppNav title="Social bindings" subtitle={subtitle} />
+<AppNav title={m.social_bindings_page_title()} subtitle={subtitle} />
 
 {#if !loaded}
     <div class="flex flex-col items-center justify-center mt-20 gap-3">
         <Shadow size={32} color="rgb(142, 82, 255)" />
-        <p class="text-black-500">Loading…</p>
+        <p class="text-black-500">{m.common_loading()}</p>
     </div>
 {:else if contacts.length === 0}
     <div class="flex flex-col items-center justify-center mt-20">
-        <p class="text-lg text-black-700">No social bindings yet</p>
+        <p class="text-lg text-black-700">{m.social_bindings_empty_title()}</p>
         <p class="text-black-500 mt-1">
-            Invite a contact from your eName card.
+            {m.social_bindings_empty_body()}
         </p>
     </div>
 {:else}
@@ -160,7 +161,7 @@ const subtitle = $derived(
                         {roleLabel(contact.role)}
                         {#if contact.pending}
                             <span class="text-amber-600"
-                                >· Awaiting confirmation</span
+                                >{m.social_details_awaiting_suffix()}</span
                             >
                         {/if}
                     </p>
