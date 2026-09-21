@@ -27,13 +27,16 @@ export function routeDeepLink(
 
     console.log("Deep link routed: user is already authenticated");
 
-    // The event covers an already-mounted /scan-qr; the stored payload
-    // covers the mount that the goto() below triggers.
-    window.dispatchEvent(
-        new CustomEvent("deepLinkReceived", { detail: deepLinkData }),
-    );
-
-    if (window.location.pathname !== "/scan-qr") {
+    // Only an already-mounted /scan-qr needs the event: it has its own
+    // listener and no mount is coming. Anywhere else the stored payload is
+    // what the mount reads, and dispatching would additionally wake the
+    // layout's own deepLinkReceived handler, which navigates too, so the
+    // route would be entered twice for one link.
+    if (window.location.pathname === "/scan-qr") {
+        window.dispatchEvent(
+            new CustomEvent("deepLinkReceived", { detail: deepLinkData }),
+        );
+    } else {
         goto("/scan-qr").catch((error) => {
             console.error("Error navigating to scan-qr:", error);
         });

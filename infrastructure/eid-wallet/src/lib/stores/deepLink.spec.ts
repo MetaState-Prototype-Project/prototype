@@ -408,6 +408,36 @@ describe("deep-link login rendezvous", () => {
         });
     });
 
+    /**
+     * The layout listens for deepLinkReceived itself, and its handler
+     * navigates to /scan-qr. So when routeDeepLink() is called from anywhere
+     * else, dispatching the event wakes that handler in addition to
+     * routeDeepLink's own goto(), and one deep link enters the route twice.
+     * Off /scan-qr the stored payload is what the mount reads, so the event
+     * carries nothing the navigation does not already deliver.
+     */
+    it("navigates once when a link arrives away from the consent screen", () => {
+        window.location.pathname = "/main";
+        session.markAuthenticated();
+
+        // Wire the layout's handler up exactly as +layout.svelte does.
+        listeners.push((event: Event) =>
+            handleDeepLinkEvent((event as CustomEvent).detail, true, navigate),
+        );
+
+        vi.mocked(goto).mockClear();
+        routeDeepLink(globalState, PAYLOAD);
+
+        // One navigation total, across both the direct goto and the handler
+        // the dispatch would have woken.
+        expect(
+            vi.mocked(goto).mock.calls.length + navigate.mock.calls.length,
+        ).toBe(1);
+        expect(destinationFromGoto()).toBe("/scan-qr");
+        // The mount still has the payload waiting for it.
+        expect(scanQrSeesPayload()).toBe(true);
+    });
+
     it("survives storage being unavailable without throwing", async () => {
         vi.stubGlobal("sessionStorage", undefined);
 
