@@ -2,6 +2,13 @@ import { defineConfig } from "vite";
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
+import { readFileSync } from "node:fs";
+
+// Same source getVersion() reports at runtime, so the version shown in
+// Settings and the one sent during auth cannot drift apart.
+const appVersion = JSON.parse(
+    readFileSync("./src-tauri/tauri.conf.json", "utf8"),
+).version;
 
 const host = process.env.TAURI_DEV_HOST;
 
@@ -29,6 +36,7 @@ export default defineConfig(async () => ({
 
     // Environment variables
     define: {
+        __APP_VERSION__: JSON.stringify(appVersion),
         'process.env.NEXT_PUBLIC_EVOTING_BASE_URL': JSON.stringify(process.env.NEXT_PUBLIC_EVOTING_BASE_URL || 'http://localhost:3001'),
         'process.env.NEXT_PUBLIC_EID_WALLET_URL': JSON.stringify(process.env.NEXT_PUBLIC_EID_WALLET_URL || 'w3ds://'),
     },

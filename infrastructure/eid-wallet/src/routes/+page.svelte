@@ -9,9 +9,7 @@ import {
     authenticate,
     checkStatus,
 } from "@tauri-apps/plugin-biometric";
-import { getContext, onMount } from "svelte";
-
-const BIOMETRIC_ATTEMPTED_KEY = "biometricAttemptedOnSplash";
+import { getContext, onDestroy, onMount } from "svelte";
 
 const authOpts: AuthOptions = {
     allowDeviceCredential: false,
@@ -47,6 +45,17 @@ async function handleRestoreDigitalSelf() {
     await goto("/recover");
 }
 
+// Unmounting a Svelte component does NOT cancel an async onMount parked on an
+// await: the continuation resumes later and calls goto() from a screen the user
+// left long ago. This routine sleeps 1.2s and then polls for global state, so
+// it can still be suspended while the user authenticates by PIN on /login and
+// /scan-qr opens the consent drawer. Waking then would navigate away and take
+// that drawer with it.
+let destroyed = false;
+onDestroy(() => {
+    destroyed = true;
+});
+
 onMount(async () => {
     if (skipIntro) {
         // Backward nav from /onboarding — already at state C, nothing to do.
@@ -68,6 +77,8 @@ onMount(async () => {
         globalState = getGlobalState?.();
         retries++;
     }
+
+    if (destroyed) return;
 
     let onboardingComplete = false;
     let userExists = false;
@@ -93,24 +104,10 @@ onMount(async () => {
             return;
         }
 
-        // A third-party login deep link opened the app. The root layout has
-        // already stored it and redirected to /login, which runs its own
-        // biometric prompt. If we ALSO prompt here, two native authenticate()
-        // calls race on a cold start — the collision, plus a duplicate
-        // post-auth routine consuming the pending deep link, leaves the user
-        // on /main with the consent screen never shown. Defer to /login as the
-        // single authenticator. The layout writes pendingDeepLink synchronously
-        // and early, so it's reliably visible by the time we reach here.
-        if (sessionStorage.getItem("pendingDeepLink")) {
-            await goto("/login");
-            return;
-        }
-
-        // Fire biometric over the splash itself so the prompt isn't competing
-        // with the /login slide-in. On success we run the post-auth chores
-        // and route straight to /main (no /login flash). On cancel/fail we
-        // slide into /login with a sessionStorage flag so /login knows the
-        // biometric attempt already happened and skips re-prompting.
+        // The ONLY biometric prompt in the app. /login is the PIN fallback and
+        // never prompts, so the dialog always appears over this screen. On
+        // success we run the post-auth chores and route onward with no /login
+        // flash; on cancel, failure or unavailability we slide into /login.
         let biometricAvailable = false;
         try {
             biometricAvailable =
@@ -120,22 +117,18 @@ onMount(async () => {
         } catch (error) {
             console.error("Biometric availability check failed:", error);
         }
+        if (destroyed) return;
 
         if (biometricAvailable && globalState) {
-            sessionStorage.setItem(BIOMETRIC_ATTEMPTED_KEY, "true");
             try {
                 await authenticate(
                     "You must authenticate with PIN first",
                     authOpts,
                 );
-                // Success — clear the flag (we won't reach /login at all)
-                // and run the shared post-auth routine.
-                sessionStorage.removeItem(BIOMETRIC_ATTEMPTED_KEY);
                 await continueAfterSuccessfulAuth(globalState);
                 return;
             } catch (e) {
-                // Cancel/fail. Leave the flag set so /login skips its own
-                // biometric retry, then slide into /login for PIN entry.
+                // Cancel/fail — slide into /login for PIN entry.
                 console.warn("Biometric on splash failed", e);
             }
         }
