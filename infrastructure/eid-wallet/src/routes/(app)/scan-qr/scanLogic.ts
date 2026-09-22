@@ -1,4 +1,5 @@
 import { clearDeepLink, peekDeepLink } from "$lib/stores/deepLink";
+import { getVersion } from "@tauri-apps/api/app";
 import {
     Format,
     type PermissionState,
@@ -369,6 +370,7 @@ export function createScanLogic({
                 );
             }
 
+            const appVersion = await getVersion();
             const fromScan = get(isFromScan);
 
             if (fromScan) {
@@ -377,7 +379,7 @@ export function createScanLogic({
                     ename: vault.ename,
                     session: get(session) as string,
                     signature: signature,
-                    appVersion: "0.4.0",
+                    appVersion,
                 };
 
                 console.log(`📤 Making POST request to: ${redirectUrl}`);
@@ -411,7 +413,7 @@ export function createScanLogic({
             loginUrl.searchParams.set("ename", vault.ename);
             loginUrl.searchParams.set("session", get(session) as string);
             loginUrl.searchParams.set("signature", signature);
-            loginUrl.searchParams.set("appVersion", "0.4.0");
+            loginUrl.searchParams.set("appVersion", appVersion);
 
             console.log(`🔗 Opening login URL: ${loginUrl.toString()}`);
 
