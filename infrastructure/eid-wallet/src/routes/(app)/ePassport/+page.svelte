@@ -9,12 +9,12 @@ import type { GlobalState } from "$lib/global";
 import { m } from "$lib/i18n";
 import { ButtonAction, CopyableEName } from "$lib/ui";
 import {
-    addCounterpartySignature,
+    type BindingDocParsed,
+    acceptSocialBinding,
     capitalize,
-    deleteSocialBindingDoc,
+    declineSocialBinding,
     fetchNameFromVault,
     fetchUnsignedSocialDocs,
-    getCanonicalBindingDocString,
     identityFieldLabel,
     identityFieldValue,
     resolveVaultUri,
@@ -402,11 +402,7 @@ let socialBindingSuccess = $state(false);
 let socialBindingSignerName = $state<string | null>(null);
 let socialBindingSignerEname = $state<string | null>(null);
 let socialBindingPendingDocId = $state<string | null>(null);
-let socialBindingPendingDocParsed = $state<{
-    subject: string;
-    type: string;
-    data: Record<string, unknown>;
-} | null>(null);
+let socialBindingPendingDocParsed = $state<BindingDocParsed | null>(null);
 let socialBindingAwaitingConsent = $state(false);
 let socialBindingError = $state<string | null>(null);
 let socialBindingCounterSigning = $state(false);
@@ -501,7 +497,7 @@ async function runSocialBindingPoll() {
     }
 }
 
-async function confirmSocialBinding() {
+async function confirmSocialBindingRequest() {
     if (!socialBindingSignerEname) return;
     socialBindingAwaitingConsent = false;
     socialBindingError = null;
@@ -533,18 +529,12 @@ async function confirmSocialBinding() {
 
         // Counter-sign the doc in the requester's OWN vault.
         // The doc has subject=@requester (=callerEname) so the requester is the valid counterparty.
-        const payload = getCanonicalBindingDocString({
-            subject: socialBindingPendingDocParsed.subject,
-            type: socialBindingPendingDocParsed.type,
-            data: socialBindingPendingDocParsed.data,
-        });
-        const sig = await globalState.keyService.sign(payload);
-        await addCounterpartySignature(
+        await acceptSocialBinding(
             gqlUrl,
             callerEname,
-            callerEname,
             socialBindingPendingDocId,
-            sig,
+            socialBindingPendingDocParsed,
+            (payload) => globalState.keyService.sign(payload),
         );
 
         socialBindingSuccess = true;
@@ -561,8 +551,9 @@ async function confirmSocialBinding() {
     }
 }
 
-async function declineSocialBinding() {
+async function declineSocialBindingRequest() {
     const docId = socialBindingPendingDocId;
+    const declinedDoc = socialBindingPendingDocParsed;
     socialBindingAwaitingConsent = false;
     socialBindingPendingDocId = null;
     socialBindingPendingDocParsed = null;
@@ -577,7 +568,12 @@ async function declineSocialBinding() {
                     ? vault.ename
                     : `@${vault.ename}`;
                 const gqlUrl = new URL("/graphql", vault.uri).toString();
-                await deleteSocialBindingDoc(gqlUrl, callerEname, docId);
+                await declineSocialBinding(
+                    gqlUrl,
+                    callerEname,
+                    docId,
+                    declinedDoc,
+                );
             }
         } catch (err) {
             console.error(
@@ -746,13 +742,16 @@ onMount(async () => {
                 <p class="text-danger">{socialBindingError}</p>
             {/if}
             <div class="flex flex-col gap-3">
-                <ButtonAction class="w-full" callback={confirmSocialBinding}
+                <ButtonAction
+                    class="w-full"
+                    callback={confirmSocialBindingRequest}
                     >{m.common_accept()}</ButtonAction
                 >
                 <ButtonAction
                     variant="soft"
                     class="w-full"
-                    callback={declineSocialBinding}>{m.common_decline()}</ButtonAction
+                    callback={declineSocialBindingRequest}
+                    >{m.common_decline()}</ButtonAction
                 >
             </div>
         {:else}

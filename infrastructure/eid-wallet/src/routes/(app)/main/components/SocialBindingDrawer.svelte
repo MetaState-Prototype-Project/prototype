@@ -4,13 +4,11 @@ import { m } from "$lib/i18n";
 import { BottomSheet, ButtonAction } from "$lib/ui";
 import {
     type BindingDocParsed,
-    addCounterpartySignature,
-    deleteSocialBindingDoc,
+    acceptSocialBinding,
+    declineSocialBinding,
     fetchNameFromVault,
     fetchUnsignedSocialDocs,
-    getCanonicalBindingDocString,
     pruneBoundSignerDocs,
-    pruneDuplicateUnsignedDocs,
     resolveVaultUri,
 } from "$lib/utils";
 import { onDestroy } from "svelte";
@@ -102,12 +100,13 @@ async function poll() {
 }
 
 async function confirm() {
-    if (!globalState || !pendingDocId || !pendingDocParsed) return;
+    const gs = globalState;
+    if (!gs || !pendingDocId || !pendingDocParsed) return;
     phase = "counter-signing";
     errorMessage = null;
 
     try {
-        const vault = await globalState.vaultController.vault;
+        const vault = await gs.vaultController.vault;
         if (!vault?.ename || !vault?.uri) {
             throw new Error(m.social_drawer_no_vault());
         }
@@ -116,53 +115,13 @@ async function confirm() {
             : `@${vault.ename}`;
         const gqlUrl = new URL("/graphql", vault.uri).toString();
 
-        // Idempotency: if the doc somehow already carries our signature
-        // (e.g. a stale poll result re-surfaced after we just signed it),
-        // treat as already-done and don't re-POST.
-        const existingSigs = Array.isArray(pendingDocParsed.signatures)
-            ? pendingDocParsed.signatures
-            : [];
-        const alreadySignedByUs = existingSigs.some(
-            (s) => s.signer === callerEname,
+        await acceptSocialBinding(
+            gqlUrl,
+            callerEname,
+            pendingDocId,
+            pendingDocParsed,
+            (payload) => gs.keyService.sign(payload),
         );
-
-        const signerEname = existingSigs[0]?.signer ?? null;
-
-        if (!alreadySignedByUs) {
-            const canonical = getCanonicalBindingDocString({
-                subject: pendingDocParsed.subject,
-                type: pendingDocParsed.type,
-                data: pendingDocParsed.data,
-            });
-            const sig = await globalState.keyService.sign(canonical);
-            await addCounterpartySignature(
-                gqlUrl,
-                callerEname,
-                callerEname,
-                pendingDocId,
-                sig,
-            );
-        }
-
-        // After accepting, remove any duplicate envelopes left over from
-        // repeat scans of the same QR by the same counterparty — otherwise
-        // the polling loop will show them on the next drawer open and
-        // re-prompt the user to "accept" what they just accepted.
-        if (signerEname) {
-            try {
-                await pruneDuplicateUnsignedDocs(
-                    gqlUrl,
-                    callerEname,
-                    pendingDocId,
-                    signerEname,
-                );
-            } catch (err) {
-                console.warn(
-                    "[SocialBindingDrawer] duplicate prune failed:",
-                    err,
-                );
-            }
-        }
 
         phase = "success";
         onbound?.();
@@ -178,6 +137,7 @@ async function confirm() {
 
 async function decline() {
     const docId = pendingDocId;
+    const declinedDoc = pendingDocParsed;
     pendingDocId = null;
     pendingDocParsed = null;
     signerEname = null;
@@ -191,7 +151,12 @@ async function decline() {
                     ? vault.ename
                     : `@${vault.ename}`;
                 const gqlUrl = new URL("/graphql", vault.uri).toString();
-                await deleteSocialBindingDoc(gqlUrl, callerEname, docId);
+                await declineSocialBinding(
+                    gqlUrl,
+                    callerEname,
+                    docId,
+                    declinedDoc,
+                );
 
                 // The declined request was counted as a (pending) binding on
                 // the home screen; now that it's gone, tell the parent to

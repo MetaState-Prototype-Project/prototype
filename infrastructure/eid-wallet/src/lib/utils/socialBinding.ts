@@ -10,6 +10,7 @@ import {
     PUBLIC_EID_WALLET_TOKEN,
     PUBLIC_REGISTRY_URL,
 } from "$env/static/public";
+import { getCanonicalBindingDocString } from "./bindingDocHash";
 
 export interface BindingDocParsed {
     subject: string;
@@ -473,30 +474,54 @@ export async function deleteSocialBindingDoc(
 }
 
 /**
- * Signers the caller has ALREADY completed a binding with. A completed binding
- * is a doc subject=@caller that the caller has counter-signed; its originator is
- * signatures[0].signer. Once bound, any *other* unsigned envelope from that same
- * signer is a stale leftover — a repeat scan of the caller's QR (before or after
- * acceptance) or a duplicate the accept-time prune never reached — and must not
- * re-surface as a fresh "Social Connection Request".
+ * Signers the caller has ALREADY completed a binding with, mapped to the
+ * timestamp of the caller's most recent counter-signature with them. A
+ * completed binding is a doc subject=@caller that the caller has counter-signed;
+ * its originator is signatures[0].signer.
+ *
+ * The timestamp is the cutoff that separates the two kinds of unsigned envelope
+ * a bound signer can leave behind: one created *before* the caller accepted is a
+ * leftover from the same burst of repeat scans and must not re-surface as a
+ * fresh request; one created *after* is a deliberate new invite (a second
+ * binding with a different relation description, say) and must be kept.
  */
 function collectBoundSigners(
     edges: BindingDocEdge[],
     normalizedCaller: string,
-): Set<string> {
-    const boundSigners = new Set<string>();
+): Map<string, string> {
+    const boundSigners = new Map<string, string>();
     for (const edge of edges) {
         const parsed = edge.node.parsed;
         if (!parsed || parsed.type !== "social_connection") continue;
         if (parsed.subject !== normalizedCaller) continue;
         const sigs = Array.isArray(parsed.signatures) ? parsed.signatures : [];
-        const callerSigned = sigs.some((s) => s.signer === normalizedCaller);
+        const callerSig = sigs.find((s) => s.signer === normalizedCaller);
         const originator = sigs[0]?.signer;
-        if (callerSigned && originator && originator !== normalizedCaller) {
-            boundSigners.add(originator);
+        if (!callerSig || !originator || originator === normalizedCaller)
+            continue;
+        const acceptedAt = callerSig.timestamp ?? "";
+        const previous = boundSigners.get(originator);
+        if (previous === undefined || acceptedAt > previous) {
+            boundSigners.set(originator, acceptedAt);
         }
     }
     return boundSigners;
+}
+
+/**
+ * True when an unsigned envelope predates the caller's acceptance of an earlier
+ * binding with the same signer — see collectBoundSigners.
+ */
+function isStaleLeftover(
+    parsed: BindingDocParsed,
+    boundSigners: Map<string, string>,
+): boolean {
+    const sigs = Array.isArray(parsed.signatures) ? parsed.signatures : [];
+    const originator = sigs[0]?.signer;
+    if (!originator) return false;
+    const acceptedAt = boundSigners.get(originator);
+    if (acceptedAt === undefined) return false;
+    return (sigs[0]?.timestamp ?? "") <= acceptedAt;
 }
 
 /**
@@ -533,17 +558,15 @@ export async function fetchUnsignedSocialDocs(
         const alreadySigned = signatures.some((s) => s.signer === normalized);
         if (alreadySigned) return false;
         // Skip leftover envelopes from a signer the caller is already bound to.
-        const originator = signatures[0]?.signer;
-        if (originator && boundSigners.has(originator)) return false;
+        if (isStaleLeftover(parsed, boundSigners)) return false;
         return true;
     });
 
-    // Dedupe by signer: each scan of the requester's QR creates a fresh
-    // envelope. When a scanner scans more than once (the usual reason —
-    // they thought it didn't work) the requester ends up with several
-    // identical pending docs, all needing acceptance. Surface just the
-    // newest from each signer; the dupes are pruned by
-    // pruneDuplicateUnsignedDocs() below at consent time.
+    // One request at a time per signer: each scan of the requester's QR creates
+    // a fresh envelope, and a scanner who scans twice (thinking it didn't work)
+    // leaves several. Surface the newest; accepting or declining it clears its
+    // duplicates, and any genuinely different invite from the same person comes
+    // up on the next poll.
     const newestBySigner = new Map<string, BindingDocEdge>();
     for (const edge of unsigned) {
         const signer = edge.node.parsed?.signatures?.[0]?.signer ?? null;
@@ -562,17 +585,22 @@ export async function fetchUnsignedSocialDocs(
 }
 
 /**
- * After successfully counter-signing one pending binding doc from a given
- * signer, look up every OTHER unsigned doc with the same signer on the
- * caller's vault and delete them. These are duplicate envelopes from
- * repeat scans of the same QR; collapsing them here stops the drawer from
- * re-prompting the user to accept the "same" binding over and over.
+ * After acting on one pending binding doc, look up every OTHER unsigned doc from
+ * the same signer carrying the same relation description and delete them. Those
+ * are the envelopes a repeat scan of the same QR leaves behind; collapsing them
+ * stops the drawer re-prompting the user to accept the "same" binding over and
+ * over.
+ *
+ * The relation description is what keeps this from eating deliberate second
+ * invites: the same person can bind twice with different descriptions, and
+ * acting on one of those must leave the other standing.
  */
 export async function pruneDuplicateUnsignedDocs(
     ownGqlUrl: string,
     callerEname: string,
     keepDocId: string,
     signer: string,
+    relationDescription: string,
 ): Promise<number> {
     const normalized = callerEname.startsWith("@")
         ? callerEname
@@ -587,10 +615,15 @@ export async function pruneDuplicateUnsignedDocs(
         const parsed = edge.node.parsed;
         if (!parsed || parsed.type !== "social_connection") return false;
         if (parsed.subject !== normalized) return false;
+        const description =
+            typeof parsed.data?.relation_description === "string"
+                ? parsed.data.relation_description
+                : "";
+        if (description !== relationDescription) return false;
         const sigs = Array.isArray(parsed.signatures) ? parsed.signatures : [];
         // Same signer, and the caller hasn't already countersigned this
         // one either — i.e. it's a stale duplicate of the doc we just
-        // accepted.
+        // acted on.
         const sameSigner = sigs[0]?.signer === signer;
         const callerAlreadySigned = sigs.some((s) => s.signer === normalized);
         return sameSigner && !callerAlreadySigned;
@@ -615,12 +648,13 @@ export async function pruneDuplicateUnsignedDocs(
 /**
  * Delete leftover unsigned social_connection envelopes addressed to the caller
  * from signers the caller is ALREADY bound to. These pile up from repeat scans
- * of the caller's QR (before or after acceptance) and would otherwise re-surface
- * as duplicate "Social Connection Request" prompts for a contact already added.
+ * of the caller's QR around the time of the original binding and would otherwise
+ * re-surface as duplicate "Social Connection Request" prompts for a contact
+ * already added.
  *
- * Safe to delete: a completed (caller-counter-signed) binding with the same
- * signer already exists, so accepting a leftover would only mint a redundant
- * second binding to the same person. The fully-signed doc is never touched.
+ * Only envelopes that predate the caller's acceptance are removed; a newer one
+ * is a deliberate new invite from that contact and is left alone. The
+ * fully-signed doc is never touched.
  *
  * Intended as a one-time cleanup when the invite drawer opens. Returns the
  * number of envelopes deleted.
@@ -647,8 +681,7 @@ export async function pruneBoundSignerDocs(
         const sigs = Array.isArray(parsed.signatures) ? parsed.signatures : [];
         // Keep the completed binding itself — only leftovers are stale.
         if (sigs.some((s) => s.signer === normalized)) return false;
-        const originator = sigs[0]?.signer;
-        return !!originator && boundSigners.has(originator);
+        return isStaleLeftover(parsed, boundSigners);
     });
 
     let deleted = 0;
@@ -665,6 +698,156 @@ export async function pruneBoundSignerDocs(
         }
     }
     return deleted;
+}
+
+// ---------------------------------------------------------------------------
+// Acting on a pending request
+// ---------------------------------------------------------------------------
+
+/**
+ * Counter-sign a pending social binding request on the caller's own vault, then
+ * drop the duplicate envelopes left by repeat scans of the same QR.
+ *
+ * Shared by every entry point that can accept a request (the invite drawer's
+ * poll and the bindings list), so they can't drift apart.
+ *
+ * @param sign - signs the doc's canonical form; supplied by the caller so this
+ *               module stays free of any GlobalState dependency.
+ */
+export async function acceptSocialBinding(
+    ownGqlUrl: string,
+    callerEname: string,
+    docId: string,
+    parsed: BindingDocParsed,
+    sign: (payload: string) => Promise<string>,
+): Promise<void> {
+    const normalized = callerEname.startsWith("@")
+        ? callerEname
+        : `@${callerEname}`;
+
+    const signatures = Array.isArray(parsed.signatures)
+        ? parsed.signatures
+        : [];
+
+    // Idempotency: if the doc already carries our signature (a stale poll result
+    // re-surfaced after we just signed it), treat as already-done.
+    if (!signatures.some((s) => s.signer === normalized)) {
+        const canonical = getCanonicalBindingDocString({
+            subject: parsed.subject,
+            type: parsed.type,
+            data: parsed.data,
+        });
+        const signature = await sign(canonical);
+        await addCounterpartySignature(
+            ownGqlUrl,
+            normalized,
+            normalized,
+            docId,
+            signature,
+        );
+    }
+
+    await pruneDuplicatesOf(ownGqlUrl, normalized, docId, parsed);
+}
+
+/** Shared tail of accept and decline — see pruneDuplicateUnsignedDocs. */
+async function pruneDuplicatesOf(
+    ownGqlUrl: string,
+    normalizedCaller: string,
+    docId: string,
+    parsed: BindingDocParsed,
+): Promise<void> {
+    const signer = parsed.signatures?.[0]?.signer;
+    if (!signer) return;
+    try {
+        await pruneDuplicateUnsignedDocs(
+            ownGqlUrl,
+            normalizedCaller,
+            docId,
+            signer,
+            typeof parsed.data?.relation_description === "string"
+                ? parsed.data.relation_description
+                : "",
+        );
+    } catch (err) {
+        console.warn("[socialBinding] duplicate prune failed:", err);
+    }
+}
+
+/**
+ * Reject a pending social binding request: delete the envelope, then the
+ * duplicates queued behind it. Without that second step the next refresh
+ * re-prompts with what looks like the request the user just declined (#1082).
+ */
+export async function declineSocialBinding(
+    ownGqlUrl: string,
+    callerEname: string,
+    docId: string,
+    parsed: BindingDocParsed | null,
+): Promise<void> {
+    const normalized = callerEname.startsWith("@")
+        ? callerEname
+        : `@${callerEname}`;
+
+    await deleteSocialBindingDoc(ownGqlUrl, normalized, docId);
+
+    // docId is already gone, so nothing is actually kept — the prune clears
+    // whatever duplicates of it remain.
+    if (parsed) await pruneDuplicatesOf(ownGqlUrl, normalized, docId, parsed);
+}
+
+/**
+ * Withdraw an invite the caller sent by scanning: delete the pending doc from
+ * the counterparty's vault first, then the caller's local mirror.
+ *
+ * Remote first, and only on success — if the delete over there fails, the
+ * counterparty can still accept, and dropping the mirror would leave the caller
+ * blind to a binding that then completes.
+ *
+ * Throws if the counterparty has already counter-signed; a completed binding is
+ * not something to withdraw silently.
+ */
+export async function cancelSentSocialBinding(
+    ownGqlUrl: string,
+    callerEname: string,
+    mirrorDocId: string,
+    counterpartyEname: string,
+    relationDescription: string,
+): Promise<void> {
+    const normalized = callerEname.startsWith("@")
+        ? callerEname
+        : `@${callerEname}`;
+    const normalizedCounter = counterpartyEname.startsWith("@")
+        ? counterpartyEname
+        : `@${counterpartyEname}`;
+
+    const remote = await fetchRemoteDocsWithSelf(normalized, normalizedCounter);
+    const matching = remote.docs.filter(
+        (d) => d.relationDescription === relationDescription,
+    );
+    const pending = matching.filter((d) => d.signatureCount < 2);
+
+    if (pending.length === 0) {
+        if (matching.length > 0) {
+            throw new Error(
+                "This request was just confirmed — reopen the list to see it.",
+            );
+        }
+        // Already declined over there; only the orphaned mirror is left.
+    } else {
+        // One mirror, one invite: drop the newest match, the one this mirror
+        // most plausibly created.
+        const newest = pending.reduce((a, b) =>
+            b.timestamp > a.timestamp ? b : a,
+        );
+        await deleteSocialBindingDoc(
+            remote.gqlUrl,
+            normalizedCounter,
+            newest.id,
+        );
+    }
+
+    await deleteSocialBindingDoc(ownGqlUrl, normalized, mirrorDocId);
 }
 
 // ---------------------------------------------------------------------------
@@ -686,6 +869,12 @@ export interface SocialBindingSummary {
      * are no signatures (shouldn't happen post-fetch but stay defensive).
      */
     role: "sent" | "received";
+    /**
+     * The doc as stored. Kept so a pending request can be counter-signed from
+     * the list without re-fetching — signing needs subject/type/data to rebuild
+     * the canonical form.
+     */
+    parsed: BindingDocParsed;
 }
 
 // All social_connection docs on the caller's own vault, newest first.
@@ -735,6 +924,7 @@ export async function fetchSocialBindings(
                     : "",
             mutuallySigned: sigs.length >= 2,
             role,
+            parsed,
         });
     }
 
@@ -747,10 +937,9 @@ export async function fetchSocialBindings(
 // ---------------------------------------------------------------------------
 
 /**
- * True status of a scanner-initiated ("sent") binding, determined by reading
- * the primary doc in the counterparty's vault — the source of truth. The
- * scanner only holds a single-signature mirror; the real doc lives in the
- * counterparty's vault.
+ * True status of a scanner-initiated ("sent") binding, determined by reading the
+ * primary doc in the counterparty's vault — the source of truth. The scanner
+ * only holds a single-signature mirror; the real doc lives over there.
  *
  * - `confirmed`: the counterparty counter-signed (doc has 2 signatures).
  * - `pending`:   the counterparty hasn't acted yet (doc has 1 signature).
@@ -758,37 +947,41 @@ export async function fetchSocialBindings(
  */
 export type SentBindingStatus = "confirmed" | "pending" | "declined";
 
+/** One social_connection doc in a counterparty's vault that involves the caller. */
+interface RemoteSocialDoc {
+    id: string;
+    relationDescription: string;
+    signatureCount: number;
+    /** Originator's signature timestamp — when the invite was sent. */
+    timestamp: string;
+}
+
 /**
- * Read the counterparty's vault to determine the true status of a binding the
- * caller initiated by scanning. Reuses the same cross-vault read path as
+ * Every social_connection doc the caller created in the counterparty's vault,
+ * walked across all pages. Reuses the same cross-vault read path as
  * fetchNameFromVault (X-ENAME scopes the query to the counterparty's data).
  *
+ * The originator check matters: the counterparty's own mirrors (from them
+ * scanning the caller) also carry subject=@them and both parties, and counting
+ * those as invites the caller sent would leave a declined invite looking pending
+ * forever.
+ *
  * Throws if the counterparty vault can't be resolved or reached — callers MUST
- * treat a throw as "unknown" and leave the local mirror untouched, so a
- * transient network error never deletes a still-valid binding.
+ * treat a throw as "unknown" and leave local mirrors untouched, so a transient
+ * network error never deletes a still-valid binding.
  */
-export async function fetchSentBindingStatus(
-    selfEname: string,
-    counterpartyEname: string,
-): Promise<SentBindingStatus> {
-    const normalizedSelf = selfEname.startsWith("@")
-        ? selfEname
-        : `@${selfEname}`;
-    const normalizedCounter = counterpartyEname.startsWith("@")
-        ? counterpartyEname
-        : `@${counterpartyEname}`;
+async function fetchRemoteDocsWithSelf(
+    normalizedSelf: string,
+    normalizedCounter: string,
+): Promise<{ gqlUrl: string; docs: RemoteSocialDoc[] }> {
+    const gqlUrl = await resolveVaultUri(normalizedCounter);
 
-    const foreignGqlUrl = await resolveVaultUri(normalizedCounter);
-
-    // The primary doc has subject=@counterparty and lists both parties; any
-    // 2-signature match means confirmed (repeat scans can leave several). Only
-    // conclude "declined" — which deletes the mirror — after all pages are checked.
+    const docs: RemoteSocialDoc[] = [];
     let after: string | null = null;
-    let sawMatch = false;
     do {
         const data: SocialBindingDocsPage =
             await vaultGqlRequest<SocialBindingDocsPage>(
-                foreignGqlUrl,
+                gqlUrl,
                 normalizedCounter,
                 SOCIAL_BINDING_DOCS_PAGE_QUERY,
                 { after: after ?? undefined },
@@ -804,19 +997,86 @@ export async function fetchSentBindingStatus(
                 : [];
             if (!parties.includes(normalizedSelf)) continue;
 
-            sawMatch = true;
-            // A 2-signature match is terminal — the counterparty counter-signed.
-            const sigs = parsed.signatures;
-            if (Array.isArray(sigs) && sigs.length >= 2) return "confirmed";
+            const sigs = Array.isArray(parsed.signatures)
+                ? parsed.signatures
+                : [];
+            if (sigs[0]?.signer !== normalizedSelf) continue;
+
+            docs.push({
+                id: edge.node.id,
+                relationDescription:
+                    typeof parsed.data?.relation_description === "string"
+                        ? (parsed.data.relation_description as string)
+                        : "",
+                signatureCount: sigs.length,
+                timestamp: sigs[0]?.timestamp ?? "",
+            });
         }
 
         const pageInfo = connection?.pageInfo;
         after = pageInfo?.hasNextPage ? (pageInfo?.endCursor ?? null) : null;
     } while (after !== null);
 
-    // No matching doc on any page → the counterparty deleted it (declined).
-    // Otherwise we only ever saw single-signature matches → still pending.
-    return sawMatch ? "pending" : "declined";
+    return { gqlUrl, docs };
+}
+
+/**
+ * Resolve the status of every pending mirror the caller holds for one
+ * counterparty, from a single read of that counterparty's vault.
+ *
+ * The mirror carries no pointer to the doc it created over there, so the two
+ * sides are matched on relation_description — the only field that distinguishes
+ * one invite to the same person from another. Within a description, confirmed
+ * docs claim the oldest mirrors and pending docs the next; a mirror left with
+ * nothing to claim is one the counterparty declined and deleted.
+ *
+ * Matching on parties alone (what this used to do) marked every pending mirror
+ * confirmed as soon as *any* binding with that person was — so a second invite
+ * showed as accepted the moment it was sent.
+ */
+function resolveSentStatuses(
+    mirrors: SocialBindingSummary[],
+    remote: RemoteSocialDoc[],
+): Map<string, SentBindingStatus> {
+    const pools = new Map<string, { confirmed: number; pending: number }>();
+    for (const doc of remote) {
+        const pool = pools.get(doc.relationDescription) ?? {
+            confirmed: 0,
+            pending: 0,
+        };
+        if (doc.signatureCount >= 2) pool.confirmed += 1;
+        else pool.pending += 1;
+        pools.set(doc.relationDescription, pool);
+    }
+
+    const byDescription = new Map<string, SocialBindingSummary[]>();
+    for (const mirror of mirrors) {
+        const group = byDescription.get(mirror.relationDescription);
+        if (group) group.push(mirror);
+        else byDescription.set(mirror.relationDescription, [mirror]);
+    }
+
+    const statuses = new Map<string, SentBindingStatus>();
+    for (const [description, group] of byDescription) {
+        const pool = pools.get(description) ?? { confirmed: 0, pending: 0 };
+        // Oldest first, so a confirmation lands on the invite that has been
+        // waiting longest rather than on whichever one sorted first.
+        const ordered = [...group].sort((a, b) =>
+            a.completedAt.localeCompare(b.completedAt),
+        );
+        for (const mirror of ordered) {
+            if (pool.confirmed > 0) {
+                pool.confirmed -= 1;
+                statuses.set(mirror.docId, "confirmed");
+            } else if (pool.pending > 0) {
+                pool.pending -= 1;
+                statuses.set(mirror.docId, "pending");
+            } else {
+                statuses.set(mirror.docId, "declined");
+            }
+        }
+    }
+    return statuses;
 }
 
 /**
@@ -830,62 +1090,82 @@ export async function fetchSentBindingStatus(
  *   (the whole point of this reconcile — see issue #990).
  * - still pending / unreachable  → keep it as an unconfirmed (pending) binding.
  *
- * A confirmed or already-mutually-signed binding needs no remote read.
+ * A confirmed or already-mutually-signed binding needs no remote read, and each
+ * counterparty is read once however many mirrors point at them.
  */
 export async function fetchReconciledSocialBindings(
     ownGqlUrl: string,
     callerEname: string,
 ): Promise<SocialBindingSummary[]> {
     const summaries = await fetchSocialBindings(ownGqlUrl, callerEname);
+    const normalized = callerEname.startsWith("@")
+        ? callerEname
+        : `@${callerEname}`;
 
-    const reconciled = await Promise.all(
-        summaries.map(async (summary) => {
-            // Only scanner-initiated mirrors that aren't yet mutually signed
-            // need a remote check; everything else is already authoritative.
-            if (summary.role !== "sent" || summary.mutuallySigned) {
-                return summary;
-            }
+    const byCounterparty = new Map<string, SocialBindingSummary[]>();
+    for (const summary of summaries) {
+        // Only scanner-initiated mirrors that aren't yet mutually signed need a
+        // remote check; everything else is already authoritative.
+        if (summary.role !== "sent" || summary.mutuallySigned) continue;
+        const group = byCounterparty.get(summary.counterpartyEname);
+        if (group) group.push(summary);
+        else byCounterparty.set(summary.counterpartyEname, [summary]);
+    }
+    if (byCounterparty.size === 0) return summaries;
+
+    const statuses = new Map<string, SentBindingStatus>();
+    await Promise.all(
+        Array.from(byCounterparty, async ([counterparty, mirrors]) => {
             try {
-                const status = await fetchSentBindingStatus(
-                    callerEname,
-                    summary.counterpartyEname,
+                const remote = await fetchRemoteDocsWithSelf(
+                    normalized,
+                    counterparty.startsWith("@")
+                        ? counterparty
+                        : `@${counterparty}`,
                 );
-                if (status === "confirmed") {
-                    return { ...summary, mutuallySigned: true };
+                for (const [docId, status] of resolveSentStatuses(
+                    mirrors,
+                    remote.docs,
+                )) {
+                    statuses.set(docId, status);
                 }
-                if (status === "declined") {
-                    // The counterparty rejected the request and deleted their
-                    // copy — remove our orphaned mirror so it stops showing as
-                    // a successful binding, then drop it from this list.
-                    void deleteSocialBindingDoc(
-                        ownGqlUrl,
-                        callerEname,
-                        summary.docId,
-                    ).catch((err) =>
-                        console.warn(
-                            "[socialBinding] failed to delete declined mirror",
-                            summary.docId,
-                            err,
-                        ),
-                    );
-                    return null;
-                }
-                // pending — keep it as an unconfirmed binding.
-                return summary;
             } catch (err) {
-                // Couldn't reach the counterparty vault — treat as unknown and
-                // keep the mirror; never delete on a transient failure.
+                // Couldn't reach the counterparty vault — leave these mirrors
+                // unresolved and keep them; never delete on a transient failure.
                 console.warn(
-                    "[socialBinding] could not reconcile sent binding with",
-                    summary.counterpartyEname,
+                    "[socialBinding] could not reconcile sent bindings with",
+                    counterparty,
                     err,
                 );
-                return summary;
             }
         }),
     );
 
-    return reconciled.filter((s): s is SocialBindingSummary => s !== null);
+    const out: SocialBindingSummary[] = [];
+    for (const summary of summaries) {
+        const status = statuses.get(summary.docId);
+        if (status === "confirmed") {
+            out.push({ ...summary, mutuallySigned: true });
+        } else if (status === "declined") {
+            // The counterparty rejected the request and deleted their copy —
+            // remove our orphaned mirror so it stops showing as a successful
+            // binding, then drop it from this list.
+            void deleteSocialBindingDoc(
+                ownGqlUrl,
+                callerEname,
+                summary.docId,
+            ).catch((err) =>
+                console.warn(
+                    "[socialBinding] failed to delete declined mirror",
+                    summary.docId,
+                    err,
+                ),
+            );
+        } else {
+            out.push(summary);
+        }
+    }
+    return out;
 }
 
 // ---------------------------------------------------------------------------
