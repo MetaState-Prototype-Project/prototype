@@ -628,7 +628,7 @@ onMount(async () => {
                         {identityFieldLabel(fieldName)}
                     </p>
                     <p class="text-black-500 font-medium">
-                        {identityFieldValue(String(value))}
+                        {identityFieldValue(String(value), fieldName)}
                     </p>
                 </div>
             {/each}

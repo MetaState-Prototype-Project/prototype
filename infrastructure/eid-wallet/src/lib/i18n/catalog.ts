@@ -112,3 +112,19 @@ export function validateCatalog(raw: unknown): ValidationResult {
 
     return { accepted, rejected };
 }
+
+// Publishing through a pull request protects the catalog at rest, not in
+// transit: over plain HTTP anyone on the path can rewrite the copy on the PIN
+// and recovery screens. Localhost is exempt so a dev server still works.
+export function isTransportSafe(url: string): boolean {
+    try {
+        const { protocol, hostname } = new URL(url);
+        if (protocol === "https:") return true;
+        return (
+            protocol === "http:" &&
+            (hostname === "localhost" || hostname === "127.0.0.1")
+        );
+    } catch {
+        return false;
+    }
+}

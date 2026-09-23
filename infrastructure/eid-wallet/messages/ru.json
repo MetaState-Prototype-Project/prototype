@@ -191,6 +191,8 @@
       ],
       "match": {
         "countPlural=one": "{count} д назад",
+        "countPlural=few": "{count} д назад",
+        "countPlural=many": "{count} д назад",
         "countPlural=other": "{count} д назад"
       }
     }
@@ -206,6 +208,8 @@
       ],
       "match": {
         "countPlural=one": "{count} ч назад",
+        "countPlural=few": "{count} ч назад",
+        "countPlural=many": "{count} ч назад",
         "countPlural=other": "{count} ч назад"
       }
     }
@@ -222,6 +226,8 @@
       ],
       "match": {
         "countPlural=one": "{count} мин назад",
+        "countPlural=few": "{count} мин назад",
+        "countPlural=many": "{count} мин назад",
         "countPlural=other": "{count} мин назад"
       }
     }

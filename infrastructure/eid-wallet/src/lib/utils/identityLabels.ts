@@ -1,4 +1,5 @@
 import { m } from "$lib/i18n";
+import { getLocale } from "$lib/paraglide/runtime";
 
 // Identity fields are persisted under their English labels (see
 // UserController), so the stored key doubles as the lookup key and stored
@@ -24,6 +25,26 @@ export function identityFieldLabel(field: string): string {
     return FIELD_LABELS[field]?.() ?? field;
 }
 
-export function identityFieldValue(value: string): string {
+// Captured through toDateString(), so the stored value is an English date
+// string. Reformatting at display keeps what is already stored readable
+// without migrating it.
+const DATE_FIELDS = new Set([
+    "Date of Birth",
+    "Valid From",
+    "Valid Until",
+    "Verified On",
+]);
+
+export function identityFieldValue(value: string, fieldName?: string): string {
+    if (fieldName && DATE_FIELDS.has(fieldName)) {
+        const parsed = new Date(value);
+        if (!Number.isNaN(parsed.getTime())) {
+            return new Intl.DateTimeFormat(getLocale(), {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+            }).format(parsed);
+        }
+    }
     return FIELD_VALUES[value]?.() ?? value;
 }

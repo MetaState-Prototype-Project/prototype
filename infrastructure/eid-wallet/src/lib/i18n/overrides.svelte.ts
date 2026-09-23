@@ -1,13 +1,18 @@
 import { PUBLIC_TRANSLATIONS_URL } from "$env/static/public";
-import { validateCatalog } from "./catalog";
+import { isTransportSafe, validateCatalog } from "./catalog";
 
 const CACHE_KEY = "eid-wallet.translation-overrides";
 
+// Revalidated rather than trusted: the rules live in the binary, so a release
+// that renames a placeholder or turns a key into a plural would otherwise keep
+// rendering the previous build's correction.
 function readCache(): Record<string, Record<string, string>> {
     if (typeof localStorage === "undefined") return {};
     try {
         const raw = localStorage.getItem(CACHE_KEY);
-        return raw ? JSON.parse(raw) : {};
+        if (!raw) return {};
+        const { accepted, fatal } = validateCatalog(JSON.parse(raw));
+        return fatal ? {} : accepted;
     } catch {
         return {};
     }
@@ -36,7 +41,7 @@ export function applyCatalog(raw: unknown): void {
     table = accepted;
     if (typeof localStorage === "undefined") return;
     try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(accepted));
+        localStorage.setItem(CACHE_KEY, JSON.stringify(raw));
     } catch {
         // A full or disabled store only costs the head start next launch.
     }
@@ -45,6 +50,13 @@ export function applyCatalog(raw: unknown): void {
 // `no-cache` still honours a 304, so an unchanged catalog is not re-downloaded.
 export async function refreshOverrides(): Promise<void> {
     if (!PUBLIC_TRANSLATIONS_URL) return;
+    if (!isTransportSafe(PUBLIC_TRANSLATIONS_URL)) {
+        console.warn(
+            "[i18n] refusing to fetch corrections over an insecure URL:",
+            PUBLIC_TRANSLATIONS_URL,
+        );
+        return;
+    }
     try {
         const response = await fetch(PUBLIC_TRANSLATIONS_URL, {
             cache: "no-cache",

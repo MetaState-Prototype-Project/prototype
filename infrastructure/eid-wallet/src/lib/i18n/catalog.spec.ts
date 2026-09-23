@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
     CATALOG_FORMAT_VERSION,
     type RejectionReason,
+    isTransportSafe,
     validateCatalog,
 } from "./catalog";
 
@@ -95,5 +96,24 @@ describe("validateCatalog", () => {
         const result = catalog({});
         expect(result.fatal).toBeUndefined();
         expect(result.accepted).toEqual({});
+    });
+});
+
+describe("isTransportSafe", () => {
+    it.each([
+        "https://docs.w3ds.metastate.foundation/translations.json",
+        "http://localhost:8787/translations.json",
+        "http://127.0.0.1:8787/translations.json",
+    ])("allows %s", (url) => {
+        expect(isTransportSafe(url)).toBe(true);
+    });
+
+    it.each([
+        "http://docs.w3ds.metastate.foundation/translations.json",
+        "http://192.168.1.10/translations.json",
+        "ftp://example.com/translations.json",
+        "not a url",
+    ])("refuses %s", (url) => {
+        expect(isTransportSafe(url)).toBe(false);
     });
 });

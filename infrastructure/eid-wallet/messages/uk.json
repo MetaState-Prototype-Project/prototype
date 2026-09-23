@@ -191,6 +191,8 @@
       ],
       "match": {
         "countPlural=one": "{count} д тому",
+        "countPlural=few": "{count} д тому",
+        "countPlural=many": "{count} д тому",
         "countPlural=other": "{count} д тому"
       }
     }
@@ -206,6 +208,8 @@
       ],
       "match": {
         "countPlural=one": "{count} год тому",
+        "countPlural=few": "{count} год тому",
+        "countPlural=many": "{count} год тому",
         "countPlural=other": "{count} год тому"
       }
     }
@@ -222,6 +226,8 @@
       ],
       "match": {
         "countPlural=one": "{count} хв тому",
+        "countPlural=few": "{count} хв тому",
+        "countPlural=many": "{count} хв тому",
         "countPlural=other": "{count} хв тому"
       }
     }

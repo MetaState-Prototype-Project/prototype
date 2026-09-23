@@ -122,7 +122,7 @@ const baseClasses = $derived(
                                     {identityFieldLabel(fieldName)}
                                 </p>
                                 <p class=" font-medium text-white">
-                                    {identityFieldValue(String(value))}
+                                    {value == null ? "" : identityFieldValue(String(value), fieldName)}
                                 </p>
                             </div>
                         {/each}
