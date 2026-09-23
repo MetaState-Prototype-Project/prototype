@@ -675,6 +675,7 @@
   "social_bindings_empty_body": "Пригласите контакт с карточки вашего eName.",
   "social_bindings_empty_title": "Социальных связей пока нет",
   "social_bindings_page_title": "Социальные связи",
+  "social_cancel_not_pending": "Этот запрос больше не ожидает ответа — откройте список заново, чтобы увидеть результат.",
   "social_details_awaiting": "Ожидает подтверждения",
   "social_details_awaiting_suffix": "· Ожидает подтверждения",
   "social_details_awaiting_you_suffix": "· Ожидает вашего подтверждения",

@@ -812,6 +812,12 @@ export async function declineSocialBinding(
 }
 
 /**
+ * The one refusal cancelSentSocialBinding surfaces to the user, as a code rather
+ * than a sentence: this module has no i18n, so the caller renders the wording.
+ */
+export const CANCEL_NOT_PENDING = "social-binding/cancel-not-pending";
+
+/**
  * Withdraw an invite the caller sent by scanning: delete the pending doc from
  * the counterparty's vault first, then the caller's local mirror.
  *
@@ -850,9 +856,7 @@ export async function cancelSentSocialBinding(
             // often the empty one) is what we are seeing. The description is
             // all we have to match on, so don't guess which: leave the mirror
             // alone and let the reconcile settle it on the next read.
-            throw new Error(
-                "This request is no longer pending — reopen the list to see where it landed.",
-            );
+            throw new Error(CANCEL_NOT_PENDING);
         }
         // Nothing with this description on their side at all: they declined and
         // deleted it, so only the orphaned mirror is left.

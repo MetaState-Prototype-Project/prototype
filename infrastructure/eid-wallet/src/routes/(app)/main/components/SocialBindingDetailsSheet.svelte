@@ -4,6 +4,7 @@ import { m } from "$lib/i18n";
 import { getLocale } from "$lib/paraglide/runtime";
 import { BottomSheet, ButtonAction } from "$lib/ui";
 import {
+    CANCEL_NOT_PENDING,
     type SocialBindingSummary,
     acceptSocialBinding,
     cancelSentSocialBinding,
@@ -93,6 +94,16 @@ async function callerContext(): Promise<CallerContext> {
     };
 }
 
+/**
+ * socialBinding.ts carries no i18n so it stays testable without the app's module
+ * aliases; its one user-facing refusal arrives as a code and is worded here.
+ */
+function messageFor(err: Error): string {
+    return err.message === CANCEL_NOT_PENDING
+        ? m.social_cancel_not_pending()
+        : err.message;
+}
+
 async function runAction(
     binding: SocialBindingSummary,
     action: (ctx: CallerContext) => Promise<void>,
@@ -107,7 +118,7 @@ async function runAction(
         console.error("[SocialBindingDetailsSheet] action failed:", err);
         actionError =
             err instanceof Error
-                ? err.message
+                ? messageFor(err)
                 : m.social_drawer_error_generic();
     } finally {
         busyDocId = null;

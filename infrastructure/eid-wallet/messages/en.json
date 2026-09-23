@@ -655,6 +655,7 @@
   "social_bindings_empty_body": "Invite a contact from your eName card.",
   "social_bindings_empty_title": "No social bindings yet",
   "social_bindings_page_title": "Social bindings",
+  "social_cancel_not_pending": "This request is no longer pending — reopen the list to see where it landed.",
   "social_details_awaiting": "Awaiting confirmation",
   "social_details_awaiting_suffix": "· Awaiting confirmation",
   "social_details_awaiting_you_suffix": "· Awaiting your confirmation",

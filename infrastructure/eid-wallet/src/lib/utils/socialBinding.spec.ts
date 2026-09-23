@@ -6,6 +6,7 @@ vi.mock("$env/static/public", () => ({
 }));
 
 import {
+    CANCEL_NOT_PENDING,
     acceptSocialBinding,
     cancelSentSocialBinding,
     declineSocialBinding,
@@ -379,7 +380,7 @@ describe("cancelling a sent invite", () => {
 
         await expect(
             cancelSentSocialBinding(gql(ME), ME, "M2", BOB, ""),
-        ).rejects.toThrow(/no longer pending/);
+        ).rejects.toThrow(CANCEL_NOT_PENDING);
         expect(deletes).toEqual([]);
     });
 
@@ -402,7 +403,7 @@ describe("cancelling a sent invite", () => {
 
         await expect(
             cancelSentSocialBinding(gql(ME), ME, "M1", BOB, "x"),
-        ).rejects.toThrow(/no longer pending/);
+        ).rejects.toThrow(CANCEL_NOT_PENDING);
         expect(deletes).toEqual([]);
     });
 });

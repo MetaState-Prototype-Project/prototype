@@ -675,6 +675,7 @@
   "social_bindings_empty_body": "Запросіть контакт із картки вашого eName.",
   "social_bindings_empty_title": "Соціальних зв’язків поки немає",
   "social_bindings_page_title": "Соціальні зв’язки",
+  "social_cancel_not_pending": "Цей запит більше не очікує відповіді — відкрийте список знову, щоб побачити результат.",
   "social_details_awaiting": "Очікує підтвердження",
   "social_details_awaiting_suffix": "· Очікує підтвердження",
   "social_details_awaiting_you_suffix": "· Очікує вашого підтвердження",
