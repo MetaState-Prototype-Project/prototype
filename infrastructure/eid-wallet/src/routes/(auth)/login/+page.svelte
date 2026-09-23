@@ -3,20 +3,12 @@ import { goto } from "$app/navigation";
 import { keyboardInset } from "$lib/actions/keyboardInset";
 import type { GlobalState } from "$lib/global";
 import { m } from "$lib/i18n";
+import { hasDeepLink } from "$lib/stores/deepLink";
 import { LoadingSheet, PinDots } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { continueAfterSuccessfulAuth } from "$lib/utils/postLogin";
-import {
-    type AuthOptions,
-    authenticate,
-    checkStatus,
-} from "@tauri-apps/plugin-biometric";
 import { getContext, onMount } from "svelte";
 import StepHeader from "../onboarding/steps/StepHeader.svelte";
-
-// Splash sets this when it has already tried biometric over its own screen.
-// /login then skips re-prompting and just shows the PIN UI.
-const BIOMETRIC_ATTEMPTED_KEY = "biometricAttemptedOnSplash";
 
 let pin = $state("");
 let isError = $state(false);
@@ -36,17 +28,6 @@ function handleBackgroundClick(e: MouseEvent) {
 
 const getGlobalState = getContext<() => GlobalState | undefined>("globalState");
 let globalState: GlobalState | undefined = $state(undefined);
-
-const authOpts: AuthOptions = {
-    allowDeviceCredential: false,
-    cancelTitle: m.common_cancel(),
-    // iOS
-    fallbackTitle: m.login_biometric_fallback(),
-    // Android
-    title: m.login_biometric_title(),
-    subtitle: m.login_biometric_subtitle(),
-    confirmationRequired: true,
-};
 
 async function clearPin() {
     if (isPostAuthLoading) return;
@@ -84,6 +65,11 @@ $effect(() => {
     if (pin.length === 4) verifyAndAdvance(pin);
 });
 
+// This screen is the PIN fallback and deliberately never calls authenticate().
+// Biometrics are prompted from exactly one place, the splash, which routes
+// here only once that prompt was declined, failed, or was unavailable. A
+// second prompt site made the dialog's placement non-deterministic and let two
+// post-auth routines race to consume one deep-link payload.
 onMount(async () => {
     // Root +layout creates globalState in its own onMount (which runs after
     // children). Poll until it's available — same pattern as (app)/+layout.
@@ -101,33 +87,7 @@ onMount(async () => {
     }
     globalState = gs;
 
-    const pendingDeepLink = sessionStorage.getItem("pendingDeepLink");
-    hasPendingDeepLink = !!pendingDeepLink;
-
-    // If the splash already prompted biometric over its own screen, skip the
-    // retry here and let the user enter their PIN. The flag survives the
-    // route transition but is single-use.
-    const biometricHandledBySplash =
-        sessionStorage.getItem(BIOMETRIC_ATTEMPTED_KEY) === "true";
-    if (biometricHandledBySplash) {
-        sessionStorage.removeItem(BIOMETRIC_ATTEMPTED_KEY);
-        return;
-    }
-
-    // Try biometric first if available.
-    if (
-        (await gs.securityController.biometricSupport) &&
-        (await checkStatus()).isAvailable
-    ) {
-        try {
-            await authenticate(m.login_biometric_reason(), authOpts);
-            isPostAuthLoading = true;
-            await continueAfterSuccessfulAuth(gs);
-        } catch (e) {
-            console.error("Biometric authentication failed", e);
-            isPostAuthLoading = false;
-        }
-    }
+    hasPendingDeepLink = hasDeepLink();
 });
 </script>
 

@@ -12,6 +12,7 @@ import { m } from "$lib/i18n";
 import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction, CopyableEName, LoadingSheet } from "$lib/ui";
 import { capitalize, getCanonicalBindingDocString } from "$lib/utils";
+import { completeOnboarding } from "$lib/utils/postLogin";
 import axios from "axios";
 import { GraphQLClient } from "graphql-request";
 import { getContext, onMount, tick } from "svelte";
@@ -263,9 +264,8 @@ const completeRecovery = async () => {
             ename: recovery.ename,
         });
         pendingRecovery.set(null);
-        globalState.isOnboardingComplete = true;
         loadingPhase = null;
-        await goto("/main", { replaceState: true });
+        await completeOnboarding(globalState);
     } catch (err) {
         console.error("[onboarding] recovery completion failed:", err);
         recoveryError = m.onboarding_recovery_failed();
@@ -376,12 +376,10 @@ const handleNameComplete = async (enteredName: string) => {
         // Persist user + vault, then mark onboarding done.
         globalState.userController.user = { name: enteredName };
         await globalState.vaultController.setVaultAndPersist({ uri, ename });
-        globalState.isOnboardingComplete = true;
-
         // Land on /main; the WelcomeTour there draws the animated lines
         // around the identity card (replaces the old /review + /e-passport).
         loadingPhase = null;
-        await goto("/main", { replaceState: true });
+        await completeOnboarding(globalState);
     } catch (err) {
         console.error("Failed to provision eVault:", err);
         nameError = m.onboarding_provision_failed();
@@ -656,9 +654,8 @@ const handleProvision = async () => {
             uri: result.uri,
             ename: result.w3id,
         });
-        globalState.isOnboardingComplete = true;
         loadingPhase = null;
-        await goto("/main", { replaceState: true });
+        await completeOnboarding(globalState);
     } catch (err) {
         console.error("Provisioning failed:", err);
         error =
@@ -798,9 +795,8 @@ const handleAnonymousSubmit = async () => {
         };
 
         await globalState.vaultController.setVaultAndPersist({ uri, ename });
-        globalState.isOnboardingComplete = true;
         loadingPhase = null;
-        await goto("/main", { replaceState: true });
+        await completeOnboarding(globalState);
     } catch (err) {
         console.error("Anonymous provisioning failed:", err);
         error = m.onboarding_anonymous_provision_failed();

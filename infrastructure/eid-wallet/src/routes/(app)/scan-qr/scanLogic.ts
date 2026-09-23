@@ -1,4 +1,6 @@
 import { m } from "$lib/i18n";
+import { clearDeepLink, peekDeepLink } from "$lib/stores/deepLink";
+import { getVersion } from "@tauri-apps/api/app";
 import {
     Format,
     type PermissionState,
@@ -367,6 +369,7 @@ export function createScanLogic({
                 );
             }
 
+            const appVersion = await getVersion();
             const fromScan = get(isFromScan);
 
             if (fromScan) {
@@ -375,7 +378,7 @@ export function createScanLogic({
                     ename: vault.ename,
                     session: get(session) as string,
                     signature: signature,
-                    appVersion: "0.4.0",
+                    appVersion,
                 };
 
                 console.log(`📤 Making POST request to: ${redirectUrl}`);
@@ -409,7 +412,7 @@ export function createScanLogic({
             loginUrl.searchParams.set("ename", vault.ename);
             loginUrl.searchParams.set("session", get(session) as string);
             loginUrl.searchParams.set("signature", signature);
-            loginUrl.searchParams.set("appVersion", "0.4.0");
+            loginUrl.searchParams.set("appVersion", appVersion);
 
             console.log(`🔗 Opening login URL: ${loginUrl.toString()}`);
 
@@ -427,10 +430,7 @@ export function createScanLogic({
             // Close the auth drawer first
             codeScannedDrawerOpen.set(false);
 
-            let deepLinkData = sessionStorage.getItem("deepLinkData");
-            if (!deepLinkData) {
-                deepLinkData = sessionStorage.getItem("pendingDeepLink");
-            }
+            const deepLinkData = peekDeepLink();
 
             if (deepLinkData) {
                 try {
@@ -934,7 +934,7 @@ export function createScanLogic({
             }
             showSigningSuccess.set(true);
 
-            const deepLinkData = sessionStorage.getItem("deepLinkData");
+            const deepLinkData = peekDeepLink();
             if (deepLinkData) {
                 try {
                     const data = JSON.parse(deepLinkData) as DeepLinkData;
@@ -1641,10 +1641,7 @@ export function createScanLogic({
         window.addEventListener("deepLinkAuth", authHandler);
         window.addEventListener("deepLinkSign", signHandler);
 
-        let deepLinkData = sessionStorage.getItem("deepLinkData");
-        if (!deepLinkData) {
-            deepLinkData = sessionStorage.getItem("pendingDeepLink");
-        }
+        const deepLinkData = peekDeepLink();
 
         if (deepLinkData) {
             console.log("Found deep link data:", deepLinkData);
@@ -1655,8 +1652,7 @@ export function createScanLogic({
             } catch (error) {
                 console.error("Error parsing deep link data:", error);
             } finally {
-                sessionStorage.removeItem("deepLinkData");
-                sessionStorage.removeItem("pendingDeepLink");
+                clearDeepLink();
             }
         } else {
             console.log("No deep link data found, starting normal scanning");

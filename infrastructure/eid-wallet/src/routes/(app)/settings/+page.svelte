@@ -4,6 +4,7 @@ import { SettingsNavigationBtn } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
 import { runtime } from "$lib/global/runtime.svelte";
 import { m } from "$lib/i18n";
+import { clearDeepLink } from "$lib/stores/deepLink";
 import { getCurrentLanguage } from "$lib/stores/language.svelte";
 import { clearAllNotifications } from "$lib/stores/notifications";
 import { BottomSheet, ButtonAction } from "$lib/ui";
@@ -96,6 +97,8 @@ async function performLogout() {
     }
     const newGlobalState = await globalState.reset();
     setGlobalState(newGlobalState);
+    // goto("/") is an SPA navigation, so sessionStorage survives it.
+    clearDeepLink();
     goto("/");
 }
 

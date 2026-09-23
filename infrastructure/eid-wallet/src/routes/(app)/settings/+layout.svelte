@@ -12,7 +12,7 @@ const { children } = $props();
 // captured value through the entire slide-out transition — without this we
 // were routing subtitle through shared $state and the OLD AppNav would
 // re-render mid- or post-transition, producing a visible flash.
-const VERSION = "1.0.0";
+const VERSION = __APP_VERSION__;
 const subtitleAtMount =
     page.url.pathname === "/settings"
         ? m.settings_app_version({ version: VERSION })

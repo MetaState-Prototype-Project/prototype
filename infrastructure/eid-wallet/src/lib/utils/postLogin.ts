@@ -1,5 +1,6 @@
 import { goto } from "$app/navigation";
 import type { GlobalState } from "$lib/global";
+import { hasDeepLink } from "$lib/stores/deepLink";
 
 /**
  * Shared post-authentication routine: fires the background eVault chores
@@ -7,13 +8,16 @@ import type { GlobalState } from "$lib/global";
  * either to the deep-link target waiting in sessionStorage or to /main.
  *
  * Called from both the splash (when biometric auth succeeds over the
- * splash screen) and from /login (after PIN or fallback biometric).
- * Keeping the logic here means we don't have to flash the user through
- * /login on biometric success.
+ * splash screen) and from /login (after PIN entry). Keeping the logic here
+ * means we don't have to flash the user through /login on biometric success.
  */
 export async function continueAfterSuccessfulAuth(
     gs: GlobalState,
 ): Promise<void> {
+    // Record the fact BEFORE any await: a deep link delivered while the chores
+    // below are in flight must see the user as already through the gate.
+    // See docs/architecture/deepLink.md.
+    gs.sessionController.markAuthenticated();
     // Fire-and-forget post-login chores. They hit the network with no client
     // timeout, so awaiting them here can strand the user on a spinner — the
     // app pages will retry as needed.
@@ -52,19 +56,36 @@ export async function continueAfterSuccessfulAuth(
         console.error("Error reading vault during login:", error);
     }
 
-    const pendingDeepLink = sessionStorage.getItem("pendingDeepLink");
-    if (pendingDeepLink) {
-        try {
-            sessionStorage.setItem("deepLinkData", pendingDeepLink);
-            sessionStorage.removeItem("pendingDeepLink");
-            await goto("/scan-qr");
-            return;
-        } catch (error) {
-            console.error("Error processing pending deep link:", error);
-            sessionStorage.removeItem("pendingDeepLink");
-            sessionStorage.removeItem("deepLinkData");
-        }
+    // A deep link may have arrived before or during authentication; either way
+    // it is stored, and the user is now allowed to act on it.
+    if (hasDeepLink()) {
+        await goto("/scan-qr");
+        return;
     }
 
     await goto("/main");
+}
+
+/**
+ * Finish onboarding or recovery: the user has just proved their identity by
+ * creating or restoring it, so they are signed in for this session.
+ *
+ * Marking the session is what lets a deep link that arrived during onboarding
+ * be acted on straight away. Without it the layout's gate sees a user who has
+ * never been through the splash or /login, parks the payload, and the consent
+ * screen surfaces at some unrelated later moment instead.
+ *
+ * Mirrors continueAfterSuccessfulAuth()'s routing so both ways into the app
+ * honour a waiting deep link.
+ */
+export async function completeOnboarding(gs: GlobalState): Promise<void> {
+    gs.isOnboardingComplete = true;
+    gs.sessionController.markAuthenticated();
+
+    if (hasDeepLink()) {
+        await goto("/scan-qr", { replaceState: true });
+        return;
+    }
+
+    await goto("/main", { replaceState: true });
 }
