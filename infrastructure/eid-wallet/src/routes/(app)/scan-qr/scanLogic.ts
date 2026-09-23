@@ -1246,44 +1246,15 @@ export function createScanLogic({
                 throw new Error(m.scan_error_no_blind_vote());
             }
 
+            // Only the parse belongs in this try: everything after it throws
+            // errors of its own that the outer catch already surfaces.
+            let parsedVoteData: Record<string, unknown>;
             try {
                 console.log("🔍 Debug: Attempting to parse JSON...");
-                const parsedVoteData = JSON.parse(storedVoteData) as Record<
+                parsedVoteData = JSON.parse(storedVoteData) as Record<
                     string,
                     unknown
                 >;
-                console.log(
-                    "🔍 Debug: Successfully parsed vote data:",
-                    parsedVoteData,
-                );
-
-                const storedVoterId =
-                    (parsedVoteData.voterId as string | null)?.replace(
-                        /^@/,
-                        "",
-                    ) ?? "";
-                const currentVoterId = vault.ename?.replace(/^@/, "") ?? "";
-
-                if (storedVoterId !== currentVoterId) {
-                    throw new Error(m.scan_error_vote_not_yours());
-                }
-
-                const chosenOption =
-                    (parsedVoteData.optionText as string | undefined) ||
-                    (typeof parsedVoteData.chosenOption === "number"
-                        ? m.scan_vote_option_n({
-                              number:
-                                  (parsedVoteData.chosenOption as number) + 1,
-                          })
-                        : m.scan_vote_unknown_option());
-
-                revealedVoteData.set({
-                    chosenOption: chosenOption,
-                    pollId: currentPollId,
-                    voterId: vault.ename,
-                });
-
-                revealSuccess.set(true);
             } catch (parseError) {
                 console.error("❌ JSON Parse Error Details:", parseError);
                 console.error(
@@ -1292,6 +1263,35 @@ export function createScanLogic({
                 );
                 throw new Error(m.scan_error_parse_vote());
             }
+            console.log(
+                "🔍 Debug: Successfully parsed vote data:",
+                parsedVoteData,
+            );
+
+            const storedVoterId =
+                (parsedVoteData.voterId as string | null)?.replace(/^@/, "") ??
+                "";
+            const currentVoterId = vault.ename?.replace(/^@/, "") ?? "";
+
+            if (storedVoterId !== currentVoterId) {
+                throw new Error(m.scan_error_vote_not_yours());
+            }
+
+            const chosenOption =
+                (parsedVoteData.optionText as string | undefined) ||
+                (typeof parsedVoteData.chosenOption === "number"
+                    ? m.scan_vote_option_n({
+                          number: (parsedVoteData.chosenOption as number) + 1,
+                      })
+                    : m.scan_vote_unknown_option());
+
+            revealedVoteData.set({
+                chosenOption: chosenOption,
+                pollId: currentPollId,
+                voterId: vault.ename,
+            });
+
+            revealSuccess.set(true);
         } catch (error) {
             console.error("❌ Error revealing vote:", error);
             revealError.set(
