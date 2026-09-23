@@ -50,11 +50,13 @@ export function applyCatalog(raw: unknown): void {
     }
 }
 
+// `no-cache` revalidates on every launch but still honours a 304, so the
+// catalog is always fresh without re-downloading it each time.
 export async function refreshOverrides(): Promise<void> {
     if (!PUBLIC_TRANSLATIONS_URL) return;
     try {
         const response = await fetch(PUBLIC_TRANSLATIONS_URL, {
-            cache: "no-store",
+            cache: "no-cache",
         });
         if (!response.ok) return;
         applyCatalog(await response.json());

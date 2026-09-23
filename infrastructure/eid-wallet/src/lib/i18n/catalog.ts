@@ -7,20 +7,18 @@
 
 import enMessages from "../../../messages/en.json";
 import { locales } from "../paraglide/runtime.js";
+// Shared with scripts/build-translations-catalog.mjs, which must exclude
+// exactly what this module refuses or every launch logs rejections.
+import policy from "./policy.json";
 
 /** Rejected whole rather than applied partially when the remote file's shape
  *  no longer matches what this build understands. */
-export const CATALOG_FORMAT_VERSION = 1;
+export const CATALOG_FORMAT_VERSION = policy.formatVersion;
 
 /** Screens where the wording itself can talk someone into revealing a secret,
  *  or into approving something the confirmation misdescribes. These ship in
  *  the binary and are never replaceable from the network. */
-export const PROTECTED_PREFIXES = [
-    "passphrase_",
-    "pin_",
-    "reveal_",
-    "signing_",
-];
+export const PROTECTED_PREFIXES: string[] = policy.protectedPrefixes;
 
 const PLACEHOLDER = /\{([a-zA-Z0-9_]+)\}/g;
 const KNOWN_LOCALES = new Set<string>(locales);
