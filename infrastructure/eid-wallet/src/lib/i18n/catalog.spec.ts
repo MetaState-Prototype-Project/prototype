@@ -9,7 +9,6 @@ import {
 const PLAIN = "common_accept";
 const WITH_PLACEHOLDER = "loggedin_connected_to"; // "...connected to {platform}"
 const VARIANT = "onboarding_step_counter";
-const PROTECTED = "pin_change_title";
 
 function catalog(messages: unknown, version: unknown = CATALOG_FORMAT_VERSION) {
     return validateCatalog({ version, messages });
@@ -43,7 +42,6 @@ describe("validateCatalog", () => {
 
     it.each<[string, unknown, RejectionReason]>([
         ["an unknown key", { ru: { not_a_real_key: "x" } }, "unknown-key"],
-        ["a protected key", { ru: { [PROTECTED]: "x" } }, "protected-key"],
         ["a plural message", { ru: { [VARIANT]: "x" } }, "variant-message"],
         ["a non-string value", { ru: { [PLAIN]: 42 } }, "not-a-string"],
     ])("refuses %s", (_label, messages, reason) => {

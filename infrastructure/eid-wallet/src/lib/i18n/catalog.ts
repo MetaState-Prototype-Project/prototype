@@ -1,14 +1,10 @@
 import enMessages from "../../../messages/en.json";
 import { locales } from "../paraglide/runtime.js";
-// Mirrored by scripts/build-translations-catalog.mjs: it must exclude
-// exactly what this refuses, or every launch logs rejections.
+// Shared with scripts/build-translations-catalog.mjs so the version the
+// generator writes and the one this accepts cannot drift.
 import policy from "./policy.json";
 
 export const CATALOG_FORMAT_VERSION = policy.formatVersion;
-
-/** Wording on these screens can talk someone into revealing a secret, or
- *  approving something the confirmation misdescribes. Never replaceable. */
-export const PROTECTED_PREFIXES: string[] = policy.protectedPrefixes;
 
 const PLACEHOLDER = /\{([a-zA-Z0-9_]+)\}/g;
 const KNOWN_LOCALES = new Set<string>(locales);
@@ -39,7 +35,6 @@ export function fill(
 export type RejectionReason =
     | "unknown-locale"
     | "unknown-key"
-    | "protected-key"
     | "variant-message"
     | "not-a-string"
     | "placeholder-mismatch";
@@ -62,8 +57,6 @@ function rejectionFor(
     value: unknown,
 ): RejectionReason | undefined {
     if (typeof value !== "string") return "not-a-string";
-    if (PROTECTED_PREFIXES.some((prefix) => key.startsWith(prefix)))
-        return "protected-key";
     if (variantKeys.has(key)) return "variant-message";
     const base = baseText.get(key);
     if (base === undefined) return "unknown-key";

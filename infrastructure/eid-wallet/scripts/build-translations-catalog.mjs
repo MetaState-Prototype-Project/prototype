@@ -21,12 +21,9 @@ const { locales } = readJson(
     resolve(walletRoot, "project.inlang/settings.json"),
 );
 
-const isProtected = (key) =>
-    policy.protectedPrefixes.some((prefix) => key.startsWith(prefix));
-
 function build() {
     const base = readJson(resolve(walletRoot, "messages/en.json"));
-    const skipped = { protected: 0, plural: 0 };
+    let plural = 0;
     const messages = {};
 
     for (const locale of locales) {
@@ -39,11 +36,7 @@ function build() {
         for (const [key, value] of Object.entries(base)) {
             if (key === "$schema") continue;
             if (Array.isArray(value)) {
-                skipped.plural++;
-                continue;
-            }
-            if (isProtected(key)) {
-                skipped.protected++;
+                plural++;
                 continue;
             }
             // Absent here: the compiled message already falls back to English.
@@ -61,8 +54,7 @@ function build() {
             published: Object.values(messages).map(
                 (m) => Object.keys(m).length,
             ),
-            protected: skipped.protected / perLocale,
-            plural: skipped.plural / perLocale,
+            plural: plural / perLocale,
         },
     };
 }
@@ -87,6 +79,6 @@ if (process.argv.includes("--check")) {
     writeFileSync(OUTPUT, json);
     console.log(
         `${where}: ${counts.published.join("/")} keys for ${locales.join("/")}` +
-            ` (${counts.protected} protected and ${counts.plural} plural keys excluded)`,
+            ` (${counts.plural} plural keys excluded)`,
     );
 }

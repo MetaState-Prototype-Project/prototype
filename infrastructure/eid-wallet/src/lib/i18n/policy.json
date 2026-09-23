@@ -1,4 +1,3 @@
 {
-    "formatVersion": 1,
-    "protectedPrefixes": ["passphrase_", "pin_", "reveal_", "signing_"]
+    "formatVersion": 1
 }

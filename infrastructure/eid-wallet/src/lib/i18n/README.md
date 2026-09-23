@@ -24,17 +24,23 @@ translations ready first: a key missing from `ru.json` falls back to English
 rather than failing the build, and once the release is out its wording is
 correctable like everything else.
 
-**Security-critical screens.** Keys under `passphrase_`, `pin_`, `reveal_` and
-`signing_` are excluded from the generated file and refused on arrival.
-Wording there can talk someone into revealing a secret, or into approving
-something the confirmation misdescribes, and that should not be reachable from
-a file on a server.
-
 **Plural messages.** They compile to a form selector, which a flat replacement
-string cannot express.
+string cannot express. Everything else is correctable.
 
-Between them those two groups are 71 of 544 keys; the other 473 are
-correctable.
+## Why there is no protected list
+
+Wording on the PIN, recovery and signing screens can talk someone into
+revealing a secret or approving something the confirmation misdescribes, so an
+earlier version refused corrections for those keys.
+
+It was dropped because publishing goes through a pull request: changing what
+users read requires the same merge as changing the code, so the list guarded
+nothing the repo did not already guard, while locking the screens where a
+clumsy translation is most expensive behind an app release.
+
+**Reinstate it if that ever stops being true** — a bucket upload, a CMS, or an
+outside translator with an account. It is the mandatory review that makes the
+list unnecessary, not the fact that only developers have access.
 
 ## What the app refuses
 
@@ -44,7 +50,6 @@ discarded whole only when its `version` is not one the build understands.
 | Refused | Why |
 | --- | --- |
 | Unknown key or locale | Nothing in the build renders it |
-| Protected prefix | See above |
 | Plural message | See above |
 | Placeholder mismatch | `{platform}` must survive the correction, or the message renders a gap |
 
