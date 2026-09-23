@@ -473,23 +473,37 @@ export async function deleteSocialBindingDoc(
     );
 }
 
+function relationOf(parsed: BindingDocParsed): string {
+    return typeof parsed.data?.relation_description === "string"
+        ? parsed.data.relation_description
+        : "";
+}
+
+/** Cutoffs are per (signer, relation description) — see collectAcceptanceCutoffs. */
+function cutoffKey(signer: string, relationDescription: string): string {
+    return `${signer}\u0000${relationDescription}`;
+}
+
 /**
- * Signers the caller has ALREADY completed a binding with, mapped to the
- * timestamp of the caller's most recent counter-signature with them. A
- * completed binding is a doc subject=@caller that the caller has counter-signed;
- * its originator is signatures[0].signer.
+ * For each invite the caller has ALREADY accepted, the timestamp of their
+ * counter-signature. A completed binding is a doc subject=@caller that the
+ * caller has counter-signed; its originator is signatures[0].signer.
  *
  * The timestamp is the cutoff that separates the two kinds of unsigned envelope
- * a bound signer can leave behind: one created *before* the caller accepted is a
- * leftover from the same burst of repeat scans and must not re-surface as a
- * fresh request; one created *after* is a deliberate new invite (a second
- * binding with a different relation description, say) and must be kept.
+ * an accepted invite leaves behind: one created *before* the caller accepted is
+ * a leftover from the same burst of repeat scans and must not re-surface as a
+ * fresh request; one created *after* is a deliberate new invite and must be kept.
+ *
+ * Keyed by relation description as well as signer, because the same person can
+ * send several invites before the caller acts on any of them. Keying on the
+ * signer alone made accepting one of those wipe the rest, whatever their
+ * description — which is the situation issue #1146 reports.
  */
-function collectBoundSigners(
+function collectAcceptanceCutoffs(
     edges: BindingDocEdge[],
     normalizedCaller: string,
 ): Map<string, string> {
-    const boundSigners = new Map<string, string>();
+    const cutoffs = new Map<string, string>();
     for (const edge of edges) {
         const parsed = edge.node.parsed;
         if (!parsed || parsed.type !== "social_connection") continue;
@@ -499,27 +513,28 @@ function collectBoundSigners(
         const originator = sigs[0]?.signer;
         if (!callerSig || !originator || originator === normalizedCaller)
             continue;
+        const key = cutoffKey(originator, relationOf(parsed));
         const acceptedAt = callerSig.timestamp ?? "";
-        const previous = boundSigners.get(originator);
+        const previous = cutoffs.get(key);
         if (previous === undefined || acceptedAt > previous) {
-            boundSigners.set(originator, acceptedAt);
+            cutoffs.set(key, acceptedAt);
         }
     }
-    return boundSigners;
+    return cutoffs;
 }
 
 /**
- * True when an unsigned envelope predates the caller's acceptance of an earlier
- * binding with the same signer — see collectBoundSigners.
+ * True when an unsigned envelope predates the caller's acceptance of the same
+ * invite from the same person — see collectAcceptanceCutoffs.
  */
 function isStaleLeftover(
     parsed: BindingDocParsed,
-    boundSigners: Map<string, string>,
+    cutoffs: Map<string, string>,
 ): boolean {
     const sigs = Array.isArray(parsed.signatures) ? parsed.signatures : [];
     const originator = sigs[0]?.signer;
     if (!originator) return false;
-    const acceptedAt = boundSigners.get(originator);
+    const acceptedAt = cutoffs.get(cutoffKey(originator, relationOf(parsed)));
     if (acceptedAt === undefined) return false;
     return (sigs[0]?.timestamp ?? "") <= acceptedAt;
 }
@@ -543,7 +558,7 @@ export async function fetchUnsignedSocialDocs(
     }>(ownGqlUrl, callerEname, SOCIAL_BINDING_DOCS_QUERY);
 
     const edges = data.bindingDocuments?.edges ?? [];
-    const boundSigners = collectBoundSigners(edges, normalized);
+    const cutoffs = collectAcceptanceCutoffs(edges, normalized);
 
     const unsigned = edges.filter((edge) => {
         const parsed = edge.node.parsed;
@@ -558,7 +573,7 @@ export async function fetchUnsignedSocialDocs(
         const alreadySigned = signatures.some((s) => s.signer === normalized);
         if (alreadySigned) return false;
         // Skip leftover envelopes from a signer the caller is already bound to.
-        if (isStaleLeftover(parsed, boundSigners)) return false;
+        if (isStaleLeftover(parsed, cutoffs)) return false;
         return true;
     });
 
@@ -672,7 +687,7 @@ export async function pruneBoundSignerDocs(
     }>(ownGqlUrl, callerEname, SOCIAL_BINDING_DOCS_QUERY);
 
     const edges = data.bindingDocuments?.edges ?? [];
-    const boundSigners = collectBoundSigners(edges, normalized);
+    const cutoffs = collectAcceptanceCutoffs(edges, normalized);
 
     const stale = edges.filter((edge) => {
         const parsed = edge.node.parsed;
@@ -681,7 +696,7 @@ export async function pruneBoundSignerDocs(
         const sigs = Array.isArray(parsed.signatures) ? parsed.signatures : [];
         // Keep the completed binding itself — only leftovers are stale.
         if (sigs.some((s) => s.signer === normalized)) return false;
-        return isStaleLeftover(parsed, boundSigners);
+        return isStaleLeftover(parsed, cutoffs);
     });
 
     let deleted = 0;
@@ -829,11 +844,18 @@ export async function cancelSentSocialBinding(
 
     if (pending.length === 0) {
         if (matching.length > 0) {
+            // Some doc with this description is on their side but none of them
+            // is pending. Either they counter-signed this invite or they
+            // declined it and an older binding with the same description (very
+            // often the empty one) is what we are seeing. The description is
+            // all we have to match on, so don't guess which: leave the mirror
+            // alone and let the reconcile settle it on the next read.
             throw new Error(
-                "This request was just confirmed — reopen the list to see it.",
+                "This request is no longer pending — reopen the list to see where it landed.",
             );
         }
-        // Already declined over there; only the orphaned mirror is left.
+        // Nothing with this description on their side at all: they declined and
+        // deleted it, so only the orphaned mirror is left.
     } else {
         // One mirror, one invite: drop the newest match, the one this mirror
         // most plausibly created.

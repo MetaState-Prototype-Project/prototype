@@ -34,6 +34,14 @@ let {
 /** docId of the binding whose action is in flight, if any. */
 let busyDocId = $state<string | null>(null);
 let actionError = $state<string | null>(null);
+/** Whose sheet the error belongs to, so it can't leak onto the next contact. */
+let errorFor = $state<string | null>(null);
+
+const visibleError = $derived(
+    actionError !== null && errorFor === (contact?.counterpartyEname ?? null)
+        ? actionError
+        : null,
+);
 
 function roleLabel(role: "sent" | "received" | "both"): string {
     if (role === "both") return m.social_role_sent_received();
@@ -58,6 +66,8 @@ function formatTimestamp(iso: string): string {
 }
 
 function close() {
+    actionError = null;
+    errorFor = null;
     isOpen = false;
     onOpenChange?.(false);
 }
@@ -90,9 +100,9 @@ async function runAction(
     if (busyDocId) return;
     busyDocId = binding.docId;
     actionError = null;
+    errorFor = contact?.counterpartyEname ?? null;
     try {
         await action(await callerContext());
-        onchanged?.();
     } catch (err) {
         console.error("[SocialBindingDetailsSheet] action failed:", err);
         actionError =
@@ -102,6 +112,9 @@ async function runAction(
     } finally {
         busyDocId = null;
     }
+    // Re-read either way: a failure usually means the binding moved on without
+    // us, and the list is what shows where it actually landed.
+    onchanged?.();
 }
 
 function accept(binding: SocialBindingSummary) {
@@ -152,8 +165,8 @@ function cancel(binding: SocialBindingSummary) {
             </span>
         </div>
 
-        {#if actionError}
-            <p class="text-sm text-danger text-center">{actionError}</p>
+        {#if visibleError}
+            <p class="text-sm text-danger text-center">{visibleError}</p>
         {/if}
 
         <div class="flex flex-col gap-2">

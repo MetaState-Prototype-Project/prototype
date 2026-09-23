@@ -45,6 +45,16 @@ function doc(
     return { id, subject, parties, relation, sigs };
 }
 
+/**
+ * Signature timestamps as real ISO strings, `minutes` before now. The code under
+ * test stamps its own signatures with new Date().toISOString(), and these are
+ * compared as strings — a placeholder like "t1" sorts after any ISO date and
+ * would quietly disable every cutoff check below.
+ */
+function at(minutesAgo: number): string {
+    return new Date(Date.now() - minutesAgo * 60_000).toISOString();
+}
+
 function gql(ename: string): string {
     return `https://vault.test/${ename.slice(1)}/graphql`;
 }
@@ -158,12 +168,12 @@ describe("leftovers from an already-bound signer", () => {
                 ME,
                 [BOB, ME],
                 [
-                    { signer: BOB, timestamp: "t10" },
-                    { signer: ME, timestamp: "t20" },
+                    { signer: BOB, timestamp: at(190) },
+                    { signer: ME, timestamp: at(180) },
                 ],
             ),
-            doc("D2", ME, [BOB, ME], [{ signer: BOB, timestamp: "t15" }]),
-            doc("D3", ME, [BOB, ME], [{ signer: BOB, timestamp: "t30" }]),
+            doc("D2", ME, [BOB, ME], [{ signer: BOB, timestamp: at(185) }]),
+            doc("D3", ME, [BOB, ME], [{ signer: BOB, timestamp: at(170) }]),
         ]);
     });
 
@@ -185,21 +195,21 @@ describe("acting on one request of several", () => {
                 "P1",
                 ME,
                 [BOB, ME],
-                [{ signer: BOB, timestamp: "t1" }],
+                [{ signer: BOB, timestamp: at(199) }],
                 "coffee",
             ),
             doc(
                 "P2",
                 ME,
                 [BOB, ME],
-                [{ signer: BOB, timestamp: "t2" }],
+                [{ signer: BOB, timestamp: at(198) }],
                 "coffee",
             ),
             doc(
                 "P3",
                 ME,
                 [BOB, ME],
-                [{ signer: BOB, timestamp: "t3" }],
+                [{ signer: BOB, timestamp: at(197) }],
                 "work",
             ),
         ]);
@@ -213,6 +223,20 @@ describe("acting on one request of several", () => {
         const remaining = vaults.get(ME) as Doc[];
         expect(remaining.map((d) => d.id)).toEqual(["P1", "P3"]);
         expect(remaining[0].sigs.map((s) => s.signer)).toEqual([BOB, ME]);
+    });
+
+    it("accepting one does not make the other a stale leftover afterwards", async () => {
+        // The accept records a cutoff for this signer. Keyed on the signer
+        // alone, that cutoff swallowed every older invite from them whatever
+        // its description — P3 in the drawer, and the situation #1146 reports.
+        const parsed = edgeOf((vaults.get(ME) as Doc[])[0]).node.parsed;
+        await acceptSocialBinding(gql(ME), ME, "P1", parsed, async () => "sig");
+
+        await expect(pruneBoundSignerDocs(gql(ME), ME)).resolves.toBe(0);
+        const unsigned = await fetchUnsignedSocialDocs(gql(ME), ME);
+        expect(
+            unsigned.map((e) => e.node.parsed?.data.relation_description),
+        ).toEqual(["work"]);
     });
 
     it("declining removes the request and its duplicate, not the other invite", async () => {
@@ -231,10 +255,16 @@ describe("reconciling sent mirrors", () => {
                 "M1",
                 ME,
                 [ME, BOB],
-                [{ signer: ME, timestamp: "t1" }],
+                [{ signer: ME, timestamp: at(199) }],
                 "coffee",
             ),
-            doc("M2", ME, [ME, BOB], [{ signer: ME, timestamp: "t2" }], "work"),
+            doc(
+                "M2",
+                ME,
+                [ME, BOB],
+                [{ signer: ME, timestamp: at(198) }],
+                "work",
+            ),
         ]);
         vaults.set(BOB, [
             doc(
@@ -242,8 +272,8 @@ describe("reconciling sent mirrors", () => {
                 BOB,
                 [ME, BOB],
                 [
-                    { signer: ME, timestamp: "t1" },
-                    { signer: BOB, timestamp: "t5" },
+                    { signer: ME, timestamp: at(199) },
+                    { signer: BOB, timestamp: at(195) },
                 ],
                 "coffee",
             ),
@@ -251,7 +281,7 @@ describe("reconciling sent mirrors", () => {
                 "R2",
                 BOB,
                 [ME, BOB],
-                [{ signer: ME, timestamp: "t2" }],
+                [{ signer: ME, timestamp: at(198) }],
                 "work",
             ),
         ]);
@@ -265,12 +295,18 @@ describe("reconciling sent mirrors", () => {
 
     it("drops a mirror the counterparty declined, ignoring their own mirror", async () => {
         vaults.set(ME, [
-            doc("M1", ME, [ME, BOB], [{ signer: ME, timestamp: "t1" }], "x"),
+            doc("M1", ME, [ME, BOB], [{ signer: ME, timestamp: at(199) }], "x"),
         ]);
         // Bob's own mirror: same parties and subject=@bob, but he originated it,
         // so it says nothing about the invite we sent.
         vaults.set(BOB, [
-            doc("B1", BOB, [BOB, ME], [{ signer: BOB, timestamp: "t9" }], "x"),
+            doc(
+                "B1",
+                BOB,
+                [BOB, ME],
+                [{ signer: BOB, timestamp: at(191) }],
+                "x",
+            ),
         ]);
 
         const out = await fetchReconciledSocialBindings(gql(ME), ME);
@@ -280,7 +316,7 @@ describe("reconciling sent mirrors", () => {
 
     it("keeps everything when the counterparty vault can't be reached", async () => {
         vaults.set(ME, [
-            doc("M1", ME, [ME, BOB], [{ signer: ME, timestamp: "t1" }], "x"),
+            doc("M1", ME, [ME, BOB], [{ signer: ME, timestamp: at(199) }], "x"),
         ]);
         const handler = vaultHandler();
         vi.stubGlobal(
@@ -303,10 +339,16 @@ describe("reconciling sent mirrors", () => {
 describe("cancelling a sent invite", () => {
     it("deletes the pending doc over there, then the local mirror", async () => {
         vaults.set(ME, [
-            doc("M1", ME, [ME, BOB], [{ signer: ME, timestamp: "t1" }], "x"),
+            doc("M1", ME, [ME, BOB], [{ signer: ME, timestamp: at(199) }], "x"),
         ]);
         vaults.set(BOB, [
-            doc("R1", BOB, [ME, BOB], [{ signer: ME, timestamp: "t1" }], "x"),
+            doc(
+                "R1",
+                BOB,
+                [ME, BOB],
+                [{ signer: ME, timestamp: at(199) }],
+                "x",
+            ),
         ]);
 
         await cancelSentSocialBinding(gql(ME), ME, "M1", BOB, "x");
@@ -314,9 +356,13 @@ describe("cancelling a sent invite", () => {
         expect(deletes).toEqual(["R1", "M1"]);
     });
 
-    it("refuses to withdraw a request the counterparty already confirmed", async () => {
+    it("does not claim a declined invite was confirmed", async () => {
+        // Bound to Bob already, then a second invite with the same (empty)
+        // description that he declined. The only doc left over there is the
+        // older confirmed one, which must not be read as this invite's fate.
         vaults.set(ME, [
-            doc("M1", ME, [ME, BOB], [{ signer: ME, timestamp: "t1" }], "x"),
+            doc("M1", ME, [ME, BOB], [{ signer: ME, timestamp: at(120) }], ""),
+            doc("M2", ME, [ME, BOB], [{ signer: ME, timestamp: at(5) }], ""),
         ]);
         vaults.set(BOB, [
             doc(
@@ -324,8 +370,31 @@ describe("cancelling a sent invite", () => {
                 BOB,
                 [ME, BOB],
                 [
-                    { signer: ME, timestamp: "t1" },
-                    { signer: BOB, timestamp: "t5" },
+                    { signer: ME, timestamp: at(120) },
+                    { signer: BOB, timestamp: at(118) },
+                ],
+                "",
+            ),
+        ]);
+
+        await expect(
+            cancelSentSocialBinding(gql(ME), ME, "M2", BOB, ""),
+        ).rejects.toThrow(/no longer pending/);
+        expect(deletes).toEqual([]);
+    });
+
+    it("refuses to withdraw a request the counterparty already confirmed", async () => {
+        vaults.set(ME, [
+            doc("M1", ME, [ME, BOB], [{ signer: ME, timestamp: at(199) }], "x"),
+        ]);
+        vaults.set(BOB, [
+            doc(
+                "R1",
+                BOB,
+                [ME, BOB],
+                [
+                    { signer: ME, timestamp: at(199) },
+                    { signer: BOB, timestamp: at(195) },
                 ],
                 "x",
             ),
@@ -333,7 +402,7 @@ describe("cancelling a sent invite", () => {
 
         await expect(
             cancelSentSocialBinding(gql(ME), ME, "M1", BOB, "x"),
-        ).rejects.toThrow(/just confirmed/);
+        ).rejects.toThrow(/no longer pending/);
         expect(deletes).toEqual([]);
     });
 });
@@ -341,7 +410,13 @@ describe("cancelling a sent invite", () => {
 describe("fetchSocialBindings", () => {
     it("carries the parsed doc so a pending request can be signed from the list", async () => {
         vaults.set(ME, [
-            doc("P1", ME, [BOB, ME], [{ signer: BOB, timestamp: "t1" }], "hi"),
+            doc(
+                "P1",
+                ME,
+                [BOB, ME],
+                [{ signer: BOB, timestamp: at(199) }],
+                "hi",
+            ),
         ]);
 
         const [summary] = await fetchSocialBindings(gql(ME), ME);
