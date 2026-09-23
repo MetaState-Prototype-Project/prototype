@@ -864,7 +864,10 @@ export class DbService {
     }
 
     /**
-     * Deletes a meta-envelope and all its associated envelopes.
+     * Deletes a meta-envelope by pruning it: nothing is destroyed. The record
+     * and its envelopes are relabelled PrunedMetaEnvelope / PrunedEnvelope, so
+     * every live read stops seeing them, and a delete version is appended to
+     * the record's history, which stays readable.
      * @param id - The ID of the meta-envelope to delete
      * @param eName - The eName identifier for multi-tenant isolation
      */
@@ -877,7 +880,12 @@ export class DbService {
             throw new Error("eName is required for deleting meta-envelopes");
         }
 
-        const params: Record<string, unknown> = { id, eName };
+        const requestingPlatform = awareness?.requestingPlatform ?? null;
+        const params: Record<string, unknown> = {
+            id,
+            eName,
+            prunedAt: Date.now(),
+        };
         const outbox = awareness && !awareness.skipAwareness;
         if (outbox) {
             Object.assign(
@@ -885,8 +893,20 @@ export class DbService {
                 awarenessOutboxParams(id, "", eName, null, "delete", awareness),
             );
         }
-        await this.runQueryInternal(
-            `
+
+        const session = this.driver.session();
+        try {
+            await session.executeWrite(async (tx) => {
+                const live = await this.prepareVersionedWrite(
+                    tx,
+                    id,
+                    eName,
+                    requestingPlatform,
+                );
+                if (!live) return;
+
+                await tx.run(
+                    `
       MATCH (m:MetaEnvelope { id: $id, eName: $eName })
       OPTIONAL MATCH (m)-[:LINKS_TO]->(e:Envelope)
       WITH m, collect(e) AS envelopes
@@ -911,11 +931,27 @@ export class DbService {
                  WITH m, envelopes`
               : ""
       }
-      FOREACH (node IN envelopes | DETACH DELETE node)
-      DETACH DELETE m
+      FOREACH (node IN envelopes |
+          REMOVE node:Envelope
+          SET node:PrunedEnvelope, node.prunedAt = $prunedAt)
+      REMOVE m:MetaEnvelope
+      SET m:PrunedMetaEnvelope, m.prunedAt = $prunedAt
       `,
-            params,
-        );
+                    params,
+                );
+
+                await this.appendVersion(
+                    tx,
+                    id,
+                    eName,
+                    "delete",
+                    { ...live, payload: null },
+                    requestingPlatform,
+                );
+            });
+        } finally {
+            await session.close();
+        }
     }
 
     /**
@@ -1086,26 +1122,31 @@ export class DbService {
                         }));
 
                     // Deduplicate envelopes — if multiple Envelope nodes share the
-                    // same ontology, keep the first and delete the rest.
+                    // same ontology, keep the first and prune the rest.
                     const seen = new Map<string, string>();
-                    const dupsToDelete: string[] = [];
+                    const dupsToPrune: string[] = [];
                     for (const env of workingEnvelopes) {
                         if (seen.has(env.ontology)) {
-                            dupsToDelete.push(env.id);
+                            dupsToPrune.push(env.id);
                         } else {
                             seen.set(env.ontology, env.id);
                         }
                     }
-                    if (dupsToDelete.length > 0) {
+                    if (dupsToPrune.length > 0) {
                         console.warn(
-                            `[eVault] Cleaning ${dupsToDelete.length} duplicate envelope(s) for MetaEnvelope ${id}`,
+                            `[eVault] Pruning ${dupsToPrune.length} duplicate envelope(s) for MetaEnvelope ${id}`,
                         );
                         await tx.run(
-                            `MATCH (e:Envelope) WHERE e.id IN $ids DETACH DELETE e`,
-                            { ids: dupsToDelete },
+                            `
+                            MATCH (:MetaEnvelope { id: $id, eName: $eName })-[:LINKS_TO]->(e:Envelope)
+                            WHERE e.id IN $ids
+                            REMOVE e:Envelope
+                            SET e:PrunedEnvelope, e.prunedAt = $now
+                            `,
+                            { id, eName, ids: dupsToPrune, now: Date.now() },
                         );
                         workingEnvelopes = workingEnvelopes.filter(
-                            (e) => !dupsToDelete.includes(e.id),
+                            (e) => !dupsToPrune.includes(e.id),
                         );
                     }
 
