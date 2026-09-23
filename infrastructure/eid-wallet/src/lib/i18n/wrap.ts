@@ -1,9 +1,3 @@
-/**
- * Builds the message object components call, layering corrections over the
- * compiled paraglide messages. Kept free of `$lib` and rune imports so the
- * lookup path is unit-testable.
- */
-
 import { fill } from "./catalog";
 
 export type MessageFn = (
@@ -18,8 +12,7 @@ export function createMessages<T extends object>(
     getLocale: () => string,
     lookup: Lookup,
 ): T {
-    // Wrappers are memoised so repeated renders reuse one function per key
-    // rather than allocating on every property access.
+    // Memoised so repeated renders reuse one wrapper per key.
     const wrapped = new Map<string, MessageFn>();
 
     return new Proxy({} as T, {

@@ -19,9 +19,8 @@ export const TOUR_ORDER: TourStep[] = [
     "scan",
 ];
 
-// Copy is held as getters, not strings: this table is module scope, so
-// plain `m.*()` calls would freeze at whatever locale was active when the
-// module first loaded.
+// Getters, not strings: this table is module scope, so plain m.*() calls
+// would freeze at whatever locale was active when it first loaded.
 interface ITourStepDef {
     /** One paragraph per array entry — rendered as separate <p> elements. */
     description: () => string[];

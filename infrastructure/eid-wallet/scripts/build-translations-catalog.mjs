@@ -1,16 +1,11 @@
 #!/usr/bin/env node
 /**
- * Builds the correction catalog served at PUBLIC_TRANSLATIONS_URL from the
- * message files, so `messages/*.json` stays the source of truth and the
- * published file cannot drift from it.
- *
- * Keys the app refuses are left out, otherwise every launch would log
- * rejections for entries that can never apply.
+ * Generates the catalog served at PUBLIC_TRANSLATIONS_URL from the message
+ * files. Keys the app refuses are left out, or every launch logs rejections.
  *
  *   node scripts/build-translations-catalog.mjs            write the file
  *   node scripts/build-translations-catalog.mjs --check    fail if it is stale
  */
-
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,8 +35,7 @@ function build() {
         );
         const entries = {};
 
-        // Driven by the English file so ordering is stable across locales and
-        // the generated diff stays readable.
+        // Driven by the English file so ordering is stable across locales.
         for (const [key, value] of Object.entries(base)) {
             if (key === "$schema") continue;
             if (Array.isArray(value)) {
@@ -52,8 +46,7 @@ function build() {
                 skipped.protected++;
                 continue;
             }
-            // Absent from this locale: the compiled message already falls back
-            // to English, so publishing the English text would add nothing.
+            // Absent here: the compiled message already falls back to English.
             if (typeof translations[key] === "string") {
                 entries[key] = translations[key];
             }
@@ -82,7 +75,6 @@ if (process.argv.includes("--check")) {
     try {
         current = readFileSync(OUTPUT, "utf8");
     } catch {
-        // Falls through to the mismatch branch below.
     }
     if (current !== json) {
         console.error(

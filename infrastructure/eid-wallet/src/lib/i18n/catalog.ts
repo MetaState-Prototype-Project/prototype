@@ -1,31 +1,21 @@
-/**
- * Validation for the remotely-served correction catalog.
- *
- * Kept free of `$lib` and rune imports so it can be unit-tested in the plain
- * Node vitest environment.
- */
-
 import enMessages from "../../../messages/en.json";
 import { locales } from "../paraglide/runtime.js";
-// Shared with scripts/build-translations-catalog.mjs, which must exclude
-// exactly what this module refuses or every launch logs rejections.
+// Mirrored by scripts/build-translations-catalog.mjs: it must exclude
+// exactly what this refuses, or every launch logs rejections.
 import policy from "./policy.json";
 
-/** Rejected whole rather than applied partially when the remote file's shape
- *  no longer matches what this build understands. */
 export const CATALOG_FORMAT_VERSION = policy.formatVersion;
 
-/** Screens where the wording itself can talk someone into revealing a secret,
- *  or into approving something the confirmation misdescribes. These ship in
- *  the binary and are never replaceable from the network. */
+/** Wording on these screens can talk someone into revealing a secret, or
+ *  approving something the confirmation misdescribes. Never replaceable. */
 export const PROTECTED_PREFIXES: string[] = policy.protectedPrefixes;
 
 const PLACEHOLDER = /\{([a-zA-Z0-9_]+)\}/g;
 const KNOWN_LOCALES = new Set<string>(locales);
 
 const baseText = new Map<string, string>();
-// Variant messages compile to a plural-form selector rather than a flat
-// string, so a replacement string cannot express Slavic one/few/many.
+// Variant messages compile to a plural-form selector, which a flat
+// replacement string cannot express.
 const variantKeys = new Set<string>();
 
 for (const [key, value] of Object.entries(
@@ -36,8 +26,6 @@ for (const [key, value] of Object.entries(
     else if (typeof value === "string") baseText.set(key, value);
 }
 
-/** Substitutes `{name}` placeholders in a correction with the same inputs the
- *  compiled message would have received. */
 export function fill(
     template: string,
     inputs?: Record<string, unknown>,

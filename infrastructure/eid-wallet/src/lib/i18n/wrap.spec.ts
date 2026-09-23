@@ -2,8 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { fill } from "./catalog";
 import { type Lookup, type MessageFn, createMessages } from "./wrap";
 
-// Typed as MessageFn so the fakes accept the same (inputs, options) pair the
-// compiled paraglide messages do.
+// Typed as MessageFn so the fakes take the same (inputs, options) pair.
 const compiled: { greeting: MessageFn; connected: MessageFn } = {
     greeting: () => "Hello",
     connected: (inputs) => `Connected to ${inputs?.platform}`,

@@ -1,10 +1,8 @@
 import { m } from "$lib/i18n";
 
 // Identity fields are persisted under their English labels (see
-// UserController), so the stored key doubles as the lookup key here and the
-// stored data stays stable across a language switch. Values that come from
-// the ID provider are passed through as-is — only the two we write ourselves
-// are translated.
+// UserController), so the stored key doubles as the lookup key and stored
+// data survives a language switch. Provider values pass through as-is.
 
 const FIELD_LABELS: Record<string, () => string> = {
     name: m.identity_name,

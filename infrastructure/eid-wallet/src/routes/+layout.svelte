@@ -8,10 +8,8 @@ import { GlobalState } from "$lib/global/state";
 
 import { runtime } from "$lib/global/runtime.svelte";
 import { refreshOverrides } from "$lib/i18n";
-// Side-effect import: installs the rune-backed getLocale override before any
-// route renders, so every m.*() call tracks the locale and repaints on a
-// language switch. Without it only components mounted after the settings
-// screen had loaded would react.
+// Side-effect import: installs the rune-backed getLocale override before
+// the first route renders, so every m.*() tracks the locale.
 import "$lib/stores/language.svelte";
 import { swipedetect } from "$lib/utils";
 import { handleDeepLinkEvent, routeDeepLink } from "$lib/utils/routeDeepLink";
@@ -85,8 +83,7 @@ onMount(async () => {
     preloadCode("/onboarding").catch(() => {});
     preloadCode("/recover").catch(() => {});
 
-    // Not awaited: corrections are a nice-to-have layered over the strings
-    // already in the build, so nothing on screen should wait for the network.
+    // Not awaited: the compiled strings already render without it.
     refreshOverrides();
 
     let status: Status | undefined = undefined;

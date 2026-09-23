@@ -5,8 +5,7 @@ import {
     validateCatalog,
 } from "./catalog";
 
-// Real keys, so renaming one in messages/en.json fails these tests rather than
-// silently leaving a rule untested.
+// Real keys, so renaming one in messages/en.json fails these tests.
 const PLAIN = "common_accept";
 const WITH_PLACEHOLDER = "loggedin_connected_to"; // "...connected to {platform}"
 const VARIANT = "onboarding_step_counter";
