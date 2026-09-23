@@ -84,6 +84,11 @@ export default defineConfig(async () => ({
     clearScreen: false,
     // 2. tauri expects a fixed port, fail if that port is not available
     server: {
+        // catalog.ts imports messages/en.json, which sits outside src/ and is
+        // otherwise refused by the dev server while the bundler allows it.
+        fs: {
+            allow: ["./messages"],
+        },
         port: 1420,
         strictPort: true,
         host: host || false,

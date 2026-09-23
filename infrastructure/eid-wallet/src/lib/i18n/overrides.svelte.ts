@@ -51,7 +51,10 @@ export async function refreshOverrides(): Promise<void> {
         });
         if (!response.ok) return;
         applyCatalog(await response.json());
-    } catch {
-        // Offline: the cache and the compiled strings both still render.
+    } catch (error) {
+        // Genuinely offline is fine: the cache and the compiled strings both
+        // still render. A wrong URL or a catalog served without CORS lands
+        // here too, and is invisible without this.
+        console.warn("[i18n] correction catalog unavailable:", error);
     }
 }
