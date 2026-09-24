@@ -14,6 +14,7 @@ import {
 } from "$env/static/public";
 import type { GlobalState } from "$lib/global";
 import { m } from "$lib/i18n";
+import { getLocale } from "$lib/paraglide/runtime";
 import { CopyableEName } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { capitalize } from "$lib/utils";
@@ -164,7 +165,7 @@ async function startKycUpgrade() {
 
         const { data } = await axios.post(
             new URL("/verification/v2", PUBLIC_PROVISIONER_URL).toString(),
-            {},
+            { language: getLocale() },
             {
                 headers: {
                     "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET,
