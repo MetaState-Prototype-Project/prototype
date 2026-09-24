@@ -1,0 +1,120 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "f173f942-edbb-41ef-b964-65f3f2ddb084",
+  "title": "HeadphoneAudioSeries",
+  "description": "Raw headphone audio exposure samples over one local day from ONE device. One envelope per (person × day × device) — multiple devices coexist as separate envelopes; merging is a reader-side presentation concern. Sample = [epochSeconds, value], epoch = UTC seconds, utcOffset gives the person's local offset. `stats` is DERIVED from samples (cheap-read preview) — samples are the source of truth. Canonical unit: dBASPL.",
+  "type": "object",
+  "properties": {
+    "subject": {
+      "type": "string",
+      "description": "@-prefixed eName of the person this data is about"
+    },
+    "device": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "w3id (@eName) of the measuring device's OWN eVault, where its Device passport lives; null if unknown"
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Import provenance. Vendor identity lives HERE only (source), never in metric keys.",
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string",
+          "description": "w3id (@eName) of the platform that wrote this envelope — machine-readable authorship; resolve it to read that platform's self-description"
+        },
+        "externalId": {
+          "type": "string"
+        },
+        "sourceName": {
+          "type": "string"
+        },
+        "deviceSignature": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "source"
+      ]
+    },
+    "dedupKey": {
+      "type": "string",
+      "description": "Writer's idempotency key, unique within this ontology on the vault"
+    },
+    "contentHash": {
+      "type": "string",
+      "description": "Writer-maintained md5 of the payload; recomputed on every rewrite"
+    },
+    "updatedAt": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "local day — chunk key"
+    },
+    "utcOffset": {
+      "type": "string",
+      "pattern": "^[+-]\\d{2}:\\d{2}$"
+    },
+    "unit": {
+      "type": "string",
+      "const": "dBASPL"
+    },
+    "sampleType": {
+      "type": "string",
+      "const": "point"
+    },
+    "samples": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        },
+        "minItems": 2,
+        "maxItems": 3
+      }
+    },
+    "stats": {
+      "type": "object",
+      "description": "DERIVED from samples — preview only",
+      "properties": {
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "avg": {
+          "type": "number"
+        },
+        "sum": {
+          "type": "number"
+        },
+        "count": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "count"
+      ]
+    }
+  },
+  "required": [
+    "subject",
+    "provenance",
+    "dedupKey",
+    "contentHash",
+    "date",
+    "utcOffset",
+    "unit",
+    "sampleType",
+    "samples",
+    "stats"
+  ]
+}

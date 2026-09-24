@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "ae1f8c24-41e6-4ec3-a128-07e423811332",
+  "title": "BiologicalSexFact",
+  "description": "A BiometricFact: one self-sufficient biometric attribute of a person — biological sex, e.g. \"male\". One envelope per (person × source). Identity fields (name, birthDate) are NOT here — they live in the shared User ontology.",
+  "type": "object",
+  "properties": {
+    "subject": {
+      "type": "string",
+      "description": "@-prefixed eName of the person this data is about"
+    },
+    "device": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "w3id (@eName) of the measuring device's OWN eVault, where its Device passport lives; null if unknown"
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Import provenance. Vendor identity lives HERE only (source), never in metric keys.",
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string",
+          "description": "w3id (@eName) of the platform that wrote this envelope — machine-readable authorship; resolve it to read that platform's self-description"
+        },
+        "externalId": {
+          "type": "string"
+        },
+        "sourceName": {
+          "type": "string"
+        },
+        "deviceSignature": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "source"
+      ]
+    },
+    "dedupKey": {
+      "type": "string",
+      "description": "Writer's idempotency key, unique within this ontology on the vault"
+    },
+    "contentHash": {
+      "type": "string",
+      "description": "Writer-maintained md5 of the payload; recomputed on every rewrite"
+    },
+    "updatedAt": {
+      "type": "string"
+    },
+    "value": {
+      "type": [
+        "string",
+        "boolean"
+      ]
+    },
+    "recordedAt": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "subject",
+    "provenance",
+    "dedupKey",
+    "contentHash",
+    "value"
+  ]
+}
