@@ -202,6 +202,16 @@ export class GlobalState {
         } catch (error) {
             console.error("Failed to reset global state:", error);
         }
+
+        // Settle the cleared store and refresh the backup immediately.
+        //
+        // The backup is a copy of the previous contents, so until it is
+        // refreshed it still holds the user, vault and PIN hash of the session
+        // just ended. A kill that damages the primary before the next
+        // backgrounding would otherwise restore that ended session from the
+        // stale copy. Overwriting the backup here bounds that window to this
+        // call instead of leaving it open until the app is next backgrounded.
+        await this.flushToDisk();
         const newGlobalState = await GlobalState.create();
         return newGlobalState;
     }
