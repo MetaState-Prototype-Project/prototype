@@ -630,11 +630,7 @@ export async function pruneDuplicateUnsignedDocs(
         const parsed = edge.node.parsed;
         if (!parsed || parsed.type !== "social_connection") return false;
         if (parsed.subject !== normalized) return false;
-        const description =
-            typeof parsed.data?.relation_description === "string"
-                ? parsed.data.relation_description
-                : "";
-        if (description !== relationDescription) return false;
+        if (relationOf(parsed) !== relationDescription) return false;
         const sigs = Array.isArray(parsed.signatures) ? parsed.signatures : [];
         // Same signer, and the caller hasn't already countersigned this
         // one either — i.e. it's a stale duplicate of the doc we just
@@ -780,9 +776,7 @@ async function pruneDuplicatesOf(
             normalizedCaller,
             docId,
             signer,
-            typeof parsed.data?.relation_description === "string"
-                ? parsed.data.relation_description
-                : "",
+            relationOf(parsed),
         );
     } catch (err) {
         console.warn("[socialBinding] duplicate prune failed:", err);
@@ -944,10 +938,7 @@ export async function fetchSocialBindings(
             docId: edge.node.id,
             counterpartyEname: counterparty,
             completedAt,
-            relationDescription:
-                typeof parsed.data?.relation_description === "string"
-                    ? (parsed.data.relation_description as string)
-                    : "",
+            relationDescription: relationOf(parsed),
             mutuallySigned: sigs.length >= 2,
             role,
             parsed,
@@ -1030,10 +1021,7 @@ async function fetchRemoteDocsWithSelf(
 
             docs.push({
                 id: edge.node.id,
-                relationDescription:
-                    typeof parsed.data?.relation_description === "string"
-                        ? (parsed.data.relation_description as string)
-                        : "",
+                relationDescription: relationOf(parsed),
                 signatureCount: sigs.length,
                 timestamp: sigs[0]?.timestamp ?? "",
             });

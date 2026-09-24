@@ -124,7 +124,9 @@ async function refreshAfterAction() {
     if (!globalState) return;
     const openFor = detailsContact?.counterpartyEname;
     await load(globalState);
-    if (!openFor) return;
+    // load() resolves a name per contact, so it can run for seconds. If the user
+    // switched contact meanwhile, leave their selection alone.
+    if (!openFor || detailsContact?.counterpartyEname !== openFor) return;
     const updated = contacts.find((c) => c.counterpartyEname === openFor);
     if (updated) {
         detailsContact = updated;
