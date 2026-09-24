@@ -282,6 +282,7 @@ export class VaultAccessGuard {
         metaEnvelopeId: string,
         context: VaultContext,
         action: PermissionBits = Permission.READ,
+        includePruned = false,
     ): Promise<{ hasAccess: boolean; exists: boolean }> {
         // Reuse token payload already validated by validateAuthentication() earlier
         // in the middleware; only re-validate as a fallback (e.g. store operations
@@ -307,10 +308,19 @@ export class VaultAccessGuard {
             throw new Error("X-ENAME header is required for access control");
         }
 
-        const metaEnvelope = await this.db.findMetaEnvelopeById(
-            metaEnvelopeId,
-            context.eName,
-        );
+        // A pruned record is gone from live reads, but its history is still
+        // guarded by the policy it last carried rather than left open.
+        const metaEnvelope =
+            (await this.db.findMetaEnvelopeById(
+                metaEnvelopeId,
+                context.eName,
+            )) ??
+            (includePruned
+                ? await this.db.getLatestMetaEnvelopeVersionAcl(
+                      metaEnvelopeId,
+                      context.eName,
+                  )
+                : null);
         if (!metaEnvelope) {
             return { hasAccess: tokenPayload !== null, exists: false };
         }
@@ -410,6 +420,8 @@ export class VaultAccessGuard {
     /**
      * Middleware function to check access before executing a resolver
      * @param resolver - The resolver function to wrap
+     * @param options.includePruned - Decide access for a pruned record by the
+     *   policy recorded in its history (used by history reads)
      * @returns A wrapped resolver that checks access before executing
      */
     public middleware<T, Args extends { [key: string]: any }>(
@@ -419,6 +431,7 @@ export class VaultAccessGuard {
             context: VaultContext,
         ) => Promise<any>,
         action: PermissionBits = Permission.READ,
+        options: { includePruned?: boolean } = {},
     ) {
         return async (parent: T, args: Args, context: VaultContext) => {
             // Check if this is storeMetaEnvelope operation (has input with ontology, payload, acl)
@@ -473,7 +486,12 @@ export class VaultAccessGuard {
 
             // Check if envelope exists and user has access
             const { hasAccess, exists } = await timed("guard.checkAccess", () =>
-                this.checkAccess(metaEnvelopeId, context, action),
+                this.checkAccess(
+                    metaEnvelopeId,
+                    context,
+                    action,
+                    options.includePruned ?? false,
+                ),
             );
 
             // For update operations with input, allow in-place creation if envelope doesn't exist

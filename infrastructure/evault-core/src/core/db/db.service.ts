@@ -17,6 +17,8 @@ import type {
     MetaEnvelopeFilterInput,
     MetaEnvelopeResult,
     MetaEnvelopeSearchInput,
+    MetaEnvelopeVersion,
+    MetaEnvelopeVersionConnection,
     PageInfo,
     SearchMetaEnvelopesResult,
     StoreMetaEnvelopeResult,
@@ -1763,6 +1765,142 @@ export class DbService {
             hasMore && last ? `${last.timestamp}|${last.id}` : null;
 
         return { logs, nextCursor, hasMore };
+    }
+
+    /**
+     * Returns the version history of a MetaEnvelope, newest first. History is
+     * kept for pruned records too, so this answers for ids that no live read
+     * returns any more.
+     * @param id - The ID of the meta-envelope
+     * @param eName - The eName identifier for multi-tenant isolation
+     */
+    async getMetaEnvelopeVersions<
+        T extends Record<string, any> = Record<string, any>,
+    >(
+        id: string,
+        eName: string,
+        options: { first?: number; after?: string } = {},
+    ): Promise<MetaEnvelopeVersionConnection<T>> {
+        if (!eName) {
+            throw new Error(
+                "eName is required for reading meta-envelope history",
+            );
+        }
+
+        const limit = Math.min(Math.max(1, options.first ?? 20), 100);
+        let afterVersion: number | null = null;
+        if (options.after) {
+            afterVersion = Number(
+                Buffer.from(options.after, "base64").toString("utf-8"),
+            );
+            if (!Number.isInteger(afterVersion)) {
+                throw new Error("Invalid cursor");
+            }
+        }
+
+        const session = this.driver.session();
+        let countResult;
+        let result;
+        try {
+            countResult = await session.run(
+                `
+                MATCH (v:MetaEnvelopeVersion { metaEnvelopeId: $id, eName: $eName })
+                RETURN count(v) AS total
+                `,
+                { id, eName },
+            );
+            result = await session.run(
+                `
+                MATCH (v:MetaEnvelopeVersion { metaEnvelopeId: $id, eName: $eName })
+                WHERE $afterVersion IS NULL OR v.version < $afterVersion
+                WITH v
+                ORDER BY v.version DESC
+                LIMIT $limitPlusOne
+                RETURN v.version AS version, v.operation AS operation, v.ontology AS ontology,
+                       v.payloadJson AS payloadJson, v.requestingPlatform AS requestingPlatform,
+                       v.createdAt AS createdAt
+                `,
+                {
+                    id,
+                    eName,
+                    afterVersion:
+                        afterVersion === null ? null : neo4j.int(afterVersion),
+                    limitPlusOne: neo4j.int(limit + 1),
+                },
+            );
+        } finally {
+            await session.close();
+        }
+
+        const total = countResult.records[0]?.get("total");
+        const totalCount =
+            typeof total?.toNumber === "function"
+                ? total.toNumber()
+                : Number(total ?? 0);
+
+        const hasMore = result.records.length > limit;
+        const edges = result.records.slice(0, limit).map((record) => {
+            const rawVersion = record.get("version");
+            const version =
+                typeof rawVersion?.toNumber === "function"
+                    ? rawVersion.toNumber()
+                    : Number(rawVersion);
+            const payloadJson = record.get("payloadJson");
+            const node: MetaEnvelopeVersion<T> = {
+                metaEnvelopeId: id,
+                version,
+                operation: record.get("operation"),
+                ontology: record.get("ontology"),
+                parsed: payloadJson == null ? null : JSON.parse(payloadJson),
+                requestingPlatform: record.get("requestingPlatform") ?? null,
+                createdAt: record.get("createdAt"),
+            };
+            return {
+                cursor: Buffer.from(String(version)).toString("base64"),
+                node,
+            };
+        });
+
+        return {
+            edges,
+            pageInfo: {
+                hasNextPage: hasMore,
+                hasPreviousPage: afterVersion !== null,
+                startCursor: edges[0]?.cursor ?? null,
+                endCursor: edges[edges.length - 1]?.cursor ?? null,
+            },
+            totalCount,
+        };
+    }
+
+    /**
+     * Returns the access policy a MetaEnvelope carried at its latest recorded
+     * version, so its history stays guarded by the same rules once pruned.
+     */
+    async getLatestMetaEnvelopeVersionAcl(
+        id: string,
+        eName: string,
+    ): Promise<Pick<MetaEnvelopeResult, "acl" | "_acl"> | null> {
+        if (!eName) {
+            throw new Error(
+                "eName is required for reading meta-envelope history",
+            );
+        }
+        const result = await this.runQueryInternal(
+            `
+            MATCH (v:MetaEnvelopeVersion { metaEnvelopeId: $id, eName: $eName })
+            RETURN v.acl AS acl, v.aclBlock AS aclBlock
+            ORDER BY v.version DESC
+            LIMIT 1
+            `,
+            { id, eName },
+        );
+        const record = result.records[0];
+        if (!record) return null;
+        return {
+            acl: record.get("acl") ?? [],
+            _acl: parseStoredAclBlock(record.get("aclBlock")),
+        };
     }
 
     /**

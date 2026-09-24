@@ -248,6 +248,26 @@ export class GraphQLServer {
                     },
                 ),
 
+                // Every recorded version of a MetaEnvelope, including pruned ones
+                metaEnvelopeHistory: this.accessGuard.middleware(
+                    (
+                        _: any,
+                        args: { id: string; first?: number; after?: string },
+                        context: VaultContext,
+                    ) => {
+                        if (!context.eName) {
+                            throw new Error("X-ENAME header is required");
+                        }
+                        return this.db.getMetaEnvelopeVersions(
+                            args.id,
+                            context.eName,
+                            { first: args.first, after: args.after },
+                        );
+                    },
+                    Permission.READ,
+                    { includePruned: true },
+                ),
+
                 // ============================================================
                 // LEGACY API (preserved for backward compatibility)
                 // ============================================================

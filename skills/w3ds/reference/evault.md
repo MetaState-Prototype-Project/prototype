@@ -111,6 +111,22 @@ mutation {
 }
 ```
 
+Removal prunes: the record leaves every read, but its data and version history are kept.
+
+### Version history
+
+Updates never overwrite a recorded state. Every create, update and remove appends an immutable version with the full payload after that write (`parsed: null` for a remove). Newest first:
+
+```graphql
+query {
+  metaEnvelopeHistory(id: "global-id-123", first: 20) {
+    edges { node { version operation ontology parsed requestingPlatform createdAt } }
+    pageInfo { hasNextPage endCursor }
+    totalCount
+  }
+}
+```
+
 ### Bulk create
 
 For migrations and initial seeds only. Requires `Authorization: Bearer <jwt>` in addition to `X-ENAME`. Supports optional `id` per input (preserves IDs across migrations).
