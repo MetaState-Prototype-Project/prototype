@@ -1,8 +1,9 @@
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
-import { readFileSync } from "node:fs";
+import { paraglideVitePlugin } from "@inlang/paraglide-js";
 
 // Same source getVersion() reports at runtime, so the version shown in
 // Settings and the one sent during auth cannot drift apart.
@@ -17,6 +18,13 @@ export default defineConfig(async () => ({
     plugins: [
         tailwindcss(), 
         sveltekit(),
+        paraglideVitePlugin({
+            project: "./project.inlang",
+            outdir: "./src/lib/paraglide",
+            // No server and no locale-prefixed URLs in a Tauri build, so the
+            // cookie and url strategies paraglide defaults to never resolve.
+            strategy: ["localStorage", "preferredLanguage", "baseLocale"],
+        }),
         nodePolyfills({
             // Polyfill specific Node.js core modules
             include: ['buffer', 'crypto'],
@@ -76,6 +84,11 @@ export default defineConfig(async () => ({
     clearScreen: false,
     // 2. tauri expects a fixed port, fail if that port is not available
     server: {
+        // catalog.ts imports messages/en.json, which sits outside src/ and is
+        // otherwise refused by the dev server while the bundler allows it.
+        fs: {
+            allow: ["./messages"],
+        },
         port: 1420,
         strictPort: true,
         host: host || false,

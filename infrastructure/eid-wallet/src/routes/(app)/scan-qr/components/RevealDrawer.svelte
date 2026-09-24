@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/i18n";
 import { BottomSheet, PlatformAppCard } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
@@ -63,7 +64,7 @@ $effect(() => {
                         type="button"
                         onclick={onCancel}
                         disabled={isRevealingVote}
-                        aria-label="Close"
+                        aria-label={m.common_close()}
                         class="w-9 h-9 rounded-full bg-gray-100 text-black-700 flex items-center justify-center active:opacity-80 disabled:opacity-40"
                     >
                         <HugeiconsIcon
@@ -83,10 +84,10 @@ $effect(() => {
                         <h4
                             class="text-2xl font-bold text-green-800 text-center leading-tight"
                         >
-                            Vote decrypted
+                            {m.reveal_success_title()}
                         </h4>
                         <p class="text-sm leading-relaxed text-black-500 text-center">
-                            Your selection has been successfully retrieved.
+                            {m.reveal_success_body()}
                         </p>
                     </div>
 
@@ -101,7 +102,7 @@ $effect(() => {
                         <p
                             class="text-xs font-semibold text-green-800 uppercase tracking-wider mb-2"
                         >
-                            Selection
+                            {m.reveal_selection_label()}
                         </p>
                         <p
                             class="text-2xl font-bold text-gray-900 leading-tight"
@@ -110,7 +111,9 @@ $effect(() => {
                         </p>
                         <div class="h-px bg-green-200 my-4"></div>
                         <p class="text-xs font-mono text-green-600 break-all">
-                            Poll ID: {revealedVoteData.pollId}
+                            {m.reveal_poll_id_inline({
+                                id: revealedVoteData.pollId,
+                            })}
                         </p>
                     </div>
                 {:else}
@@ -118,10 +121,10 @@ $effect(() => {
                         <h4
                             class="text-2xl font-bold text-black-900 text-center leading-tight"
                         >
-                            You have scanned a<br />vote reveal QR code
+                            {m.reveal_scanned_l1()}<br />{m.reveal_scanned_l2()}
                         </h4>
                         <p class="text-sm leading-relaxed text-black-500 text-center">
-                            Please review the request from the following App.
+                            {m.reveal_review_body()}
                         </p>
                     </div>
 
@@ -140,12 +143,12 @@ $effect(() => {
                                         <div
                                             class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                         >
-                                            Poll ID
+                                            {m.vote_poll_id_label()}
                                         </div>
                                         <div
                                             class="text-sm text-black-700 font-mono font-medium truncate mt-1 block"
                                         >
-                                            {revealPollId ?? "Unknown"}
+                                            {revealPollId ?? m.common_unknown()}
                                         </div>
                                     </td>
                                 </tr>
@@ -157,9 +160,8 @@ $effect(() => {
                         class="bg-blue-50 border border-blue-100 rounded-2xl p-4 w-full"
                     >
                         <p class="text-sm text-blue-800 leading-relaxed">
-                            <strong>Note:</strong> This action will decrypt your
-                            choice locally. This cannot be undone and will be visible
-                            on this screen.
+                            <strong>{m.reveal_note_label()}</strong>
+                            {m.reveal_note_body()}
                         </p>
                     </div>
 
@@ -180,7 +182,7 @@ $effect(() => {
                         class="w-full"
                         callback={onCancel}
                     >
-                        Okay
+                        {m.common_okay()}
                     </Button.Action>
                 {:else}
                     <div class="flex justify-center gap-3 items-center w-full">
@@ -189,7 +191,7 @@ $effect(() => {
                             class="w-full"
                             callback={onCancel}
                         >
-                            Cancel
+                            {m.common_cancel()}
                         </Button.Action>
                         <Button.Action
                             variant="solid"
@@ -197,7 +199,7 @@ $effect(() => {
                             callback={onReveal}
                             disabled={isRevealingVote}
                         >
-                            {isRevealingVote ? "Revealing..." : "Reveal"}
+                            {isRevealingVote ? m.reveal_revealing() : m.reveal_cta()}
                         </Button.Action>
                     </div>
                 {/if}

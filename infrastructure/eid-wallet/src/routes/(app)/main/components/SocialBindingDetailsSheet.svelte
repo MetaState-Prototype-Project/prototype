@@ -1,4 +1,6 @@
 <script lang="ts">
+import { m } from "$lib/i18n";
+import { getLocale } from "$lib/paraglide/runtime";
 import { BottomSheet, ButtonAction } from "$lib/ui";
 import type { SocialBindingDisplay } from "./SocialBindingAccordion.svelte";
 
@@ -18,16 +20,16 @@ let {
 }: ISocialBindingDetailsSheetProps = $props();
 
 function roleLabel(role: "sent" | "received" | "both"): string {
-    if (role === "both") return "Sent & Received";
-    if (role === "sent") return "Sent";
-    return "Received";
+    if (role === "both") return m.social_role_sent_received();
+    if (role === "sent") return m.social_role_sent();
+    return m.social_role_received();
 }
 
 function formatTimestamp(iso: string): string {
     if (!iso) return "";
     try {
         const d = new Date(iso);
-        return d.toLocaleString(undefined, {
+        return d.toLocaleString(getLocale(), {
             day: "numeric",
             month: "short",
             year: "numeric",
@@ -63,7 +65,7 @@ function close() {
                     : 'bg-success-200 text-black-900'}"
             >
                 {contact.pending
-                    ? "Awaiting confirmation"
+                    ? m.social_details_awaiting()
                     : roleLabel(contact.role)}
             </span>
         </div>
@@ -75,10 +77,10 @@ function close() {
                 >
                     <div class="flex-1 min-w-0">
                         <p class="font-semibold text-black-900 text-sm">
-                            {binding.role === "sent" ? "Sent" : "Received"}
+                            {binding.role === "sent" ? m.social_role_sent() : m.social_role_received()}
                             {#if !binding.mutuallySigned}
                                 <span class="font-normal text-amber-600"
-                                    >· Awaiting confirmation</span
+                                    >{m.social_details_awaiting_suffix()}</span
                                 >
                             {/if}
                         </p>
@@ -107,14 +109,14 @@ function close() {
                     onfulllist?.();
                 }}
             >
-                View on full list
+                {m.social_details_view_full_list()}
             </ButtonAction>
             <ButtonAction
                 variant="soft"
                 class="w-full uppercase tracking-wide"
                 callback={close}
             >
-                Close
+                {m.common_close()}
             </ButtonAction>
         </div>
     {/if}

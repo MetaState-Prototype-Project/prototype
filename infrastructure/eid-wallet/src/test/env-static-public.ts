@@ -4,3 +4,4 @@
 export const PUBLIC_EID_WALLET_TOKEN = "";
 export const PUBLIC_PROVISIONER_URL = "";
 export const PUBLIC_REGISTRY_URL = "";
+export const PUBLIC_TRANSLATIONS_URL = "";

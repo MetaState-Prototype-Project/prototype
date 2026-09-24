@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/i18n";
 import { Copy01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import { onDestroy } from "svelte";
@@ -10,8 +11,10 @@ interface ICopyableENameProps {
     label?: string;
 }
 
-const { ename, label = "Existing eVault eName" }: ICopyableENameProps =
-    $props();
+const {
+    ename,
+    label = m.onboarding_result_duplicate_ename_label(),
+}: ICopyableENameProps = $props();
 
 // Brief inline confirmation after a copy. Shown in-place rather than via the
 // app Toast because this box lives inside a bottom sheet — a bottom toast would
@@ -43,7 +46,7 @@ onDestroy(() => clearTimeout(resetTimer));
                 class="text-xs font-medium text-success-900"
                 aria-live="polite"
             >
-                Copied!
+                {m.copyable_copied()}
             </span>
         {/if}
     </div>
@@ -56,7 +59,7 @@ onDestroy(() => clearTimeout(resetTimer));
         <button
             type="button"
             onclick={copy}
-            aria-label="Copy eName"
+            aria-label={m.copyable_copy_aria()}
             class="shrink-0 text-black-500 active:opacity-60"
         >
             <HugeiconsIcon icon={Copy01Icon} size={18} strokeWidth={2} />

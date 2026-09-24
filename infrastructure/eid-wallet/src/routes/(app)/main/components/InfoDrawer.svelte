@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/i18n";
 import { BottomSheet, ButtonAction } from "$lib/ui";
 import type { Snippet } from "svelte";
 
@@ -18,7 +19,7 @@ let {
     isOpen = $bindable(false),
     title,
     body,
-    cta = "Okay",
+    cta = m.common_okay(),
     onclose,
 }: IInfoDrawerProps = $props();
 
@@ -36,7 +37,7 @@ function handleClose() {
         <button
             type="button"
             onclick={handleClose}
-            aria-label="Close"
+            aria-label={m.common_close()}
             class="w-11.5 h-11.5 rounded-full bg-black-50 flex items-center justify-center text-black-700 active:opacity-70 shrink-0"
         >
             <span aria-hidden="true" class="text-3xl leading-none">×</span>

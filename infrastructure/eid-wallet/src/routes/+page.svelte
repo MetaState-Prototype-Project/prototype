@@ -3,6 +3,7 @@ import { browser } from "$app/environment";
 import { goto } from "$app/navigation";
 import SplashScreen from "$lib/fragments/SplashScreen/SplashScreen.svelte";
 import type { GlobalState } from "$lib/global";
+import { m } from "$lib/i18n";
 import { continueAfterSuccessfulAuth } from "$lib/utils/postLogin";
 import {
     type AuthOptions,
@@ -13,10 +14,10 @@ import { getContext, onDestroy, onMount } from "svelte";
 
 const authOpts: AuthOptions = {
     allowDeviceCredential: false,
-    cancelTitle: "Cancel",
-    fallbackTitle: "Please enter your PIN",
-    title: "Login",
-    subtitle: "Please authenticate to continue",
+    cancelTitle: m.common_cancel(),
+    fallbackTitle: m.login_biometric_fallback(),
+    title: m.login_biometric_title(),
+    subtitle: m.login_biometric_subtitle(),
     confirmationRequired: true,
 };
 
@@ -121,10 +122,7 @@ onMount(async () => {
 
         if (biometricAvailable && globalState) {
             try {
-                await authenticate(
-                    "You must authenticate with PIN first",
-                    authOpts,
-                );
+                await authenticate(m.login_biometric_reason(), authOpts);
                 await continueAfterSuccessfulAuth(globalState);
                 return;
             } catch (e) {

@@ -2,6 +2,7 @@
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
 import type { GlobalState } from "$lib/global";
+import { m } from "$lib/i18n";
 import { getContext, onMount } from "svelte";
 
 let { children } = $props();
@@ -82,7 +83,7 @@ onMount(async () => {
         class="flex h-screen w-screen items-center justify-center bg-background"
     >
         <p class="text-center text-sm text-foreground-muted">
-            An unexpected error occurred. Please restart the application.
+            {m.auth_guard_error()}
         </p>
     </div>
 {:else if !vaultExists}

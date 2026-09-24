@@ -2,6 +2,7 @@
 import { page } from "$app/state";
 import { AppNav } from "$lib/fragments";
 import { runtime } from "$lib/global/runtime.svelte";
+import { m } from "$lib/i18n";
 
 const { children } = $props();
 
@@ -13,7 +14,9 @@ const { children } = $props();
 // re-render mid- or post-transition, producing a visible flash.
 const VERSION = __APP_VERSION__;
 const subtitleAtMount =
-    page.url.pathname === "/settings" ? `App Version ${VERSION}` : undefined;
+    page.url.pathname === "/settings"
+        ? m.settings_app_version({ version: VERSION })
+        : undefined;
 </script>
 
 <main>

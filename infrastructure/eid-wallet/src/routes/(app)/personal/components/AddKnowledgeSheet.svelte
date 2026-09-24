@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/i18n";
 import { ButtonAction } from "$lib/ui";
 import BottomSheet from "$lib/ui/BottomSheet/BottomSheet.svelte";
 import { PERSONAL_BINDING_MAX_LENGTH } from "$lib/utils/personalBinding";
@@ -53,10 +54,10 @@ function close() {
 
 <BottomSheet bind:isOpen>
     <header class="flex items-center justify-between">
-        <h2 class="text-2xl font-bold text-black-900">Knowledge</h2>
+        <h2 class="text-2xl font-bold text-black-900">{m.knowledge_sheet_title()}</h2>
         <button
             type="button"
-            aria-label="Close"
+            aria-label={m.common_close()}
             class="w-9 h-9 rounded-full bg-black-50 flex items-center justify-center active:opacity-70"
             onclick={close}
         >
@@ -66,20 +67,19 @@ function close() {
 
     <div class="flex flex-col gap-4">
         <p class="text-black-500 leading-snug">
-            Ask a question that only you can answer. Tip: Include a reminder
-            about the correct spelling of the answer.
+            {m.knowledge_sheet_body()}
         </p>
 
         <div>
             <label for="kn-question" class="block text-black-500 mb-2">
-                Question
+                {m.knowledge_question_label()}
             </label>
             <input
                 id="kn-question"
                 type="text"
                 bind:value={question}
                 maxlength={PERSONAL_BINDING_MAX_LENGTH}
-                placeholder="e.g. Name of the street you grew up on"
+                placeholder={m.knowledge_question_placeholder()}
                 class="w-full bg-card-alternative rounded-full px-5 py-4 placeholder:text-black-300 outline-none focus:ring-2 focus:ring-primary"
             />
             {#if question.length > PERSONAL_BINDING_MAX_LENGTH - 150}
@@ -91,7 +91,7 @@ function close() {
 
         <div>
             <label for="kn-answer" class="block text-black-500 mb-2">
-                Answer
+                {m.knowledge_answer_label()}
             </label>
             <div class="relative">
                 <input
@@ -110,7 +110,9 @@ function close() {
                     onclick={() => {
                         showAnswer = !showAnswer;
                     }}
-                    aria-label={showAnswer ? "Hide answer" : "Show answer"}
+                    aria-label={showAnswer
+                        ? m.knowledge_hide_answer_aria()
+                        : m.knowledge_show_answer_aria()}
                     aria-pressed={showAnswer}
                     class="absolute inset-y-0 right-0 flex items-center pr-5 text-black-500 active:opacity-70"
                 >
@@ -130,7 +132,7 @@ function close() {
         </div>
 
         <ButtonAction class="w-full" callback={save} disabled={!canSave}>
-            Save
+            {m.common_save()}
         </ButtonAction>
     </div>
 </BottomSheet>

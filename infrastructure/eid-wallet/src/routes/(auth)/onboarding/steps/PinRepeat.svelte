@@ -1,5 +1,6 @@
 <script lang="ts">
 import { keyboardInset } from "$lib/actions/keyboardInset";
+import { m } from "$lib/i18n";
 import { ButtonAction, PinDots } from "$lib/ui";
 import StepHeader from "./StepHeader.svelte";
 
@@ -26,7 +27,7 @@ $effect(() => {
 const handleSubmit = async () => {
     if (!canSubmit) return;
     if (pin !== firstAttempt) {
-        error = "PIN codes don't match. Try again.";
+        error = m.pin_error_mismatch();
         pin = "";
         return;
     }
@@ -34,7 +35,7 @@ const handleSubmit = async () => {
         await oncomplete?.(pin);
     } catch (err) {
         console.error("Failed to confirm PIN:", err);
-        error = "Couldn't save your PIN. Please try again.";
+        error = m.onboarding_pin_save_failed();
         pin = "";
     }
 };
@@ -45,7 +46,7 @@ const handleSubmit = async () => {
     class="h-dvh overflow-hidden px-[5vw] flex flex-col bg-white"
     style="padding-top: max(2svh, env(safe-area-inset-top)); padding-bottom: calc(max(16px, env(safe-area-inset-bottom)) + var(--kb-inset, 0px));"
 >
-    <StepHeader title="Repeat PIN-code" step={2} {onback} />
+    <StepHeader title={m.onboarding_pin_repeat_title()} step={2} {onback} />
 
     <section class="flex-1 flex flex-col items-center justify-center gap-6">
         <PinDots bind:pin />
@@ -62,7 +63,7 @@ const handleSubmit = async () => {
             callback={handleSubmit}
             blockingClick={true}
         >
-            Next
+            {m.common_next()}
         </ButtonAction>
     </footer>
 </main>

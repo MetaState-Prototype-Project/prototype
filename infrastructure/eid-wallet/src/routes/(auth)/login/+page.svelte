@@ -2,6 +2,7 @@
 import { goto } from "$app/navigation";
 import { keyboardInset } from "$lib/actions/keyboardInset";
 import type { GlobalState } from "$lib/global";
+import { m } from "$lib/i18n";
 import { hasDeepLink } from "$lib/stores/deepLink";
 import { LoadingSheet, PinDots } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
@@ -102,15 +103,15 @@ onMount(async () => {
     class="h-dvh overflow-hidden px-[5vw] flex flex-col bg-white"
     style="padding-top: max(2svh, env(safe-area-inset-top)); padding-bottom: calc(max(16px, env(safe-area-inset-bottom)) + var(--kb-inset, 0px));"
 >
-    <StepHeader title="Enter your PIN" />
+    <StepHeader title={m.login_title()} />
 
     {#if hasPendingDeepLink && !isPostAuthLoading}
         <div
             class="bg-primary-100 border border-primary-200 rounded-xl px-4 py-2.5 mt-4 text-sm text-primary"
             role="status"
         >
-            <strong>Authentication request pending.</strong>
-            Sign in to continue.
+            <strong>{m.login_deeplink_pending_title()}</strong>
+            {m.login_deeplink_pending_body()}
         </div>
     {/if}
 
@@ -120,11 +121,11 @@ onMount(async () => {
         {#if isError}
             <article class="flex flex-col items-center justify-center gap-2">
                 <p class="text-danger text-sm font-medium" role="alert">
-                    Your PIN does not match, try again.
+                    {m.login_pin_mismatch()}
                 </p>
                 <p class="text-black-700 opacity-50 text-sm font-medium">
-                    Forgot your pin? <a href="/recover"
-                        ><u>Recover your eVault.</u></a
+                    {m.login_forgot_pin()} <a href="/recover"
+                        ><u>{m.login_recover_link()}</u></a
                     >
                 </p>
             </article>
@@ -137,7 +138,7 @@ onMount(async () => {
             class="w-full uppercase tracking-wide"
             callback={clearPin}
         >
-            Clear PIN
+            {m.login_clear_pin()}
         </Button.Action>
     </footer>
 </main>
@@ -146,6 +147,6 @@ onMount(async () => {
      user has visual context for the step they just completed. -->
 <LoadingSheet
     isOpen={isPostAuthLoading}
-    title="Signing you in"
-    subtitle="Setting things up. This only takes a moment."
+    title={m.login_signing_in_title()}
+    subtitle={m.login_signing_in_subtitle()}
 />

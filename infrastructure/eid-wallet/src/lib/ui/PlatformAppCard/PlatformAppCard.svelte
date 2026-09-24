@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/i18n";
 import { getPlatformKey } from "@metastate-foundation/platform-icons";
 import blabsy from "@metastate-foundation/platform-icons/icons/blabsy.svg";
 import charter from "@metastate-foundation/platform-icons/icons/charter.png";
@@ -115,7 +116,7 @@ const derivedName = $derived.by(() => {
     const segment = hostname?.split(".")[0]?.trim();
     if (segment) return segment;
     if (platformName) return platformName;
-    return "Unknown app";
+    return m.platform_unknown_app();
 });
 const initial = $derived((derivedName[0] ?? "?").toUpperCase());
 const displayName = $derived(derivedName);

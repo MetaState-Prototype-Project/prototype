@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/i18n";
 import { BottomSheet, PlatformAppCard } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
@@ -61,7 +62,7 @@ $effect(() => {
                     type="button"
                     onclick={onDecline}
                     disabled={authLoading}
-                    aria-label="Close"
+                    aria-label={m.common_close()}
                     class="w-9 h-9 rounded-full bg-gray-100 text-black-700 flex items-center justify-center active:opacity-80 disabled:opacity-40"
                 >
                     <HugeiconsIcon
@@ -80,16 +81,17 @@ $effect(() => {
                         class="text-2xl font-medium text-black-900 text-center leading-tight"
                     >
                         {#if isFromScan}
-                            You have scanned the<br />login QR code
+                            {m.auth_drawer_scanned_l1()}<br
+                            />{m.auth_drawer_scanned_l2()}
                         {:else}
-                            You have a pending<br />login request
+                            {m.auth_drawer_pending_l1()}<br
+                            />{m.auth_drawer_pending_l2()}
                         {/if}
                     </h4>
                     <p
                         class="text-lg leading-tight text-black-700 opacity-50 text-center"
                     >
-                        Please review and confirm that you grant access to your
-                        data for the following App
+                        {m.auth_drawer_review()}
                     </p>
                 </div>
 
@@ -102,7 +104,7 @@ $effect(() => {
                     <div
                         class="bg-red-50 border border-red-200 rounded-2xl p-4 w-full"
                     >
-                        <p class="text-sm font-medium text-red-800">Error</p>
+                        <p class="text-sm font-medium text-red-800">{m.common_error()}</p>
                         <p class="text-sm text-red-700 mt-1">{authError}</p>
                     </div>
                 {/if}
@@ -115,7 +117,7 @@ $effect(() => {
                         class="w-full"
                         callback={onDecline}
                     >
-                        Okay
+                        {m.common_okay()}
                     </Button.Action>
                 {:else}
                     <div class="flex justify-center gap-3 items-center w-full">
@@ -125,7 +127,7 @@ $effect(() => {
                             callback={onDecline}
                             disabled={authLoading}
                         >
-                            Decline
+                            {m.common_decline()}
                         </Button.Action>
                         <Button.Action
                             variant="solid"
@@ -134,9 +136,9 @@ $effect(() => {
                             disabled={authLoading}
                         >
                             {#if authLoading}
-                                Authenticating...
+                                {m.auth_drawer_authenticating()}
                             {:else}
-                                Confirm
+                                {m.common_confirm()}
                             {/if}
                         </Button.Action>
                     </div>

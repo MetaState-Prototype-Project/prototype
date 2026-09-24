@@ -35,6 +35,8 @@ import {
 } from "$lib/stores/notifications";
 import NotificationService from "$lib/services/NotificationService";
 import { BottomSheet, ButtonAction, Toast } from "$lib/ui";
+import { m } from "$lib/i18n";
+import { getLocale } from "$lib/paraglide/runtime";
 import * as Button from "$lib/ui/Button";
 import { isPermissionGranted } from "@choochmeque/tauri-plugin-notifications-api";
 import { openAppSettings } from "@tauri-apps/plugin-barcode-scanner";
@@ -72,7 +74,7 @@ import KycUpgradeOverlay from "./legacy/KycUpgradeOverlay.svelte";
 // Seed component state from the module-scope cache so re-entry paints
 // instantly; loaders below refresh in-place.
 let userData: Record<string, unknown> | undefined = $state(cachedUserData);
-let greeting: string | undefined = $state(undefined);
+let greetingHour = $state<number | undefined>(undefined);
 let ename: string | undefined = $state(cachedEname);
 let profileCreationStatus: "idle" | "loading" | "success" | "failed" =
     $state("idle");
@@ -288,12 +290,12 @@ async function loadBindingDocuments(): Promise<void> {
 // the next load picks the most-recent self doc by timestamp anyway.
 async function handleEditNameSave(newName: string): Promise<void> {
     if (!globalState) {
-        editNameError = "Wallet not ready.";
+        editNameError = m.main_edit_name_not_ready();
         return;
     }
     const trimmed = newName.trim();
     if (!trimmed) {
-        editNameError = "Please enter a name.";
+        editNameError = m.main_edit_name_empty();
         return;
     }
     if (trimmed === displayName) {
@@ -307,7 +309,7 @@ async function handleEditNameSave(newName: string): Promise<void> {
     try {
         const vault = await globalState.vaultController.vault;
         if (!vault?.uri || !vault?.ename) {
-            throw new Error("No eVault available");
+            throw new Error(m.main_edit_name_no_vault());
         }
         const ownerEname = vault.ename.startsWith("@")
             ? vault.ename
@@ -365,7 +367,7 @@ async function handleEditNameSave(newName: string): Promise<void> {
         editNameError =
             err instanceof Error
                 ? err.message
-                : "Couldn't save your new name. Please try again.";
+                : m.main_edit_name_failed();
     } finally {
         editNameSaving = false;
     }
@@ -521,7 +523,11 @@ function formatDate(iso: string | undefined): string | undefined {
     if (!iso) return undefined;
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return iso;
-    return d.toDateString();
+    return d.toLocaleDateString(getLocale(), {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+    });
 }
 
 // TODO: enrich the Legal ID card with document type, country, DOB and document
@@ -558,7 +564,7 @@ function toLegalIdDoc(doc: ParsedBindingDoc): LegalIdDoc {
         (userData ? asString(userData["Document Number"]) : undefined);
 
     return {
-        title: title || "Legal ID",
+        title: title || m.legal_id_title(),
         name,
         dateOfBirth: dob,
         documentNumber,
@@ -582,7 +588,18 @@ let tourOffset = $state(0);
 // instantly with last-known values while the background refresh runs.
 let pageReady = $state(hasEverLoaded);
 const tourActive = $derived(tourStep !== null);
-const tourGreeting = $derived(tourActive ? "Hello" : (greeting ?? "Hi"));
+const greeting = $derived(
+    greetingHour === undefined
+        ? undefined
+        : greetingHour > 17
+          ? m.main_greeting_evening()
+          : greetingHour > 12
+            ? m.main_greeting_afternoon()
+            : m.main_greeting_morning(),
+);
+const tourGreeting = $derived(
+    tourActive ? m.main_greeting_tour() : (greeting ?? m.main_greeting_fallback()),
+);
 
 // Captured once on component init. Stays true for the lifetime of this
 // component instance; the module-scope flag flips immediately so any later
@@ -806,13 +823,7 @@ onMount(() => {
         localStorage.removeItem(RECOVERY_SKIP_PROFILE_SETUP_KEY);
     }
 
-    const currentHour = new Date().getHours();
-    greeting =
-        currentHour > 17
-            ? "Good Evening"
-            : currentHour > 12
-              ? "Good Afternoon"
-              : "Good Morning";
+    greetingHour = new Date().getHours();
 
     (async () => {
         let gs = getGlobalState();
@@ -925,10 +936,9 @@ async function refreshBindings(): Promise<void> {
 {#if profileCreationStatus === "loading" && !skipProfileSetupGate}
     <div class="flex flex-col items-center justify-center min-h-screen gap-6">
         <Shadow size={40} color="rgb(142, 82, 255);" />
-        <h3 class="text-xl font-semibold">Setting up your eVault profile</h3>
+        <h3 class="text-xl font-semibold">{m.main_profile_setup_title()}</h3>
         <p class="text-black-700 text-center max-w-md">
-            We're creating your profile in the eVault. This may take a few
-            moments...
+            {m.main_profile_setup_body()}
         </p>
     </div>
 {:else if profileCreationStatus === "failed"}
@@ -937,18 +947,17 @@ async function refreshBindings(): Promise<void> {
     >
         <div class="text-center">
             <h3 class="text-xl font-semibold text-danger mb-2">
-                Profile Setup Failed
+                {m.main_profile_failed_title()}
             </h3>
             <p class="text-black-700 text-center max-w-md mb-6">
-                We couldn't set up your eVault profile. This might be due to a
-                network issue or temporary service unavailability.
+                {m.main_profile_failed_body()}
             </p>
             <Button.Action
                 variant="solid"
                 callback={retryProfileCreation}
                 class="w-full max-w-xs"
             >
-                Try Again
+                {m.common_try_again()}
             </Button.Action>
         </div>
     </div>
@@ -1085,7 +1094,7 @@ async function refreshBindings(): Promise<void> {
                         : { duration: 0 }}
                 >
                     <EVaultCard
-                        available="5 GB"
+                        available={m.main_evault_size()}
                         oninfo={() => (eVaultInfoOpen = true)}
                     />
                     <Lasso size="med" active={tourStep === "evault"} />
@@ -1162,7 +1171,7 @@ async function refreshBindings(): Promise<void> {
     onsave={handleEditNameSave}
 />
 
-<InfoDrawer bind:isOpen={eVaultInfoOpen} title="What is eVault?">
+<InfoDrawer bind:isOpen={eVaultInfoOpen} title={m.info_evault_title()}>
     {#snippet body()}
         <img
             src="/images/what-is-evault.png"
@@ -1170,49 +1179,23 @@ async function refreshBindings(): Promise<void> {
             class="w-full h-auto rounded-2xl shrink-0"
             aria-hidden="true"
         />
-        <p>
-            eVault is your sovereign and secure storage. It holds all your
-            data: photos, documents, social media posts, messages to friends,
-            and more. Since your data is now stored by you, not platforms, you
-            can easily switch between services.
-        </p>
-        <p>
-            For example, if you don't like one messenger, simply switch to
-            another, and all your messages, chats, and friends will still be
-            there, because your data is stored with you, and the app only gets
-            temporary permission to access it.
-        </p>
+        <p>{m.info_evault_p1()}</p>
+        <p>{m.info_evault_p2()}</p>
     {/snippet}
 </InfoDrawer>
 
-<InfoDrawer bind:isOpen={bindingDocsInfoOpen} title="Binding documents">
+<InfoDrawer bind:isOpen={bindingDocsInfoOpen} title={m.info_binding_title()}>
     {#snippet body()}
-        <p>
-            Link binding documents to strengthen the connection between your
-            Digital and Real Selves. Upload verifiable artifacts to your eVault,
-            such as official documents, photos, or confirmations from friends
-            and family, so you can prove ownership of your eVault if needed.
-        </p>
+        <p>{m.info_binding_p1()}</p>
         <img
             src="/images/binding-documents.png"
             alt=""
             class="w-full h-auto rounded-2xl shrink-0"
             aria-hidden="true"
         />
-        <h4 class="text-black-900 font-bold text-base">Why it's important:</h4>
-        <p>
-            Unlike the usual Web 2.0 approach, where platforms make you create
-            an account and upload your data to them, in W3DS, you have your own
-            sovereign account — your Digital Self — and you control who can
-            access your data. With sovereignty comes responsibility.
-        </p>
-        <p>
-            By default, your Digital Self is tied to your Real Self via the eID
-            App, so if anything happens to your phone, you may lose control over
-            your data. However, if your personal artifacts — documents, photos,
-            and social confirmations — are stored in your eVault, you can prove
-            ownership of your Digital Self and regain control over your data.
-        </p>
+        <h4 class="text-black-900 font-bold text-base">{m.info_binding_why()}</h4>
+        <p>{m.info_binding_p2()}</p>
+        <p>{m.info_binding_p3()}</p>
     {/snippet}
 </InfoDrawer>
 
@@ -1220,10 +1203,9 @@ async function refreshBindings(): Promise<void> {
      localStorage so it never re-appears on this device. -->
 <BottomSheet bind:isOpen={showNotifPrompt} dismissible={false}>
     <header class="flex flex-col items-center text-center gap-1">
-        <h2 class="text-2xl font-bold text-black-900">Stay in the loop</h2>
+        <h2 class="text-2xl font-bold text-black-900">{m.notif_prompt_title()}</h2>
         <p class="text-sm text-black-500 max-w-xs">
-            Get notified about new messages, signing requests, and activity on
-            your eVault.
+            {m.notif_prompt_body()}
         </p>
     </header>
 
@@ -1235,7 +1217,7 @@ async function refreshBindings(): Promise<void> {
             callback={handleNotifAllow}
             blockingClick
         >
-            Allow notifications
+            {m.notifications_allow()}
         </ButtonAction>
         <ButtonAction
             variant="soft"
@@ -1243,7 +1225,7 @@ async function refreshBindings(): Promise<void> {
             disabled={notifBusy}
             callback={handleNotifSkip}
         >
-            Not now
+            {m.notif_prompt_not_now()}
         </ButtonAction>
     </div>
 </BottomSheet>

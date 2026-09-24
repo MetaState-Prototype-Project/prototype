@@ -9,6 +9,7 @@ declare module "$env/static/public" {
     export const PUBLIC_PROVISIONER_SHARED_SECRET: string;
     export const PUBLIC_PICTIQUE_BASE_URL: string;
     export const PUBLIC_BLABSY_BASE_URL: string;
+    export const PUBLIC_TRANSLATIONS_URL: string;
 }
 
 /** App version from package.json, injected by vite.config.js at build time. */

@@ -7,6 +7,10 @@ import { page } from "$app/state";
 import { GlobalState } from "$lib/global/state";
 
 import { runtime } from "$lib/global/runtime.svelte";
+import { refreshOverrides } from "$lib/i18n";
+// Side-effect import: installs the rune-backed getLocale override before
+// the first route renders, so every m.*() tracks the locale.
+import "$lib/stores/language.svelte";
 import { swipedetect } from "$lib/utils";
 import { handleDeepLinkEvent, routeDeepLink } from "$lib/utils/routeDeepLink";
 import { installTerminalConsoleBridge } from "$lib/utils/terminalConsole";
@@ -84,6 +88,9 @@ onMount(async () => {
     // first navigation snappy on cold start.
     preloadCode("/onboarding").catch(() => {});
     preloadCode("/recover").catch(() => {});
+
+    // Not awaited: the compiled strings already render without it.
+    refreshOverrides();
 
     let status: Status | undefined = undefined;
     try {

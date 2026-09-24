@@ -7,6 +7,8 @@ import {
     PUBLIC_REGISTRY_URL,
 } from "$env/static/public";
 import { keyboardInset } from "$lib/actions/keyboardInset";
+import { m } from "$lib/i18n";
+import { getLocale } from "$lib/paraglide/runtime";
 import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction } from "$lib/ui";
 import BottomSheet from "$lib/ui/BottomSheet/BottomSheet.svelte";
@@ -77,24 +79,24 @@ let loadingPhase = $state<LoadingPhase>(null);
 
 const loadingTitle = $derived(
     loadingPhase === "starting-session"
-        ? "Preparing verification"
+        ? m.recover_loading_session_title()
         : loadingPhase === "finding-evault"
-          ? "Finding your eVault"
+          ? m.recover_loading_find_title()
           : loadingPhase === "verifying-notary"
-            ? "Verifying the notary"
+            ? m.recover_loading_notary_title()
             : loadingPhase === "restoring-vault"
-              ? "Restoring your eVault"
+              ? m.recover_loading_restore_title()
               : "",
 );
 const loadingSubtitle = $derived(
     loadingPhase === "starting-session"
-        ? "Setting up your recovery session."
+        ? m.recover_loading_session_subtitle()
         : loadingPhase === "finding-evault"
-          ? "Looking for an eVault linked to your identity."
+          ? m.recover_loading_find_subtitle()
           : loadingPhase === "verifying-notary"
-            ? "Checking the recovery code's signature against the registry."
+            ? m.recover_loading_notary_subtitle()
             : loadingPhase === "restoring-vault"
-              ? "Claiming your recovery code and loading your data."
+              ? m.recover_loading_restore_subtitle()
               : "",
 );
 
@@ -207,7 +209,7 @@ async function startVerifiedRecovery() {
         );
 
         if (!data.verificationUrl) {
-            throw new Error("Backend did not return a verificationUrl");
+            throw new Error(m.recover_error_no_verification_url());
         }
 
         loadingPhase = null;
@@ -227,9 +229,7 @@ async function startVerifiedRecovery() {
     } catch (err: unknown) {
         console.error("[RECOVERY] start-recovery error:", err);
         errorMessage =
-            err instanceof Error
-                ? err.message
-                : "Something went wrong. Please try again.";
+            err instanceof Error ? err.message : m.recover_error_generic();
         errorReason = "generic";
         loadingPhase = null;
         step = "home";
@@ -244,8 +244,7 @@ async function handleDiditComplete(result: DiditCompleteResult) {
     }
 
     if (!result.session?.sessionId) {
-        errorMessage =
-            "The verification session did not return a session ID. Please try again.";
+        errorMessage = m.recover_error_no_session();
         errorReason = "generic";
         step = "home";
         showErrorSheet = true;
@@ -263,12 +262,10 @@ async function handleDiditComplete(result: DiditCompleteResult) {
 
         if (!data.success) {
             if (data.reason === "liveness_failed") {
-                errorMessage =
-                    "We couldn't confirm you were a live person. Please try again in good lighting.";
+                errorMessage = m.recover_error_liveness();
                 errorReason = "liveness_failed";
             } else {
-                errorMessage =
-                    "We couldn't find an eVault linked to your identity. Make sure you completed identity verification when you first set up your eVault.";
+                errorMessage = m.recover_error_no_evault();
                 errorReason = "no_match";
             }
             loadingPhase = null;
@@ -285,8 +282,7 @@ async function handleDiditComplete(result: DiditCompleteResult) {
         showFoundSheet = true;
     } catch (err: unknown) {
         console.error("[RECOVERY] face-search error:", err);
-        errorMessage =
-            "Something went wrong during the search. Please try again.";
+        errorMessage = m.recover_error_search();
         errorReason = "generic";
         loadingPhase = null;
         step = "home";
@@ -499,7 +495,7 @@ async function fetchRecoveryProfile(
 async function handleSubmitEname() {
     const ename = enameInput.trim();
     if (!ename) {
-        enameError = "Please enter your eName.";
+        enameError = m.recover_error_ename_required();
         return;
     }
 
@@ -511,7 +507,7 @@ async function handleSubmitEname() {
             uri = await resolveEvaultBase(ename);
         } catch (err) {
             console.warn("[RECOVERY/unverified] eName resolve failed:", err);
-            enameError = "We couldn't find that eName. Check it and try again.";
+            enameError = m.recover_error_ename_not_found();
             return;
         }
 
@@ -528,15 +524,13 @@ async function handleSubmitEname() {
                 "[RECOVERY/unverified] security_question fetch failed:",
                 err,
             );
-            enameError =
-                "Couldn't reach that eVault. Check your connection and try again.";
+            enameError = m.recover_error_evault_unreachable();
             return;
         }
 
         const edges = resp.bindingDocuments?.edges ?? [];
         if (edges.length === 0) {
-            enameError =
-                "This eVault has no recovery question set. Recovery isn't possible without ID verification.";
+            enameError = m.recover_error_no_question();
             return;
         }
 
@@ -550,8 +544,7 @@ async function handleSubmitEname() {
 
         const question = latest?.node.parsed.data?.question ?? "";
         if (!question || !latest?.node.id) {
-            enameError =
-                "This eVault's recovery question is missing or malformed.";
+            enameError = m.recover_error_question_malformed();
             return;
         }
 
@@ -565,7 +558,7 @@ async function handleSubmitEname() {
         step = "unverified-answer";
     } catch (err: unknown) {
         console.error("[RECOVERY/unverified] eName lookup error:", err);
-        enameError = "Something went wrong. Please try again.";
+        enameError = m.recover_error_generic();
     } finally {
         enameLoading = false;
     }
@@ -596,7 +589,7 @@ interface ValidateAnswerResponse {
 function formatLockedUntil(iso: string): string {
     try {
         const d = new Date(iso);
-        return d.toLocaleString(undefined, {
+        return d.toLocaleString(getLocale(), {
             hour: "numeric",
             minute: "2-digit",
             day: "numeric",
@@ -610,11 +603,11 @@ function formatLockedUntil(iso: string): string {
 async function handleSubmitAnswer() {
     const answer = answerInput.trim();
     if (!answer) {
-        answerError = "Please enter your answer.";
+        answerError = m.recover_error_answer_required();
         return;
     }
     if (!recoveryEnvelopeId || !recoveredVaultUri) {
-        answerError = "Please re-enter your eName and try again.";
+        answerError = m.recover_error_reenter_ename();
         step = "unverified-ename";
         return;
     }
@@ -640,7 +633,7 @@ async function handleSubmitAnswer() {
                 "[RECOVERY/unverified] validate returned errors:",
                 result.errors,
             );
-            answerError = "Couldn't verify your answer. Please try again.";
+            answerError = m.recover_error_answer_verify();
             return;
         }
 
@@ -661,18 +654,20 @@ async function handleSubmitAnswer() {
 
         if (result.lockedUntil) {
             lockedUntilLabel = formatLockedUntil(result.lockedUntil);
-            answerError = `Too many wrong answers. Try again after ${lockedUntilLabel}.`;
+            answerError = m.recover_error_locked_out({
+                until: lockedUntilLabel,
+            });
             return;
         }
 
         const left = result.attemptsRemaining;
         answerError =
             typeof left === "number"
-                ? `That answer doesn't match. ${left} ${left === 1 ? "try" : "tries"} left.`
-                : "That answer doesn't match.";
+                ? m.recover_error_answer_mismatch_attempts({ count: left })
+                : m.recover_error_answer_mismatch();
     } catch (err: unknown) {
         console.error("[RECOVERY/unverified] answer verify error:", err);
-        answerError = "Couldn't verify your answer. Please try again.";
+        answerError = m.recover_error_answer_verify();
     } finally {
         answerLoading = false;
     }
@@ -749,8 +744,7 @@ async function runNotaryRecovery() {
         }
     }
     if (permission !== "granted") {
-        errorMessage =
-            "We need camera access to scan the recovery code. Open this app in your device's Settings to allow the camera.";
+        errorMessage = m.recover_error_camera_permission();
         errorReason = "generic";
         errorSource = "notary";
         showErrorSheet = true;
@@ -792,8 +786,8 @@ async function runNotaryRecovery() {
         // they should at least see *something*.
         errorMessage =
             err instanceof Error && err.message
-                ? `Couldn't open the camera: ${err.message}`
-                : "Couldn't open the camera. Please try again.";
+                ? m.recover_error_camera_open_reason({ reason: err.message })
+                : m.recover_error_camera_open();
         errorReason = "generic";
         errorSource = "notary";
         showErrorSheet = true;
@@ -811,7 +805,7 @@ async function runNotaryRecovery() {
     }
 
     if (!content.startsWith("w3ds://notary-recovery")) {
-        errorMessage = "That QR isn't a notary recovery code.";
+        errorMessage = m.recover_error_qr_not_notary();
         errorReason = "generic";
         showErrorSheet = true;
         return;
@@ -821,7 +815,7 @@ async function runNotaryRecovery() {
     // doesn't reliably expose query params, so split manually.
     const queryStart = content.indexOf("?");
     if (queryStart === -1) {
-        errorMessage = "That QR isn't a valid notary recovery code.";
+        errorMessage = m.recover_error_qr_invalid();
         errorReason = "generic";
         showErrorSheet = true;
         return;
@@ -829,7 +823,7 @@ async function runNotaryRecovery() {
     const params = new URLSearchParams(content.slice(queryStart + 1));
     const token = params.get("token");
     if (!token) {
-        errorMessage = "That QR isn't a valid notary recovery code.";
+        errorMessage = m.recover_error_qr_invalid();
         errorReason = "generic";
         showErrorSheet = true;
         return;
@@ -842,7 +836,7 @@ async function runNotaryRecovery() {
         try {
             unverified = decodeJwt(token);
         } catch {
-            failNotary("This recovery code is malformed.");
+            failNotary(m.recover_error_code_malformed());
             return;
         }
         const declaredNotary = unverified.notaryEName;
@@ -851,7 +845,7 @@ async function runNotaryRecovery() {
             typeof declaredNotary !== "string" ||
             typeof declaredClaim !== "string"
         ) {
-            failNotary("This recovery code is missing required fields.");
+            failNotary(m.recover_error_code_missing_fields());
             return;
         }
 
@@ -865,22 +859,18 @@ async function runNotaryRecovery() {
             whitelist = Array.isArray(resp.data) ? resp.data : [];
         } catch (err) {
             console.error("[RECOVERY/notary] whitelist fetch failed:", err);
-            failNotary("Couldn't reach the registry to verify the notary.");
+            failNotary(m.recover_error_registry_unreachable());
             return;
         }
         const entry = whitelist.find((e) => e.ename === declaredNotary);
         if (!entry) {
-            failNotary(
-                "This recovery code wasn't issued by a recognised notary.",
-            );
+            failNotary(m.recover_error_notary_unrecognised());
             return;
         }
 
         // 3. Claim URL must live on the same origin as the whitelisted notary.
         if (originOf(entry.url) !== originOf(declaredClaim)) {
-            failNotary(
-                "This recovery code wasn't issued by a recognised notary.",
-            );
+            failNotary(m.recover_error_notary_unrecognised());
             return;
         }
 
@@ -894,7 +884,7 @@ async function runNotaryRecovery() {
             jwksJson = jwksResp.data;
         } catch (err) {
             console.error("[RECOVERY/notary] jwks fetch failed:", err);
-            failNotary("Couldn't verify the notary's identity. Try again.");
+            failNotary(m.recover_error_notary_identity());
             return;
         }
         const JWKS = createLocalJWKSet({
@@ -907,7 +897,7 @@ async function runNotaryRecovery() {
             verifiedPayload = payload as unknown as NotaryRecoveryPayload;
         } catch (err) {
             console.warn("[RECOVERY/notary] JWT verify failed:", err);
-            failNotary("This recovery code's signature is invalid.");
+            failNotary(m.recover_error_signature_invalid());
             return;
         }
 
@@ -918,7 +908,7 @@ async function runNotaryRecovery() {
             !verifiedPayload.sessionId ||
             !verifiedPayload.targetEName
         ) {
-            failNotary("This recovery code is internally inconsistent.");
+            failNotary(m.recover_error_code_inconsistent());
             return;
         }
 
@@ -940,7 +930,7 @@ async function runNotaryRecovery() {
         await handleNotaryConfirm();
     } catch (err) {
         console.error("[RECOVERY/notary] unexpected:", err);
-        failNotary("Something went wrong. Please try again.");
+        failNotary(m.recover_error_generic());
     }
 }
 
@@ -976,12 +966,12 @@ async function handleNotaryConfirm() {
             const reason = data.reason ?? "generic";
             failNotary(
                 reason === "expired"
-                    ? "This recovery code has expired. Ask the notary to issue a new one."
+                    ? m.recover_error_code_expired()
                     : reason === "consumed"
-                      ? "This recovery code has already been used."
+                      ? m.recover_error_code_used()
                       : reason === "not_found"
-                        ? "We couldn't find that recovery code."
-                        : "Something went wrong claiming the code.",
+                        ? m.recover_error_code_not_found()
+                        : m.recover_error_claim_failed(),
             );
             return;
         }
@@ -989,7 +979,7 @@ async function handleNotaryConfirm() {
         const ename = data.eName ?? notaryTargetEName;
         const uri = data.uri;
         if (!uri) {
-            failNotary("The notary didn't return a vault URL.");
+            failNotary(m.recover_error_no_vault_url());
             return;
         }
 
@@ -1017,7 +1007,7 @@ async function handleNotaryConfirm() {
         loadingPhase = null;
     } catch (err) {
         console.error("[RECOVERY/notary] claim failed:", err);
-        failNotary("Couldn't reach the notary. Check your connection.");
+        failNotary(m.recover_error_notary_unreachable());
     } finally {
         notaryClaiming = false;
     }
@@ -1088,7 +1078,7 @@ async function recoverVault() {
         await goto("/onboarding", { replaceState: true });
     } catch (err) {
         console.error("[RECOVERY] store failed:", err);
-        errorMessage = "Failed to restore your eVault. Please try again.";
+        errorMessage = m.recover_error_store_failed();
         errorReason = "generic";
         showFoundSheet = false;
         showErrorSheet = true;
@@ -1134,7 +1124,7 @@ onMount(() => {
             <button
                 type="button"
                 onclick={handleHomeBack}
-                aria-label="Back"
+                aria-label={m.common_back()}
                 class="w-10 h-10 absolute rounded-full bg-black-100 flex items-center justify-center cursor-pointer shrink-0 active:opacity-70"
             >
                 <HugeiconsIcon
@@ -1145,7 +1135,7 @@ onMount(() => {
                 />
             </button>
             <div class="flex flex-col w-full items-center pl-12 sm:pl-0">
-                <h3 class="font-semibold leading-none">Restore DigitalSelf</h3>
+                <h3 class="font-semibold leading-none">{m.recover_home_title()}</h3>
             </div>
         </header>
 
@@ -1155,12 +1145,12 @@ onMount(() => {
             <h2
                 class="text-3xl font-bold text-black-900 text-center leading-tight"
             >
-                Already have<br />an eVault?
+                {m.recover_home_heading_l1()}<br />{m.recover_home_heading_l2()}
             </h2>
             <p
                 class="text-black-500 text-center text-base leading-snug max-w-70"
             >
-                Were you idenity-verified when you set up your eVault?
+                {m.recover_home_question()}
             </p>
         </section>
 
@@ -1172,11 +1162,10 @@ onMount(() => {
             >
                 <div class="flex-1 min-w-0">
                     <p class="font-bold text-base text-black-900 mb-0.5">
-                        Yes, I verified my ID
+                        {m.recover_path_verified_title()}
                     </p>
                     <p class="text-sm text-black-500 leading-snug">
-                        We'll use your verified identity to find and confirm
-                        your previous eVault.
+                        {m.recover_path_verified_body()}
                     </p>
                 </div>
                 <span class="text-black-500 text-2xl shrink-0">›</span>
@@ -1188,11 +1177,10 @@ onMount(() => {
             >
                 <div class="flex-1 min-w-0">
                     <p class="font-bold text-base text-black-900 mb-0.5">
-                        No, I didn't verify my ID
+                        {m.recover_path_unverified_title()}
                     </p>
                     <p class="text-sm text-black-500 leading-snug">
-                        Recover using your eName and the security question you
-                        set during onboarding.
+                        {m.recover_path_unverified_body()}
                     </p>
                 </div>
                 <span class="text-black-500 text-2xl shrink-0">›</span>
@@ -1204,10 +1192,10 @@ onMount(() => {
             >
                 <div class="flex-1 min-w-0">
                     <p class="font-bold text-base text-black-900 mb-0.5">
-                        I am at a notary
+                        {m.recover_path_notary_title()}
                     </p>
                     <p class="text-sm text-black-500 leading-snug">
-                        Scan the recovery QR your notary has issued for you.
+                        {m.recover_path_notary_body()}
                     </p>
                 </div>
                 <span class="text-black-500 text-2xl shrink-0">›</span>
@@ -1224,7 +1212,7 @@ onMount(() => {
             <button
                 type="button"
                 onclick={handleUnverifiedEnameBack}
-                aria-label="Back"
+                aria-label={m.common_back()}
                 class="w-10 h-10 absolute rounded-full bg-black-100 flex items-center justify-center cursor-pointer shrink-0 active:opacity-70"
             >
                 <HugeiconsIcon
@@ -1235,9 +1223,11 @@ onMount(() => {
                 />
             </button>
             <div class="flex flex-col w-full items-center">
-                <h3 class="font-semibold leading-none">Restore</h3>
+                <h3 class="font-semibold leading-none">
+                    {m.recover_step_title()}
+                </h3>
                 <p class="text-black-500 text-sm mt-1 leading-none">
-                    Unverified ID
+                    {m.recover_step_subtitle_unverified()}
                 </p>
             </div>
         </header>
@@ -1246,13 +1236,12 @@ onMount(() => {
             <h2
                 class="text-3xl font-bold text-black-900 text-center leading-tight"
             >
-                Enter your eName
+                {m.recover_ename_heading()}
             </h2>
             <p
                 class="text-black-500 text-center text-base leading-snug max-w-75"
             >
-                We'll use your eName to look up your eVault, then ask you to
-                answer the security question you set up.
+                {m.recover_ename_body()}
             </p>
         </section>
 
@@ -1261,7 +1250,7 @@ onMount(() => {
                 class="text-black-700 font-medium text-sm"
                 for="recover-ename"
             >
-                Your eName <span class="text-danger">*</span>
+                {m.recover_ename_label()} <span class="text-danger">*</span>
             </label>
             <input
                 id="recover-ename"
@@ -1271,7 +1260,7 @@ onMount(() => {
                 autocapitalize="off"
                 autocorrect="off"
                 spellcheck="false"
-                placeholder="e.g. @4f2a9c1b-..."
+                placeholder={m.recover_ename_placeholder()}
                 class="w-full bg-card-alternative rounded-full px-5 py-4 placeholder:text-black-300 outline-none focus:ring-2 focus:ring-primary"
             />
             {#if enameError}
@@ -1289,7 +1278,7 @@ onMount(() => {
                     showRecoveryImpossibleSheet = true;
                 }}
             >
-                I forgot my eName
+                {m.recover_forgot_ename()}
             </ButtonAction>
             <ButtonAction
                 class="w-full uppercase tracking-wide"
@@ -1298,7 +1287,7 @@ onMount(() => {
                 callback={handleSubmitEname}
                 blockingClick
             >
-                Restore
+                {m.recover_restore_cta()}
             </ButtonAction>
         </footer>
     </main>
@@ -1312,7 +1301,7 @@ onMount(() => {
             <button
                 type="button"
                 onclick={handleUnverifiedAnswerBack}
-                aria-label="Back"
+                aria-label={m.common_back()}
                 class="w-10 h-10 absolute rounded-full bg-black-100 flex items-center justify-center cursor-pointer shrink-0 active:opacity-70"
             >
                 <HugeiconsIcon
@@ -1323,9 +1312,11 @@ onMount(() => {
                 />
             </button>
             <div class="flex flex-col w-full items-center">
-                <h3 class="font-semibold leading-none">Restore</h3>
+                <h3 class="font-semibold leading-none">
+                    {m.recover_step_title()}
+                </h3>
                 <p class="text-black-500 text-sm mt-1 leading-none">
-                    Unverified ID
+                    {m.recover_step_subtitle_unverified()}
                 </p>
             </div>
         </header>
@@ -1334,7 +1325,7 @@ onMount(() => {
             <h2
                 class="text-3xl font-bold text-black-900 text-center leading-tight"
             >
-                Enter answer<br />to your question
+                {m.recover_answer_heading_l1()}<br />{m.recover_answer_heading_l2()}
             </h2>
         </section>
 
@@ -1354,7 +1345,7 @@ onMount(() => {
                     autocapitalize="off"
                     autocorrect="off"
                     spellcheck="false"
-                    placeholder="Your answer"
+                    placeholder={m.recover_answer_placeholder()}
                     class="w-full bg-card-alternative rounded-full pl-5 pr-14 py-4 placeholder:text-black-300 outline-none focus:ring-2 focus:ring-primary"
                 />
                 <button
@@ -1362,7 +1353,9 @@ onMount(() => {
                     onclick={() => {
                         showAnswer = !showAnswer;
                     }}
-                    aria-label={showAnswer ? "Hide answer" : "Show answer"}
+                    aria-label={showAnswer
+                        ? m.knowledge_hide_answer_aria()
+                        : m.knowledge_show_answer_aria()}
                     aria-pressed={showAnswer}
                     class="absolute inset-y-0 right-0 flex items-center pr-5 text-black-500 active:opacity-70"
                 >
@@ -1389,7 +1382,7 @@ onMount(() => {
                     showNotarySheet = true;
                 }}
             >
-                I forgot my answer
+                {m.recover_forgot_answer()}
             </ButtonAction>
             <ButtonAction
                 class="w-full uppercase tracking-wide"
@@ -1398,7 +1391,7 @@ onMount(() => {
                 callback={handleSubmitAnswer}
                 blockingClick
             >
-                Restore
+                {m.recover_restore_cta()}
             </ButtonAction>
         </footer>
     </main>
@@ -1414,7 +1407,7 @@ onMount(() => {
                     step = "home";
                 }}
             >
-                Cancel
+                {m.common_cancel()}
             </button>
         </div>
         <div id="recovery-didit-container" class="flex-1 w-full"></div>
@@ -1431,7 +1424,7 @@ onMount(() => {
             <button
                 type="button"
                 onclick={handleNotaryScanCancel}
-                aria-label="Back"
+                aria-label={m.common_back()}
                 class="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center cursor-pointer shrink-0 active:opacity-70"
             >
                 <HugeiconsIcon
@@ -1480,7 +1473,7 @@ onMount(() => {
                 />
             </svg>
             <h4 class="text-white font-semibold text-center">
-                Point the camera at the notary's QR
+                {m.recover_notary_scan_hint()}
             </h4>
         </section>
     </main>
@@ -1497,9 +1490,9 @@ onMount(() => {
 <!-- ── eVault Found bottom sheet ──────────────────────────────────────── -->
 <BottomSheet bind:isOpen={showFoundSheet} dismissible={false}>
     <header class="flex flex-col items-center gap-1">
-        <h2 class="text-2xl font-bold text-black-900">eVault Found</h2>
+        <h2 class="text-2xl font-bold text-black-900">{m.recover_found_title()}</h2>
         <p class="text-sm text-black-500 text-center">
-            Please review the connection details below
+            {m.recover_found_subtitle()}
         </p>
     </header>
 
@@ -1507,7 +1500,9 @@ onMount(() => {
         <div
             class="bg-card-alternative rounded-2xl px-5 py-5 flex flex-col items-center gap-2"
         >
-            <p class="text-base font-bold text-black-900">Your eName</p>
+            <p class="text-base font-bold text-black-900">
+                {m.recover_found_ename_label()}
+            </p>
             <p class="font-mono text-sm text-black-700 break-all text-center">
                 {recoveredW3id}
             </p>
@@ -1515,9 +1510,7 @@ onMount(() => {
     {/if}
 
     <p class="text-sm text-black-500 text-center leading-snug">
-        We confirmed your identity. Here's your previous eVault - tap Continue
-        to restore access. If a recovery passphrase exists, we'll ask you to
-        verify it before continuing.
+        {m.recover_found_body()}
     </p>
 
     <div class="flex gap-3 pt-2">
@@ -1527,7 +1520,7 @@ onMount(() => {
             callback={cancelFound}
             disabled={storing}
         >
-            Cancel
+            {m.common_cancel()}
         </ButtonAction>
         <ButtonAction
             class="flex-1 uppercase tracking-wide"
@@ -1536,7 +1529,7 @@ onMount(() => {
             isLoading={storing}
             blockingClick
         >
-            Continue
+            {m.common_continue()}
         </ButtonAction>
     </div>
 </BottomSheet>
@@ -1545,14 +1538,12 @@ onMount(() => {
 <BottomSheet bind:isOpen={showRecoveryImpossibleSheet}>
     <header class="flex flex-col items-center gap-1">
         <h2 class="text-2xl font-bold text-black-900 text-center">
-            Recovery not possible
+            {m.recover_impossible_title()}
         </h2>
     </header>
 
     <p class="text-sm text-black-500 text-center leading-snug">
-        Without your eName and without ID verification, there is no way to
-        recover your eVault. Your eName is your unique identifier - it cannot be
-        looked up without a verified identity.
+        {m.recover_impossible_body()}
     </p>
 
     <ButtonAction
@@ -1562,7 +1553,7 @@ onMount(() => {
             goto("/onboarding");
         }}
     >
-        Create a new eVault
+        {m.recover_create_new()}
     </ButtonAction>
 </BottomSheet>
 
@@ -1570,15 +1561,12 @@ onMount(() => {
 <BottomSheet bind:isOpen={showNotarySheet}>
     <header class="flex flex-col items-center gap-1">
         <h2 class="text-2xl font-bold text-black-900 text-center">
-            Visit a W3DS Notary
+            {m.recover_notary_title()}
         </h2>
     </header>
 
     <p class="text-sm text-black-500 text-center leading-snug">
-        Without your answer, your eVault cannot be restored automatically. A
-        Registered W3DS Notary can verify your identity in person using trusted
-        witnesses or other proofs of ownership and authorise recovery on your
-        behalf.
+        {m.recover_notary_body()}
     </p>
 
     <ButtonAction
@@ -1588,7 +1576,7 @@ onMount(() => {
             showNotarySheet = false;
         }}
     >
-        Back
+        {m.common_back()}
     </ButtonAction>
 </BottomSheet>
 
@@ -1597,11 +1585,11 @@ onMount(() => {
     <header class="flex flex-col items-center gap-1">
         <h2 class="text-2xl font-bold text-black-900 text-center">
             {#if errorReason === "liveness_failed"}
-                Liveness check failed
+                {m.recover_error_liveness_title()}
             {:else if errorReason === "no_match"}
-                No eVault found
+                {m.recover_error_no_match_title()}
             {:else}
-                Something went wrong
+                {m.recover_error_generic_title()}
             {/if}
         </h2>
     </header>
@@ -1626,7 +1614,7 @@ onMount(() => {
                     }
                 }}
             >
-                Try Again
+                {m.common_try_again()}
             </ButtonAction>
         {/if}
         <ButtonAction
@@ -1636,7 +1624,7 @@ onMount(() => {
                 showErrorSheet = false;
             }}
         >
-            Back
+            {m.common_back()}
         </ButtonAction>
     </div>
 </BottomSheet>

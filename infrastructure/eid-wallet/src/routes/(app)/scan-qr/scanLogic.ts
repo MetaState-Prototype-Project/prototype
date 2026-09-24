@@ -1,3 +1,4 @@
+import { m } from "$lib/i18n";
 import { clearDeepLink, peekDeepLink } from "$lib/stores/deepLink";
 import { getVersion } from "@tauri-apps/api/app";
 import {
@@ -248,9 +249,7 @@ export function createScanLogic({
                                 "[SocialBinding] unhandled error:",
                                 err,
                             );
-                            socialBindingError.set(
-                                "Failed to process social binding request.",
-                            );
+                            socialBindingError.set(m.scan_error_social_parse());
                         });
                     } else if (content.startsWith("w3ds://sign")) {
                         handleSigningRequest(content);
@@ -512,20 +511,17 @@ export function createScanLogic({
             console.error("Error completing authentication:", error);
 
             // Set user-friendly error message
-            let errorMessage = "Authentication failed. Please try again.";
+            let errorMessage = m.scan_error_auth_failed();
             if (error instanceof Error) {
                 if (
                     error.message.includes("network") ||
                     error.message.includes("timeout")
                 ) {
-                    errorMessage =
-                        "Network error. Please check your connection and try again.";
+                    errorMessage = m.scan_error_network();
                 } else if (error.message.includes("W3ID")) {
-                    errorMessage =
-                        "Failed to retrieve your identity. Please try again.";
+                    errorMessage = m.scan_error_identity();
                 } else if (error.message.includes("redirect")) {
-                    errorMessage =
-                        "Invalid redirect URL. Please scan the QR code again.";
+                    errorMessage = m.scan_error_invalid_redirect();
                 }
             }
             authError.set(errorMessage);
@@ -579,9 +575,7 @@ export function createScanLogic({
                     base64Data,
                     redirectUri,
                 });
-                signingError.set(
-                    "Invalid signing request. Please scan the QR code again.",
-                );
+                signingError.set(m.scan_error_invalid_signing_request());
                 return;
             }
 
@@ -617,16 +611,12 @@ export function createScanLogic({
                 signingDrawerOpen.set(true);
             } catch (error) {
                 console.error("Error decoding signing data:", error);
-                signingError.set(
-                    "Failed to decode signing data. The QR code may be invalid.",
-                );
+                signingError.set(m.scan_error_decode_signing());
                 return;
             }
         } catch (error) {
             console.error("Error parsing signing request:", error);
-            signingError.set(
-                "Failed to parse signing request. Please scan the QR code again.",
-            );
+            signingError.set(m.scan_error_parse_signing());
         }
     }
 
@@ -712,7 +702,7 @@ export function createScanLogic({
             }
         } catch (err) {
             console.error("[SocialBinding] failed to parse QR:", err);
-            socialBindingError.set("Failed to process social binding request.");
+            socialBindingError.set(m.scan_error_social_parse());
         }
     }
 
@@ -725,7 +715,7 @@ export function createScanLogic({
 
         try {
             const vault = await globalState.vaultController.vault;
-            if (!vault?.ename) throw new Error("No active vault");
+            if (!vault?.ename) throw new Error(m.scan_error_social_no_vault());
             const signerEname = vault.ename.startsWith("@")
                 ? vault.ename
                 : `@${vault.ename}`;
@@ -733,9 +723,7 @@ export function createScanLogic({
                 ? requesterEname
                 : `@${requesterEname}`;
             if (signerEname === normalizedRequesterEname) {
-                socialBindingError.set(
-                    "You cannot create a social binding with yourself.",
-                );
+                socialBindingError.set(m.scan_error_social_self());
                 return;
             }
 
@@ -833,7 +821,7 @@ export function createScanLogic({
             socialBindingError.set(
                 err instanceof Error
                     ? err.message
-                    : "Failed to create social binding.",
+                    : m.scan_error_social_create(),
             );
         } finally {
             socialBindingLoading.set(false);
@@ -963,29 +951,25 @@ export function createScanLogic({
             console.error("Error signing vote:", error);
 
             // Set user-friendly error message
-            let errorMessage = "Failed to sign. Please try again.";
+            let errorMessage = m.scan_error_sign_failed();
             if (error instanceof Error) {
                 if (
                     error.message.includes("vault") ||
                     error.message.includes("W3ID")
                 ) {
-                    errorMessage =
-                        "Failed to retrieve your identity. Please try again.";
+                    errorMessage = m.scan_error_identity();
                 } else if (
                     error.message.includes("network") ||
                     error.message.includes("fetch")
                 ) {
-                    errorMessage =
-                        "Network error. Please check your connection and try again.";
+                    errorMessage = m.scan_error_network();
                 } else if (error.message.includes("redirect")) {
-                    errorMessage =
-                        "No destination URL available. Please scan the QR code again.";
+                    errorMessage = m.scan_error_no_destination();
                 } else if (
                     error.message.includes("submit") ||
                     error.message.includes("payload")
                 ) {
-                    errorMessage =
-                        "Failed to submit signature. The server may be unavailable.";
+                    errorMessage = m.scan_error_submit_signature();
                 }
             }
             signingError.set(errorMessage);
@@ -1070,9 +1054,7 @@ export function createScanLogic({
             );
 
             if (voteStatusResponse.data !== null) {
-                throw new Error(
-                    "You have already submitted a vote for this poll",
-                );
+                throw new Error(m.scan_error_already_voted());
             }
 
             console.log(
@@ -1223,16 +1205,14 @@ export function createScanLogic({
                 showSigningSuccess.set(true);
             } else {
                 console.error("❌ Failed to submit blind vote");
-                blindVoteError.set(
-                    "Failed to submit blind vote. Please try again.",
-                );
+                blindVoteError.set(m.scan_error_submit_blind_vote());
             }
         } catch (error) {
             console.error("❌ Error submitting blind vote:", error);
             blindVoteError.set(
                 error instanceof Error
                     ? error.message
-                    : "Unknown error occurred during blind voting",
+                    : m.scan_error_blind_vote_unknown(),
             );
             isSubmittingBlindVote.set(false);
         } finally {
@@ -1263,62 +1243,61 @@ export function createScanLogic({
             console.log("🔍 Debug: Raw storedVoteData:", storedVoteData);
 
             if (!storedVoteData) {
-                throw new Error(
-                    "No blind vote found for this poll. Make sure you submitted a blind vote first.",
-                );
+                throw new Error(m.scan_error_no_blind_vote());
             }
 
+            // Only the parse belongs in this try: everything after it throws
+            // errors of its own that the outer catch already surfaces.
+            let parsedVoteData: Record<string, unknown>;
             try {
                 console.log("🔍 Debug: Attempting to parse JSON...");
-                const parsedVoteData = JSON.parse(storedVoteData) as Record<
+                parsedVoteData = JSON.parse(storedVoteData) as Record<
                     string,
                     unknown
                 >;
-                console.log(
-                    "🔍 Debug: Successfully parsed vote data:",
-                    parsedVoteData,
-                );
-
-                const storedVoterId =
-                    (parsedVoteData.voterId as string | null)?.replace(
-                        /^@/,
-                        "",
-                    ) ?? "";
-                const currentVoterId = vault.ename?.replace(/^@/, "") ?? "";
-
-                if (storedVoterId !== currentVoterId) {
-                    throw new Error("This blind vote does not belong to you.");
-                }
-
-                const chosenOption =
-                    (parsedVoteData.optionText as string | undefined) ||
-                    (typeof parsedVoteData.chosenOption === "number"
-                        ? `Option ${(parsedVoteData.chosenOption as number) + 1}`
-                        : "Unknown option");
-
-                revealedVoteData.set({
-                    chosenOption: chosenOption,
-                    pollId: currentPollId,
-                    voterId: vault.ename,
-                });
-
-                revealSuccess.set(true);
             } catch (parseError) {
                 console.error("❌ JSON Parse Error Details:", parseError);
                 console.error(
                     "❌ Raw data that failed to parse:",
                     storedVoteData,
                 );
-                throw new Error(
-                    "Failed to parse stored vote data. The vote may be corrupted.",
-                );
+                throw new Error(m.scan_error_parse_vote());
             }
+            console.log(
+                "🔍 Debug: Successfully parsed vote data:",
+                parsedVoteData,
+            );
+
+            const storedVoterId =
+                (parsedVoteData.voterId as string | null)?.replace(/^@/, "") ??
+                "";
+            const currentVoterId = vault.ename?.replace(/^@/, "") ?? "";
+
+            if (storedVoterId !== currentVoterId) {
+                throw new Error(m.scan_error_vote_not_yours());
+            }
+
+            const chosenOption =
+                (parsedVoteData.optionText as string | undefined) ||
+                (typeof parsedVoteData.chosenOption === "number"
+                    ? m.scan_vote_option_n({
+                          number: (parsedVoteData.chosenOption as number) + 1,
+                      })
+                    : m.scan_vote_unknown_option());
+
+            revealedVoteData.set({
+                chosenOption: chosenOption,
+                pollId: currentPollId,
+                voterId: vault.ename,
+            });
+
+            revealSuccess.set(true);
         } catch (error) {
             console.error("❌ Error revealing vote:", error);
             revealError.set(
                 error instanceof Error
                     ? error.message
-                    : "Failed to reveal vote",
+                    : m.scan_error_reveal_failed(),
             );
         } finally {
             isRevealingVote.set(false);
@@ -1541,9 +1520,9 @@ export function createScanLogic({
                                 platform_url: platformUrl,
                                 redirect: redirectUri,
                                 pollDetails: {
-                                    title: "Loading poll details...",
-                                    creatorName: "Loading...",
-                                    options: ["Loading..."],
+                                    title: m.scan_poll_loading_title(),
+                                    creatorName: m.common_loading(),
+                                    options: [m.common_loading()],
                                 },
                             });
 
@@ -1572,9 +1551,7 @@ export function createScanLogic({
                                     "Failed to fetch poll details:",
                                     error,
                                 );
-                                blindVoteError.set(
-                                    "Failed to load poll details",
-                                );
+                                blindVoteError.set(m.scan_error_load_poll());
                             }
 
                             return;
@@ -1606,9 +1583,7 @@ export function createScanLogic({
                     isRevealRequest.set(true);
                 } else {
                     console.error("Missing pollId in reveal request");
-                    revealError.set(
-                        "Invalid reveal request. Poll ID is missing.",
-                    );
+                    revealError.set(m.scan_error_invalid_reveal());
                 }
             }
         } catch (error) {

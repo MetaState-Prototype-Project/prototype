@@ -8,6 +8,7 @@
     bottom panel and the step advancement.
 -->
 <script lang="ts" module>
+import { m } from "$lib/i18n";
 export type TourStep = "ename" | "binding-docs" | "evault" | "apps" | "scan";
 
 export const TOUR_ORDER: TourStep[] = [
@@ -18,43 +19,34 @@ export const TOUR_ORDER: TourStep[] = [
     "scan",
 ];
 
+// Getters, not strings: this table is module scope, so plain m.*() calls
+// would freeze at whatever locale was active when it first loaded.
 interface ITourStepDef {
     /** One paragraph per array entry — rendered as separate <p> elements. */
-    description: string[];
-    cta: string;
+    description: () => string[];
+    cta: () => string;
 }
 
 export const TOUR_STEPS: Record<TourStep, ITourStepDef> = {
     ename: {
-        description: [
-            "This is your eName — a unique, persistent identifier used globally in the digital world. It is permanently tied to your real self.",
-            "Write down your eName, it may be needed for recovery. To strengthen your control over eName, we'll bind it to you in the next step.",
-        ],
-        cta: "Okay",
+        description: () => [m.tour_ename_p1(), m.tour_ename_p2()],
+        cta: m.common_okay,
     },
     "binding-docs": {
-        description: [
-            "Bind your real and digital selves in different ways. This protects your identity and strengthens control over your data.",
-        ],
-        cta: "Got it",
+        description: () => [m.tour_binding_docs()],
+        cta: m.tour_cta_got_it,
     },
     evault: {
-        description: [
-            "This is your eVault — your sovereign data storage. From now on, all platforms will read and write data about you from here, under your control.",
-        ],
-        cta: "Alright",
+        description: () => [m.tour_evault()],
+        cta: m.tour_cta_alright,
     },
     apps: {
-        description: [
-            "Discover apps that work with your eVault — their number is growing fast!",
-        ],
-        cta: "Next",
+        description: () => [m.tour_apps()],
+        cta: m.common_next,
     },
     scan: {
-        description: [
-            "Log in to any W3DS service by scanning the QR code. No need to create new accounts — your Digital Self is your sovereign account for all platforms.",
-        ],
-        cta: "Finish",
+        description: () => [m.tour_scan()],
+        cta: m.tour_cta_finish,
     },
 };
 </script>
@@ -111,7 +103,7 @@ function handleClick() {
                 }}
                 out:fade|global={{ duration: 150 }}
             >
-                {#each def.description as paragraph, i (i)}
+                {#each def.description() as paragraph, i (i)}
                     <p
                         class="text-primary text-lg font-medium leading-relaxed text-left"
                     >
@@ -130,7 +122,7 @@ function handleClick() {
             class="w-full uppercase tracking-wide"
             callback={handleClick}
         >
-            {def.cta}
+            {def.cta()}
         </Button.Action>
     </div>
 </div>

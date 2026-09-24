@@ -2,7 +2,9 @@
     "extends": "./.svelte-kit/tsconfig.json",
     "compilerOptions": {
         "allowJs": true,
-        "checkJs": true,
+        // The only .js under src/ is paraglide output, where a message
+        // containing "@..." lands in a JSDoc table and parses as a tag.
+        "checkJs": false,
         "esModuleInterop": true,
         "forceConsistentCasingInFileNames": true,
         "resolveJsonModule": true,

@@ -1,10 +1,11 @@
 <script lang="ts">
+import { m } from "$lib/i18n";
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 
 interface IApp {
     name: string;
-    category: string;
+    category: () => string;
     logo: string;
     url: string;
 }
@@ -20,31 +21,31 @@ const {
 const apps: IApp[] = [
     {
         name: "Blabsy",
-        category: "Social",
+        category: m.marketplace_category_social,
         logo: "/images/Logo-Blabsy.svg",
         url: "https://blabsy.w3ds.metastate.foundation",
     },
     {
         name: "Pictique",
-        category: "Social",
+        category: m.marketplace_category_social,
         logo: "/images/Logo-Pictique.svg",
         url: "https://pictique.w3ds.metastate.foundation",
     },
     {
         name: "eVoting",
-        category: "Governance",
+        category: m.marketplace_category_governance,
         logo: "/images/Logo-eVoting.svg",
         url: "https://evoting.w3ds.metastate.foundation",
     },
     {
         name: "eCurrency",
-        category: "Finance",
+        category: m.marketplace_category_finance,
         logo: "/images/Logo-eCurrency.svg",
         url: "https://ecurrency.w3ds.metastate.foundation",
     },
     {
         name: "Dreamsync",
-        category: "Governance",
+        category: m.marketplace_category_governance,
         logo: "/images/Logo-Dreamsync.svg",
         url: "https://dreamsync.w3ds.metastate.foundation",
     },
@@ -58,7 +59,7 @@ const apps: IApp[] = [
         rel="noopener noreferrer"
         class="flex items-center gap-1 mb-3 text-black-900 active:opacity-70"
     >
-        <h3 class="font-semibold text-2xl leading-none">Apps marketplace</h3>
+        <h3 class="font-semibold text-2xl leading-none">{m.marketplace_title()}</h3>
         <HugeiconsIcon icon={ArrowRight01Icon} size={18} strokeWidth={2.5} />
     </a>
 
@@ -93,7 +94,7 @@ const apps: IApp[] = [
                         {app.name}
                     </p>
                     <p class="text-black-500 leading-tight">
-                        {app.category}
+                        {app.category()}
                     </p>
                 </div>
             </a>
@@ -103,7 +104,7 @@ const apps: IApp[] = [
             {href}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="See all apps"
+            aria-label={m.marketplace_see_all_aria()}
             class="snap-start shrink-0 w-28 h-32 bg-card-alternative rounded-3xl px-3 py-4 flex flex-col items-start justify-between active:opacity-70"
         >
             <div
@@ -116,7 +117,7 @@ const apps: IApp[] = [
                 />
             </div>
             <p class="font-medium text-lg text-black-900 leading-tight">
-                All apps
+                {m.marketplace_all_apps()}
             </p>
         </a>
     </div>
