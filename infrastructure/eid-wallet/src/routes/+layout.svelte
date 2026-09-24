@@ -73,6 +73,12 @@ setContext("setGlobalState", (value: GlobalState | undefined) => {
     globalState = value;
 });
 
+function handleVisibilityChange() {
+    if (document.visibilityState === "hidden") {
+        globalState?.flushToDisk();
+    }
+}
+
 onMount(async () => {
     // Bundle preload for the routes the splash CTAs reach — keeps the
     // first navigation snappy on cold start.
@@ -95,6 +101,12 @@ onMount(async () => {
         console.error("Failed to initialize global state:", error);
         // Consider adding fallback behavior or user notification
     }
+
+    // Settle the store to disk whenever the app is backgrounded. Android only
+    // kills apps once they are in the background, so this is the last moment
+    // the app is reliably alive, and flushing here leaves no pending write for
+    // a kill to interrupt and truncate.
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     // Handle deep links
     try {
@@ -281,6 +293,7 @@ onMount(async () => {
 
 // Cleanup global event listeners
 onDestroy(() => {
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
     if (typeof globalDeepLinkHandler !== "undefined") {
         window.removeEventListener("deepLinkReceived", globalDeepLinkHandler);
     }

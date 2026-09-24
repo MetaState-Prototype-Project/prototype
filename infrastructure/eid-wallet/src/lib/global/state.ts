@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { Store } from "@tauri-apps/plugin-store";
 import type { CryptoAdapter } from "wallet-sdk";
 import NotificationService from "../services/NotificationService";
@@ -158,6 +159,36 @@ export class GlobalState {
             });
     }
 
+    /**
+     * Settle the store to disk and refresh its crash-safe backup copy.
+     *
+     * Call this when the app is backgrounded. The store plugin saves on a
+     * debounce, and Android kills backgrounded apps outright, so a pending
+     * save can still be in flight when the process dies. The plugin writes
+     * with a truncate-then-write, which leaves the file empty if it is
+     * interrupted midway, losing every persisted setting.
+     *
+     * Backgrounding is the last moment the app is reliably alive, so flushing
+     * here means there is no pending write left for a kill to interrupt. The
+     * backup taken afterwards covers the case where the kill lands before this
+     * finishes: it still holds the previous, complete state.
+     *
+     * Never throws. Failing to persist must not break the app going to sleep.
+     */
+    async flushToDisk(): Promise<void> {
+        try {
+            await this.#store.save();
+        } catch (error) {
+            console.error("Failed to flush store on background:", error);
+        }
+
+        try {
+            await invoke("backup_store_file");
+        } catch (error) {
+            console.error("Failed to back up store on background:", error);
+        }
+    }
+
     async reset() {
         try {
             await this.securityController.clear();
@@ -171,6 +202,16 @@ export class GlobalState {
         } catch (error) {
             console.error("Failed to reset global state:", error);
         }
+
+        // Settle the cleared store and refresh the backup immediately.
+        //
+        // The backup is a copy of the previous contents, so until it is
+        // refreshed it still holds the user, vault and PIN hash of the session
+        // just ended. A kill that damages the primary before the next
+        // backgrounding would otherwise restore that ended session from the
+        // stale copy. Overwriting the backup here bounds that window to this
+        // call instead of leaving it open until the app is next backgrounded.
+        await this.flushToDisk();
         const newGlobalState = await GlobalState.create();
         return newGlobalState;
     }
