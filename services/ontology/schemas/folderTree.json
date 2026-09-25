@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "84c803f2-f595-4c99-b126-1a361c10947e",
+  "title": "FolderTree",
+  "domain": "productivity",
+  "description": "A named tree of folders over tags. Every node is either one concrete tag (facet + value; for a Tag envelope the value is its id) or a whole tag group (facet only — expands to every value present). An object sits in a node when it carries all tags on the path to that node; the same tag may appear in any number of trees at any depth. Nothing is moved or copied. kind=order is the shorthand «one group nests inside another» (e.g. year → month → type). Written by Vaultican (W3Office Files).",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "tree",
+        "order"
+      ]
+    },
+    "facets": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "kind=order: tag groups in nesting order"
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/node"
+      },
+      "description": "kind=tree: root nodes"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "platform": {
+      "type": "string",
+      "description": "eName платформы, которая создала запись (например, Vaultican). Пусто у записей, сделанных до регистрации платформы."
+    }
+  },
+  "required": [
+    "name",
+    "kind",
+    "createdAt"
+  ],
+  "definitions": {
+    "node": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "facet": {
+          "type": "string",
+          "description": "Tag group: tag (a Tag envelope), type, kind, chat, place, country, from, source, state, year, month, day …"
+        },
+        "value": {
+          "type": "string",
+          "description": "Concrete value; absent for a group node"
+        },
+        "label": {
+          "type": "string",
+          "description": "Display name override"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/node"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "facet"
+      ]
+    }
+  }
+}
