@@ -27,7 +27,6 @@ let hasEverLoaded = false;
 // Requests the user closed without answering. Module-scope so leaving /main and
 // coming back doesn't prompt for them again; an app restart clears them, and
 // they stay answerable from the bindings list either way.
-const dismissedSocialRequestIds = new Set<string>();
 </script>
 
 <script lang="ts">
@@ -50,6 +49,8 @@ import {
     type PendingSocialRequest,
     fetchNameFromVault,
     fetchReconciledSocialBindings,
+    dismissSocialRequest,
+    dismissedSocialRequests,
     findPendingSocialRequest,
     resolveVaultUri,
 } from "$lib/utils";
@@ -562,7 +563,7 @@ async function checkPendingSocialRequest(): Promise<void> {
         const request = await findPendingSocialRequest(
             gqlUrl,
             callerEname,
-            dismissedSocialRequestIds,
+            dismissedSocialRequests(),
         );
         // Re-checked after the round trip: the user may have opened something
         // else while it was in flight.
@@ -575,7 +576,7 @@ async function checkPendingSocialRequest(): Promise<void> {
 }
 
 function handleSocialRequestDismissed(docId: string) {
-    dismissedSocialRequestIds.add(docId);
+    dismissSocialRequest(docId);
 }
 
 // The sheet's own poll can miss a request that lands just before the user
@@ -1249,7 +1250,7 @@ async function refreshBindings(): Promise<void> {
     bind:isOpen={socialDrawerOpen}
     {globalState}
     request={pendingSocialRequest}
-    dismissedIds={dismissedSocialRequestIds}
+    dismissedIds={dismissedSocialRequests()}
     onbound={handleSocialBound}
     ondismiss={handleSocialRequestDismissed}
 />

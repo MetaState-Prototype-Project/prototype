@@ -3,6 +3,21 @@ import {
     fetchUnsignedSocialDocs,
 } from "./socialBinding";
 
+/**
+ * Requests the user closed without answering, for this app session. Shared
+ * because the home screen and the ePassport sheet both prompt for the same
+ * documents, so closing one must not leave the other still asking.
+ */
+const dismissedDocIds = new Set<string>();
+
+export function dismissSocialRequest(docId: string): void {
+    dismissedDocIds.add(docId);
+}
+
+export function dismissedSocialRequests(): ReadonlySet<string> {
+    return dismissedDocIds;
+}
+
 export interface PendingSocialRequest {
     docId: string;
     parsed: BindingDocParsed;

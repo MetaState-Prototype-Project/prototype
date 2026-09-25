@@ -14,6 +14,7 @@ import {
     acceptSocialBinding,
     capitalize,
     declineSocialBinding,
+    dismissSocialRequest,
     fetchNameFromVault,
     fetchUnsignedSocialDocs,
     identityFieldLabel,
@@ -555,36 +556,48 @@ async function confirmSocialBindingRequest() {
 async function declineSocialBindingRequest() {
     const docId = socialBindingPendingDocId;
     const declinedDoc = socialBindingPendingDocParsed;
+
+    if (docId) {
+        try {
+            const vault = await globalState.vaultController.vault;
+            if (!vault?.ename || !vault?.uri) {
+                throw new Error(m.social_drawer_no_vault());
+            }
+            const callerEname = vault.ename.startsWith("@")
+                ? vault.ename
+                : `@${vault.ename}`;
+            const gqlUrl = new URL("/graphql", vault.uri).toString();
+            await declineSocialBinding(gqlUrl, callerEname, docId, declinedDoc);
+        } catch (err) {
+            // The document is still in the vault, so keep the request on
+            // screen instead of resuming as if it had been declined.
+            console.error(
+                "[Social Binding] failed to delete declined doc:",
+                err,
+            );
+            socialBindingError =
+                err instanceof Error
+                    ? err.message
+                    : m.social_drawer_error_generic();
+            return;
+        }
+    }
+
     socialBindingAwaitingConsent = false;
     socialBindingPendingDocId = null;
     socialBindingPendingDocParsed = null;
     socialBindingSignerName = null;
     socialBindingSignerEname = null;
-
-    if (docId) {
-        try {
-            const vault = await globalState.vaultController.vault;
-            if (vault?.ename && vault?.uri) {
-                const callerEname = vault.ename.startsWith("@")
-                    ? vault.ename
-                    : `@${vault.ename}`;
-                const gqlUrl = new URL("/graphql", vault.uri).toString();
-                await declineSocialBinding(
-                    gqlUrl,
-                    callerEname,
-                    docId,
-                    declinedDoc,
-                );
-            }
-        } catch (err) {
-            console.error(
-                "[Social Binding] failed to delete declined doc:",
-                err,
-            );
-        }
-    }
-
     startSocialBindingPolling();
+}
+
+// Closing without answering leaves the request in the vault. Record it so the
+// home screen doesn't prompt for the same one on the way back.
+function dismissSocialBindingRequest() {
+    if (socialBindingPendingDocId) {
+        dismissSocialRequest(socialBindingPendingDocId);
+    }
+    closeSocialBindingDrawer();
 }
 
 function startSocialBindingPolling() {
@@ -710,7 +723,19 @@ onMount(async () => {
             </div>
         {:else if socialBindingAwaitingConsent}
             <div>
-                <h4 class="mb-1">{m.social_drawer_request_title()}</h4>
+                <div class="flex items-start justify-between gap-3">
+                    <h4 class="mb-1">{m.social_drawer_request_title()}</h4>
+                    <button
+                        type="button"
+                        onclick={dismissSocialBindingRequest}
+                        aria-label={m.common_close()}
+                        class="w-9 h-9 rounded-full bg-black-50 flex items-center justify-center text-black-700 active:opacity-70 shrink-0"
+                    >
+                        <span aria-hidden="true" class="text-xl leading-none"
+                            >×</span
+                        >
+                    </button>
+                </div>
                 <p class="text-black-700">
                     <strong
                         >{socialBindingSignerName ??
