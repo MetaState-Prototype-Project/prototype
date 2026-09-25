@@ -23,6 +23,11 @@ let cachedSelfDocId: string | undefined;
 let cachedSocialBindingCount = 0;
 let cachedSocialBindingPreview: SocialBindingDisplay[] = [];
 let hasEverLoaded = false;
+
+// Requests the user closed without answering. Module-scope so leaving /main and
+// coming back doesn't prompt for them again; an app restart clears them, and
+// they stay answerable from the bindings list either way.
+const dismissedSocialRequestIds = new Set<string>();
 </script>
 
 <script lang="ts">
@@ -42,8 +47,10 @@ import * as Button from "$lib/ui/Button";
 import { isPermissionGranted } from "@choochmeque/tauri-plugin-notifications-api";
 import { openAppSettings } from "@tauri-apps/plugin-barcode-scanner";
 import {
+    type PendingSocialRequest,
     fetchNameFromVault,
     fetchReconciledSocialBindings,
+    findPendingSocialRequest,
     resolveVaultUri,
 } from "$lib/utils";
 import { getCanonicalBindingDocString } from "$lib/utils/bindingDocHash";
@@ -132,6 +139,7 @@ const bindingDiagram = $derived([
 let eVaultInfoOpen = $state(false);
 let bindingDocsInfoOpen = $state(false);
 let socialDrawerOpen = $state(false);
+let pendingSocialRequest = $state<PendingSocialRequest | null>(null);
 // True while loadBindingDocuments + loadPersonalIntoStore are still in flight.
 // Starts as false on re-entries (cached data paints instantly) and true only
 // on first-ever mount where nothing is cached yet.
@@ -518,11 +526,56 @@ async function loadSocialBindings(): Promise<void> {
 }
 
 function openSocialDrawer() {
+    pendingSocialRequest = null;
     socialDrawerOpen = true;
 }
 
 async function handleSocialBound() {
     await loadSocialBindings();
+}
+
+// An incoming request opens its own sheet, so only prompt when /main is in
+// front of the user and nothing else is holding the screen.
+function canPromptSocialRequest(): boolean {
+    if (!globalState || !pageReady || tourStep !== null) return false;
+    if (typeof document !== "undefined" && document.hidden) return false;
+    return !(
+        socialDrawerOpen ||
+        showNotifPrompt ||
+        editNameOpen ||
+        kycOpen ||
+        eVaultInfoOpen ||
+        bindingDocsInfoOpen
+    );
+}
+
+async function checkPendingSocialRequest(): Promise<void> {
+    if (!canPromptSocialRequest()) return;
+    try {
+        const vault = await globalState?.vaultController.vault;
+        if (!vault?.uri || !vault?.ename) return;
+        const callerEname = vault.ename.startsWith("@")
+            ? vault.ename
+            : `@${vault.ename}`;
+        const gqlUrl = new URL("/graphql", vault.uri).toString();
+
+        const request = await findPendingSocialRequest(
+            gqlUrl,
+            callerEname,
+            dismissedSocialRequestIds,
+        );
+        // Re-checked after the round trip: the user may have opened something
+        // else while it was in flight.
+        if (!request || !canPromptSocialRequest()) return;
+        pendingSocialRequest = request;
+        socialDrawerOpen = true;
+    } catch (err) {
+        console.warn("[main] Failed to check for social requests:", err);
+    }
+}
+
+function handleSocialRequestDismissed(docId: string) {
+    dismissedSocialRequestIds.add(docId);
 }
 
 function openSocialFullList() {
@@ -885,6 +938,8 @@ onMount(() => {
         // tour — defer to when the user has dismissed it. For returning users
         // (tour already seen) it fires right away.
         await maybeShowNotifPrompt(seen);
+
+        void checkPendingSocialRequest();
     })();
 
     const checkStatus = () => {
@@ -945,6 +1000,7 @@ async function refreshBindings(): Promise<void> {
             loadUserInfo(),
             loadBindingDocuments(),
             loadPersonalIntoStore(),
+            checkPendingSocialRequest(),
         ]);
     } catch (err) {
         console.warn("[main] passive refresh failed:", err);
@@ -1179,7 +1235,9 @@ async function refreshBindings(): Promise<void> {
 <SocialBindingDrawer
     bind:isOpen={socialDrawerOpen}
     {globalState}
+    request={pendingSocialRequest}
     onbound={handleSocialBound}
+    ondismiss={handleSocialRequestDismissed}
 />
 
 <EditNameSheet
