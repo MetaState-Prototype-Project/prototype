@@ -498,6 +498,9 @@ function cutoffKey(signer: string, relationDescription: string): string {
  * send several invites before the caller acts on any of them. Keying on the
  * signer alone made accepting one of those wipe the rest, whatever their
  * description — which is the situation issue #1146 reports.
+ *
+ * Only ever used to hide an envelope from the drawer's poll, never to delete
+ * one: the timestamps being compared are written by two different devices.
  */
 function collectAcceptanceCutoffs(
     edges: BindingDocEdge[],
@@ -572,7 +575,12 @@ export async function fetchUnsignedSocialDocs(
             : [];
         const alreadySigned = signatures.some((s) => s.signer === normalized);
         if (alreadySigned) return false;
-        // Skip leftover envelopes from a signer the caller is already bound to.
+        // Hide, never delete: an envelope that predates the caller's acceptance
+        // of the same invite is almost certainly a repeat-scan leftover, but the
+        // two timestamps being compared come from two different phones, so a
+        // genuine new invite can look older than it is. Keeping it out of this
+        // poll stops the drawer re-prompting; it stays in the bindings list,
+        // where the caller can accept or decline it themselves.
         if (isStaleLeftover(parsed, cutoffs)) return false;
         return true;
     });
@@ -648,61 +656,6 @@ export async function pruneDuplicateUnsignedDocs(
         } catch (err) {
             console.warn(
                 "[socialBinding] failed to prune duplicate doc",
-                edge.node.id,
-                err,
-            );
-        }
-    }
-    return deleted;
-}
-
-/**
- * Delete leftover unsigned social_connection envelopes addressed to the caller
- * from signers the caller is ALREADY bound to. These pile up from repeat scans
- * of the caller's QR around the time of the original binding and would otherwise
- * re-surface as duplicate "Social Connection Request" prompts for a contact
- * already added.
- *
- * Only envelopes that predate the caller's acceptance are removed; a newer one
- * is a deliberate new invite from that contact and is left alone. The
- * fully-signed doc is never touched.
- *
- * Intended as a one-time cleanup when the invite drawer opens. Returns the
- * number of envelopes deleted.
- */
-export async function pruneBoundSignerDocs(
-    ownGqlUrl: string,
-    callerEname: string,
-): Promise<number> {
-    const normalized = callerEname.startsWith("@")
-        ? callerEname
-        : `@${callerEname}`;
-
-    const data = await vaultGqlRequest<{
-        bindingDocuments: { edges: BindingDocEdge[] };
-    }>(ownGqlUrl, callerEname, SOCIAL_BINDING_DOCS_QUERY);
-
-    const edges = data.bindingDocuments?.edges ?? [];
-    const cutoffs = collectAcceptanceCutoffs(edges, normalized);
-
-    const stale = edges.filter((edge) => {
-        const parsed = edge.node.parsed;
-        if (!parsed || parsed.type !== "social_connection") return false;
-        if (parsed.subject !== normalized) return false;
-        const sigs = Array.isArray(parsed.signatures) ? parsed.signatures : [];
-        // Keep the completed binding itself — only leftovers are stale.
-        if (sigs.some((s) => s.signer === normalized)) return false;
-        return isStaleLeftover(parsed, cutoffs);
-    });
-
-    let deleted = 0;
-    for (const edge of stale) {
-        try {
-            await deleteSocialBindingDoc(ownGqlUrl, callerEname, edge.node.id);
-            deleted += 1;
-        } catch (err) {
-            console.warn(
-                "[socialBinding] failed to prune bound-signer doc",
                 edge.node.id,
                 err,
             );

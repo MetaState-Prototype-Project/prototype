@@ -8,7 +8,6 @@ import {
     declineSocialBinding,
     fetchNameFromVault,
     fetchUnsignedSocialDocs,
-    pruneBoundSignerDocs,
     resolveVaultUri,
 } from "$lib/utils";
 import { onDestroy } from "svelte";
@@ -203,21 +202,6 @@ async function initFromVault() {
     const ename = vault.ename.startsWith("@") ? vault.ename : `@${vault.ename}`;
     qrValue = `w3ds://social_binding?ename=${encodeURIComponent(ename)}`;
     phase = "qr";
-
-    // One-time cleanup: drop leftover unsigned envelopes from contacts the user
-    // is already bound to, so the poll below never re-prompts for them. Runs
-    // fire-and-forget — the QR shows immediately and the filter in
-    // fetchUnsignedSocialDocs still guards the poll until this lands.
-    if (vault.uri) {
-        const gqlUrl = new URL("/graphql", vault.uri).toString();
-        void pruneBoundSignerDocs(gqlUrl, ename).catch((err) =>
-            console.warn(
-                "[SocialBindingDrawer] bound-signer prune failed:",
-                err,
-            ),
-        );
-    }
-
     startPolling();
 }
 

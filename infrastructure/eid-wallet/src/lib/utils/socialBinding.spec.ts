@@ -13,7 +13,6 @@ import {
     fetchReconciledSocialBindings,
     fetchSocialBindings,
     fetchUnsignedSocialDocs,
-    pruneBoundSignerDocs,
 } from "./socialBinding";
 
 const ME = "@me";
@@ -183,9 +182,18 @@ describe("leftovers from an already-bound signer", () => {
         expect(unsigned.map((e) => e.node.id)).toEqual(["D3"]);
     });
 
-    it("prunes only the envelope that predates acceptance", async () => {
-        await expect(pruneBoundSignerDocs(gql(ME), ME)).resolves.toBe(1);
-        expect(deletes).toEqual(["D2"]);
+    it("hides the leftover from the poll without deleting it", async () => {
+        // The cutoff compares timestamps written by two different phones, so a
+        // genuine new invite can look older than the acceptance. Hiding it from
+        // the drawer is recoverable — the bindings list still shows it — while
+        // deleting it is not.
+        await fetchUnsignedSocialDocs(gql(ME), ME);
+        expect(deletes).toEqual([]);
+        expect((vaults.get(ME) as Doc[]).map((d) => d.id)).toEqual([
+            "D1",
+            "D2",
+            "D3",
+        ]);
     });
 });
 
@@ -229,15 +237,16 @@ describe("acting on one request of several", () => {
     it("accepting one does not make the other a stale leftover afterwards", async () => {
         // The accept records a cutoff for this signer. Keyed on the signer
         // alone, that cutoff swallowed every older invite from them whatever
-        // its description — P3 in the drawer, and the situation #1146 reports.
+        // its description — the situation #1146 reports.
         const parsed = edgeOf((vaults.get(ME) as Doc[])[0]).node.parsed;
         await acceptSocialBinding(gql(ME), ME, "P1", parsed, async () => "sig");
 
-        await expect(pruneBoundSignerDocs(gql(ME), ME)).resolves.toBe(0);
         const unsigned = await fetchUnsignedSocialDocs(gql(ME), ME);
         expect(
             unsigned.map((e) => e.node.parsed?.data.relation_description),
         ).toEqual(["work"]);
+        // Only the same-description duplicate went; "work" is untouched.
+        expect(deletes).toEqual(["P2"]);
     });
 
     it("declining removes the request and its duplicate, not the other invite", async () => {
