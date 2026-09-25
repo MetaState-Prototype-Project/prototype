@@ -40,7 +40,10 @@ async function init() {
         return;
     }
     globalState = gs;
+    await load(gs);
+}
 
+async function load(gs: GlobalState) {
     try {
         const vault = await gs.vaultController.vault;
         if (!vault?.uri || !vault?.ename) {
@@ -111,6 +114,28 @@ async function init() {
     }
 }
 
+/**
+ * Re-read after an accept, decline or cancel, then re-point the open sheet at
+ * the refreshed contact so it shows the new state instead of what was on screen
+ * when the action started. A contact whose last binding just went away closes
+ * the sheet with it.
+ */
+async function refreshAfterAction() {
+    if (!globalState) return;
+    const openFor = detailsContact?.counterpartyEname;
+    await load(globalState);
+    // load() resolves a name per contact, so it can run for seconds. If the user
+    // switched contact meanwhile, leave their selection alone.
+    if (!openFor || detailsContact?.counterpartyEname !== openFor) return;
+    const updated = contacts.find((c) => c.counterpartyEname === openFor);
+    if (updated) {
+        detailsContact = updated;
+    } else {
+        detailsContact = null;
+        detailsOpen = false;
+    }
+}
+
 function roleLabel(role: SocialBindingDisplay["role"]): string {
     if (role === "both") return m.social_role_sent_received();
     if (role === "sent") return m.social_role_sent();
@@ -178,4 +203,6 @@ const subtitle = $derived(
 <SocialBindingDetailsSheet
     bind:isOpen={detailsOpen}
     contact={detailsContact}
+    {globalState}
+    onchanged={refreshAfterAction}
 />
