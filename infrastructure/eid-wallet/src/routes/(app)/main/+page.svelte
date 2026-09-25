@@ -60,7 +60,7 @@ import {
     deletePersonalBinding,
     loadPersonalBindings,
 } from "$lib/utils/personalBinding";
-import { getContext, onDestroy, onMount, tick } from "svelte";
+import { getContext, onDestroy, onMount, tick, untrack } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
 import { fly } from "svelte/transition";
 import AppsMarketplace from "./components/AppsMarketplace.svelte";
@@ -577,6 +577,19 @@ async function checkPendingSocialRequest(): Promise<void> {
 function handleSocialRequestDismissed(docId: string) {
     dismissedSocialRequestIds.add(docId);
 }
+
+// The sheet's own poll can miss a request that lands just before the user
+// closes the QR, so check again on the way out instead of leaving it to the
+// 30s refresh. Requests already dismissed are skipped, so this cannot reopen
+// what the user just closed.
+let socialDrawerWasOpen = false;
+$effect(() => {
+    const open = socialDrawerOpen;
+    untrack(() => {
+        if (socialDrawerWasOpen && !open) void checkPendingSocialRequest();
+        socialDrawerWasOpen = open;
+    });
+});
 
 function openSocialFullList() {
     goto("/social-bindings");
@@ -1236,6 +1249,7 @@ async function refreshBindings(): Promise<void> {
     bind:isOpen={socialDrawerOpen}
     {globalState}
     request={pendingSocialRequest}
+    dismissedIds={dismissedSocialRequestIds}
     onbound={handleSocialBound}
     ondismiss={handleSocialRequestDismissed}
 />

@@ -26,6 +26,11 @@ interface ISocialBindingDrawerProps {
     request?: PendingSocialRequest | null;
     /** The request was closed unanswered and is still pending. */
     ondismiss?: (docId: string) => void;
+    /**
+     * Requests closed unanswered this session. The QR poll skips them too, so
+     * reopening the sheet does not re-prompt for one the user just closed.
+     */
+    dismissedIds?: ReadonlySet<string>;
 }
 
 let {
@@ -34,6 +39,7 @@ let {
     onbound,
     request = null,
     ondismiss,
+    dismissedIds,
 }: ISocialBindingDrawerProps = $props();
 
 type Phase =
@@ -81,7 +87,11 @@ async function poll() {
             : `@${vault.ename}`;
         const gqlUrl = new URL("/graphql", vault.uri).toString();
 
-        const pending = await findPendingSocialRequest(gqlUrl, callerEname);
+        const pending = await findPendingSocialRequest(
+            gqlUrl,
+            callerEname,
+            dismissedIds,
+        );
         if (!pending) return;
 
         stopPolling();
@@ -89,19 +99,23 @@ async function poll() {
         pendingDocId = pending.docId;
         pendingDocParsed = pending.parsed;
         phase = "awaiting-consent";
-        await resolveSignerName(pending.signerEname);
+        await resolveSignerName(pending.signerEname, pending.docId);
     } catch (err) {
         console.error("[SocialBindingDrawer] poll error:", err);
     }
 }
 
-async function resolveSignerName(signer: string) {
+// Two lookups overlap when one request replaces another, and the older one can
+// land last. Only the request still on screen gets its name.
+async function resolveSignerName(signer: string, docId: string) {
+    let name = signer;
     try {
         const signerVaultUri = await resolveVaultUri(signer);
-        signerName = await fetchNameFromVault(signerVaultUri, signer, signer);
+        name = await fetchNameFromVault(signerVaultUri, signer, signer);
     } catch {
-        signerName = signer;
+        // Fall back to the eName.
     }
+    if (pendingDocId === docId) signerName = name;
 }
 
 async function confirm() {
@@ -143,39 +157,44 @@ async function confirm() {
 async function decline() {
     const docId = pendingDocId;
     const declinedDoc = pendingDocParsed;
-    pendingDocId = null;
-    pendingDocParsed = null;
-    signerEname = null;
-    signerName = null;
 
     if (docId && globalState) {
         try {
             const vault = await globalState.vaultController.vault;
-            if (vault?.ename && vault?.uri) {
-                const callerEname = vault.ename.startsWith("@")
-                    ? vault.ename
-                    : `@${vault.ename}`;
-                const gqlUrl = new URL("/graphql", vault.uri).toString();
-                await declineSocialBinding(
-                    gqlUrl,
-                    callerEname,
-                    docId,
-                    declinedDoc,
-                );
-
-                // The declined request was counted as a (pending) binding on
-                // the home screen; now that it's gone, tell the parent to
-                // re-fetch so the count drops immediately (e.g. 10 → 9)
-                // instead of staying stale until the next manual refresh.
-                onbound?.();
+            if (!vault?.ename || !vault?.uri) {
+                throw new Error(m.social_drawer_no_vault());
             }
+            const callerEname = vault.ename.startsWith("@")
+                ? vault.ename
+                : `@${vault.ename}`;
+            const gqlUrl = new URL("/graphql", vault.uri).toString();
+            await declineSocialBinding(gqlUrl, callerEname, docId, declinedDoc);
+
+            // The declined request was counted as a (pending) binding on the
+            // home screen; now that it's gone, tell the parent to re-fetch so
+            // the count drops immediately (e.g. 10 → 9) instead of staying
+            // stale until the next manual refresh.
+            onbound?.();
         } catch (err) {
+            // The document is still in the vault, so keep the request on
+            // screen with a retry rather than closing as if it were declined.
             console.error(
                 "[SocialBindingDrawer] failed to delete declined doc:",
                 err,
             );
+            errorMessage =
+                err instanceof Error
+                    ? err.message
+                    : m.social_drawer_error_generic();
+            phase = "error";
+            return;
         }
     }
+
+    pendingDocId = null;
+    pendingDocParsed = null;
+    signerEname = null;
+    signerName = null;
 
     if (openedFromRequest) {
         isOpen = false;
@@ -228,7 +247,7 @@ async function initFromVault() {
         pendingDocParsed = incoming.parsed;
         signerEname = incoming.signerEname;
         phase = "awaiting-consent";
-        await resolveSignerName(incoming.signerEname);
+        await resolveSignerName(incoming.signerEname, incoming.docId);
         return;
     }
 
