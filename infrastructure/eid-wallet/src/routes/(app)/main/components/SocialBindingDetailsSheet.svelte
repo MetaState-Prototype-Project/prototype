@@ -6,6 +6,7 @@ import { BottomSheet, ButtonAction } from "$lib/ui";
 import {
     CANCEL_NOT_PENDING,
     ENAME_NOT_FOUND,
+    REGISTRY_UNAVAILABLE,
     type SocialBindingSummary,
     acceptSocialBinding,
     cancelSentSocialBinding,
@@ -103,6 +104,8 @@ function messageFor(err: Error): string {
     if (err.message === CANCEL_NOT_PENDING)
         return m.social_cancel_not_pending();
     if (err.message === ENAME_NOT_FOUND) return m.social_ename_not_found();
+    if (err.message === REGISTRY_UNAVAILABLE)
+        return m.social_drawer_error_generic();
     return err.message;
 }
 

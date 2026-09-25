@@ -19,6 +19,7 @@ import { authenticate } from "wallet-sdk";
 import type { GlobalState } from "$lib/global";
 import {
     ENAME_NOT_FOUND,
+    REGISTRY_UNAVAILABLE,
     createOwnSocialBindingMirror,
     createSocialConnectionDoc,
     fetchNameFromVault,
@@ -708,13 +709,15 @@ export function createScanLogic({
     }
 
     /**
-     * socialBinding.ts carries no i18n; its user-facing refusal arrives as a
-     * code and is worded here.
+     * socialBinding.ts carries no i18n; its user-facing refusals arrive as
+     * codes and are worded here.
      */
     function socialBindingMessageFor(err: Error): string {
-        return err.message === ENAME_NOT_FOUND
-            ? m.scan_error_social_ename_not_found()
-            : err.message;
+        if (err.message === ENAME_NOT_FOUND)
+            return m.scan_error_social_ename_not_found();
+        if (err.message === REGISTRY_UNAVAILABLE)
+            return m.scan_error_social_create();
+        return err.message;
     }
 
     async function handleSocialBinding() {

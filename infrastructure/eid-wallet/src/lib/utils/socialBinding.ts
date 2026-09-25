@@ -37,6 +37,9 @@ export interface BindingDocEdge {
  */
 export const ENAME_NOT_FOUND = "social-binding/ename-not-found";
 
+/** The registry failed for another reason (5xx, a proxy error): no verdict on the eName. */
+export const REGISTRY_UNAVAILABLE = "social-binding/registry-unavailable";
+
 /**
  * Resolve an eName to its eVault GraphQL endpoint via the registry.
  */
@@ -51,7 +54,9 @@ export async function resolveVaultUri(ename: string): Promise<string> {
         console.error(
             `[socialBinding] registry could not resolve ${normalized}: ${res.status}`,
         );
-        throw new Error(ENAME_NOT_FOUND);
+        throw new Error(
+            res.status === 404 ? ENAME_NOT_FOUND : REGISTRY_UNAVAILABLE,
+        );
     }
     const json = await res.json();
     if (!json?.uri) {

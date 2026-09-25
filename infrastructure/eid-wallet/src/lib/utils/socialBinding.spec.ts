@@ -8,6 +8,7 @@ vi.mock("$env/static/public", () => ({
 import {
     CANCEL_NOT_PENDING,
     ENAME_NOT_FOUND,
+    REGISTRY_UNAVAILABLE,
     acceptSocialBinding,
     cancelSentSocialBinding,
     declineSocialBinding,
@@ -459,6 +460,17 @@ describe("resolveVaultUri", () => {
         await expect(resolveVaultUri("@nobody")).rejects.toThrow(
             ENAME_NOT_FOUND,
         );
+    });
+
+    it("does not report a registry outage as an unknown eName", async () => {
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async () => ({ ok: false, status: 503 }) as Response),
+        );
+
+        await expect(resolveVaultUri("@alice")).rejects.toMatchObject({
+            message: REGISTRY_UNAVAILABLE,
+        });
     });
 
     it("reports a registry answer without a URI the same way", async () => {
