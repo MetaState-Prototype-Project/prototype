@@ -7,3 +7,4 @@ export * from "./bindingDocHash";
 export * from "./socialBinding";
 export * from "./portal";
 export * from "./identityLabels";
+export * from "./pendingSocialRequest";

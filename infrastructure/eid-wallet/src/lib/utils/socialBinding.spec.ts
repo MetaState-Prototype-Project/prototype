@@ -5,6 +5,7 @@ vi.mock("$env/static/public", () => ({
     PUBLIC_REGISTRY_URL: "https://registry.test/",
 }));
 
+import { findPendingSocialRequest } from "./pendingSocialRequest";
 import {
     CANCEL_NOT_PENDING,
     ENAME_NOT_FOUND,
@@ -20,6 +21,7 @@ import {
 
 const ME = "@me";
 const BOB = "@bob";
+const CAROL = "@carol";
 
 interface Sig {
     signer: string;
@@ -484,5 +486,66 @@ describe("resolveVaultUri", () => {
         await expect(resolveVaultUri("@nobody")).rejects.toThrow(
             ENAME_NOT_FOUND,
         );
+    });
+});
+
+describe("choosing the request to prompt for", () => {
+    beforeEach(() => {
+        vaults.set(ME, [
+            doc("P1", ME, [CAROL, ME], [{ signer: CAROL, timestamp: at(10) }]),
+            doc("P2", ME, [BOB, ME], [{ signer: BOB, timestamp: at(40) }]),
+        ]);
+    });
+
+    it("takes the oldest request first", async () => {
+        const request = await findPendingSocialRequest(gql(ME), ME);
+        expect(request?.docId).toBe("P2");
+        expect(request?.signerEname).toBe(BOB);
+        expect(request?.parsed.subject).toBe(ME);
+    });
+
+    it("moves on to the next request when one was dismissed", async () => {
+        const request = await findPendingSocialRequest(
+            gql(ME),
+            ME,
+            new Set(["P2"]),
+        );
+        expect(request?.docId).toBe("P1");
+    });
+
+    it("stops prompting once every request has been dismissed", async () => {
+        const request = await findPendingSocialRequest(
+            gql(ME),
+            ME,
+            new Set(["P1", "P2"]),
+        );
+        expect(request).toBeNull();
+        expect(deletes).toEqual([]);
+    });
+
+    it("leaves a dismissed request in the vault", async () => {
+        await findPendingSocialRequest(gql(ME), ME, new Set(["P1", "P2"]));
+        expect((vaults.get(ME) as Doc[]).map((d) => d.id)).toEqual([
+            "P1",
+            "P2",
+        ]);
+    });
+
+    it("does not prompt for an envelope the poll hides", async () => {
+        vaults.set(ME, [
+            doc(
+                "D1",
+                ME,
+                [BOB, ME],
+                [
+                    { signer: BOB, timestamp: at(190) },
+                    { signer: ME, timestamp: at(180) },
+                ],
+            ),
+            doc("D2", ME, [BOB, ME], [{ signer: BOB, timestamp: at(185) }]),
+        ]);
+
+        expect(await findPendingSocialRequest(gql(ME), ME)).toBeNull();
+        expect(deletes).toEqual([]);
     });
 });
