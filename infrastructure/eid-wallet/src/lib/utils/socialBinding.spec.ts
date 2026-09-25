@@ -7,12 +7,14 @@ vi.mock("$env/static/public", () => ({
 
 import {
     CANCEL_NOT_PENDING,
+    ENAME_NOT_FOUND,
     acceptSocialBinding,
     cancelSentSocialBinding,
     declineSocialBinding,
     fetchReconciledSocialBindings,
     fetchSocialBindings,
     fetchUnsignedSocialDocs,
+    resolveVaultUri,
 } from "./socialBinding";
 
 const ME = "@me";
@@ -434,5 +436,41 @@ describe("fetchSocialBindings", () => {
         expect(summary.mutuallySigned).toBe(false);
         expect(summary.parsed.subject).toBe(ME);
         expect(summary.parsed.data.relation_description).toBe("hi");
+    });
+});
+
+describe("resolveVaultUri", () => {
+    beforeEach(() => {
+        vi.spyOn(console, "error").mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        vi.mocked(console.error).mockRestore();
+    });
+
+    // The throw reaches a user-facing error box, so it carries a code the
+    // caller can translate and nothing the registry said.
+    it("reports an unknown eName as a code, not as a status line", async () => {
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async () => ({ ok: false, status: 404 }) as Response),
+        );
+
+        await expect(resolveVaultUri("@nobody")).rejects.toThrow(
+            ENAME_NOT_FOUND,
+        );
+    });
+
+    it("reports a registry answer without a URI the same way", async () => {
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(
+                async () => ({ ok: true, json: async () => ({}) }) as Response,
+            ),
+        );
+
+        await expect(resolveVaultUri("@nobody")).rejects.toThrow(
+            ENAME_NOT_FOUND,
+        );
     });
 });

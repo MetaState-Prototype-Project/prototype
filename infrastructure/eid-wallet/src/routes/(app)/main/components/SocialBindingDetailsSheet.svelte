@@ -5,6 +5,7 @@ import { getLocale } from "$lib/paraglide/runtime";
 import { BottomSheet, ButtonAction } from "$lib/ui";
 import {
     CANCEL_NOT_PENDING,
+    ENAME_NOT_FOUND,
     type SocialBindingSummary,
     acceptSocialBinding,
     cancelSentSocialBinding,
@@ -96,12 +97,13 @@ async function callerContext(): Promise<CallerContext> {
 
 /**
  * socialBinding.ts carries no i18n so it stays testable without the app's module
- * aliases; its one user-facing refusal arrives as a code and is worded here.
+ * aliases; its user-facing refusals arrive as codes and are worded here.
  */
 function messageFor(err: Error): string {
-    return err.message === CANCEL_NOT_PENDING
-        ? m.social_cancel_not_pending()
-        : err.message;
+    if (err.message === CANCEL_NOT_PENDING)
+        return m.social_cancel_not_pending();
+    if (err.message === ENAME_NOT_FOUND) return m.social_ename_not_found();
+    return err.message;
 }
 
 async function runAction(
@@ -186,24 +188,31 @@ function cancel(binding: SocialBindingSummary) {
                     binding.role === "received" && !binding.mutuallySigned}
                 {@const awaitingThem =
                     binding.role === "sent" && !binding.mutuallySigned}
+                <!-- The badge above already names the role. Repeat it per entry
+                     only when it differs between entries, or when it prefixes
+                     an awaiting note. -->
+                {@const showRole =
+                    contact.role === "both" || !binding.mutuallySigned}
                 <div
                     class="flex flex-col gap-3 rounded-2xl bg-card-alternative px-4 py-3"
                 >
                     <div class="flex-1 min-w-0">
-                        <p class="font-semibold text-black-900 text-sm">
-                            {binding.role === "sent"
-                                ? m.social_role_sent()
-                                : m.social_role_received()}
-                            {#if needsMyConfirmation}
-                                <span class="font-normal text-amber-600"
-                                    >{m.social_details_awaiting_you_suffix()}</span
-                                >
-                            {:else if awaitingThem}
-                                <span class="font-normal text-amber-600"
-                                    >{m.social_details_awaiting_suffix()}</span
-                                >
-                            {/if}
-                        </p>
+                        {#if showRole}
+                            <p class="font-semibold text-black-900 text-sm">
+                                {binding.role === "sent"
+                                    ? m.social_role_sent()
+                                    : m.social_role_received()}
+                                {#if needsMyConfirmation}
+                                    <span class="font-normal text-amber-600"
+                                        >{m.social_details_awaiting_you_suffix()}</span
+                                    >
+                                {:else if awaitingThem}
+                                    <span class="font-normal text-amber-600"
+                                        >{m.social_details_awaiting_suffix()}</span
+                                    >
+                                {/if}
+                            </p>
+                        {/if}
                         {#if binding.relationDescription}
                             <p
                                 class="text-sm text-black-700 mt-0.5 leading-snug"
