@@ -50,7 +50,8 @@ export class VerificationController {
         app.post("/verification/v2", async (req: Request, res: Response) => {
             if (!requireSharedSecret(req, res)) return;
             console.log("Creating new Didit verification session");
-            const { referenceId, language } = req.body;
+            const { referenceId } = req.body;
+            const language = verificationLanguage(req.body?.language);
 
             if (referenceId) {
                 const existing = await this.verificationService.findOne({ referenceId });
@@ -74,7 +75,7 @@ export class VerificationController {
                     {
                         workflow_id: workflowId,
                         vendor_data: verification.id,
-                        language: verificationLanguage(language),
+                        language,
                     },
                     {
                         headers: {
@@ -101,7 +102,7 @@ export class VerificationController {
             const verificationUrl: string =
                 diditSession.verification_url ??
                 diditSession.url ??
-                `https://verify.didit.me/session/${sessionToken}`;
+                `https://verify.didit.me/${language}/session/${sessionToken}`;
 
             await this.verificationService.findByIdAndUpdate(verification.id, {
                 diditSessionId: sessionId,
