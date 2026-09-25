@@ -31,6 +31,16 @@ export interface BindingDocEdge {
 // ---------------------------------------------------------------------------
 
 /**
+ * The registry has no eVault for this eName, as a code rather than a sentence:
+ * this module has no i18n, so the caller renders the wording. The status and
+ * the eName stay in the console.
+ */
+export const ENAME_NOT_FOUND = "social-binding/ename-not-found";
+
+/** The registry failed for another reason (5xx, a proxy error): no verdict on the eName. */
+export const REGISTRY_UNAVAILABLE = "social-binding/registry-unavailable";
+
+/**
  * Resolve an eName to its eVault GraphQL endpoint via the registry.
  */
 export async function resolveVaultUri(ename: string): Promise<string> {
@@ -40,13 +50,21 @@ export async function resolveVaultUri(ename: string): Promise<string> {
         PUBLIC_REGISTRY_URL,
     );
     const res = await fetch(url.toString(), { method: "GET" });
-    if (!res.ok)
-        throw new Error(
-            `Registry could not resolve ${normalized}: ${res.status}`,
+    if (!res.ok) {
+        console.error(
+            `[socialBinding] registry could not resolve ${normalized}: ${res.status}`,
         );
+        throw new Error(
+            res.status === 404 ? ENAME_NOT_FOUND : REGISTRY_UNAVAILABLE,
+        );
+    }
     const json = await res.json();
-    if (!json?.uri)
-        throw new Error(`Registry returned no URI for ${normalized}`);
+    if (!json?.uri) {
+        console.error(
+            `[socialBinding] registry returned no URI for ${normalized}`,
+        );
+        throw new Error(ENAME_NOT_FOUND);
+    }
     const base = json.uri as string;
     return base.endsWith("/graphql")
         ? base
