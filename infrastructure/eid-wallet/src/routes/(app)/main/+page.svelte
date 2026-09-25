@@ -34,6 +34,7 @@ import {
     subscribe as subscribeNotifications,
 } from "$lib/stores/notifications";
 import NotificationService from "$lib/services/NotificationService";
+import { LabelledIllustration } from "$lib/fragments";
 import { BottomSheet, ButtonAction, Toast } from "$lib/ui";
 import { m } from "$lib/i18n";
 import { getLocale } from "$lib/paraglide/runtime";
@@ -110,6 +111,24 @@ let editNameOpen = $state(false);
 let editNameSaving = $state(false);
 let editNameError = $state<string | null>(null);
 let kycOpen = $state(false);
+// Coordinates are in the illustration's own pixel space. eVault and eID are
+// product names and stay as they are in every language.
+const eVaultDiagram = $derived([
+    { x: 702, y: 290, text: m.info_evault_diagram_your_data(), maxWidth: 266 },
+    { x: 692, y: 524, text: "eVault" },
+    { x: 244, y: 756, text: m.info_evault_diagram_platforms(), maxWidth: 440 },
+    { x: 1174, y: 758, text: m.info_evault_diagram_business(), maxWidth: 412 },
+    { x: 445, y: 1130, text: m.info_evault_diagram_government(), maxWidth: 420 },
+    { x: 915, y: 1130, text: m.info_evault_diagram_people(), maxWidth: 420 },
+]);
+
+const bindingDiagram = $derived([
+    { x: 1040, y: 652, text: m.info_binding_diagram_documents(), maxWidth: 317 },
+    { x: 706, y: 836, text: "eVault" },
+    { x: 285, y: 1360, text: m.info_binding_diagram_user(), maxWidth: 520 },
+    { x: 1142, y: 1357, text: m.info_binding_diagram_lost(), maxWidth: 450 },
+]);
+
 let eVaultInfoOpen = $state(false);
 let bindingDocsInfoOpen = $state(false);
 let socialDrawerOpen = $state(false);
@@ -1173,11 +1192,11 @@ async function refreshBindings(): Promise<void> {
 
 <InfoDrawer bind:isOpen={eVaultInfoOpen} title={m.info_evault_title()}>
     {#snippet body()}
-        <img
+        <LabelledIllustration
             src="/images/what-is-evault.png"
-            alt=""
-            class="w-full h-auto rounded-2xl shrink-0"
-            aria-hidden="true"
+            width={1380}
+            height={1200}
+            labels={eVaultDiagram}
         />
         <p>{m.info_evault_p1()}</p>
         <p>{m.info_evault_p2()}</p>
@@ -1187,11 +1206,11 @@ async function refreshBindings(): Promise<void> {
 <InfoDrawer bind:isOpen={bindingDocsInfoOpen} title={m.info_binding_title()}>
     {#snippet body()}
         <p>{m.info_binding_p1()}</p>
-        <img
+        <LabelledIllustration
             src="/images/binding-documents.png"
-            alt=""
-            class="w-full h-auto rounded-2xl shrink-0"
-            aria-hidden="true"
+            width={1380}
+            height={1500}
+            labels={bindingDiagram}
         />
         <h4 class="text-black-900 font-bold text-base">{m.info_binding_why()}</h4>
         <p>{m.info_binding_p2()}</p>
