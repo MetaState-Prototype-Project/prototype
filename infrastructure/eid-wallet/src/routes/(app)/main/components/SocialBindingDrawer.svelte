@@ -259,7 +259,7 @@ onDestroy(stopPolling);
             </h3>
             <button
                 type="button"
-                onclick={decline}
+                onclick={close}
                 aria-label={m.common_close()}
                 class="w-9 h-9 rounded-full bg-black-50 flex items-center justify-center text-black-700 active:opacity-70 shrink-0"
             >
