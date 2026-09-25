@@ -230,7 +230,12 @@ $effect(() => {
         stopPolling();
         // Closing on a request leaves it pending rather than declining it;
         // tell the parent so its poll doesn't prompt for the same one again.
-        if (phase === "awaiting-consent" && pendingDocId) {
+        // The error phase counts: a decline or accept that keeps failing would
+        // otherwise reopen the prompt on every close, with no way out.
+        if (
+            pendingDocId &&
+            (phase === "awaiting-consent" || phase === "error")
+        ) {
             ondismiss?.(pendingDocId);
         }
         reset();

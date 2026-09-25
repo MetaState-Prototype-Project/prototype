@@ -486,6 +486,8 @@ describe("resolveVaultUri", () => {
         await expect(resolveVaultUri("@nobody")).rejects.toThrow(
             ENAME_NOT_FOUND,
         );
+    });
+});
 
 describe("choosing the request to prompt for", () => {
     beforeEach(() => {
