@@ -7,6 +7,7 @@ import {
 import { AppNav, IdentityCard } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
 import { m } from "$lib/i18n";
+import { getLocale } from "$lib/paraglide/runtime";
 import { ButtonAction, CopyableEName } from "$lib/ui";
 import {
     addCounterpartySignature,
@@ -178,7 +179,7 @@ async function startKycUpgrade() {
 
         const { data } = await axios.post(
             new URL("/verification/v2", PUBLIC_PROVISIONER_URL).toString(),
-            {},
+            { language: getLocale() },
             {
                 headers: {
                     "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET,

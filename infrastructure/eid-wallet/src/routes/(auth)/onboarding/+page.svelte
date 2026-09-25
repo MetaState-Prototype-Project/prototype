@@ -9,6 +9,7 @@ import {
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
 import { m } from "$lib/i18n";
+import { getLocale } from "$lib/paraglide/runtime";
 import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction, CopyableEName, LoadingSheet } from "$lib/ui";
 import { capitalize, getCanonicalBindingDocString } from "$lib/utils";
@@ -458,7 +459,7 @@ const handleKycNext = async () => {
 
         const { data } = await axios.post(
             new URL("/verification/v2", PUBLIC_PROVISIONER_URL).toString(),
-            {},
+            { language: getLocale() },
             {
                 headers: {
                     "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET,

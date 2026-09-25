@@ -3,6 +3,7 @@ import { default as Axios } from "axios";
 import { validate as uuidValidate } from "uuid";
 import { VerificationService } from "../services/VerificationService";
 import type { ProvisioningService } from "../services/ProvisioningService";
+import { verificationLanguage } from "../utils/verificationLanguage";
 
 const diditClient = Axios.create({
     baseURL: "https://verification.didit.me",
@@ -50,6 +51,7 @@ export class VerificationController {
             if (!requireSharedSecret(req, res)) return;
             console.log("Creating new Didit verification session");
             const { referenceId } = req.body;
+            const language = verificationLanguage(req.body?.language);
 
             if (referenceId) {
                 const existing = await this.verificationService.findOne({ referenceId });
@@ -73,6 +75,7 @@ export class VerificationController {
                     {
                         workflow_id: workflowId,
                         vendor_data: verification.id,
+                        language,
                     },
                     {
                         headers: {
@@ -99,7 +102,7 @@ export class VerificationController {
             const verificationUrl: string =
                 diditSession.verification_url ??
                 diditSession.url ??
-                `https://verify.didit.me/session/${sessionToken}`;
+                `https://verify.didit.me/${language}/session/${sessionToken}`;
 
             await this.verificationService.findByIdAndUpdate(verification.id, {
                 diditSessionId: sessionId,

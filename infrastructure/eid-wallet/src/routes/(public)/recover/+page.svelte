@@ -206,6 +206,7 @@ async function startVerifiedRecovery() {
                 "/recovery/start-session",
                 PUBLIC_PROVISIONER_URL,
             ).toString(),
+            { language: getLocale() },
         );
 
         if (!data.verificationUrl) {
