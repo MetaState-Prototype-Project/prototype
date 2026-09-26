@@ -17,4 +17,12 @@ export class WorkerHeartbeat {
 
     @Column({ type: "text", nullable: true })
     lastError!: string | null;
+
+    /** Last tick that claimed and processed a batch without error. */
+    @Column({ type: "timestamptz", nullable: true })
+    lastSuccessAt!: Date | null;
+
+    /** Ticks failed since `lastSuccessAt`; a fresh heartbeat alone is not health. */
+    @Column({ type: "int", default: 0 })
+    consecutiveFailures!: number;
 }

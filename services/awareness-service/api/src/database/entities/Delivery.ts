@@ -30,6 +30,15 @@ export type DeliveryStatus =
 @Index("idx_deliveries_claim_due", ["nextAttemptAt", "createdAt", "id"], {
     where: `"status" IN ('pending', 'failed')`,
 })
+@Index(
+    "idx_deliveries_expired_lease",
+    ["leaseExpiresAt", "createdAt", "id"],
+    { where: `"status" = 'delivering'` },
+)
+// Serves queue-age health without scanning delivered/dead history.
+@Index("idx_deliveries_active_created", ["createdAt", "id"], {
+    where: `"status" IN ('pending', 'failed', 'delivering')`,
+})
 export class Delivery {
     @PrimaryGeneratedColumn("uuid")
     id!: string;
@@ -77,9 +86,17 @@ export class Delivery {
     @Column({ type: "timestamptz", nullable: true })
     deliveredAt!: Date | null;
 
-    /** Start of the current automatic retry window (reset by admin replay). */
+    /**
+     * Set at ingest and reset by admin replay. The automatic retry window is
+     * `deliveryRetryWindowMs` from the later of this and `firstAttemptAt`, so
+     * time spent waiting in the queue never consumes the retry budget.
+     */
     @Column({ type: "timestamptz", default: () => "now()" })
     retryStartedAt!: Date;
+
+    /** When a worker first claimed this delivery; null until then. */
+    @Column({ type: "timestamptz", nullable: true })
+    firstAttemptAt!: Date | null;
 
     /** Token-fenced lease; stale workers cannot complete a reclaimed row. */
     @Column({ type: "varchar", nullable: true })

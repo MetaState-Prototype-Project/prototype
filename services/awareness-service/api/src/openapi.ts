@@ -165,7 +165,11 @@ export const openApiDocument = {
         "/health": {
             get: {
                 tags: ["System"],
-                summary: "Liveness check",
+                summary: "Liveness and in-process delivery-worker progress",
+                description:
+                    "No database access. 503 when the delivery worker has not " +
+                    "completed a tick within the progress window or has failed " +
+                    "repeatedly.",
                 responses: {
                     "200": {
                         description: "Service is up",
@@ -176,10 +180,15 @@ export const openApiDocument = {
                                     properties: {
                                         status: { type: "string" },
                                         service: { type: "string" },
+                                        delivery: { type: "object" },
                                     },
                                 },
                             },
                         },
+                    },
+                    "503": {
+                        description:
+                            "Delivery worker is not making progress (status degraded)",
                     },
                 },
             },
