@@ -10,7 +10,89 @@ import { config } from "../config";
 import { nextAttemptAt } from "../utils/backoff";
 import type { AwarenessPayload } from "../types";
 
-const BATCH_SIZE = 50;
+export const BATCH_SIZE = 50;
+
+/** An earlier unfinished event on the same (subscription, packet) stream. */
+const ACTIVE_PREDECESSOR = `
+    SELECT 1 FROM deliveries earlier
+    WHERE earlier."subscriptionId" = d."subscriptionId"
+      AND earlier."packetId" = d."packetId"
+      AND earlier.status IN ('pending', 'failed', 'delivering')
+      AND (earlier."createdAt", earlier.id) < (d."createdAt", d.id)`;
+
+/**
+ * One atomic claim over two queues, each shaped for its own partial index:
+ * due pending/failed rows (`idx_deliveries_claim_due`) and expired leases
+ * (`idx_deliveries_expired_lease`). OR-ing them in one WHERE made Postgres walk
+ * the full `nextAttemptAt` index across all delivered/dead history.
+ *
+ * Each lane locks at most `limit` stream heads; the lanes are then interleaved
+ * round-robin (expired first on ties) and cut to `limit`, so neither queue can
+ * starve the other and unused share flows to the other lane. Locked rows that
+ * are not picked are released when the statement commits.
+ */
+export function buildClaimQuery(
+    limit: number,
+    leaseOwner: string,
+    leaseToken: string,
+    leaseExpiresAt: Date,
+): [string, unknown[]] {
+    const sql = `
+        WITH due AS (
+            SELECT id, row_number() OVER (
+                ORDER BY "nextAttemptAt", "createdAt", id
+            ) AS rn
+            FROM (
+                SELECT d.id, d."nextAttemptAt", d."createdAt"
+                FROM deliveries d
+                WHERE d.status IN ('pending', 'failed')
+                  AND d."nextAttemptAt" <= now()
+                  AND NOT EXISTS (${ACTIVE_PREDECESSOR})
+                ORDER BY d."nextAttemptAt", d."createdAt", d.id
+                LIMIT $1
+                FOR UPDATE OF d SKIP LOCKED
+            ) locked
+        ), expired AS (
+            SELECT id, row_number() OVER (
+                ORDER BY "leaseExpiresAt", "createdAt", id
+            ) AS rn
+            FROM (
+                SELECT d.id, d."leaseExpiresAt", d."createdAt"
+                FROM deliveries d
+                WHERE d.status = 'delivering'
+                  AND d."leaseExpiresAt" <= now()
+                  AND NOT EXISTS (${ACTIVE_PREDECESSOR})
+                ORDER BY d."leaseExpiresAt", d."createdAt", d.id
+                LIMIT $1
+                FOR UPDATE OF d SKIP LOCKED
+            ) locked
+        ), picked AS (
+            SELECT id FROM (
+                SELECT id, rn, 0 AS lane FROM expired
+                UNION ALL
+                SELECT id, rn, 1 AS lane FROM due
+            ) lanes
+            ORDER BY rn, lane
+            LIMIT $1
+        )
+        UPDATE deliveries
+        SET status = 'delivering',
+            "leaseOwner" = $2,
+            "leaseToken" = $3,
+            "leaseExpiresAt" = $4,
+            "firstAttemptAt" = coalesce("firstAttemptAt", now())
+        WHERE id IN (SELECT id FROM picked)
+        RETURNING *`;
+    return [sql, [limit, leaseOwner, leaseToken, leaseExpiresAt]];
+}
+
+export interface WorkerStatus {
+    workerId: string;
+    startedAt: Date | null;
+    lastSuccessAt: Date | null;
+    consecutiveFailures: number;
+    lastError: string | null;
+}
 
 function delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -50,10 +132,27 @@ export class DeliveryEngine {
     private watchdog?: NodeJS.Timeout;
     private activeTickStartedAt: Date | null = null;
     private readonly unsettledTicks = new Map<Promise<void>, Date>();
+    private startedAt: Date | null = null;
+    private lastCompletedAt: Date | null = null;
+    private lastSuccessAt: Date | null = null;
+    private consecutiveFailures = 0;
+    private lastError: string | null = null;
+
+    /** In-process progress, read by /health without touching the database. */
+    status(): WorkerStatus {
+        return {
+            workerId: config.workerId,
+            startedAt: this.startedAt,
+            lastSuccessAt: this.lastSuccessAt,
+            consecutiveFailures: this.consecutiveFailures,
+            lastError: this.lastError,
+        };
+    }
 
     start(): void {
         if (this.loop) return;
         this.stopping = false;
+        this.startedAt = new Date();
         this.loop = this.runLoop();
         this.watchdog = setInterval(() => {
             const starts = [
@@ -90,8 +189,7 @@ export class DeliveryEngine {
         while (!this.stopping) {
             const tickStartedAt = new Date();
             this.activeTickStartedAt = tickStartedAt;
-            let lastError: string | null = null;
-            await this.writeHeartbeat(tickStartedAt, null, null);
+            await this.writeHeartbeat(tickStartedAt);
             const tick = this.tick();
             this.unsettledTicks.set(tick, tickStartedAt);
             tick.then(
@@ -100,30 +198,39 @@ export class DeliveryEngine {
             );
             try {
                 await withDeadline(tick, config.deliveryBatchTimeoutMs);
+                this.lastSuccessAt = new Date();
+                this.consecutiveFailures = 0;
+                this.lastError = null;
             } catch (error) {
-                lastError = errorMessage(error);
-                console.error(`[aaas] delivery tick failed: ${lastError}`);
+                this.consecutiveFailures += 1;
+                this.lastError = errorMessage(error);
+                console.error(
+                    `[aaas] delivery tick failed (${this.consecutiveFailures} consecutive): ${this.lastError}`,
+                );
             } finally {
-                await this.writeHeartbeat(null, new Date(), lastError);
+                this.lastCompletedAt = new Date();
+                await this.writeHeartbeat(null);
                 this.activeTickStartedAt = null;
             }
             if (!this.stopping) await delay(config.deliveryPollMs);
         }
     }
 
-    protected async writeHeartbeat(
-        tickStartedAt: Date | null,
-        lastCompletedAt: Date | null,
-        lastError: string | null,
-    ): Promise<void> {
+    /**
+     * `heartbeatAt` proves the loop is alive; `lastSuccessAt` and
+     * `consecutiveFailures` prove it is making progress.
+     */
+    protected async writeHeartbeat(tickStartedAt: Date | null): Promise<void> {
         try {
             await AppDataSource.getRepository(WorkerHeartbeat).upsert(
                 {
                     workerId: config.workerId,
                     heartbeatAt: new Date(),
                     tickStartedAt,
-                    lastCompletedAt,
-                    lastError,
+                    lastCompletedAt: this.lastCompletedAt,
+                    lastError: this.lastError,
+                    lastSuccessAt: this.lastSuccessAt,
+                    consecutiveFailures: this.consecutiveFailures,
                 },
                 ["workerId"],
             );
@@ -150,44 +257,20 @@ export class DeliveryEngine {
     }
 
     /** Atomically claim due rows with one token-fenced, expiring batch lease. */
-    private async claimBatch(): Promise<Delivery[]> {
-        const leaseToken = crypto.randomUUID();
-        const leaseExpiresAt = new Date(Date.now() + config.deliveryLeaseMs);
-        const result = await AppDataSource.getRepository(Delivery)
-            .createQueryBuilder()
-            .update(Delivery)
-            .set({
-                status: "delivering",
-                leaseOwner: config.workerId,
-                leaseToken,
-                leaseExpiresAt,
-            })
-            .where(
-                `id IN (
-                    SELECT d.id FROM deliveries d
-                    WHERE (
-                        (d.status IN ('pending', 'failed') AND d."nextAttemptAt" <= now())
-                        OR (d.status = 'delivering' AND d."leaseExpiresAt" <= now())
-                    )
-                    AND NOT EXISTS (
-                        SELECT 1 FROM deliveries earlier
-                        WHERE earlier."subscriptionId" = d."subscriptionId"
-                          AND earlier."packetId" = d."packetId"
-                          AND earlier.status IN ('pending', 'failed', 'delivering')
-                          AND (
-                            earlier."createdAt" < d."createdAt"
-                            OR (earlier."createdAt" = d."createdAt" AND earlier.id < d.id)
-                          )
-                    )
-                    ORDER BY d."nextAttemptAt", d."createdAt", d.id
-                    LIMIT :limit
-                    FOR UPDATE SKIP LOCKED
-                )`,
-                { limit: BATCH_SIZE },
-            )
-            .returning("*")
-            .execute();
-        return (result.raw ?? []) as Delivery[];
+    protected async claimBatch(): Promise<Delivery[]> {
+        const [sql, params] = buildClaimQuery(
+            BATCH_SIZE,
+            config.workerId,
+            crypto.randomUUID(),
+            new Date(Date.now() + config.deliveryLeaseMs),
+        );
+        const runner = AppDataSource.createQueryRunner();
+        try {
+            const result = await runner.query(sql, params, true);
+            return (result.records ?? []) as Delivery[];
+        } finally {
+            await runner.release();
+        }
     }
 
     private async attemptDelivery(delivery: Delivery): Promise<void> {
@@ -294,13 +377,15 @@ export class DeliveryEngine {
         payload: AwarenessPayload,
     ): Promise<void> {
         const attempts = Number(delivery.attempts) + 1;
-        const retryStartedAt = new Date(
-            delivery.retryStartedAt ?? delivery.createdAt,
-        ).getTime();
-        const deadline = new Date(
-            retryStartedAt + config.deliveryRetryWindowMs,
-        );
         const now = new Date();
+        // The retry window opens at the first real attempt (or a later admin
+        // replay), never at ingest: a delivery that waited in a backlog longer
+        // than the window must still get its full retry budget.
+        const windowStart = Math.max(
+            new Date(delivery.retryStartedAt ?? delivery.createdAt).getTime(),
+            new Date(delivery.firstAttemptAt ?? now).getTime(),
+        );
+        const deadline = new Date(windowStart + config.deliveryRetryWindowMs);
 
         if (now >= deadline) {
             await AppDataSource.transaction(async (manager) => {

@@ -64,6 +64,21 @@ export const config = {
     ),
     workerHeartbeatMs: positiveInteger("AWARENESS_WORKER_HEARTBEAT_MS", 10_000),
     workerStaleMs: positiveInteger("AWARENESS_WORKER_STALE_MS", 30_000),
+    /** A worker without a successful tick for this long is unhealthy. */
+    workerProgressStaleMs: positiveInteger(
+        "AWARENESS_WORKER_PROGRESS_STALE_MS",
+        60_000,
+    ),
+    /** Consecutive failed ticks after which the worker is reported failing. */
+    workerMaxConsecutiveFailures: positiveInteger(
+        "AWARENESS_WORKER_MAX_CONSECUTIVE_FAILURES",
+        3,
+    ),
+    /** Statement timeout for the queue queries behind /ready and /metrics. */
+    healthQueryTimeoutMs: positiveInteger(
+        "AWARENESS_HEALTH_QUERY_TIMEOUT_MS",
+        2_000,
+    ),
     dbStatementTimeoutMs: positiveInteger(
         "AWARENESS_DB_STATEMENT_TIMEOUT_MS",
         10_000,

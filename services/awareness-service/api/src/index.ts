@@ -29,7 +29,9 @@ async function start(): Promise<void> {
     const app = express();
     app.use(cors());
     app.use(express.json({ limit: "5mb" }));
-    app.use(systemRouter());
+    // AaaS intentionally runs API and delivery in one deployable process.
+    const deliveryEngine = new DeliveryEngine();
+    app.use(systemRouter(deliveryEngine));
 
     // Raw OpenAPI document + interactive Scalar API reference at /docs.
     app.get("/openapi.json", (_req, res) => {
@@ -62,8 +64,6 @@ async function start(): Promise<void> {
         console.log(`[aaas] API listening on :${config.apiPort}`);
     });
 
-    // AaaS intentionally runs API and delivery in one deployable process.
-    const deliveryEngine = new DeliveryEngine();
     deliveryEngine.start();
 
     const shutdown = async (signal: string) => {

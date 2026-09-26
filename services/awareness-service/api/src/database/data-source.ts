@@ -29,6 +29,8 @@ export const AppDataSource = new DataSource({
         WorkerHeartbeat,
     ],
     migrations: [path.join(__dirname, "migrations", "*.{ts,js}")],
+    // Lets a migration opt out of its transaction (CREATE INDEX CONCURRENTLY).
+    migrationsTransactionMode: "each",
     ssl: config.dbCaCert
         ? { rejectUnauthorized: false, ca: config.dbCaCert }
         : false,
