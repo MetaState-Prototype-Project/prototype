@@ -47,3 +47,49 @@ export async function testApp(overrides: Partial<AppDeps> = {}) {
     const deps = createDeps(config, keys, overrides);
     return { deps, app: createApp(deps) };
 }
+
+/** Reads server-sent events from a live server until the stream ends. */
+export async function readEvents(
+    url: string,
+    init: RequestInit & { until?: (event: string) => boolean } = {},
+): Promise<{ status: number; events: { event: string; data: unknown }[] }> {
+    const res = await fetch(url, init);
+    const events: { event: string; data: unknown }[] = [];
+    if (!res.headers.get("content-type")?.startsWith("text/event-stream")) {
+        return { status: res.status, events };
+    }
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let boundary = buffer.indexOf("\n\n");
+        while (boundary >= 0) {
+            const block = buffer.slice(0, boundary);
+            buffer = buffer.slice(boundary + 2);
+            boundary = buffer.indexOf("\n\n");
+            const event = /^event: (.*)$/m.exec(block)?.[1];
+            const data = /^data: (.*)$/m.exec(block)?.[1];
+            if (!event) continue;
+            events.push({ event, data: data ? JSON.parse(data) : undefined });
+            if (init.until?.(event)) {
+                await reader.cancel();
+                return { status: res.status, events };
+            }
+        }
+    }
+    return { status: res.status, events };
+}
+
+/** Opens a login via /authorize; returns the session ID and its cookie. */
+export async function startLogin(
+    agent: { get(url: string): PromiseLike<{ text: string; headers: Record<string, unknown> }> },
+    query: string,
+): Promise<{ sessionId: string; cookie: string }> {
+    const res = await agent.get(`/authorize?${query}`);
+    const sessionId = /session=([A-Za-z0-9_-]+)/.exec(res.text)![1];
+    const setCookie = res.headers["set-cookie"] as string[];
+    return { sessionId, cookie: setCookie[0].split(";")[0] };
+}

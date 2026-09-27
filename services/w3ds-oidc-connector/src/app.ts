@@ -14,6 +14,7 @@ import type { Config } from "./config.js";
 import type { SigningKeys } from "./keys.js";
 import { log } from "./log.js";
 import { authorizeRouter } from "./routes/authorize.js";
+import { w3dsRouter } from "./routes/w3ds.js";
 import { discoveryRouter } from "./routes/discovery.js";
 import { CodeStore } from "./store/codes.js";
 import { SessionStore } from "./store/sessions.js";
@@ -79,12 +80,21 @@ export function createApp(deps: AppDeps): Express {
 
     app.use(discoveryRouter(deps));
     app.use(authorizeRouter(deps));
+    app.use(w3dsRouter(deps));
 
     app.use((_req, res) => {
         res.status(404).json({ error: "not_found" });
     });
     app.use(
         (error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+            // Malformed bodies from express.json / urlencoded.
+            const status = (error as { status?: unknown }).status;
+            if (typeof status === "number" && status >= 400 && status < 500) {
+                if (!res.headersSent) {
+                    res.status(status).json({ error: "invalid_request" });
+                }
+                return;
+            }
             log.error(
                 "unhandled error:",
                 error instanceof Error ? error.message : error,
