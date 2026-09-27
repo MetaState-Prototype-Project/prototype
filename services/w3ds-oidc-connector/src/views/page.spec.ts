@@ -19,7 +19,7 @@ describe("escaping", () => {
     it("escapes line separators and other non-ASCII", () => {
         const value = `a${String.fromCharCode(0x2028)}b${String.fromCharCode(0x2029)}é`;
         const json = scriptJson({ value });
-        expect(json).toMatch(/^[\x00-\x7f]*$/);
+        expect(json).toMatch(/^[ -~]*$/);
         expect(JSON.parse(json)).toEqual({ value });
     });
 });
