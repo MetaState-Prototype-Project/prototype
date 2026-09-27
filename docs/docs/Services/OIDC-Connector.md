@@ -1,5 +1,5 @@
 ---
-sidebar_position: 8
+sidebar_position: 2
 ---
 
 # OIDC Connector
@@ -12,7 +12,7 @@ The hosted service runs at **`https://oidc.w3ds.metastate.foundation`**.
 | --- | --- |
 | Discovery URL | `https://oidc.w3ds.metastate.foundation/.well-known/openid-configuration` |
 | Issuer | `https://oidc.w3ds.metastate.foundation` |
-| Developer portal | `https://oidc.w3ds.metastate.foundation/portal` |
+| Developer portal | `https://oidc.w3ds.metastate.foundation/portal` (the bare URL redirects here) |
 
 To use it:
 1. Sign in to the [developer portal](./OIDC-Developer-Portal.md) with your eID wallet and create a client.
@@ -61,6 +61,7 @@ All paths are relative to `https://oidc.w3ds.metastate.foundation`.
 | `POST /w3ds/callback` | eID wallet | Receives the signed session |
 | `GET /deeplink-login` | eID wallet (mobile) | Receives the signed session in the browser |
 | `GET /w3ds/events/:session` | Browser | Tells the login page when the wallet has signed |
+| `GET /` | Browser | Redirects to the developer portal |
 | `GET /portal` | Developers | [Developer portal](./OIDC-Developer-Portal.md) |
 | `GET /healthz` | Orchestrator | Health check |
 

@@ -442,3 +442,4 @@ By enforcing uniqueness, one-time use, and expiration, platforms ensure that eve
 - [eID Wallet](/docs/Infrastructure/eID-Wallet) — Key management and signing
 - [Signing](/docs/W3DS%20Protocol/Signing) - Signature creation and verification details
 - [Signature Formats](/docs/W3DS%20Protocol/Signature-Formats) - Detailed signature format documentation
+- [OIDC Connector](/docs/Services/OIDC-Connector) - Log in with W3DS through Keycloak, Rauthy or any OpenID Connect identity provider

@@ -1,5 +1,5 @@
 ---
-sidebar_position: 9
+sidebar_position: 3
 ---
 
 # OIDC Developer Portal
@@ -13,7 +13,7 @@ A **client** represents one IdP, for example a Keycloak realm or a Rauthy instan
 
 ## Signing in
 
-1. Open `https://oidc.w3ds.metastate.foundation/portal`.
+1. Open `https://oidc.w3ds.metastate.foundation`. It takes you to the portal.
 2. Scan the QR code with your eID wallet and approve. On a phone, tap **Open in eID Wallet** instead.
 3. The page continues by itself and you are signed in as your eName.
 
