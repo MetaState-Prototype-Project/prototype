@@ -18,6 +18,12 @@
 			"require": "./dist/index.js",
 			"default": "./dist/index.js"
 		},
+		"./ename": {
+			"types": "./dist/ename-signature.d.ts",
+			"import": "./dist/ename-signature.js",
+			"require": "./dist/ename-signature.js",
+			"default": "./dist/ename-signature.js"
+		},
 		"./platform": {
 			"types": "./dist/platform/index.d.ts",
 			"import": "./dist/platform/index.js",
