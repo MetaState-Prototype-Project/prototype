@@ -11,7 +11,6 @@
         "start": "node dist/index.js",
         "test": "vitest run",
         "check-types": "tsc --noEmit",
-        "hash-secret": "tsx scripts/hash-client-secret.ts",
         "generate-jwk": "tsx scripts/generate-signing-jwk.ts",
         "migrate": "tsx src/scripts/migrate.ts"
     },
