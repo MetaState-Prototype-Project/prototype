@@ -28,6 +28,7 @@ import { messagePage } from "../views/messages.js";
 import { log } from "../log.js";
 import {
     type ClientFormValues,
+    type PortalContext,
     confirmPage,
     credentialsPage,
     editClientPage,
@@ -133,9 +134,15 @@ export function portalRouter(deps: AppDeps): Router {
         res.redirect(302, "/portal");
     });
 
-    const render = (res: Response, status: number, html: (nonce: string) => string) => {
+    const render = (
+        res: Response,
+        status: number,
+        html: (ctx: PortalContext) => string,
+    ) => {
         const nonce = htmlSecurityHeaders(res, { forms: true });
-        res.status(status).send(html(nonce));
+        res.status(status).send(
+            html({ nonce, session: portalSession(res), docsUrl: config.docsUrl }),
+        );
     };
 
     const notFound = (res: Response) => {
@@ -183,19 +190,15 @@ export function portalRouter(deps: AppDeps): Router {
             const clients = await deps.clients.repository.listByOwner(session.owner);
             const notice =
                 req.query.deleted === "1" ? "Client deleted." : undefined;
-            render(res, 200, (nonce) =>
-                portalHomePage({ nonce, session, clients, notice }),
-            );
+            render(res, 200, (ctx) => portalHomePage(ctx, { clients, notice }));
         } catch (error) {
             next(error);
         }
     });
 
     router.get("/portal/clients/new", signedIn, (_req, res) => {
-        render(res, 200, (nonce) =>
-            newClientPage({
-                nonce,
-                session: portalSession(res),
+        render(res, 200, (ctx) =>
+            newClientPage(ctx, {
                 values: { name: "", redirectUris: "", syntheticEmail: false },
             }),
         );
@@ -212,10 +215,8 @@ export function portalRouter(deps: AppDeps): Router {
                 since,
             );
             if (recent >= config.clientCreateLimit) {
-                return render(res, 429, (nonce) =>
-                    newClientPage({
-                        nonce,
-                        session,
+                return render(res, 429, (ctx) =>
+                    newClientPage(ctx, {
                         values,
                         errors: [
                             `You can create up to ${config.clientCreateLimit} clients an hour. Try again later.`,
@@ -225,17 +226,15 @@ export function portalRouter(deps: AppDeps): Router {
             }
             const input = readInput(body);
             if (!input.ok) {
-                return render(res, 400, (nonce) =>
-                    newClientPage({ nonce, session, values, errors: input.errors }),
+                return render(res, 400, (ctx) =>
+                    newClientPage(ctx, { values, errors: input.errors }),
                 );
             }
             const secret = generateClientSecret();
             const client = await createClient(deps, session.owner, input.value, secret);
             log.info(`client ${client.clientId} created by ${session.owner}`);
-            render(res, 201, (nonce) =>
-                credentialsPage({
-                    nonce,
-                    session,
+            render(res, 201, (ctx) =>
+                credentialsPage(ctx, {
                     client,
                     secret,
                     issuer: config.issuer,
@@ -251,10 +250,9 @@ export function portalRouter(deps: AppDeps): Router {
         try {
             const client = await ownedClient(req, res);
             if (!client) return notFound(res);
-            render(res, 200, (nonce) =>
-                editClientPage({
-                    nonce,
-                    session: portalSession(res),
+            render(res, 200, (ctx) =>
+                editClientPage(ctx, {
+                    issuer: config.issuer,
                     client,
                     values: clientValues(client),
                     notice: req.query.saved === "1" ? "Changes saved." : undefined,
@@ -273,10 +271,9 @@ export function portalRouter(deps: AppDeps): Router {
             const body = req.body as Record<string, unknown>;
             const input = readInput(body);
             if (!input.ok) {
-                return render(res, 400, (nonce) =>
-                    editClientPage({
-                        nonce,
-                        session,
+                return render(res, 400, (ctx) =>
+                    editClientPage(ctx, {
+                        issuer: config.issuer,
                         client,
                         values: formValues(body),
                         errors: input.errors,
@@ -301,8 +298,8 @@ export function portalRouter(deps: AppDeps): Router {
             const client = await ownedClient(req, res);
             if (!client) return notFound(res);
             if (req.body?.confirm !== "yes") {
-                return render(res, 200, (nonce) =>
-                    confirmPage({ nonce, session, client, action: "rotate" }),
+                return render(res, 200, (ctx) =>
+                    confirmPage(ctx, { client, action: "rotate" }),
                 );
             }
             const secret = generateClientSecret();
@@ -313,10 +310,8 @@ export function portalRouter(deps: AppDeps): Router {
             );
             if (!rotated) return notFound(res);
             log.info(`client ${client.clientId} secret rotated by ${session.owner}`);
-            render(res, 200, (nonce) =>
-                credentialsPage({
-                    nonce,
-                    session,
+            render(res, 200, (ctx) =>
+                credentialsPage(ctx, {
                     client: rotated,
                     secret,
                     issuer: config.issuer,
@@ -334,8 +329,8 @@ export function portalRouter(deps: AppDeps): Router {
             const client = await ownedClient(req, res);
             if (!client) return notFound(res);
             if (req.body?.confirm !== "yes") {
-                return render(res, 200, (nonce) =>
-                    confirmPage({ nonce, session, client, action: "delete" }),
+                return render(res, 200, (ctx) =>
+                    confirmPage(ctx, { client, action: "delete" }),
                 );
             }
             if (!(await deps.clients.repository.delete(session.owner, client.clientId))) {

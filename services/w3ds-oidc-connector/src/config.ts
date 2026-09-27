@@ -15,6 +15,8 @@ export interface Config {
     portalSecret?: string;
     /** How many clients one eName may create per hour. */
     clientCreateLimit: number;
+    /** Where the connector's documentation lives; the portal links to it. */
+    docsUrl: string;
     sessionTtlSeconds: number;
     codeTtlSeconds: number;
     tokenTtlSeconds: number;
@@ -94,6 +96,10 @@ export function loadConfig(env: Env = process.env): Config {
             "W3DS_OIDC_CLIENT_CREATE_LIMIT",
             10,
         ),
+        docsUrl: (
+            env.W3DS_OIDC_DOCS_URL ||
+            "https://docs.w3ds.metastate.foundation/docs/Services"
+        ).replace(/\/+$/, ""),
         sessionTtlSeconds: positiveInteger(
             env,
             "W3DS_OIDC_SESSION_TTL_SECONDS",

@@ -10,6 +10,10 @@ import {
 
 const KC_REDIRECT = "https://kc.alice.example/realms/main/broker/w3ds/endpoint";
 
+/** Reads a copyable value the portal rendered, by its data-field name. */
+const field = (html: string, name: string) =>
+    new RegExp(`data-field="${name}">([^<]+)<`).exec(html)?.[1];
+
 const basic = (id: string, secret: string) =>
     `Basic ${Buffer.from(`${id}:${secret}`).toString("base64")}`;
 
@@ -36,9 +40,11 @@ async function create(
             redirect_uris: KC_REDIRECT,
             ...fields,
         });
-    const clientId = /Client ID<\/dt><dd class="mono">([^<]+)</.exec(res.text)?.[1];
-    const secret = /Client secret<\/dt><dd class="mono">([^<]+)</.exec(res.text)?.[1];
-    return { res, clientId: clientId!, secret: secret! };
+    return {
+        res,
+        clientId: field(res.text, "client-id")!,
+        secret: field(res.text, "client-secret")!,
+    };
 }
 
 describe("developer portal clients", () => {
@@ -184,7 +190,7 @@ describe("developer portal clients", () => {
             .set("Cookie", ctx.alice.cookie)
             .type("form")
             .send({ csrf: ctx.alice.csrf, confirm: "yes" });
-        const fresh = /Client secret<\/dt><dd class="mono">([^<]+)</.exec(rotated.text)![1];
+        const fresh = field(rotated.text, "client-secret")!;
         expect(fresh).not.toBe(secret);
         expect(
             await ctx.deps.clients.authenticate({ authorization: basic(clientId, secret) }),
@@ -292,6 +298,53 @@ describe("developer portal clients", () => {
         expect(res.text).toContain('<meta name="referrer" content="same-origin">');
         const login = await request(ctx.app).get("/portal/login");
         expect(login.headers["referrer-policy"]).toBe("no-referrer");
+    });
+
+    it("offers every credential and connection value with a copy button", async () => {
+        const ctx = await setup();
+        const { res, clientId, secret } = await create(ctx, ctx.alice);
+        for (const value of [
+            clientId,
+            secret,
+            "http://localhost:4200/.well-known/openid-configuration",
+            "http://localhost:4200/token",
+            "http://localhost:4200/jwks",
+        ]) {
+            expect(res.text).toContain(`data-copy="${value}"`);
+        }
+        const detail = await request(ctx.app)
+            .get(`/portal/clients/${clientId}`)
+            .set("Cookie", ctx.alice.cookie);
+        expect(detail.text).toContain(`data-copy="${clientId}"`);
+        expect(detail.text).toContain(`data-copy="${KC_REDIRECT}"`);
+        expect(detail.text).not.toContain(secret);
+    });
+
+    it("stays provider-neutral and links to the provider guides", async () => {
+        const ctx = await setup();
+        const { res, clientId } = await create(ctx, ctx.alice);
+        const pages = [
+            res.text,
+            (await request(ctx.app).get("/portal").set("Cookie", ctx.alice.cookie)).text,
+            (await request(ctx.app).get("/portal/clients/new").set("Cookie", ctx.alice.cookie)).text,
+            (await request(ctx.app).get(`/portal/clients/${clientId}`).set("Cookie", ctx.alice.cookie)).text,
+        ];
+        for (const html of pages) {
+            expect(html).not.toMatch(/keycloak|rauthy/i);
+        }
+        expect(res.text).toContain(
+            "https://docs.w3ds.metastate.foundation/docs/Services/OIDC-Provider-Guides",
+        );
+    });
+
+    it("shows breadcrumbs back to the client list", async () => {
+        const ctx = await setup();
+        const { clientId } = await create(ctx, ctx.alice);
+        const detail = await request(ctx.app)
+            .get(`/portal/clients/${clientId}`)
+            .set("Cookie", ctx.alice.cookie);
+        expect(detail.text).toContain('<li><a href="/portal">Clients</a></li>');
+        expect(detail.text).toContain('<li aria-current="page">Alice Corp</li>');
     });
 
     it("sends the bare URL to the portal", async () => {
