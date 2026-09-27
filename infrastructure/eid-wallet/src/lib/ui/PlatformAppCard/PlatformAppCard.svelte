@@ -18,6 +18,7 @@ import w3ds from "@metastate-foundation/platform-icons/icons/w3dslogo.svg";
  * App card for platform-based scan drawers (auth, signing, reveal, logged in).
  *
  * Icon resolution cascade:
+ *   0. `logoUrl` — an https logo the platform passed in its auth link.
  *   1. `@metastate-foundation/platform-icons` — local bundled brand icons
  *      keyed by subdomain (covers all Metastate platforms).
  *   2. `https://{hostname}/apple-touch-icon.png` — third-party platforms
@@ -49,16 +50,26 @@ const LOCAL_ICONS: Record<string, string> = {
 interface IPlatformAppCardProps {
     hostname: string | null | undefined;
     platformName: string | null | undefined;
+    /**
+     * A name the platform explicitly chose via the auth link's `name`
+     * parameter. Unlike `platformName` (the legacy `platform` parameter) it
+     * is trusted for the title; the hostname is still shown beneath it.
+     */
+    displayName?: string | null;
+    /** An https logo from the auth link's `logo` parameter. */
+    logoUrl?: string | null;
     class?: string;
 }
 
 const {
     hostname,
     platformName,
+    displayName: brandName = null,
+    logoUrl = null,
     class: classes = "",
 }: IPlatformAppCardProps = $props();
 
-type Stage = "local" | "apple" | "favicon" | "fallback";
+type Stage = "custom" | "local" | "apple" | "favicon" | "fallback";
 
 const localKey = $derived(getPlatformKey(hostname));
 const localUrl = $derived(localKey ? (LOCAL_ICONS[localKey] ?? null) : null);
@@ -75,23 +86,34 @@ let stage = $state<Stage>("fallback");
 $effect(() => {
     const _hostname = hostname;
     const _localUrl = localUrl;
+    const _logoUrl = logoUrl;
     untrack(() => {
-        stage = _localUrl ? "local" : _hostname ? "apple" : "fallback";
+        stage = _logoUrl
+            ? "custom"
+            : _localUrl
+              ? "local"
+              : _hostname
+                ? "apple"
+                : "fallback";
     });
 });
 
 const iconUrl = $derived(
-    stage === "local"
-        ? localUrl
-        : stage === "apple"
-          ? `https://${hostname}/apple-touch-icon.png`
-          : stage === "favicon"
-            ? `https://${hostname}/favicon.ico`
-            : null,
+    stage === "custom"
+        ? logoUrl
+        : stage === "local"
+          ? localUrl
+          : stage === "apple"
+            ? `https://${hostname}/apple-touch-icon.png`
+            : stage === "favicon"
+              ? `https://${hostname}/favicon.ico`
+              : null,
 );
 
 function handleError() {
-    if (stage === "local") stage = hostname ? "apple" : "fallback";
+    if (stage === "custom") {
+        stage = localUrl ? "local" : hostname ? "apple" : "fallback";
+    } else if (stage === "local") stage = hostname ? "apple" : "fallback";
     else if (stage === "apple") stage = "favicon";
     else if (stage === "favicon") stage = "fallback";
 }
@@ -113,6 +135,7 @@ function handleLoad(e: Event) {
 // (subdomain == app), and matters because the `platform` query param in
 // QR codes is unreliable — it often carries the previous session's value.
 const derivedName = $derived.by(() => {
+    if (brandName) return brandName;
     const segment = hostname?.split(".")[0]?.trim();
     if (segment) return segment;
     if (platformName) return platformName;
@@ -143,7 +166,11 @@ const displayName = $derived(derivedName);
     <div
         class="bg-white rounded-3xl shadow-card pt-12 pb-6 px-6 flex flex-col items-center gap-2 w-full"
     >
-        <h3 class="text-2xl font-bold text-black-900 capitalize text-center">
+        <h3
+            class="text-2xl font-bold text-black-900 text-center break-words max-w-full {brandName
+                ? ''
+                : 'capitalize'}"
+        >
             {displayName}
         </h3>
         {#if hostname}

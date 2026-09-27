@@ -9,6 +9,9 @@ import { untrack } from "svelte";
 interface IAuthDrawerProps {
     isOpen: boolean;
     platform: string | null | undefined;
+    /** Branding the platform passed in its auth link, if any. */
+    displayName?: string | null;
+    logoUrl?: string | null;
     hostname: string | null | undefined;
     scannedContent: string | undefined;
     isFromScan: boolean;
@@ -23,6 +26,8 @@ interface IAuthDrawerProps {
 const {
     isOpen,
     platform,
+    displayName = null,
+    logoUrl = null,
     hostname,
     scannedContent,
     isFromScan,
@@ -98,6 +103,8 @@ $effect(() => {
                 <PlatformAppCard
                     {hostname}
                     platformName={platform ?? hostname ?? scannedContent}
+                    {displayName}
+                    {logoUrl}
                 />
 
                 {#if authError}

@@ -205,6 +205,9 @@ onMount(async () => {
                 const sessionId = params.get("session");
                 const platform = params.get("platform");
                 const redirect = params.get("redirect");
+                // Optional branding; cleaned where it is displayed.
+                const name = params.get("name") ?? undefined;
+                const logo = params.get("logo") ?? undefined;
 
                 console.log(
                     "Auth deep link - session:",
@@ -222,6 +225,8 @@ onMount(async () => {
                         session: sessionId,
                         platform: platform,
                         redirect: redirect,
+                        name,
+                        logo,
                     };
 
                     routeDeepLink(globalState, deepLinkData);

@@ -19,6 +19,8 @@ const { stores, actions } = createScanLogic({ globalState, goto });
 
 const {
     platform,
+    platformDisplayName,
+    platformLogo,
     hostname,
     codeScannedDrawerOpen,
     loggedInDrawerOpen,
@@ -199,6 +201,8 @@ function handleSocialBindingOpenChange(value: boolean) {
 <AuthDrawer
     isOpen={$codeScannedDrawerOpen}
     platform={$platform}
+    displayName={$platformDisplayName}
+    logoUrl={$platformLogo}
     hostname={$hostname}
     scannedContent={$scannedData?.content}
     isFromScan={$isFromScan}
@@ -213,6 +217,8 @@ function handleSocialBindingOpenChange(value: boolean) {
 <LoggedInDrawer
     isOpen={$loggedInDrawerOpen}
     platform={$platform}
+    displayName={$platformDisplayName}
+    logoUrl={$platformLogo}
     hostname={$hostname}
     redirect={$redirect}
     onConfirm={handleLoggedInDrawerConfirm}
