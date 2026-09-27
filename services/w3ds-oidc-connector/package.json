@@ -12,7 +12,8 @@
         "test": "vitest run",
         "check-types": "tsc --noEmit",
         "hash-secret": "tsx scripts/hash-client-secret.ts",
-        "generate-jwk": "tsx scripts/generate-signing-jwk.ts"
+        "generate-jwk": "tsx scripts/generate-signing-jwk.ts",
+        "migrate": "tsx src/scripts/migrate.ts"
     },
     "dependencies": {
         "@metastate-foundation/auth": "workspace:*",
@@ -20,9 +21,12 @@
         "dotenv": "^16.4.5",
         "express": "^4.21.2",
         "jose": "^5.2.2",
-        "qrcode": "^1.5.4"
+        "pg": "^8.11.3",
+        "qrcode": "^1.5.4",
+        "typeorm": "^0.3.24"
     },
     "devDependencies": {
+        "@testcontainers/postgresql": "^10.0.1",
         "@types/cors": "^2.8.17",
         "@types/express": "^4.17.21",
         "@types/node": "^20.11.24",
