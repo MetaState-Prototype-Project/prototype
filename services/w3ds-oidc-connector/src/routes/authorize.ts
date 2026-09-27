@@ -14,17 +14,26 @@ import { SUPPORTED_SCOPES } from "./discovery.js";
 
 const MAX_OPAQUE_LENGTH = 512;
 
-/** The `w3ds://auth` link the QR code encodes and the wallet opens. */
+/**
+ * The `w3ds://auth` link the QR code encodes and the wallet opens.
+ *
+ * `name` and `logo` tell the wallet what to show on its approval card.
+ * `platform` carries the same name for wallets that predate them.
+ */
 export function walletLink(options: {
     issuer: string;
     sessionId: string;
-    platformName: string;
+    /** The application the user is signing in to. */
+    name: string;
+    logoUrl?: string | null;
 }): string {
     const params = new URLSearchParams({
         redirect: `${options.issuer}/w3ds/callback`,
         session: options.sessionId,
-        platform: options.platformName,
+        platform: options.name,
+        name: options.name,
     });
+    if (options.logoUrl) params.set("logo", options.logoUrl);
     return `w3ds://auth?${params}`;
 }
 
@@ -158,7 +167,8 @@ export function authorizeRouter(deps: AppDeps): Router {
             const link = walletLink({
                 issuer: config.issuer,
                 sessionId: session.id,
-                platformName: config.platformName,
+                name: client.name,
+                logoUrl: client.logoUrl,
             });
             const qrSvg = await QRCode.toString(link, {
                 type: "svg",
@@ -171,6 +181,7 @@ export function authorizeRouter(deps: AppDeps): Router {
                     nonce,
                     platformName: config.platformName,
                     clientName: client.name,
+                    logoUrl: client.logoUrl,
                     walletLink: link,
                     qrSvg,
                     eventsUrl: `/w3ds/events/${session.id}`,

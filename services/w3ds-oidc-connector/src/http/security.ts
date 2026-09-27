@@ -16,7 +16,9 @@ export function htmlSecurityHeaders(
             "default-src 'none'",
             `script-src 'nonce-${nonce}'`,
             `style-src 'nonce-${nonce}'`,
-            "img-src data:",
+            // Client logos are hosted by their owners; no-referrer keeps the
+            // page URL from reaching those hosts.
+            "img-src 'self' data: https:",
             "connect-src 'self'",
             "base-uri 'none'",
             options.forms ? "form-action 'self'" : "form-action 'none'",

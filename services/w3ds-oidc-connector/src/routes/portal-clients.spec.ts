@@ -347,6 +347,36 @@ describe("developer portal clients", () => {
         expect(detail.text).toContain('<li aria-current="page">Alice Corp</li>');
     });
 
+    it("stores a logo and shows it in the list and on the client", async () => {
+        const ctx = await setup();
+        const logo = "https://cdn.alice.example/logo.png";
+        const { res, clientId } = await create(ctx, ctx.alice, { logo_url: logo });
+        expect(res.status).toBe(201);
+        expect((await ctx.repository.findByClientId(clientId))?.logoUrl).toBe(logo);
+        const list = await request(ctx.app).get("/portal").set("Cookie", ctx.alice.cookie);
+        expect(list.text).toContain(`<img class="avatar sm" src="${logo}"`);
+        const detail = await request(ctx.app)
+            .get(`/portal/clients/${clientId}`)
+            .set("Cookie", ctx.alice.cookie);
+        expect(detail.text).toContain(`data-copy="${logo}"`);
+        expect(detail.headers["content-security-policy"]).toContain("img-src 'self' data: https:");
+
+        await request(ctx.app)
+            .post(`/portal/clients/${clientId}`)
+            .set("Cookie", ctx.alice.cookie)
+            .type("form")
+            .send({ csrf: ctx.alice.csrf, name: "Alice Corp", redirect_uris: KC_REDIRECT, logo_url: "" });
+        expect((await ctx.repository.findByClientId(clientId))?.logoUrl).toBeNull();
+    });
+
+    it("rejects a logo that is not https", async () => {
+        const ctx = await setup();
+        const { res } = await create(ctx, ctx.alice, { logo_url: "http://cdn.alice.example/logo.png" });
+        expect(res.status).toBe(400);
+        expect(res.text).toContain("The logo URL must use https");
+        expect(res.text).toContain('value="http://cdn.alice.example/logo.png"');
+    });
+
     it("sends the bare URL to the portal", async () => {
         const { app } = await testApp();
         const res = await request(app).get("/");

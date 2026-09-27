@@ -69,6 +69,15 @@ When a user wants to log in, the platform must:
    - `session`: The generated session ID
    - `platform`: Platform identifier (for display purposes)
 
+   Two optional parameters let a platform brand the wallet's approval card:
+   ```text
+   w3ds://auth?redirect={redirectUrl}&session={sessionId}&platform={platformName}&name={displayName}&logo={logoUrl}
+   ```
+   - `name`: The name to show as the card's title, e.g. `Acme Corp SSO`. The wallet removes control and invisible formatting characters and shows at most 64 characters. Without `name`, the wallet titles the card with the first label of the redirect hostname.
+   - `logo`: An `https` URL of a square image to show as the card's icon. Any other scheme is ignored. Without `logo`, or if it fails to load, the wallet uses its bundled icons, then `https://{host}/apple-touch-icon.png`, then `https://{host}/favicon.ico` on the redirect host.
+
+   The wallet always shows the redirect hostname beneath the title. `name` and `logo` are claims made by whoever generated the QR code; the hostname is what the user should trust. Keep sending `platform` for wallets that predate these parameters.
+
 4. **Return JSON response**: Send a JSON object with the `uri` field containing the w3ds://auth URI.
 
 **HTTP Endpoint**: `GET /api/auth/offer`

@@ -14,6 +14,7 @@ export interface ClientRow {
     owner_ename: string;
     redirect_uris: string[];
     synthetic_email: boolean;
+    logo_url: string | null;
     created_at: Date;
     updated_at: Date;
     secret_rotated_at: Date;
@@ -39,6 +40,7 @@ export const ClientEntity = new EntitySchema<ClientRow>({
         owner_ename: { type: "text" },
         redirect_uris: { type: "jsonb" },
         synthetic_email: { type: "boolean", default: false },
+        logo_url: { type: "text", nullable: true },
         created_at: { type: "timestamptz", createDate: true },
         updated_at: { type: "timestamptz", updateDate: true },
         secret_rotated_at: { type: "timestamptz", default: () => "now()" },

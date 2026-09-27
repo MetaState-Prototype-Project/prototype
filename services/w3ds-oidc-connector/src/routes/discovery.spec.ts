@@ -49,3 +49,20 @@ describe("discovery", () => {
         expect(res.body).toEqual({ error: "not_found" });
     });
 });
+
+describe("logo", () => {
+    it.each(["/logo.png", "/apple-touch-icon.png", "/favicon.ico"])(
+        "serves the connector's logo at %s",
+        async (path) => {
+            const { app } = await testApp();
+            const res = await request(app).get(path);
+            expect(res.status).toBe(200);
+            expect(res.headers["content-type"]).toBe("image/png");
+            expect(res.headers["cache-control"]).toContain("max-age");
+            // PNG signature
+            expect(Buffer.from(res.body).subarray(0, 8)).toEqual(
+                Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+            );
+        },
+    );
+});

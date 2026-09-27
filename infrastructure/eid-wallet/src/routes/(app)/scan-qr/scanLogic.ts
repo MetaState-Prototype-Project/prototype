@@ -1,5 +1,10 @@
 import { m } from "$lib/i18n";
 import { clearDeepLink, peekDeepLink } from "$lib/stores/deepLink";
+import {
+    cleanPlatformLogo,
+    cleanPlatformName,
+    readPlatformBranding,
+} from "$lib/utils/platformBranding";
 import { getVersion } from "@tauri-apps/api/app";
 import {
     Format,
@@ -47,6 +52,10 @@ export interface SigningData {
 export interface DeepLinkData {
     type: string;
     platform?: string;
+    /** Display name for the approval card (w3ds://auth `name`). */
+    name?: string;
+    /** https logo URL for the approval card (w3ds://auth `logo`). */
+    logo?: string;
     session?: string;
     redirect?: string;
     redirect_uri?: string;
@@ -67,6 +76,10 @@ interface CreateScanLogicParams {
 
 interface ScanStores {
     platform: Writable<string | null>;
+    /** The `name` a platform passed in its auth link, cleaned. */
+    platformDisplayName: Writable<string | null>;
+    /** The https `logo` a platform passed in its auth link. */
+    platformLogo: Writable<string | null>;
     hostname: Writable<string | null>;
     session: Writable<string | null>;
     codeScannedDrawerOpen: Writable<boolean>;
@@ -152,6 +165,8 @@ export function createScanLogic({
     goto,
 }: CreateScanLogicParams): ScanLogic {
     const platform = writable<string | null>(null);
+    const platformDisplayName = writable<string | null>(null);
+    const platformLogo = writable<string | null>(null);
     const hostname = writable<string | null>(null);
     const session = writable<string | null>(null);
     const codeScannedDrawerOpen = writable(false);
@@ -535,6 +550,9 @@ export function createScanLogic({
     function handleAuthRequest(content: string) {
         const url = new URL(content);
         platform.set(url.searchParams.get("platform"));
+        const branding = readPlatformBranding(url.searchParams);
+        platformDisplayName.set(branding.name);
+        platformLogo.set(branding.logo);
         const redirectUrl = new URL(url.searchParams.get("redirect") || "");
         redirect.set(url.searchParams.get("redirect"));
         session.set(url.searchParams.get("session"));
@@ -1424,6 +1442,8 @@ export function createScanLogic({
                 isRevealRequest.set(false);
 
                 platform.set(data.platform ?? null);
+                platformDisplayName.set(cleanPlatformName(data.name));
+                platformLogo.set(cleanPlatformLogo(data.logo));
                 session.set(data.session ?? null);
                 redirect.set(data.redirect ?? null);
 
@@ -1683,6 +1703,8 @@ export function createScanLogic({
     return {
         stores: {
             platform,
+            platformDisplayName,
+            platformLogo,
             hostname,
             session,
             codeScannedDrawerOpen,

@@ -75,6 +75,8 @@ body.card main {
 }
 body.card h1 { font-size: 1.35rem; margin: 0 0 8px; }
 body.card .button { margin-top: 8px; padding: 12px 20px; }
+.app-logo { display: block; width: 64px; height: 64px; margin: 0 auto 16px;
+    border-radius: 16px; object-fit: cover; }
 .qr { margin: 24px auto 16px; width: 240px; max-width: 100%;
     background: #fff; padding: 12px; border-radius: 12px; }
 .qr svg { display: block; width: 100%; height: auto; }
@@ -90,7 +92,7 @@ const APP_STYLES = `
 .topbar-inner { height: 60px; display: flex; align-items: center; gap: 16px; }
 .brand { display: flex; align-items: center; gap: 10px; color: var(--text);
     text-decoration: none; font-weight: 700; white-space: nowrap; }
-.brand-mark { width: 28px; height: 28px; border-radius: 8px; flex: none;
+.brand-mark { width: 28px; height: 28px; border-radius: 7px; flex: none; object-fit: cover;
     background: var(--accent); color: var(--accent-text); display: grid;
     place-items: center; font-size: 0.8rem; font-weight: 800; }
 .brand-sub { color: var(--muted); font-weight: 500; }
@@ -131,7 +133,15 @@ th { text-align: left; font-weight: 600; color: var(--muted); font-size: 0.75rem
 td { padding: 12px 20px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--subtle); }
-td.name a { font-weight: 600; color: var(--text); text-decoration: none; white-space: nowrap; }
+td.name a { font-weight: 600; color: var(--text); text-decoration: none; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 10px; }
+.avatar { flex: none; border-radius: 7px; object-fit: cover; background: var(--subtle);
+    display: inline-grid; place-items: center; font-weight: 700; color: var(--accent); }
+.avatar.sm { width: 28px; height: 28px; font-size: 0.85rem; }
+.avatar.lg { width: 48px; height: 48px; font-size: 1.2rem; border-radius: 10px; }
+.avatar.initial { background: var(--accent-soft); }
+.logo-row { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.logo-row .copy { flex: 1; }
 td .copy code { white-space: nowrap; }
 td.name a:hover { color: var(--accent); }
 td.num, th.num { text-align: right; }

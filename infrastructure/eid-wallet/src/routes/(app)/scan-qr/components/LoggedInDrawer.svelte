@@ -7,6 +7,9 @@ import { untrack } from "svelte";
 interface ILoggedInDrawerProps {
     isOpen: boolean;
     platform: string | null | undefined;
+    /** Branding the platform passed in its auth link, if any. */
+    displayName?: string | null;
+    logoUrl?: string | null;
     hostname: string | null | undefined;
     redirect: string | null | undefined;
     onConfirm: () => void;
@@ -16,11 +19,16 @@ interface ILoggedInDrawerProps {
 const {
     isOpen,
     platform,
+    displayName = null,
+    logoUrl = null,
     hostname,
     redirect,
     onConfirm,
     onOpenChange,
 }: ILoggedInDrawerProps = $props();
+
+// Prefer the name the platform chose for itself over the raw `platform`.
+const shownName = $derived(displayName ?? platform);
 
 let internalOpen = $state(untrack(() => isOpen));
 let lastReportedOpen = $state(untrack(() => internalOpen));
@@ -60,7 +68,7 @@ $effect(() => {
                     </h4>
                     <p class="text-sm leading-relaxed text-black-500 text-center">
                         {m.loggedin_connected_to({
-                            platform: platform ?? m.loggedin_platform_fallback(),
+                            platform: shownName ?? m.loggedin_platform_fallback(),
                         })}
                     </p>
                 </div>
@@ -68,12 +76,14 @@ $effect(() => {
                 <PlatformAppCard
                     {hostname}
                     platformName={platform ?? hostname}
+                    {displayName}
+                    {logoUrl}
                 />
 
-                {#if redirect && platform}
+                {#if redirect && shownName}
                     <p class="text-sm text-black-500 text-center px-4">
                         {m.loggedin_return_prefix()}
-                        <strong>{platform}</strong>
+                        <strong>{shownName}</strong>
                         {m.loggedin_return_suffix()}
                     </p>
                 {/if}

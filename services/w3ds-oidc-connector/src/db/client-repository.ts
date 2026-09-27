@@ -17,6 +17,7 @@ function toRecord(row: ClientRow): ClientRecord {
         ownerEName: row.owner_ename,
         redirectUris: row.redirect_uris,
         syntheticEmail: row.synthetic_email,
+        logoUrl: row.logo_url,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         secretRotatedAt: row.secret_rotated_at,
@@ -75,6 +76,7 @@ export class TypeOrmClientRepository implements ClientRepository {
                 owner_ename: client.ownerEName,
                 redirect_uris: client.redirectUris,
                 synthetic_email: client.syntheticEmail,
+                logo_url: client.logoUrl,
             });
             await this.record(manager, client.ownerEName, client.clientId, "created");
             const saved = await this.clients(manager).findOneByOrFail({ id: row.id });
@@ -94,6 +96,7 @@ export class TypeOrmClientRepository implements ClientRepository {
                     name: changes.name,
                     redirect_uris: changes.redirectUris,
                     synthetic_email: changes.syntheticEmail,
+                    logo_url: changes.logoUrl,
                 },
             );
             if (!result.affected) return null;

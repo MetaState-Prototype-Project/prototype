@@ -51,10 +51,32 @@ export function redirectUriError(value: string): string | null {
     return null;
 }
 
+/** Returns an error message, or null if `value` is an acceptable logo URL. */
+export function logoUrlError(value: string): string | null {
+    if (value.length > MAX_REDIRECT_URI_LENGTH) {
+        return "The logo URL must be at most 2048 characters.";
+    }
+    let url: URL;
+    try {
+        url = new URL(value);
+    } catch {
+        return `The logo URL ${value} is not a valid URL.`;
+    }
+    if (url.username || url.password) {
+        return "The logo URL must not contain credentials.";
+    }
+    const loopback = LOOPBACK_HOSTS.has(url.hostname);
+    if (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) {
+        return "The logo URL must use https (http is allowed only on localhost).";
+    }
+    return null;
+}
+
 export interface ClientInput {
     name: string;
     redirectUris: string[];
     syntheticEmail: boolean;
+    logoUrl: string | null;
 }
 
 export type ClientInputResult =
@@ -69,6 +91,7 @@ export function validateClientInput(raw: {
     name?: unknown;
     redirectUris?: unknown;
     syntheticEmail?: unknown;
+    logoUrl?: unknown;
 }): ClientInputResult {
     const errors: string[] = [];
     const name = typeof raw.name === "string" ? raw.name.trim() : "";
@@ -101,9 +124,14 @@ export function validateClientInput(raw: {
         raw.syntheticEmail === "on" ||
         raw.syntheticEmail === "true";
 
+    const logo = typeof raw.logoUrl === "string" ? raw.logoUrl.trim() : "";
+    const logoError = logo ? logoUrlError(logo) : null;
+    if (logoError) errors.push(logoError);
+    const logoUrl = logo || null;
+
     return errors.length > 0
         ? { ok: false, errors }
-        : { ok: true, value: { name, redirectUris, syntheticEmail } };
+        : { ok: true, value: { name, redirectUris, syntheticEmail, logoUrl } };
 }
 
 export interface ClientCredentials {

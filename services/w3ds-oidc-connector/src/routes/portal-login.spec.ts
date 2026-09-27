@@ -54,6 +54,16 @@ async function signIn(app: Express): Promise<string> {
 }
 
 describe("developer portal login", () => {
+    it("introduces itself to the wallet as the developer portal", async () => {
+        const { app } = await testApp();
+        const page = await request(app).get("/portal/login");
+        const link = /href="(w3ds:\/\/auth\?[^"]+)"/.exec(page.text)![1].replace(/&amp;/g, "&");
+        const params = new URL(link).searchParams;
+        expect(params.get("platform")).toBe("W3DS Developer Portal");
+        expect(params.get("name")).toBe("W3DS Developer Portal");
+        expect(params.get("logo")).toBe("http://localhost:4200/logo.png");
+    });
+
     it("sends anonymous visitors to the login page", async () => {
         const { app } = await testApp();
         const res = await request(app).get("/portal");
