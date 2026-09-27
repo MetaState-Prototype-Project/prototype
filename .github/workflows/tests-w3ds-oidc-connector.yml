@@ -1,0 +1,52 @@
+name: Tests [w3ds-oidc-connector]
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+        paths:
+            - "services/w3ds-oidc-connector/**"
+            - "packages/auth/**"
+            - "docker/Dockerfile.w3ds-oidc-connector"
+            - "pnpm-lock.yaml"
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Set up pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 10.25.0
+                  run_install: false
+
+            - name: Set up Node.js 22
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: pnpm
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Test auth package
+              run: pnpm --filter @metastate-foundation/auth test
+
+            - name: Type-check connector
+              run: pnpm --filter w3ds-oidc-connector check-types
+
+            - name: Test connector
+              env:
+                  CI: true
+                  DOCKER_HOST: unix:///var/run/docker.sock
+                  TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
+                  TESTCONTAINERS_HOST_OVERRIDE: localhost
+              run: pnpm --filter w3ds-oidc-connector test
+
+            - name: Build connector
+              run: pnpm --filter w3ds-oidc-connector build

@@ -6,7 +6,8 @@ import {
 	decodePublicKey,
 	derSignatureToRaw,
 	encodeBase58,
-	signatureCandidates,
+	labelledSignatureCandidates,
+	type SignatureEncoding,
 	toArrayBuffer,
 } from "./bytes.js";
 
@@ -27,34 +28,50 @@ async function importPublicKey(publicKey: string): Promise<CryptoKey> {
 	);
 }
 
+export interface P256Verification {
+	valid: boolean;
+	/** The encoding the verifying signature was written in, when one verified. */
+	encoding?: SignatureEncoding;
+}
+
 /**
- * Verifies `signature` over `payload`. Tries each encoding the signature could
- * have been written in and returns true if any verifies, so a legitimate
- * signature is never rejected for being base58 rather than base64url.
+ * Verifies `signature` over `payload` and reports which encoding verified.
+ * Tries each encoding the signature could have been written in, so a
+ * legitimate signature is never rejected for being base58 rather than
+ * base64url.
  */
-export async function verifyP256(
+export async function verifyP256Detailed(
 	publicKey: string,
 	signature: string,
 	payload: string,
-): Promise<boolean> {
+): Promise<P256Verification> {
 	let key: CryptoKey;
 	try {
 		key = await importPublicKey(publicKey);
 	} catch {
-		return false;
+		return { valid: false };
 	}
 	const encoded = toArrayBuffer(new TextEncoder().encode(payload));
-	for (const candidate of signatureCandidates(signature)) {
+	for (const candidate of labelledSignatureCandidates(signature)) {
 		try {
-			const raw = derSignatureToRaw(candidate);
+			const raw = derSignatureToRaw(candidate.bytes);
 			if (await crypto.subtle.verify(SIGN_PARAMS, key, toArrayBuffer(raw), encoded)) {
-				return true;
+				return { valid: true, encoding: candidate.encoding };
 			}
 		} catch {
 			// Try the next supported encoding.
 		}
 	}
-	return false;
+	return { valid: false };
+}
+
+/** Verifies `signature` over `payload` in any encoding in use. */
+export async function verifyP256(
+	publicKey: string,
+	signature: string,
+	payload: string,
+): Promise<boolean> {
+	return (await verifyP256Detailed(publicKey, signature, payload)).valid;
 }
 
 export interface P256KeyPair {

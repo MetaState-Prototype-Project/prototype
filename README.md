@@ -31,6 +31,10 @@
 - **5001** - Marketplace Service
 - **1111** - Pictique API
 
+#### Services
+
+- **4200** - W3DS OIDC Connector
+
 #### Frontend Services
 
 - **8080** - Dev sandbox (W3DS) / Blabsy Frontend
