@@ -266,11 +266,10 @@ describe("developer portal clients", () => {
         expect(await ctx.repository.listByOwner("@alice")).toHaveLength(0);
     });
 
-    it("serves a landing page", async () => {
+    it("sends the bare URL to the portal", async () => {
         const { app } = await testApp();
         const res = await request(app).get("/");
-        expect(res.status).toBe(200);
-        expect(res.text).toContain("/.well-known/openid-configuration");
-        expect(res.text).toContain('href="/portal"');
+        expect(res.status).toBe(302);
+        expect(res.headers.location).toBe("/portal");
     });
 });

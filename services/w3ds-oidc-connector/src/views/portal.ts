@@ -225,22 +225,3 @@ export function credentialsPage(options: {
 <div class="actions"><a class="button" href="${clientPath(client)}">Done</a></div>`,
     });
 }
-
-export function landingPage(options: {
-    nonce: string;
-    issuer: string;
-    platformName: string;
-}): string {
-    const discovery = `${options.issuer}/.well-known/openid-configuration`;
-    return page({
-        title: options.platformName,
-        nonce: options.nonce,
-        wide: true,
-        body: `<h1>${escapeHtml(options.platformName)}</h1>
-<p>An OpenID Connect provider whose login is a W3DS eID wallet signature. Add it to Keycloak, Rauthy or any OIDC identity provider as an upstream provider, and your users can log in with their eName.</p>
-<dl class="fields">
-<dt>Discovery URL</dt><dd class="mono">${escapeHtml(discovery)}</dd>
-</dl>
-<div class="actions"><a class="button" href="/portal">Developer portal</a></div>`,
-    });
-}

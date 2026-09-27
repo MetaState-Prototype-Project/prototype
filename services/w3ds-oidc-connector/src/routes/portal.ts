@@ -31,7 +31,6 @@ import {
     confirmPage,
     credentialsPage,
     editClientPage,
-    landingPage,
     newClientPage,
     portalHomePage,
 } from "../views/portal.js";
@@ -129,16 +128,9 @@ export function portalRouter(deps: AppDeps): Router {
         res.redirect(303, "/portal/login");
     });
 
+    // The bare URL is for people, and the portal is the only page for them.
     router.get("/", (_req, res) => {
-        const nonce = htmlSecurityHeaders(res);
-        res.setHeader("Cache-Control", "public, max-age=300");
-        res.send(
-            landingPage({
-                nonce,
-                issuer: config.issuer,
-                platformName: config.platformName,
-            }),
-        );
+        res.redirect(302, "/portal");
     });
 
     const render = (res: Response, status: number, html: (nonce: string) => string) => {
