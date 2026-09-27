@@ -2,11 +2,18 @@ import {
     type VerifyEnameSignatureResult,
     verifyEnameSignature,
 } from "@metastate-foundation/auth/ename";
-import express, { type Express } from "express";
+import express, {
+    type Express,
+    type NextFunction,
+    type Request,
+    type Response,
+} from "express";
 import { SessionBus } from "./bus.js";
 import { ClientRegistry } from "./clients.js";
 import type { Config } from "./config.js";
 import type { SigningKeys } from "./keys.js";
+import { log } from "./log.js";
+import { authorizeRouter } from "./routes/authorize.js";
 import { discoveryRouter } from "./routes/discovery.js";
 import { CodeStore } from "./store/codes.js";
 import { SessionStore } from "./store/sessions.js";
@@ -63,15 +70,29 @@ export function createApp(deps: AppDeps): Express {
     const app = express();
     app.disable("x-powered-by");
     app.set("trust proxy", deps.config.trustProxy);
+    // Repeated parameters arrive as arrays, never as nested objects.
+    app.set("query parser", "simple");
     app.use((_req, res, next) => {
         res.setHeader("X-Content-Type-Options", "nosniff");
         next();
     });
 
     app.use(discoveryRouter(deps));
+    app.use(authorizeRouter(deps));
 
     app.use((_req, res) => {
         res.status(404).json({ error: "not_found" });
     });
+    app.use(
+        (error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+            log.error(
+                "unhandled error:",
+                error instanceof Error ? error.message : error,
+            );
+            if (!res.headersSent) {
+                res.status(500).json({ error: "server_error" });
+            }
+        },
+    );
     return app;
 }
