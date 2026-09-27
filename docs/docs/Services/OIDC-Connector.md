@@ -42,7 +42,7 @@ Your apps --OIDC--> Your IdP (Keycloak, Rauthy, …) --OIDC--> oidc.w3ds.metasta
 ## Login flow
 
 1. **Your IdP redirects the browser** to `https://oidc.w3ds.metastate.foundation/authorize` with your client ID, `state`, `nonce` and a PKCE S256 challenge.
-2. **The connector shows a QR code.** It checks the client and redirect URI, creates a random session S, and shows a QR code for `w3ds://auth?redirect=…/w3ds/callback&session=S&platform=…`. On a phone, the **Open in eID Wallet** button opens the same link.
+2. **The connector shows a QR code.** It checks the client and redirect URI, creates a random session S, and shows a QR code for `w3ds://auth?redirect=…/w3ds/callback&session=S&platform=…&name=…&logo=…`. `platform` and `name` carry the client's name, and `logo` its logo if it has one, so the wallet's approval card shows the application the user is signing in to (see [Authentication](/docs/W3DS%20Protocol/Authentication#step-1-platform-requests-session)). The login page shows the same name and logo. On a phone, the **Open in eID Wallet** button opens the same link.
 3. **The wallet signs.** It signs S with the user's P-256 key and posts `{ename, session, signature}` to the connector. On a phone it opens `…/deeplink-login` in the browser instead.
 4. **The connector verifies and hands back a code.** After verifying the signature (see below), it gives a one-time authorization code to **the browser that started the login, and only that browser**. The browser returns to your IdP.
 5. **Your IdP finishes the login.** It exchanges the code at `/token`, checks the ID token against `/jwks`, and logs the user in.
@@ -63,6 +63,7 @@ All paths are relative to `https://oidc.w3ds.metastate.foundation`.
 | `GET /w3ds/events/:session` | Browser | Tells the login page when the wallet has signed |
 | `GET /` | Browser | Redirects to the developer portal |
 | `GET /portal` | Developers | [Developer portal](./OIDC-Developer-Portal.md) |
+| `GET /logo.png`, `/apple-touch-icon.png`, `/favicon.ico` | Wallets, browsers | The connector's own logo, shown when a client has none |
 | `GET /healthz` | Orchestrator | Health check |
 
 **Protocol details:**

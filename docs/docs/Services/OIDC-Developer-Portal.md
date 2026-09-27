@@ -23,7 +23,8 @@ You can only finish signing in in the browser where you opened the QR code. The 
 
 1. Click **New client**.
 2. Fill in the form:
-   - **Name:** shown to your users on the W3DS login page, e.g. your organisation or product. Up to 64 characters.
+   - **Name:** shown to your users on the W3DS login page and as the title of the approval card in their eID wallet, e.g. your organisation or product. Up to 64 characters.
+   - **Logo URL** (optional): an `https` link to a square image (PNG, JPEG, WebP or SVG, at least 128×128 pixels). It is shown on the W3DS login page and in the eID wallet. Host it somewhere stable; if it fails to load, the connector's own logo is shown instead.
    - **Redirect URIs:** one per line, up to 10. These are your IdP's callback URLs: the URL your IdP shows when you add an OpenID Connect provider. The [provider guides](./OIDC-Provider-Guides.md) list them for popular products. Redirect URIs must use `https`; plain `http` is allowed only on `localhost`, for development. They must not contain a fragment (`#`). The connector matches them exactly, character for character.
    - **My identity provider requires an email address:** turn this on if your IdP refuses upstream logins without an email. The connector then sends `email: <username>@w3ds.invalid` with `email_verified: false`. These addresses can never receive mail and never match a real account.
 3. Click **Create client**.
@@ -62,6 +63,7 @@ You can change the name, the redirect URIs and the email setting at any time. Ch
 | Redirect URIs per client | 10 |
 | Client name | 1–64 characters |
 | Redirect URI scheme | `https`, or `http` on `localhost` only |
+| Logo URL | Optional; `https` only, up to 2048 characters |
 
 Only the eName that created a client can see or change it. To anyone else, the client does not exist.
 
