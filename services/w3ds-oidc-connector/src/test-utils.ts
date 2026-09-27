@@ -106,3 +106,36 @@ export async function startLogin(
     const setCookie = res.headers["set-cookie"] as string[];
     return { sessionId, cookie: setCookie[0].split(";")[0] };
 }
+
+/** Signs `eName` in to the developer portal; returns the session cookie and a CSRF token. */
+export async function portalSignIn(
+    app: import("express").Express,
+    eName: string,
+): Promise<{ cookie: string; csrf: string }> {
+    const { default: request } = await import("supertest");
+    const page = await request(app).get("/portal/login");
+    const sessionId = /session=([A-Za-z0-9_-]+)/.exec(page.text)![1];
+    const binding = (page.headers["set-cookie"] as unknown as string[])
+        .find((c) => c.startsWith("w3ds_oidc_"))!
+        .split(";")[0];
+    const signed = await request(app)
+        .post("/w3ds/callback")
+        .send({ ename: eName, session: sessionId, signature: "sig" });
+    if (signed.status !== 200) throw new Error(`wallet callback ${signed.status}`);
+    const done = await request(app)
+        .get(`/portal/login/complete?session=${sessionId}`)
+        .set("Cookie", binding);
+    const cookie = (done.headers["set-cookie"] as unknown as string[])
+        .find((c) => c.startsWith("w3ds_portal="))!
+        .split(";")[0];
+    const home = await request(app).get("/portal").set("Cookie", cookie);
+    const csrf = /name="csrf" value="([^"]+)"/.exec(home.text)![1];
+    return { cookie, csrf };
+}
+
+/** A verifier that accepts any signature for the eName it is given. */
+export const acceptAnyWallet = async ({ eName }: { eName: string }) => ({
+    valid: true,
+    eName: eName.startsWith("@") ? eName : `@${eName}`,
+    keyType: "software" as const,
+});
