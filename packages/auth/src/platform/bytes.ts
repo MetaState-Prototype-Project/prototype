@@ -167,22 +167,47 @@ export function derSignatureToRaw(value: Uint8Array): Uint8Array {
 	return raw;
 }
 
-/** Every byte string a signature may reasonably have been written as. */
-export function signatureCandidates(value: string): Uint8Array[] {
-	const candidates: Uint8Array[] = [];
+export type SignatureEncoding = "base64" | "base58";
+
+export interface SignatureCandidate {
+	encoding: SignatureEncoding;
+	bytes: Uint8Array;
+}
+
+/**
+ * Every byte string a signature may reasonably have been written as, labelled
+ * with the encoding that produced it. The label is what tells a software key
+ * (base64) from a hardware key (multibase base58btc): a leading `z` alone
+ * cannot, since roughly one base64 signature in 64 starts with one.
+ */
+export function labelledSignatureCandidates(
+	value: string,
+): SignatureCandidate[] {
+	const candidates: SignatureCandidate[] = [];
 	try {
-		candidates.push(Uint8Array.from(Buffer.from(value, "base64url")));
+		candidates.push({
+			encoding: "base64",
+			bytes: Uint8Array.from(Buffer.from(value, "base64url")),
+		});
 	} catch {
 		// Fall through to the multibase representation below.
 	}
 	if (value.startsWith("z")) {
 		try {
-			candidates.push(decodeBase58(value.slice(1)));
+			candidates.push({
+				encoding: "base58",
+				bytes: decodeBase58(value.slice(1)),
+			});
 		} catch {
 			// The value may simply be a base64 signature beginning with z.
 		}
 	}
 	return candidates;
+}
+
+/** Every byte string a signature may reasonably have been written as. */
+export function signatureCandidates(value: string): Uint8Array[] {
+	return labelledSignatureCandidates(value).map((candidate) => candidate.bytes);
 }
 
 export function toArrayBuffer(value: Uint8Array): ArrayBuffer {

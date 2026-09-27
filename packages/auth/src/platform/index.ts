@@ -5,12 +5,19 @@ export {
 	decodePublicKey,
 	derSignatureToRaw,
 	encodeBase58,
+	labelledSignatureCandidates,
 	sha256Base64Url,
 	signatureCandidates,
 	stableStringify,
 } from "./bytes.js";
-export { generateKeyPair, signP256, verifyP256 } from "./p256.js";
-export type { P256KeyPair } from "./p256.js";
+export type { SignatureCandidate, SignatureEncoding } from "./bytes.js";
+export {
+	generateKeyPair,
+	signP256,
+	verifyP256,
+	verifyP256Detailed,
+} from "./p256.js";
+export type { P256KeyPair, P256Verification } from "./p256.js";
 export {
 	challengePayload,
 	softwareVersionEName,
