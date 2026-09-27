@@ -68,6 +68,8 @@ export function authorizePage(options: {
     clientName?: string;
     /** Overrides the "Log in to …" heading. */
     heading?: string;
+    /** The application's logo; the connector's own when it has none. */
+    logoUrl?: string | null;
     walletLink: string;
     qrSvg: string;
     eventsUrl: string;
@@ -81,7 +83,8 @@ export function authorizePage(options: {
     return page({
         title: heading,
         nonce: options.nonce,
-        body: `<h1>${escapeHtml(heading)}</h1>
+        body: `<img class="app-logo" src="${escapeHtml(options.logoUrl || "/logo.png")}" alt="" referrerpolicy="no-referrer">
+<h1>${escapeHtml(heading)}</h1>
 <p>Scan this code with your eID Wallet to sign in.</p>
 <div class="qr">${options.qrSvg}</div>
 <a class="button" href="${escapeHtml(options.walletLink)}">Open in eID Wallet</a>

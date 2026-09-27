@@ -48,7 +48,11 @@ describe("GET /authorize", () => {
         expect(link).toBeDefined();
         const params = new URL(link!.replace(/&amp;/g, "&")).searchParams;
         expect(params.get("redirect")).toBe(`${ISSUER}/w3ds/callback`);
-        expect(params.get("platform")).toBe("Test Login");
+        // The wallet shows the application the user is signing in to.
+        expect(params.get("platform")).toBe("Keycloak");
+        expect(params.get("name")).toBe("Keycloak");
+        expect(params.has("logo")).toBe(false);
+        expect(res.text).toContain('<img class="app-logo" src="/logo.png"');
         const sessionId = params.get("session")!;
 
         const lookup = deps.sessions.lookup(sessionId, deps.now());
@@ -124,6 +128,22 @@ describe("GET /authorize", () => {
         const res = await request(app).get(`/authorize?${query()}&scope=openid`);
         expect(res.status).toBe(302);
         expect(errorRedirect(res.headers.location).error).toBe("invalid_request");
+    });
+
+    it("passes the client's logo to the wallet and shows it on the page", async () => {
+        const { app, repository } = await testApp();
+        const logo = "https://cdn.example/kc-logo.png";
+        await repository.update("@operator", "keycloak", {
+            name: "Keycloak",
+            redirectUris: [KEYCLOAK_REDIRECT],
+            syntheticEmail: false,
+            logoUrl: logo,
+        });
+        const res = await request(app).get(`/authorize?${query()}`);
+        const link = /href="(w3ds:\/\/auth\?[^"]+)"/.exec(res.text)![1].replace(/&amp;/g, "&");
+        expect(new URL(link).searchParams.get("logo")).toBe(logo);
+        expect(res.text).toContain(`<img class="app-logo" src="${logo}"`);
+        expect(res.headers["content-security-policy"]).toContain("img-src 'self' data: https:");
     });
 
     it("drops unknown scopes", async () => {

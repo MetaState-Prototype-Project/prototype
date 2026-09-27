@@ -75,6 +75,8 @@ body.card main {
 }
 body.card h1 { font-size: 1.35rem; margin: 0 0 8px; }
 body.card .button { margin-top: 8px; padding: 12px 20px; }
+.app-logo { display: block; width: 64px; height: 64px; margin: 0 auto 16px;
+    border-radius: 16px; object-fit: cover; }
 .qr { margin: 24px auto 16px; width: 240px; max-width: 100%;
     background: #fff; padding: 12px; border-radius: 12px; }
 .qr svg { display: block; width: 100%; height: auto; }

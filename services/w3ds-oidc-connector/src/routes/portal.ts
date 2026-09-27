@@ -37,6 +37,9 @@ import {
 } from "../views/portal.js";
 import { walletLink } from "./authorize.js";
 
+/** How the portal introduces itself on its QR page and in the wallet. */
+export const PORTAL_NAME = "W3DS Developer Portal";
+
 export function portalRouter(deps: AppDeps): Router {
     const router = Router();
     const { config } = deps;
@@ -69,7 +72,8 @@ export function portalRouter(deps: AppDeps): Router {
             const link = walletLink({
                 issuer: config.issuer,
                 sessionId: session.id,
-                platformName: config.platformName,
+                name: PORTAL_NAME,
+                logoUrl: `${config.issuer}/logo.png`,
             });
             const qrSvg = await QRCode.toString(link, {
                 type: "svg",
@@ -82,6 +86,7 @@ export function portalRouter(deps: AppDeps): Router {
                     nonce,
                     platformName: config.platformName,
                     heading: "Sign in to the developer portal",
+                    logoUrl: "/logo.png",
                     walletLink: link,
                     qrSvg,
                     eventsUrl: `/w3ds/events/${session.id}`,
