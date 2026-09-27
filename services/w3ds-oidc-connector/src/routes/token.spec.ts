@@ -81,6 +81,18 @@ describe("POST /token", () => {
         });
     });
 
+    it("records when the client was last used", async () => {
+        const { app, deps, repository } = await testApp();
+        expect((await repository.findByClientId("keycloak"))?.lastUsedAt).toBeNull();
+        await request(app)
+            .post("/token")
+            .set("Authorization", basic("keycloak", SECRET))
+            .type("form")
+            .send(exchange(issueCode(deps)));
+        await new Promise((resolve) => setImmediate(resolve));
+        expect((await repository.findByClientId("keycloak"))?.lastUsedAt).toBeInstanceOf(Date);
+    });
+
     it("accepts client_secret_post", async () => {
         const { app, deps } = await testApp();
         const res = await request(app)

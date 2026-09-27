@@ -29,6 +29,7 @@ import {
     REGISTRY,
     SECRET,
     readEvents,
+    seededRepository,
     testConfig,
 } from "./test-utils.js";
 
@@ -116,7 +117,7 @@ async function buildDeps(issuer: string) {
         jwk: JSON.stringify(await generateSigningJwk()),
         production: false,
     });
-    return createDeps(config, keys, {
+    return createDeps(config, keys, await seededRepository(), {
         verifier: (input) =>
             verifyEnameSignature({
                 ...input,

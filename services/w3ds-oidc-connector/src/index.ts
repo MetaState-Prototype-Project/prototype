@@ -2,6 +2,8 @@ import { fileURLToPath } from "node:url";
 import { config as loadEnv } from "dotenv";
 import { createApp, createDeps } from "./app.js";
 import { loadConfig } from "./config.js";
+import { TypeOrmClientRepository } from "./db/client-repository.js";
+import { createDataSource } from "./db/data-source.js";
 import { loadSigningKeys } from "./keys.js";
 import { log } from "./log.js";
 import { startSweeper } from "./store/sweeper.js";
@@ -14,7 +16,22 @@ async function start() {
         jwk: config.signingKeyJwk,
         production: config.production,
     });
-    const deps = createDeps(config, keys);
+    const dataSource = createDataSource({
+        url: config.databaseUrl,
+        caCert: config.dbCaCert,
+    });
+    await dataSource.initialize();
+    if (await dataSource.showMigrations()) {
+        await dataSource.destroy();
+        throw new Error(
+            "pending database migrations; run `pnpm --filter w3ds-oidc-connector migrate` (or `node dist/scripts/migrate.js`) first",
+        );
+    }
+    const deps = createDeps(
+        config,
+        keys,
+        new TypeOrmClientRepository(dataSource),
+    );
     const app = createApp(deps);
     const stopSweeper = startSweeper(
         [deps.sessions, deps.codes, deps.tokens],
@@ -23,14 +40,16 @@ async function start() {
 
     const server = app.listen(config.port, () => {
         log.info(
-            `listening on ${config.port} as ${config.issuer} for ${config.clients.length} client(s)`,
+            `listening on ${config.port} as ${config.issuer}`,
         );
     });
 
     const shutdown = (signal: string) => {
         log.info(`${signal} received, shutting down`);
         stopSweeper();
-        server.close(() => process.exit(0));
+        server.close(() => {
+            dataSource.destroy().finally(() => process.exit(0));
+        });
         // Open SSE streams would otherwise hold the server open.
         server.closeAllConnections();
         setTimeout(() => process.exit(1), 5000).unref();

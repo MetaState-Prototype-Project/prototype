@@ -1,101 +1,109 @@
 /**
- * The static client registry: which IdPs may use the connector, where they
- * may be redirected, and which optional claims they receive.
+ * OIDC clients: how they are identified, validated and authenticated.
+ * Clients are self-service; see client-store.ts for where they live.
  */
 
-import { DUMMY_HASH, isSupportedHash, verifySecret } from "./secrets.js";
+import { createHash, randomBytes } from "node:crypto";
+import type { ClientRecord, ClientRepository } from "./client-store.js";
+import { DUMMY_HASH, verifySecret } from "./secrets.js";
 
-export interface Client {
-    clientId: string;
-    secretHash: string;
-    redirectUris: string[];
-    /** Adds `email: <user>@w3ds.invalid` for IdPs that require one. */
-    syntheticEmail: boolean;
-    name?: string;
-}
+export type Client = ClientRecord;
 
+export const MAX_NAME_LENGTH = 64;
+export const MAX_REDIRECT_URIS = 10;
+const MAX_REDIRECT_URI_LENGTH = 2048;
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
-function validateRedirectUri(value: unknown, clientId: string): string {
-    if (typeof value !== "string") {
-        throw new Error(`client ${clientId}: redirect URIs must be strings`);
+export function generateClientId(): string {
+    return `w3ds_${randomBytes(16).toString("base64url")}`;
+}
+
+export function generateClientSecret(): string {
+    return randomBytes(32).toString("base64url");
+}
+
+/**
+ * Generated secrets carry 256 bits of entropy, so a fast hash is enough:
+ * there is nothing for a slow hash to protect against guessing.
+ */
+export function hashClientSecret(secret: string): string {
+    return `sha256:${createHash("sha256").update(secret, "utf8").digest("hex")}`;
+}
+
+/** Returns an error message, or null if `value` is an acceptable redirect URI. */
+export function redirectUriError(value: string): string | null {
+    if (value.length > MAX_REDIRECT_URI_LENGTH) {
+        return "Redirect URIs must be at most 2048 characters.";
     }
     let url: URL;
     try {
         url = new URL(value);
     } catch {
-        throw new Error(`client ${clientId}: invalid redirect URI ${value}`);
+        return `${value} is not a valid URL.`;
     }
     if (url.hash || value.includes("#")) {
-        throw new Error(
-            `client ${clientId}: redirect URI must not have a fragment`,
-        );
+        return `${value} must not contain a fragment (#).`;
     }
     const loopback = LOOPBACK_HOSTS.has(url.hostname);
     if (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) {
-        throw new Error(
-            `client ${clientId}: redirect URI must use https (http only on localhost): ${value}`,
-        );
+        return `${value} must use https (http is allowed only on localhost).`;
     }
-    return value;
+    return null;
 }
 
-/** Parses and validates the JSON client list. Throws on any problem. */
-export function parseClients(json: string): Client[] {
-    let raw: unknown;
-    try {
-        raw = JSON.parse(json);
-    } catch {
-        throw new Error("client configuration is not valid JSON");
+export interface ClientInput {
+    name: string;
+    redirectUris: string[];
+    syntheticEmail: boolean;
+}
+
+export type ClientInputResult =
+    | { ok: true; value: ClientInput }
+    | { ok: false; errors: string[] };
+
+/**
+ * Validates a client as submitted from the portal. Redirect URIs arrive as
+ * one per line and are trimmed and de-duplicated.
+ */
+export function validateClientInput(raw: {
+    name?: unknown;
+    redirectUris?: unknown;
+    syntheticEmail?: unknown;
+}): ClientInputResult {
+    const errors: string[] = [];
+    const name = typeof raw.name === "string" ? raw.name.trim() : "";
+    if (name === "") errors.push("Give the client a name.");
+    else if (name.length > MAX_NAME_LENGTH) {
+        errors.push(`The name must be at most ${MAX_NAME_LENGTH} characters.`);
     }
-    if (!Array.isArray(raw) || raw.length === 0) {
-        throw new Error("client configuration must be a non-empty array");
+
+    const lines =
+        typeof raw.redirectUris === "string"
+            ? raw.redirectUris.split(/\r?\n/)
+            : Array.isArray(raw.redirectUris)
+              ? raw.redirectUris.filter((v): v is string => typeof v === "string")
+              : [];
+    const redirectUris = [
+        ...new Set(lines.map((line) => line.trim()).filter(Boolean)),
+    ];
+    if (redirectUris.length === 0) {
+        errors.push("Add at least one redirect URI.");
+    } else if (redirectUris.length > MAX_REDIRECT_URIS) {
+        errors.push(`A client can have at most ${MAX_REDIRECT_URIS} redirect URIs.`);
     }
-    const seen = new Set<string>();
-    return raw.map((entry, index) => {
-        if (typeof entry !== "object" || entry === null) {
-            throw new Error(`client #${index} must be an object`);
-        }
-        const record = entry as Record<string, unknown>;
-        const clientId = record.client_id;
-        if (typeof clientId !== "string" || clientId === "") {
-            throw new Error(`client #${index}: client_id is required`);
-        }
-        if (seen.has(clientId)) {
-            throw new Error(`client ${clientId}: duplicate client_id`);
-        }
-        seen.add(clientId);
-        const secretHash = record.client_secret_hash;
-        if (typeof secretHash !== "string" || !isSupportedHash(secretHash)) {
-            throw new Error(
-                `client ${clientId}: client_secret_hash must be a scrypt: or sha256: hash`,
-            );
-        }
-        if (
-            !Array.isArray(record.redirect_uris) ||
-            record.redirect_uris.length === 0
-        ) {
-            throw new Error(`client ${clientId}: redirect_uris is required`);
-        }
-        const syntheticEmail = record.synthetic_email ?? false;
-        if (typeof syntheticEmail !== "boolean") {
-            throw new Error(
-                `client ${clientId}: synthetic_email must be a boolean`,
-            );
-        }
-        if (record.name !== undefined && typeof record.name !== "string") {
-            throw new Error(`client ${clientId}: name must be a string`);
-        }
-        return {
-            clientId,
-            secretHash,
-            redirectUris: record.redirect_uris.map((uri) =>
-                validateRedirectUri(uri, clientId),
-            ),
-            syntheticEmail,
-            name: record.name as string | undefined,
-        };
-    });
+    for (const uri of redirectUris) {
+        const error = redirectUriError(uri);
+        if (error) errors.push(error);
+    }
+
+    const syntheticEmail =
+        raw.syntheticEmail === true ||
+        raw.syntheticEmail === "on" ||
+        raw.syntheticEmail === "true";
+
+    return errors.length > 0
+        ? { ok: false, errors }
+        : { ok: true, value: { name, redirectUris, syntheticEmail } };
 }
 
 export interface ClientCredentials {
@@ -108,14 +116,10 @@ export type ClientAuthentication =
     | { ok: false; error: "invalid_client" | "invalid_request" };
 
 export class ClientRegistry {
-    private readonly clients: Map<string, Client>;
+    constructor(readonly repository: ClientRepository) {}
 
-    constructor(clients: Client[]) {
-        this.clients = new Map(clients.map((c) => [c.clientId, c]));
-    }
-
-    get(clientId: string): Client | undefined {
-        return this.clients.get(clientId);
+    async get(clientId: string): Promise<Client | undefined> {
+        return (await this.repository.findByClientId(clientId)) ?? undefined;
     }
 
     /**
@@ -146,7 +150,10 @@ export class ClientRegistry {
         if (typeof clientId !== "string" || typeof secret !== "string") {
             return { ok: false, error: "invalid_client" };
         }
-        const client = this.clients.get(clientId);
+        const client =
+            clientId.length <= 256 ? await this.get(clientId) : undefined;
+        // Check a dummy hash for unknown clients, so a failed lookup costs
+        // the same as a wrong secret.
         const valid = await verifySecret(
             secret,
             client?.secretHash ?? DUMMY_HASH,

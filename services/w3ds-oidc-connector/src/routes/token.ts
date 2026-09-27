@@ -76,6 +76,14 @@ export function tokenRouter(deps: AppDeps): Router {
                     now,
                 );
                 deps.codes.recordAccessToken(body.code, accessToken);
+                deps.clients.repository
+                    .touchLastUsed(client.clientId, new Date(now))
+                    .catch((error) =>
+                        log.warn(
+                            "could not record client use:",
+                            error instanceof Error ? error.message : error,
+                        ),
+                    );
 
                 res.setHeader("Cache-Control", "no-store");
                 res.setHeader("Pragma", "no-cache");

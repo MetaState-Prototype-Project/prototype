@@ -1,5 +1,6 @@
-import { createHash } from "node:crypto";
 import { type AppDeps, createApp, createDeps } from "./app.js";
+import { hashClientSecret } from "./clients.js";
+import { MemoryClientRepository } from "./clients.memory.js";
 import { type Config, loadConfig } from "./config.js";
 import { generateSigningJwk, loadSigningKeys } from "./keys.js";
 
@@ -9,9 +10,8 @@ export const KEYCLOAK_REDIRECT =
     "https://kc.example/realms/main/broker/w3ds/endpoint";
 export const RAUTHY_REDIRECT = "https://rauthy.example/auth/v1/providers/callback";
 export const SECRET = "s3cret";
-
-const sha256Hash = (secret: string) =>
-    `sha256:${createHash("sha256").update(secret).digest("hex")}`;
+/** The eName that owns the two seeded clients. */
+export const OPERATOR = "@operator";
 
 export function testConfig(overrides: Partial<Config> = {}): Config {
     return {
@@ -19,33 +19,46 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
             W3DS_OIDC_ISSUER: ISSUER,
             PUBLIC_REGISTRY_URL: REGISTRY,
             W3DS_OIDC_PLATFORM_NAME: "Test Login",
-            W3DS_OIDC_CLIENTS: JSON.stringify([
-                {
-                    client_id: "keycloak",
-                    client_secret_hash: sha256Hash(SECRET),
-                    redirect_uris: [KEYCLOAK_REDIRECT],
-                    name: "Keycloak",
-                },
-                {
-                    client_id: "rauthy",
-                    client_secret_hash: sha256Hash(SECRET),
-                    redirect_uris: [RAUTHY_REDIRECT],
-                    synthetic_email: true,
-                },
-            ]),
+            W3DS_OIDC_DATABASE_URL: "postgres://unused",
         }),
         ...overrides,
     };
 }
 
-export async function testApp(overrides: Partial<AppDeps> = {}) {
-    const config = overrides.config ?? testConfig();
+/** A repository holding a Keycloak client and a Rauthy (synthetic email) client. */
+export async function seededRepository(): Promise<MemoryClientRepository> {
+    const repository = new MemoryClientRepository();
+    await repository.create({
+        clientId: "keycloak",
+        secretHash: hashClientSecret(SECRET),
+        name: "Keycloak",
+        ownerEName: OPERATOR,
+        redirectUris: [KEYCLOAK_REDIRECT],
+        syntheticEmail: false,
+    });
+    await repository.create({
+        clientId: "rauthy",
+        secretHash: hashClientSecret(SECRET),
+        name: "Rauthy",
+        ownerEName: OPERATOR,
+        redirectUris: [RAUTHY_REDIRECT],
+        syntheticEmail: true,
+    });
+    return repository;
+}
+
+export async function testApp(
+    overrides: Partial<AppDeps> & { repository?: MemoryClientRepository } = {},
+) {
+    const { repository: given, ...rest } = overrides;
+    const repository = given ?? (await seededRepository());
+    const config = rest.config ?? testConfig();
     const keys = await loadSigningKeys({
         jwk: JSON.stringify(await generateSigningJwk()),
         production: false,
     });
-    const deps = createDeps(config, keys, overrides);
-    return { deps, app: createApp(deps) };
+    const deps = createDeps(config, keys, repository, rest);
+    return { deps, repository, app: createApp(deps) };
 }
 
 /** Reads server-sent events from a live server until the stream ends. */

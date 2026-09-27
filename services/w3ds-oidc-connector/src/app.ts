@@ -9,6 +9,7 @@ import express, {
     type Response,
 } from "express";
 import { SessionBus } from "./bus.js";
+import type { ClientRepository } from "./client-store.js";
 import { ClientRegistry } from "./clients.js";
 import type { Config } from "./config.js";
 import type { SigningKeys } from "./keys.js";
@@ -44,12 +45,13 @@ export interface AppDeps {
 export function createDeps(
     config: Config,
     keys: SigningKeys,
+    repository: ClientRepository,
     overrides: Partial<AppDeps> = {},
 ): AppDeps {
     return {
         config,
         keys,
-        clients: new ClientRegistry(config.clients),
+        clients: new ClientRegistry(repository),
         sessions: new SessionStore(config.sessionTtlSeconds * 1000),
         codes: new CodeStore(
             config.codeTtlSeconds * 1000,

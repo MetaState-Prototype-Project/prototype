@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { type Client, parseClients } from "./clients.js";
-
 export interface Config {
     port: number;
     /** Public origin of the connector, without a trailing slash. */
@@ -10,7 +7,10 @@ export interface Config {
     registryUrl: string;
     /** ES256 private JWK as JSON; unset generates an ephemeral key in dev. */
     signingKeyJwk?: string;
-    clients: Client[];
+    /** Postgres connection string for the client registry. */
+    databaseUrl: string;
+    /** CA certificate for the Postgres connection, if it uses TLS. */
+    dbCaCert?: string;
     sessionTtlSeconds: number;
     codeTtlSeconds: number;
     tokenTtlSeconds: number;
@@ -63,32 +63,20 @@ function parseTrustProxy(raw: string | undefined): boolean | number | string {
     return raw;
 }
 
-function loadClients(env: Env): Client[] {
-    const inline = env.W3DS_OIDC_CLIENTS;
-    const file = env.W3DS_OIDC_CLIENTS_FILE;
-    if (inline && file) {
-        throw new Error(
-            "set only one of W3DS_OIDC_CLIENTS and W3DS_OIDC_CLIENTS_FILE",
-        );
-    }
-    if (file) return parseClients(readFileSync(file, "utf8"));
-    if (inline) return parseClients(inline);
-    throw new Error(
-        "W3DS_OIDC_CLIENTS or W3DS_OIDC_CLIENTS_FILE is required",
-    );
-}
-
 export function loadConfig(env: Env = process.env): Config {
     const production = env.NODE_ENV === "production";
     const registryUrl = env.PUBLIC_REGISTRY_URL || env.REGISTRY_URL;
     if (!registryUrl) throw new Error("PUBLIC_REGISTRY_URL is required");
+    const databaseUrl = env.W3DS_OIDC_DATABASE_URL;
+    if (!databaseUrl) throw new Error("W3DS_OIDC_DATABASE_URL is required");
     return {
         port: positiveInteger(env, "W3DS_OIDC_PORT", 4200),
         issuer: parseIssuer(env.W3DS_OIDC_ISSUER, production),
         platformName: env.W3DS_OIDC_PLATFORM_NAME || "W3DS Login",
         registryUrl,
         signingKeyJwk: env.W3DS_OIDC_SIGNING_KEY_JWK || undefined,
-        clients: loadClients(env),
+        databaseUrl,
+        dbCaCert: env.DB_CA_CERT || undefined,
         sessionTtlSeconds: positiveInteger(
             env,
             "W3DS_OIDC_SESSION_TTL_SECONDS",

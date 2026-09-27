@@ -70,7 +70,7 @@ export function authorizeRouter(deps: AppDeps): Router {
             if (duplicates.includes("client_id") || !params.client_id) {
                 return errorPage(res, "The request did not identify a client.");
             }
-            const client = deps.clients.get(params.client_id);
+            const client = await deps.clients.get(params.client_id);
             if (!client) {
                 return errorPage(res, "The requesting application is not registered.");
             }
