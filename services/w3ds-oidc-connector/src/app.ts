@@ -14,6 +14,8 @@ import type { Config } from "./config.js";
 import type { SigningKeys } from "./keys.js";
 import { log } from "./log.js";
 import { authorizeRouter } from "./routes/authorize.js";
+import { tokenRouter } from "./routes/token.js";
+import { userinfoRouter } from "./routes/userinfo.js";
 import { w3dsRouter } from "./routes/w3ds.js";
 import { discoveryRouter } from "./routes/discovery.js";
 import { CodeStore } from "./store/codes.js";
@@ -81,6 +83,8 @@ export function createApp(deps: AppDeps): Express {
     app.use(discoveryRouter(deps));
     app.use(authorizeRouter(deps));
     app.use(w3dsRouter(deps));
+    app.use(tokenRouter(deps));
+    app.use(userinfoRouter(deps));
 
     app.use((_req, res) => {
         res.status(404).json({ error: "not_found" });
