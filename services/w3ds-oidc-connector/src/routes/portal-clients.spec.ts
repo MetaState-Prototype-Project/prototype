@@ -266,6 +266,34 @@ describe("developer portal clients", () => {
         expect(await ctx.repository.listByOwner("@alice")).toHaveLength(0);
     });
 
+    it("accepts form posts carrying the browser's Origin header", async () => {
+        const ctx = await setup();
+        const post = (host: string, origin: string) =>
+            request(ctx.app)
+                .post("/portal/clients")
+                .set("Host", host)
+                .set("Origin", origin)
+                .set("Cookie", ctx.alice.cookie)
+                .type("form")
+                .send({ csrf: ctx.alice.csrf, name: "x", redirect_uris: KC_REDIRECT });
+
+        // The public issuer, and the host the browser actually used.
+        expect((await post("192.168.0.235:4200", "http://localhost:4200")).status).toBe(201);
+        expect((await post("192.168.0.235:4200", "http://192.168.0.235:4200")).status).toBe(201);
+        // Opaque and foreign origins are refused.
+        expect((await post("localhost:4200", "null")).status).toBe(403);
+        expect((await post("localhost:4200", "https://evil.example")).status).toBe(403);
+    });
+
+    it("lets portal pages send their origin with form posts", async () => {
+        const ctx = await setup();
+        const res = await request(ctx.app).get("/portal").set("Cookie", ctx.alice.cookie);
+        expect(res.headers["referrer-policy"]).toBe("same-origin");
+        expect(res.text).toContain('<meta name="referrer" content="same-origin">');
+        const login = await request(ctx.app).get("/portal/login");
+        expect(login.headers["referrer-policy"]).toBe("no-referrer");
+    });
+
     it("sends the bare URL to the portal", async () => {
         const { app } = await testApp();
         const res = await request(app).get("/");

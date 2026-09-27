@@ -93,6 +93,20 @@ export function portalSession(res: Response): PortalSession {
     return res.locals.portal as PortalSession;
 }
 
+/**
+ * True if a form post's Origin is this service: the public issuer, or the
+ * host the request actually arrived on (e.g. localhost during development).
+ * `Origin: null` and any other site are refused.
+ */
+function isOwnOrigin(req: Request, issuer: string, origin: string): boolean {
+    if (origin === issuer) return true;
+    try {
+        return new URL(origin).host === req.headers.host;
+    } catch {
+        return false;
+    }
+}
+
 function csrfMatches(expected: string, actual: unknown): boolean {
     if (typeof actual !== "string") return false;
     const a = Buffer.from(expected);
@@ -115,7 +129,8 @@ export function requirePortalSession(deps: AppDeps) {
                 const origin = req.headers.origin;
                 if (
                     !session ||
-                    (origin !== undefined && origin !== deps.config.issuer) ||
+                    (origin !== undefined &&
+                        !isOwnOrigin(req, deps.config.issuer, origin)) ||
                     !csrfMatches(session.csrf, req.body?.csrf)
                 ) {
                     return res

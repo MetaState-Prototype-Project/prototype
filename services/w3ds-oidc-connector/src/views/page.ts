@@ -118,13 +118,15 @@ export function page(options: {
     script?: string;
     /** A wide, left-aligned layout for the developer portal. */
     wide?: boolean;
+    /** Must match the Referrer-Policy header; portal forms need same-origin. */
+    referrer?: "no-referrer" | "same-origin";
 }): string {
     return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="referrer" content="no-referrer">
+<meta name="referrer" content="${options.referrer ?? "no-referrer"}">
 <title>${escapeHtml(options.title)}</title>
 <style nonce="${options.nonce}">${STYLES}</style>
 </head>

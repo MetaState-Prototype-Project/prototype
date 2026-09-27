@@ -24,7 +24,12 @@ export function htmlSecurityHeaders(
         ].join("; "),
     );
     res.setHeader("X-Frame-Options", "DENY");
-    res.setHeader("Referrer-Policy", "no-referrer");
+    // Portal forms need a real Origin header: under no-referrer, browsers
+    // send `Origin: null` on form posts.
+    res.setHeader(
+        "Referrer-Policy",
+        options.forms ? "same-origin" : "no-referrer",
+    );
     res.setHeader("Cache-Control", "no-store");
     return nonce;
 }

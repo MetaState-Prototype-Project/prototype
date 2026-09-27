@@ -18,6 +18,7 @@ export function portalPage(options: {
         title: `${options.title} · W3DS OIDC`,
         nonce: options.nonce,
         wide: true,
+        referrer: "same-origin",
         body: `<div class="bar">
 <a href="/portal"><strong>W3DS OIDC developer portal</strong></a>
 <span class="who">Signed in as <span class="mono">${escapeHtml(options.session.owner)}</span></span>
