@@ -151,7 +151,7 @@ export function portalPage(
         referrer: "same-origin",
         script: COPY_SCRIPT,
         body: `<header class="topbar"><div class="topbar-inner">
-<a class="brand" href="/portal"><span class="brand-mark">W3</span><span>W3DS OIDC</span><span class="brand-sub">Developer portal</span></a>
+<a class="brand" href="/portal"><img class="brand-mark" src="/logo.png" alt=""><span>W3DS OIDC</span><span class="brand-sub">Developer portal</span></a>
 <nav class="topbar-nav"><a class="active" href="/portal">Clients</a><a href="${escapeHtml(ctx.docsUrl)}/OIDC-Connector" target="_blank" rel="noopener">Docs</a></nav>
 <div class="user"><span class="user-name mono" title="${escapeHtml(ctx.session.owner)}">${escapeHtml(ctx.session.owner)}</span>
 <form method="post" action="/portal/logout">${csrfField(ctx.session)}<button class="secondary" type="submit">Sign out</button></form></div>

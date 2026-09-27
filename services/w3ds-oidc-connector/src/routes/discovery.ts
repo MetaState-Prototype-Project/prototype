@@ -1,5 +1,6 @@
 import { type Request, type Response, Router } from "express";
 import type { AppDeps } from "../app.js";
+import { LOGO_PNG } from "../assets/logo.js";
 
 export const SUPPORTED_SCOPES = ["openid", "profile", "email"];
 
@@ -56,6 +57,14 @@ export function discoveryRouter(deps: AppDeps): Router {
 
     router.get("/.well-known/openid-configuration", publicJson(document));
     router.get("/jwks", publicJson(jwks));
+    // Wallets look for /apple-touch-icon.png, then /favicon.ico, on the host a
+    // login redirects to; all three serve the connector's logo.
+    const logo = (_req: Request, res: Response) => {
+        res.setHeader("Cache-Control", "public, max-age=86400");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.type("image/png").send(LOGO_PNG);
+    };
+    router.get(["/logo.png", "/apple-touch-icon.png", "/favicon.ico"], logo);
     router.get("/healthz", (_req, res) => {
         res.setHeader("Cache-Control", "no-store");
         res.json({ status: "ok" });

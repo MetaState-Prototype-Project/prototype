@@ -16,7 +16,7 @@ export function htmlSecurityHeaders(
             "default-src 'none'",
             `script-src 'nonce-${nonce}'`,
             `style-src 'nonce-${nonce}'`,
-            "img-src data:",
+            "img-src 'self' data:",
             "connect-src 'self'",
             "base-uri 'none'",
             options.forms ? "form-action 'self'" : "form-action 'none'",

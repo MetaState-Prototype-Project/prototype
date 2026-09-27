@@ -90,7 +90,7 @@ const APP_STYLES = `
 .topbar-inner { height: 60px; display: flex; align-items: center; gap: 16px; }
 .brand { display: flex; align-items: center; gap: 10px; color: var(--text);
     text-decoration: none; font-weight: 700; white-space: nowrap; }
-.brand-mark { width: 28px; height: 28px; border-radius: 8px; flex: none;
+.brand-mark { width: 28px; height: 28px; border-radius: 7px; flex: none; object-fit: cover;
     background: var(--accent); color: var(--accent-text); display: grid;
     place-items: center; font-size: 0.8rem; font-weight: 800; }
 .brand-sub { color: var(--muted); font-weight: 500; }
