@@ -36,6 +36,7 @@ const client = (overrides: Partial<NewClient> = {}): NewClient => ({
     ownerEName: "@alice",
     redirectUris: ["https://kc.example/cb"],
     syntheticEmail: false,
+    logoUrl: null,
     ...overrides,
 });
 
@@ -76,6 +77,7 @@ describe("TypeOrmClientRepository", () => {
                 name: "hijack",
                 redirectUris: ["https://evil.example/cb"],
                 syntheticEmail: true,
+                logoUrl: null,
             }),
         ).toBeNull();
         expect(await repo.rotateSecret("@alice", "w3ds_theirs", "sha256:x")).toBeNull();
@@ -92,11 +94,13 @@ describe("TypeOrmClientRepository", () => {
             name: "Renamed",
             redirectUris: ["https://a.example/cb", "https://b.example/cb"],
             syntheticEmail: true,
+            logoUrl: null,
         });
         expect(updated).toMatchObject({
             name: "Renamed",
             redirectUris: ["https://a.example/cb", "https://b.example/cb"],
             syntheticEmail: true,
+            logoUrl: null,
         });
 
         const rotated = await repo.rotateSecret("@alice", "w3ds_c", "sha256:new");
@@ -125,6 +129,7 @@ describe("TypeOrmClientRepository", () => {
             name: "x",
             redirectUris: ["https://x.example/cb"],
             syntheticEmail: false,
+            logoUrl: null,
         });
         await repo.rotateSecret("@alice", "w3ds_audit", "sha256:y");
         await repo.delete("@alice", "w3ds_audit");

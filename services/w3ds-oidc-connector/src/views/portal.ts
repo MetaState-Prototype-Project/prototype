@@ -173,7 +173,7 @@ export function portalHomePage(
     const rows = options.clients
         .map(
             (client) => `<tr>
-<td class="name"><a href="${clientPath(client)}">${escapeHtml(client.name)}</a></td>
+<td class="name"><a href="${clientPath(client)}">${clientAvatar(client)}<span>${escapeHtml(client.name)}</span></a></td>
 <td>${copyField(client.clientId, { label: "client ID", field: "client-id" })}</td>
 <td class="num">${client.redirectUris.length}</td>
 <td>${client.syntheticEmail ? '<span class="badge accent">Synthetic email</span>' : '<span class="badge">Standard</span>'}</td>
@@ -211,13 +211,28 @@ export interface ClientFormValues {
     name: string;
     redirectUris: string;
     syntheticEmail: boolean;
+    logoUrl: string;
+}
+
+/** The client's logo, or its initial on a tinted square when it has none. */
+function clientAvatar(client: Pick<ClientRecord, "name" | "logoUrl">, size: "sm" | "lg" = "sm"): string {
+    if (client.logoUrl) {
+        return `<img class="avatar ${size}" src="${escapeHtml(client.logoUrl)}" alt="" referrerpolicy="no-referrer">`;
+    }
+    const initial = escapeHtml((client.name.trim()[0] ?? "?").toUpperCase());
+    return `<span class="avatar ${size} initial" aria-hidden="true">${initial}</span>`;
 }
 
 function clientFields(ctx: PortalContext, values: ClientFormValues): string {
     return `<div class="form-row">
 <label for="name">Name</label>
 <input type="text" id="name" name="name" maxlength="64" required value="${escapeHtml(values.name)}">
-<p class="hint">Shown to users on the W3DS login page, e.g. your organisation or product.</p>
+<p class="hint">Shown to users on the W3DS login page and in their eID wallet, e.g. your organisation or product.</p>
+</div>
+<div class="form-row">
+<label for="logo_url">Logo URL <span class="hint">(optional)</span></label>
+<input type="text" id="logo_url" name="logo_url" inputmode="url" spellcheck="false" placeholder="https://example.com/logo.png" value="${escapeHtml(values.logoUrl)}">
+<p class="hint">A square image (PNG, JPEG, WebP or SVG, at least 128×128) shown on the W3DS login page and in the eID wallet. Must use https.</p>
 </div>
 <div class="form-row">
 <label for="redirect_uris">Redirect URIs</label>
@@ -298,6 +313,7 @@ export function editClientPage(
 <div class="k">Client ID</div><div class="v">${copyField(client.clientId, { label: "client ID", field: "client-id" })}</div>
 <div class="k">Client secret</div><div class="v"><p>Hidden. It was shown once when created; rotate it below to get a new one.</p></div>
 <div class="k">Secret last rotated</div><div class="v">${date(client.secretRotatedAt)}</div>
+<div class="k">Logo</div><div class="v">${client.logoUrl ? `<div class="logo-row">${clientAvatar(client, "lg")}${copyField(client.logoUrl, { label: "logo URL", field: "logo-url" })}</div>` : "<p>None. Add one in the settings below.</p>"}</div>
 <div class="k">Redirect URIs</div><div class="v">${client.redirectUris
             .map((uri) => copyField(uri, { label: "redirect URI", field: "redirect-uri" }))
             .join("")}</div>

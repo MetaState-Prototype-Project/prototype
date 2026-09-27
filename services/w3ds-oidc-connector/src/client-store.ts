@@ -15,6 +15,8 @@ export interface ClientRecord {
     redirectUris: string[];
     /** Adds `email: <user>@w3ds.invalid` for IdPs that require one. */
     syntheticEmail: boolean;
+    /** Shown on the login page and passed to the wallet; https only. */
+    logoUrl: string | null;
     createdAt: Date;
     updatedAt: Date;
     secretRotatedAt: Date;
@@ -28,12 +30,14 @@ export interface NewClient {
     ownerEName: string;
     redirectUris: string[];
     syntheticEmail: boolean;
+    logoUrl: string | null;
 }
 
 export interface ClientChanges {
     name: string;
     redirectUris: string[];
     syntheticEmail: boolean;
+    logoUrl: string | null;
 }
 
 export type ClientAction = "created" | "updated" | "secret_rotated" | "deleted";

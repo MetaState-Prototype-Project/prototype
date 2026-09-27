@@ -169,12 +169,14 @@ export function portalRouter(deps: AppDeps): Router {
         redirectUris:
             typeof body.redirect_uris === "string" ? body.redirect_uris : "",
         syntheticEmail: body.synthetic_email === "on",
+        logoUrl: typeof body.logo_url === "string" ? body.logo_url : "",
     });
 
     const clientValues = (client: ClientRecord): ClientFormValues => ({
         name: client.name,
         redirectUris: client.redirectUris.join("\n"),
         syntheticEmail: client.syntheticEmail,
+        logoUrl: client.logoUrl ?? "",
     });
 
     const readInput = (body: Record<string, unknown>) =>
@@ -182,6 +184,7 @@ export function portalRouter(deps: AppDeps): Router {
             name: body.name,
             redirectUris: body.redirect_uris,
             syntheticEmail: body.synthetic_email,
+            logoUrl: body.logo_url,
         });
 
     router.get("/portal", signedIn, async (req, res, next) => {
@@ -199,7 +202,12 @@ export function portalRouter(deps: AppDeps): Router {
     router.get("/portal/clients/new", signedIn, (_req, res) => {
         render(res, 200, (ctx) =>
             newClientPage(ctx, {
-                values: { name: "", redirectUris: "", syntheticEmail: false },
+                values: {
+                    name: "",
+                    redirectUris: "",
+                    syntheticEmail: false,
+                    logoUrl: "",
+                },
             }),
         );
     });

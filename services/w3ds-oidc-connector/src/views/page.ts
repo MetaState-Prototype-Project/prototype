@@ -131,7 +131,15 @@ th { text-align: left; font-weight: 600; color: var(--muted); font-size: 0.75rem
 td { padding: 12px 20px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--subtle); }
-td.name a { font-weight: 600; color: var(--text); text-decoration: none; white-space: nowrap; }
+td.name a { font-weight: 600; color: var(--text); text-decoration: none; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 10px; }
+.avatar { flex: none; border-radius: 7px; object-fit: cover; background: var(--subtle);
+    display: inline-grid; place-items: center; font-weight: 700; color: var(--accent); }
+.avatar.sm { width: 28px; height: 28px; font-size: 0.85rem; }
+.avatar.lg { width: 48px; height: 48px; font-size: 1.2rem; border-radius: 10px; }
+.avatar.initial { background: var(--accent-soft); }
+.logo-row { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.logo-row .copy { flex: 1; }
 td .copy code { white-space: nowrap; }
 td.name a:hover { color: var(--accent); }
 td.num, th.num { text-align: right; }

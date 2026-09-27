@@ -61,6 +61,7 @@ describe("validateClientInput", () => {
                 name: "My IdP",
                 redirectUris: ["https://a.example/cb", "https://b.example/cb"],
                 syntheticEmail: true,
+                logoUrl: null,
             },
         });
     });
@@ -98,6 +99,31 @@ describe("validateClientInput", () => {
         expect(result.errors.join(" ")).toMatch(/at most 10/);
     });
 
+    it("accepts an optional https logo URL", () => {
+        const base = { name: "x", redirectUris: "https://a.example/cb" };
+        const none = validateClientInput(base);
+        expect(none.ok && none.value.logoUrl).toBeNull();
+        const blank = validateClientInput({ ...base, logoUrl: "   " });
+        expect(blank.ok && blank.value.logoUrl).toBeNull();
+        const logo = validateClientInput({ ...base, logoUrl: " https://cdn.example/logo.png " });
+        expect(logo.ok && logo.value.logoUrl).toBe("https://cdn.example/logo.png");
+    });
+
+    it.each([
+        ["http://cdn.example/logo.png", /https/],
+        ["javascript:alert(1)", /https/],
+        ["https://user:pass@cdn.example/logo.png", /credentials/],
+        ["not a url", /not a valid URL/],
+    ])("rejects the logo URL %s", (logoUrl, message) => {
+        const result = validateClientInput({
+            name: "x",
+            redirectUris: "https://a.example/cb",
+            logoUrl,
+        });
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.errors.join(" ")).toMatch(message);
+    });
+
     it("requires a redirect URI", () => {
         expect(validateClientInput({ name: "x", redirectUris: "" }).ok).toBe(false);
     });
@@ -117,6 +143,7 @@ describe("ClientRegistry.authenticate", () => {
                 ownerEName: "@alice",
                 redirectUris: ["https://kc.example/cb"],
                 syntheticEmail: false,
+                logoUrl: null,
             });
         }
         return new ClientRegistry(repository);

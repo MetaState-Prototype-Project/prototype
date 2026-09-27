@@ -35,6 +35,7 @@ export async function seededRepository(): Promise<MemoryClientRepository> {
         ownerEName: OPERATOR,
         redirectUris: [KEYCLOAK_REDIRECT],
         syntheticEmail: false,
+        logoUrl: null,
     });
     await repository.create({
         clientId: "rauthy",
@@ -43,6 +44,7 @@ export async function seededRepository(): Promise<MemoryClientRepository> {
         ownerEName: OPERATOR,
         redirectUris: [RAUTHY_REDIRECT],
         syntheticEmail: true,
+        logoUrl: null,
     });
     return repository;
 }
