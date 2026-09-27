@@ -45,4 +45,7 @@ EXPOSE 4200
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "fetch('http://localhost:' + (process.env.W3DS_OIDC_PORT || 4200) + '/healthz').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
 
+# The connector refuses to start with pending migrations. Apply them first with
+# the same image and environment:
+#   docker run --rm --env-file <env> <image> node dist/scripts/migrate.js
 CMD ["node", "dist/index.js"]

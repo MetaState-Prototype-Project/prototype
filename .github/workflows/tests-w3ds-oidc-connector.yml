@@ -41,6 +41,11 @@ jobs:
               run: pnpm --filter w3ds-oidc-connector check-types
 
             - name: Test connector
+              env:
+                  CI: true
+                  DOCKER_HOST: unix:///var/run/docker.sock
+                  TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
+                  TESTCONTAINERS_HOST_OVERRIDE: localhost
               run: pnpm --filter w3ds-oidc-connector test
 
             - name: Build connector

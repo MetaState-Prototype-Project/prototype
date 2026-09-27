@@ -51,9 +51,9 @@ for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
 done
 echo "Postgres and Neo4j are up."
 
-# Create registry and provisioner databases if they don't exist
-echo "Ensuring registry and provisioner databases exist..."
-for db in registry provisioner; do
+# Create registry, provisioner and W3DS OIDC databases if they don't exist
+echo "Ensuring registry, provisioner and w3ds_oidc databases exist..."
+for db in registry provisioner w3ds_oidc; do
   EXISTS=$(docker compose -f docker-compose.databases.yml exec -T postgres psql -U "${POSTGRES_USER:-postgres}" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$db'" 2>/dev/null | tr -d '[:space:]' || echo "")
   if [ "$EXISTS" != "1" ]; then
     echo "Creating database: $db"
