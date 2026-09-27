@@ -1,8 +1,14 @@
 import { randomBytes } from "node:crypto";
 import type { Request, Response } from "express";
 
-/** Headers for every HTML page; returns the CSP nonce for inline code. */
-export function htmlSecurityHeaders(res: Response): string {
+/**
+ * Headers for every HTML page; returns the CSP nonce for inline code.
+ * Only portal pages may submit forms, and only to this origin.
+ */
+export function htmlSecurityHeaders(
+    res: Response,
+    options: { forms?: boolean } = {},
+): string {
     const nonce = randomBytes(16).toString("base64");
     res.setHeader(
         "Content-Security-Policy",
@@ -13,7 +19,7 @@ export function htmlSecurityHeaders(res: Response): string {
             "img-src data:",
             "connect-src 'self'",
             "base-uri 'none'",
-            "form-action 'none'",
+            options.forms ? "form-action 'self'" : "form-action 'none'",
             "frame-ancestors 'none'",
         ].join("; "),
     );

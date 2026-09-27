@@ -61,6 +61,54 @@ p { margin: 8px 0; color: var(--muted); }
 @media (max-width: 640px) {
     .qr { width: 200px; }
 }
+main.wide { max-width: 760px; text-align: left; padding: 24px; }
+main.wide h1 { margin-bottom: 4px; }
+main.wide h2 { font-size: 1.05rem; margin: 24px 0 8px; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
+    justify-content: space-between; margin-bottom: 20px; padding-bottom: 12px;
+    border-bottom: 1px solid var(--border); }
+.bar .who { color: var(--muted); font-size: 0.9rem; overflow-wrap: anywhere; }
+.bar form { margin: 0; }
+a { color: var(--accent); }
+code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.9em; overflow-wrap: anywhere; }
+label { display: block; font-weight: 600; margin: 16px 0 6px; }
+.hint { font-weight: 400; color: var(--muted); font-size: 0.85rem; margin: 4px 0 0; }
+input[type=text], textarea {
+    width: 100%; padding: 10px 12px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text);
+    font: inherit;
+}
+textarea { min-height: 96px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9rem; }
+.check { display: flex; gap: 10px; align-items: flex-start; font-weight: 400; }
+.check input { margin-top: 4px; }
+button, .button {
+    display: inline-block; padding: 10px 16px; border-radius: 10px;
+    border: 1px solid transparent; background: var(--accent);
+    color: var(--accent-text); font: inherit; font-weight: 600;
+    text-decoration: none; cursor: pointer;
+}
+button.secondary, .button.secondary {
+    background: transparent; color: var(--text); border-color: var(--border);
+}
+button.danger { background: var(--error); color: #fff; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.errors { border: 1px solid var(--error); color: var(--error);
+    border-radius: 10px; padding: 8px 16px; }
+.errors li { margin: 4px 0; }
+.card { border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+    margin: 12px 0; }
+.card h3 { margin: 0 0 4px; font-size: 1rem; }
+.meta { color: var(--muted); font-size: 0.85rem; margin: 2px 0; }
+dl.fields { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px;
+    margin: 12px 0; }
+dl.fields dt { color: var(--muted); }
+dl.fields dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+    dl.fields { grid-template-columns: 1fr; gap: 2px; }
+    dl.fields dd { margin-bottom: 8px; }
+}
+.secret { border: 1px solid var(--ok); border-radius: 12px; padding: 16px; margin: 16px 0; }
 `;
 
 export function page(options: {
@@ -68,6 +116,8 @@ export function page(options: {
     nonce: string;
     body: string;
     script?: string;
+    /** A wide, left-aligned layout for the developer portal. */
+    wide?: boolean;
 }): string {
     return `<!doctype html>
 <html lang="en">
@@ -79,7 +129,7 @@ export function page(options: {
 <style nonce="${options.nonce}">${STYLES}</style>
 </head>
 <body>
-<main>
+<main${options.wide ? ' class="wide"' : ""}>
 ${options.body}
 </main>
 ${options.script ? `<script nonce="${options.nonce}">${options.script}</script>` : ""}

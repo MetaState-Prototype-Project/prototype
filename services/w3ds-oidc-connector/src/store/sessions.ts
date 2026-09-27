@@ -6,6 +6,9 @@
  *
  * `claim` is the single point where a session is consumed, and it only
  * succeeds for the browser that started the login.
+ *
+ * A session either logs a user in to an IdP (`oidc`, started at /authorize)
+ * or to the connector's own developer portal (`portal`).
  */
 
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
@@ -13,8 +16,13 @@ import type { AuthorizationRequest, Identity } from "../types.js";
 
 export type SessionStatus = "pending" | "approved" | "delivered";
 
-export interface Session extends AuthorizationRequest {
+export type SessionPurpose =
+    | { kind: "oidc"; request: AuthorizationRequest }
+    | { kind: "portal" };
+
+export interface Session {
     id: string;
+    purpose: SessionPurpose;
     status: SessionStatus;
     createdAt: number;
     expiresAt: number;
@@ -45,12 +53,12 @@ export class SessionStore {
      * that started the login holds (in a cookie).
      */
     create(
-        request: AuthorizationRequest,
+        purpose: SessionPurpose,
         browserSecret: string,
         now: number,
     ): Session {
         const session: Session = {
-            ...request,
+            purpose,
             id: randomBytes(32).toString("base64url"),
             status: "pending",
             createdAt: now,

@@ -135,12 +135,17 @@ export function authorizeRouter(deps: AppDeps): Router {
             const browserSecret = newBrowserSecret();
             const session = deps.sessions.create(
                 {
-                    clientId: client.clientId,
-                    redirectUri,
-                    state,
-                    nonce: params.nonce,
-                    codeChallenge: params.code_challenge,
-                    scope: requested.filter((s) => SUPPORTED_SCOPES.includes(s)),
+                    kind: "oidc",
+                    request: {
+                        clientId: client.clientId,
+                        redirectUri,
+                        state,
+                        nonce: params.nonce,
+                        codeChallenge: params.code_challenge,
+                        scope: requested.filter((s) =>
+                            SUPPORTED_SCOPES.includes(s),
+                        ),
+                    },
                 },
                 browserSecret,
                 now,

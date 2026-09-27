@@ -66,14 +66,18 @@ export function authorizePage(options: {
     nonce: string;
     platformName: string;
     clientName?: string;
+    /** Overrides the "Log in to …" heading. */
+    heading?: string;
     walletLink: string;
     qrSvg: string;
     eventsUrl: string;
     expiresAt: number;
 }): string {
-    const heading = options.clientName
-        ? `Log in to ${options.clientName}`
-        : `Log in with ${options.platformName}`;
+    const heading =
+        options.heading ??
+        (options.clientName
+            ? `Log in to ${options.clientName}`
+            : `Log in with ${options.platformName}`);
     return page({
         title: heading,
         nonce: options.nonce,

@@ -2,6 +2,7 @@ import {
     type VerifyEnameSignatureResult,
     verifyEnameSignature,
 } from "@metastate-foundation/auth/ename";
+import { randomBytes } from "node:crypto";
 import express, {
     type Express,
     type NextFunction,
@@ -19,6 +20,7 @@ import { tokenRouter } from "./routes/token.js";
 import { userinfoRouter } from "./routes/userinfo.js";
 import { w3dsRouter } from "./routes/w3ds.js";
 import { discoveryRouter } from "./routes/discovery.js";
+import { portalRouter } from "./routes/portal.js";
 import { CodeStore } from "./store/codes.js";
 import { SessionStore } from "./store/sessions.js";
 import { AccessTokenStore } from "./store/tokens.js";
@@ -38,8 +40,18 @@ export interface AppDeps {
     tokens: AccessTokenStore;
     bus: SessionBus;
     verifier: WalletVerifier;
+    /** HMAC key for developer portal session cookies. */
+    portalKey: Uint8Array;
     /** Milliseconds since the epoch; injectable for tests. */
     now: () => number;
+}
+
+function portalKey(config: Config): Uint8Array {
+    if (config.portalSecret) return new TextEncoder().encode(config.portalSecret);
+    log.warn(
+        "W3DS_OIDC_PORTAL_SECRET not set; using an ephemeral key (dev only). Portal sessions end on restart.",
+    );
+    return randomBytes(32);
 }
 
 export function createDeps(
@@ -66,6 +78,7 @@ export function createDeps(
                 timeoutMs: config.upstreamTimeoutMs,
                 jwksCacheMs: config.jwksCacheSeconds * 1000,
             }),
+        portalKey: overrides.portalKey ?? portalKey(config),
         now: Date.now,
         ...overrides,
     };
@@ -87,6 +100,7 @@ export function createApp(deps: AppDeps): Express {
     app.use(w3dsRouter(deps));
     app.use(tokenRouter(deps));
     app.use(userinfoRouter(deps));
+    app.use(portalRouter(deps));
 
     app.use((_req, res) => {
         res.status(404).json({ error: "not_found" });

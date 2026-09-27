@@ -44,9 +44,35 @@ describe("loadConfig", () => {
     });
 
     it("requires https in production", () => {
-        expect(() => loadConfig(env({ NODE_ENV: "production" }))).toThrow(
-            /https/,
+        expect(() =>
+            loadConfig(
+                env({ NODE_ENV: "production", W3DS_OIDC_PORTAL_SECRET: "p".repeat(32) }),
+            ),
+        ).toThrow(/https/);
+    });
+
+    it("requires a portal secret in production", () => {
+        expect(() =>
+            loadConfig(
+                env({
+                    NODE_ENV: "production",
+                    W3DS_OIDC_ISSUER: "https://oidc.w3ds.metastate.foundation",
+                }),
+            ),
+        ).toThrow(/W3DS_OIDC_PORTAL_SECRET/);
+    });
+
+    it("rejects a short portal secret", () => {
+        expect(() => loadConfig(env({ W3DS_OIDC_PORTAL_SECRET: "short" }))).toThrow(
+            /at least 32/,
         );
+    });
+
+    it("defaults the client creation limit", () => {
+        expect(loadConfig(env()).clientCreateLimit).toBe(10);
+        expect(
+            loadConfig(env({ W3DS_OIDC_CLIENT_CREATE_LIMIT: "3" })).clientCreateLimit,
+        ).toBe(3);
     });
 
     it("rejects a non-numeric TTL", () => {

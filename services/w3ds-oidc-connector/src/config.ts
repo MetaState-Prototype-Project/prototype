@@ -11,6 +11,10 @@ export interface Config {
     databaseUrl: string;
     /** CA certificate for the Postgres connection, if it uses TLS. */
     dbCaCert?: string;
+    /** Signs developer portal session cookies; ephemeral in dev when unset. */
+    portalSecret?: string;
+    /** How many clients one eName may create per hour. */
+    clientCreateLimit: number;
     sessionTtlSeconds: number;
     codeTtlSeconds: number;
     tokenTtlSeconds: number;
@@ -69,6 +73,13 @@ export function loadConfig(env: Env = process.env): Config {
     if (!registryUrl) throw new Error("PUBLIC_REGISTRY_URL is required");
     const databaseUrl = env.W3DS_OIDC_DATABASE_URL;
     if (!databaseUrl) throw new Error("W3DS_OIDC_DATABASE_URL is required");
+    const portalSecret = env.W3DS_OIDC_PORTAL_SECRET || undefined;
+    if (portalSecret && portalSecret.length < 32) {
+        throw new Error("W3DS_OIDC_PORTAL_SECRET must be at least 32 characters");
+    }
+    if (production && !portalSecret) {
+        throw new Error("W3DS_OIDC_PORTAL_SECRET is required in production");
+    }
     return {
         port: positiveInteger(env, "W3DS_OIDC_PORT", 4200),
         issuer: parseIssuer(env.W3DS_OIDC_ISSUER, production),
@@ -77,6 +88,12 @@ export function loadConfig(env: Env = process.env): Config {
         signingKeyJwk: env.W3DS_OIDC_SIGNING_KEY_JWK || undefined,
         databaseUrl,
         dbCaCert: env.DB_CA_CERT || undefined,
+        portalSecret,
+        clientCreateLimit: positiveInteger(
+            env,
+            "W3DS_OIDC_CLIENT_CREATE_LIMIT",
+            10,
+        ),
         sessionTtlSeconds: positiveInteger(
             env,
             "W3DS_OIDC_SESSION_TTL_SECONDS",

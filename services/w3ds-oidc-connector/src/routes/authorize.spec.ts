@@ -55,12 +55,17 @@ describe("GET /authorize", () => {
         expect(lookup.state).toBe("live");
         if (lookup.state !== "live") return;
         expect(lookup.session).toMatchObject({
-            clientId: "keycloak",
-            redirectUri: KEYCLOAK_REDIRECT,
-            state: "st-1",
-            nonce: "n-1",
-            scope: ["openid", "profile"],
             status: "pending",
+            purpose: {
+                kind: "oidc",
+                request: {
+                    clientId: "keycloak",
+                    redirectUri: KEYCLOAK_REDIRECT,
+                    state: "st-1",
+                    nonce: "n-1",
+                    scope: ["openid", "profile"],
+                },
+            },
         });
 
         const cookie = res.headers["set-cookie"][0] as string;
@@ -128,7 +133,11 @@ describe("GET /authorize", () => {
         );
         const sessionId = /session=([A-Za-z0-9_-]+)/.exec(res.text)![1];
         const lookup = deps.sessions.lookup(sessionId, deps.now());
-        expect(lookup.state === "live" && lookup.session.scope).toEqual([
+        expect(
+            lookup.state === "live" &&
+                lookup.session.purpose.kind === "oidc" &&
+                lookup.session.purpose.request.scope,
+        ).toEqual([
             "openid",
             "email",
         ]);

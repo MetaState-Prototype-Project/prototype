@@ -79,10 +79,19 @@ export async function completeWalletLogin(
     return "approved";
 }
 
+/** Where a browser finishes a developer portal login. */
+export function portalCompletionPath(sessionId: string): string {
+    return `/portal/login/complete?session=${encodeURIComponent(sessionId)}`;
+}
+
 /**
- * Consumes an approved session for the browser holding `browserSecret` and
- * returns the client redirect carrying a fresh one-time code. Returns
- * undefined for any other browser, or once the code has been handed out.
+ * Where the browser holding `browserSecret` goes once the wallet has
+ * signed, or undefined for any other browser or once it has been used.
+ *
+ * For an IdP login this consumes the session and returns the IdP redirect
+ * carrying a fresh one-time code. For a portal login it returns the portal
+ * completion URL without consuming anything: that request can set the
+ * portal cookie, which an event stream already under way cannot.
  */
 export function collectCode(
     deps: AppDeps,
@@ -90,23 +99,21 @@ export function collectCode(
     browserSecret: string | undefined,
 ): string | undefined {
     const now = deps.now();
+    const lookup = deps.sessions.lookup(sessionId, now);
+    if (lookup.state === "live" && lookup.session.purpose.kind === "portal") {
+        const { session } = lookup;
+        return session.status === "approved" &&
+            deps.sessions.isBrowser(session, browserSecret)
+            ? portalCompletionPath(sessionId)
+            : undefined;
+    }
     const session = deps.sessions.claim(sessionId, browserSecret, now);
-    if (!session?.identity) return undefined;
-    const code = deps.codes.issue(
-        {
-            clientId: session.clientId,
-            redirectUri: session.redirectUri,
-            state: session.state,
-            nonce: session.nonce,
-            codeChallenge: session.codeChallenge,
-            scope: session.scope,
-            identity: session.identity,
-        },
-        now,
-    );
-    return withQuery(session.redirectUri, {
+    if (!session?.identity || session.purpose.kind !== "oidc") return undefined;
+    const { request } = session.purpose;
+    const code = deps.codes.issue({ ...request, identity: session.identity }, now);
+    return withQuery(request.redirectUri, {
         code,
-        state: session.state,
+        state: request.state,
         iss: deps.config.issuer,
     });
 }
