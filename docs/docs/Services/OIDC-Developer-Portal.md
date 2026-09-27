@@ -13,7 +13,7 @@ A **client** represents one IdP, for example a Keycloak realm or a Rauthy instan
 
 ## Signing in
 
-1. Open `https://oidc.w3ds.metastate.foundation`. It takes you to the portal.
+1. Open `https://oidc.w3ds.metastate.foundation`, which takes you to the portal.
 2. Scan the QR code with your eID wallet and approve. On a phone, tap **Open in eID Wallet** instead.
 3. The page continues by itself and you are signed in as your eName.
 
@@ -24,30 +24,22 @@ You can only finish signing in in the browser where you opened the QR code. The 
 1. Click **New client**.
 2. Fill in the form:
    - **Name:** shown to your users on the W3DS login page, e.g. your organisation or product. Up to 64 characters.
-   - **Redirect URIs:** one per line, up to 10. These are your IdP's callback URLs:
-
-     | Identity provider | Redirect URI |
-     | --- | --- |
-     | Keycloak | `https://<keycloak-host>/realms/<realm>/broker/<alias>/endpoint` |
-     | Rauthy | `https://<rauthy-host>/auth/v1/providers/callback` |
-     | Others | See the IdP's documentation for "redirect URI" or "callback URL" |
-
-     Redirect URIs must use `https`; plain `http` is allowed only on `localhost`, for development. They must not contain a fragment (`#`). The connector matches them exactly, character for character.
-   - **My identity provider requires an email:** turn this on for IdPs that refuse upstream logins without an email, such as Rauthy. The connector then sends `email: <username>@w3ds.invalid` with `email_verified: false`. These addresses can never receive mail and never match a real account.
+   - **Redirect URIs:** one per line, up to 10. These are your IdP's callback URLs: the URL your IdP shows when you add an OpenID Connect provider. The [provider guides](./OIDC-Provider-Guides.md) list them for popular products. Redirect URIs must use `https`; plain `http` is allowed only on `localhost`, for development. They must not contain a fragment (`#`). The connector matches them exactly, character for character.
+   - **My identity provider requires an email address:** turn this on if your IdP refuses upstream logins without an email. The connector then sends `email: <username>@w3ds.invalid` with `email_verified: false`. These addresses can never receive mail and never match a real account.
 3. Click **Create client**.
-4. The next page shows your **client ID** and **client secret**.
+4. The next page shows your **client ID** and **client secret**, each with a **Copy** button.
 
 :::warning
 **Copy the client secret straight away.** It is shown only once and is stored only as a hash. If you lose it, [rotate it](#rotating-the-secret).
 :::
 
-The same page lists everything your IdP needs: the discovery URL, the issuer, and the client authentication and PKCE settings. Continue with [Connecting an identity provider](./OIDC-Connector.md#connecting-an-identity-provider).
+The same page has a **Connection details** panel listing everything your IdP needs, with a copy button on each value: the discovery URL, issuer, endpoints, JWKS URL and scopes, plus the client authentication and PKCE settings. Most IdPs only need the discovery URL, client ID and client secret. Continue with [Connecting an identity provider](./OIDC-Connector.md#connecting-an-identity-provider), or the [guide for your IdP](./OIDC-Provider-Guides.md).
 
 ## Managing clients
 
-**Your clients** lists every client you own, with its client ID, number of redirect URIs, and when it was created and last used. **Last used** updates each time your IdP exchanges a code, which makes it an easy way to confirm your IdP is set up correctly.
+**Clients** is a table of every client you own: its name, client ID (with a copy button), number of redirect URIs, whether it sends a synthetic email, and when it was created and last used. **Last used** updates each time your IdP exchanges a code, which makes it an easy way to confirm your IdP is set up correctly.
 
-Click a client to open it.
+Click a client's name to open it. The client page shows its credentials and redirect URIs, the same **Connection details** panel as after creation, and its settings. Breadcrumbs at the top lead back to the list.
 
 ### Editing
 

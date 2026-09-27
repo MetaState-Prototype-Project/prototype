@@ -16,7 +16,7 @@ The hosted service runs at **`https://oidc.w3ds.metastate.foundation`**.
 
 To use it:
 1. Sign in to the [developer portal](./OIDC-Developer-Portal.md) with your eID wallet and create a client.
-2. Add the connector to your IdP as described [below](#connecting-an-identity-provider).
+2. Add the connector to your IdP as described [below](#connecting-an-identity-provider), or follow a [guide for your IdP](./OIDC-Provider-Guides.md).
 
 ## Why it exists
 
@@ -104,56 +104,34 @@ All paths are relative to `https://oidc.w3ds.metastate.foundation`.
 
 ## Connecting an identity provider
 
-First create a client in the [developer portal](./OIDC-Developer-Portal.md). Register your IdP's callback URL as the client's redirect URI; each IdP's callback URL is given in its section below.
+Any identity provider that can add a generic OpenID Connect provider can use the connector. The IdP must support:
+- the authorization code flow **with PKCE (`S256`)**, which the connector requires;
+- a confidential client that authenticates with `client_secret_basic` or `client_secret_post`;
+- validating ES256-signed ID tokens against a JWKS URL.
 
-### Keycloak
+To connect one:
+1. **Create a client.** In the [developer portal](./OIDC-Developer-Portal.md), create a client whose redirect URI is your IdP's callback URL. Your IdP shows this URL when you add an OpenID Connect provider.
+2. **Add a provider in your IdP.** Add an OpenID Connect provider. Depending on the product it may be called an external, upstream, social or federated identity provider, or an enterprise connection.
+3. **Enter the connection values.** The portal lists all of these with copy buttons:
 
-1. **Create a client.** In the portal, create a client with the redirect URI `https://<keycloak-host>/realms/<realm>/broker/w3ds/endpoint`. Replace `w3ds` if you choose a different alias in step 3.
-2. **Add the provider.** In the Keycloak admin console, go to your realm, then **Identity providers**, then **OpenID Connect v1.0**.
-3. **Fill in the provider settings:**
-   - **Alias:** `w3ds`
-   - **Display name:** `W3DS`
-   - **Discovery endpoint:** `https://oidc.w3ds.metastate.foundation/.well-known/openid-configuration`. Keycloak fills in the remaining URLs itself.
-   - **Client authentication:** *Client secret sent as basic auth*
-   - **Client ID** and **Client secret:** from the portal
-4. **Set the advanced options:**
-   - Turn on **Use PKCE**, with method **S256**.
-   - Turn on **Validate signatures** and **Use JWKS URL**.
-   - Set **Scopes** to `openid profile`.
-   - Turn **Trust Email** off.
-5. **Add mappers** under the provider's **Mappers** tab:
-   - **Username Template Importer**, with template `${CLAIM.preferred_username}`
-   - **Attribute Importer**, from claim `sub` to user attribute `w3ds_ename`
-6. **Handle email.** The connector sends no email to Keycloak. Either make email optional in the realm's **User profile**, or keep the default first-login *Review profile* step so users add one themselves.
-7. **Test it.** Your realm's login page now shows **W3DS**. To skip Keycloak's login page, apps send `kc_idp_hint=w3ds`.
+   | Setting | Value |
+   | --- | --- |
+   | Discovery URL | `https://oidc.w3ds.metastate.foundation/.well-known/openid-configuration` |
+   | Issuer | `https://oidc.w3ds.metastate.foundation` |
+   | Client ID and client secret | From the portal |
+   | Client authentication | Client secret over HTTP Basic (`client_secret_basic`), or in the request body (`client_secret_post`) |
+   | PKCE | On, method `S256` |
+   | Scopes | `openid profile`, plus `email` if the client has "requires an email" turned on |
+   | Signature validation | On, using the JWKS URL from discovery |
 
-### Rauthy
+   If your IdP can't read the discovery document, enter the endpoints yourself: `/authorize`, `/token`, `/userinfo` and `/jwks` under the issuer.
+4. **Map the claims.**
+   - Use `sub` as the stable user identifier, and link accounts on it.
+   - Use `preferred_username` as the suggested username.
+   - Never trust the email or link accounts on it: it is synthetic and unverified.
+5. **Test it.** Log in through your IdP. The client's **Last used** time in the portal updates once your IdP has exchanged a code.
 
-1. **Create a client.** In the portal, create a client with:
-   - Redirect URI: `https://<rauthy-host>/auth/v1/providers/callback`
-   - **"My identity provider requires an email"** turned on. Rauthy requires an email from upstream providers.
-2. **Look up the provider.** In the Rauthy admin UI, go to **Providers**, then **Add New**, and leave the mode on **OIDC**. Enter the **Issuer URL** `https://oidc.w3ds.metastate.foundation` and click **Lookup**. Rauthy discovers the endpoints and turns PKCE on.
-3. **Fill in the provider settings:**
-   - **Scope:** `openid profile email`
-   - **Client name:** e.g. `W3DS`
-   - **Client ID** and **Client secret:** from the portal
-   - Tick **client_secret_basic**
-4. **Save**, then open the new provider. Tick **Enabled** and **Auto-Onboarding**, then save again.
-
-   :::note
-   Without **Auto-Onboarding**, Rauthy rejects every new W3DS user with "User not found". It only lets through users that already exist and have linked W3DS.
-   :::
-
-5. **Link existing accounts (optional).** Existing Rauthy users can link W3DS from their account page. Rauthy rejects an upstream login whose email collides with an unlinked local account; the connector's `@w3ds.invalid` addresses never collide.
-6. **Test it.** Rauthy's login page now shows the provider. To skip Rauthy's login page, apps send `idp_hint=<provider id>`.
-
-### Other identity providers
-
-Any IdP with generic OIDC federation connects the same way: Authentik, Zitadel, Auth0, Okta, Entra ID and others.
-1. Create a client in the portal with your IdP's callback URL.
-2. Point the IdP at the discovery URL.
-3. Use `client_secret_basic` (or `client_secret_post`) and PKCE S256.
-4. Link accounts on `sub`.
+For step-by-step instructions for specific products, such as Keycloak and Rauthy, see the [OIDC Provider Guides](./OIDC-Provider-Guides.md).
 
 ## Running your own connector
 
@@ -177,6 +155,7 @@ docker run -d --env-file connector.env -p 4200:4200 w3ds-oidc-connector
 | `W3DS_OIDC_PORTAL_SECRET` | ephemeral in dev | At least 32 characters. Signs portal sessions. Required in production. |
 | `W3DS_OIDC_PLATFORM_NAME` | `W3DS Login` | Shown in the wallet and on the login pages |
 | `W3DS_OIDC_CLIENT_CREATE_LIMIT` | `10` | Clients one eName may create per hour |
+| `W3DS_OIDC_DOCS_URL` | `https://docs.w3ds.metastate.foundation/docs/Services` | Where the portal links for documentation and provider guides |
 | `W3DS_OIDC_PORT` | `4200` | Listen port |
 | `W3DS_OIDC_SESSION_TTL_SECONDS` | `300` | How long a QR code stays valid |
 | `W3DS_OIDC_CODE_TTL_SECONDS` | `60` | How long a code can be exchanged |
@@ -190,4 +169,4 @@ docker run -d --env-file connector.env -p 4200:4200 w3ds-oidc-connector
 - **Single instance.** Login sessions, codes and access tokens live in memory, so run one replica. A restart cancels logins in progress; users simply scan again. Clients live in Postgres and survive restarts.
 - **Serve it at the root of its own origin, over TLS.** Behind a reverse proxy, set `W3DS_OIDC_TRUST_PROXY`, and make sure the proxy does not buffer `/w3ds/events` (it is a server-sent event stream).
 - **Health.** `/healthz` reports the process only, not the Registry. An unreachable Registry makes logins fail closed rather than restarting the container.
-- **Local testing with Rauthy.** Rauthy only calls plain-`http` upstreams when started with **both** `DEV_MODE=true` and `HTTP_DANGER_UNENCRYPTED=true`. Never use those in production; serve the connector over https instead.
+- **Local testing.** Some identity providers refuse to talk to a plain-`http` connector; see the [provider guides](./OIDC-Provider-Guides.md) for how to test with them locally.
