@@ -20,6 +20,9 @@ export {
 export type { P256KeyPair, P256Verification } from "./p256.js";
 export {
 	challengePayload,
+	DEFAULT_TRUSTED_PPA_ISSUERS,
+	normalizePpaIssuers,
+	ppaJwksUri,
 	softwareVersionEName,
 	verifyDeploymentChain,
 } from "./chain.js";

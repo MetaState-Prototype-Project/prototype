@@ -19,7 +19,7 @@ import { randomUUID } from "node:crypto";
 import { verifySignature } from "signature-validator/src/index";
 import { accreditations, deployments, platformProfile } from "./aaas";
 import { bindingDocuments } from "./evault";
-import { registryUrl } from "./env";
+import { registryUrl, trustedPpaIssuers } from "./env";
 import type { AccreditationRecord, DeploymentRecord } from "./ontology";
 
 /**
@@ -161,6 +161,7 @@ export async function verify(
 		audience,
 		registryBaseUrl: registryUrl(),
 		verifyWalletSignature,
+		trustedPpaIssuers: trustedPpaIssuers(),
 	});
 
 	// With no key there was nothing to check, which is not the same as a check
