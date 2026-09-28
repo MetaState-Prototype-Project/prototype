@@ -60,4 +60,4 @@ jobs:
                   TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
                   TESTCONTAINERS_HOST_OVERRIDE: localhost
               run: |
-                  pnpm --filter evault-core exec vitest run src/core/protocol/graphql-server.spec.ts src/core/protocol/uploadFile-awareness.spec.ts --silent
+                  pnpm --filter evault-core exec vitest run src/core/protocol/graphql-server.spec.ts src/core/protocol/uploadFile-awareness.spec.ts src/core/awareness/awareness-outbox-dispatcher.spec.ts --silent

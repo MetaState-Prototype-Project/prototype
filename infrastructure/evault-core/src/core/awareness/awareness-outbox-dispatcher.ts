@@ -1,5 +1,5 @@
-import axios from "axios";
 import { randomUUID } from "node:crypto";
+import axios from "axios";
 import neo4j, { type Driver } from "neo4j-driver";
 
 interface ClaimedEvent {
@@ -37,6 +37,83 @@ function positiveInteger(raw: string | undefined, fallback: number): number {
     return Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
 
+/** The two queues a claim drains, each with its own index and sort key. */
+export type ClaimLane = "due" | "expired";
+
+/** An earlier unfinished event on the same packet stream. */
+const ACTIVE_PREDECESSOR = `
+    MATCH (earlier:AwarenessOutbox)
+    WHERE earlier.packetId = a.packetId
+      AND earlier.status IN ['pending', 'failed', 'delivering']
+      AND earlier.streamVersion < a.streamVersion`;
+
+/**
+ * One lane of candidate discovery: ids only, no predecessor check.
+ *
+ * Claiming used to select candidates with a single OR over two different
+ * property pairs (`status`/`nextAttemptAt` and `status`/`leaseExpiresAt`), which
+ * no index can serve, then run the correlated predecessor check against every
+ * scanned node before applying LIMIT. On a 393k-node outbox that meant a full
+ * label scan per cycle and the dispatcher stopped draining entirely.
+ *
+ * Splitting the OR gives each lane its own index seek, and the sort key is the
+ * indexed range key so Neo4j can stop early instead of collecting and sorting.
+ * The predecessor check moves to {@link buildLeaseQuery}, where it runs against
+ * a bounded page rather than the whole label.
+ *
+ * Paging is a keyset (`sortKey >= after`, minus the ids already taken at exactly
+ * `after`), never SKIP: claimed rows leave the result set, so SKIP would step
+ * over rows it never examined and starve them.
+ */
+export function buildCandidateQuery(lane: ClaimLane): string {
+    const due = lane === "due";
+    const status = due
+        ? "a.status IN ['pending', 'failed']"
+        : "a.status = 'delivering'";
+    const sortKey = due ? "a.nextAttemptAt" : "a.leaseExpiresAt";
+    return `MATCH (a:AwarenessOutbox)
+            WHERE ${status}
+              AND ${sortKey} >= $after AND ${sortKey} <= $now
+              AND NOT a.eventId IN $exclude
+            RETURN a.eventId AS eventId, ${sortKey} AS sortKey
+            ORDER BY ${sortKey}, a.eventId
+            LIMIT $page`;
+}
+
+/**
+ * Leases the eligible members of one candidate page.
+ *
+ * The OR is harmless here: `a` is pinned by `eventId`, which carries a
+ * uniqueness constraint, so this filters one page of nodes instead of driving a
+ * scan. The predecessor check therefore runs at most `page` times, each an index
+ * seek on `awareness_outbox_stream`.
+ *
+ * Eligibility is re-checked in the same transaction that writes the lease, so
+ * two dispatchers race exactly as they did before this split; candidate
+ * discovery is only advisory, and anything stale is filtered out here.
+ */
+export function buildLeaseQuery(): string {
+    return `UNWIND $eventIds AS eventId
+            MATCH (a:AwarenessOutbox { eventId: eventId })
+            WHERE ((a.status IN ['pending', 'failed'] AND a.nextAttemptAt <= $now)
+                OR (a.status = 'delivering' AND a.leaseExpiresAt <= $now))
+              AND NOT EXISTS {${ACTIVE_PREDECESSOR}
+              }
+            WITH a ORDER BY a.nextAttemptAt, a.createdAt LIMIT $limit
+            SET a.status = 'delivering',
+                a.leaseOwner = $workerId,
+                a.leaseToken = $leaseToken,
+                a.leaseExpiresAt = $leaseExpiresAt
+            RETURN a`;
+}
+
+/** How far one lane has been read within a single claim cycle. */
+interface LaneCursor {
+    after: number;
+    exclude: string[];
+    drained: boolean;
+}
+
 /**
  * Drains Neo4j awareness outbox rows until AaaS durably acknowledges them.
  * Unlike the old resolver-level POST, failures survive process restarts.
@@ -57,6 +134,14 @@ export class AwarenessOutboxDispatcher {
     private readonly dbTimeoutMs = positiveInteger(
         process.env.AWARENESS_OUTBOX_DB_TIMEOUT_MS,
         10_000,
+    );
+    private readonly candidatePageSize = positiveInteger(
+        process.env.AWARENESS_OUTBOX_CANDIDATE_PAGE,
+        500,
+    );
+    private readonly maxClaimPages = positiveInteger(
+        process.env.AWARENESS_OUTBOX_MAX_CLAIM_PAGES,
+        10,
     );
     private lastCycleAt: Date | null = null;
     private lastError: string | null = null;
@@ -124,39 +209,114 @@ export class AwarenessOutboxDispatcher {
         }
     }
 
+    /**
+     * Fills a batch a page at a time: discover bounded candidates, lease the
+     * eligible ones, and keep going while the batch is short.
+     *
+     * Paging is what stops blocked events starving eligible ones. A page whose
+     * candidates all sit behind an unfinished predecessor leases nothing, but it
+     * still advances the lane cursor, so the next page reaches events further
+     * down the queue within the same cycle.
+     */
     private async claim(limit: number): Promise<ClaimedEvent[]> {
         if (!process.env.AWARENESS_SERVICE_URL) return [];
         const now = Date.now();
+        const lanes: Record<ClaimLane, LaneCursor> = {
+            expired: { after: 0, exclude: [], drained: false },
+            due: { after: 0, exclude: [], drained: false },
+        };
+        const claimed: ClaimedEvent[] = [];
+        for (
+            let page = 0;
+            page < this.maxClaimPages && claimed.length < limit;
+            page++
+        ) {
+            const candidates = await this.nextCandidates(lanes, now);
+            if (candidates.length === 0) break;
+            claimed.push(
+                ...(await this.lease(candidates, now, limit - claimed.length)),
+            );
+        }
+        return claimed;
+    }
+
+    /**
+     * One page of candidate ids per live lane, interleaved round-robin with
+     * expired leases first so a deep due backlog cannot starve lease recovery.
+     * Advances each lane's cursor past what it returned.
+     */
+    private async nextCandidates(
+        lanes: Record<ClaimLane, LaneCursor>,
+        now: number,
+    ): Promise<string[]> {
+        const session = this.driver.session({
+            defaultAccessMode: neo4j.session.READ,
+        });
+        const pages: Record<ClaimLane, string[]> = { expired: [], due: [] };
+        try {
+            for (const lane of ["expired", "due"] as const) {
+                const cursor = lanes[lane];
+                if (cursor.drained) continue;
+                const result = await session.executeRead(
+                    (tx) =>
+                        tx.run(buildCandidateQuery(lane), {
+                            now,
+                            after: cursor.after,
+                            exclude: cursor.exclude,
+                            page: neo4j.int(this.candidatePageSize),
+                        }),
+                    { timeout: this.dbTimeoutMs },
+                );
+                const rows = result.records.map((record) => ({
+                    eventId: record.get("eventId") as string,
+                    sortKey: numberValue(record.get("sortKey")),
+                }));
+                if (rows.length < this.candidatePageSize) cursor.drained = true;
+                const last = rows[rows.length - 1];
+                if (last) {
+                    // Rows sharing the cursor's sort key can only be excluded by
+                    // id; every lower key is already behind us.
+                    cursor.exclude =
+                        last.sortKey === cursor.after
+                            ? [...cursor.exclude, ...rows.map((r) => r.eventId)]
+                            : rows
+                                  .filter((r) => r.sortKey === last.sortKey)
+                                  .map((r) => r.eventId);
+                    cursor.after = last.sortKey;
+                }
+                pages[lane] = rows.map((r) => r.eventId);
+            }
+        } finally {
+            await session.close();
+        }
+        const merged: string[] = [];
+        const depth = Math.max(pages.expired.length, pages.due.length);
+        for (let i = 0; i < depth; i++) {
+            if (i < pages.expired.length) merged.push(pages.expired[i]);
+            if (i < pages.due.length) merged.push(pages.due[i]);
+        }
+        return merged;
+    }
+
+    /** Leases whichever candidates are still eligible, up to `limit`. */
+    private async lease(
+        eventIds: string[],
+        now: number,
+        limit: number,
+    ): Promise<ClaimedEvent[]> {
         const leaseToken = randomUUID();
         const session = this.driver.session();
         try {
             const result = await session.executeWrite(
                 (tx) =>
-                    tx.run(
-                        `MATCH (a:AwarenessOutbox)
-                     WHERE (a.status IN ['pending', 'failed'] AND a.nextAttemptAt <= $now)
-                        OR (a.status = 'delivering' AND a.leaseExpiresAt <= $now)
-                     WITH a
-                     WHERE NOT EXISTS {
-                         MATCH (earlier:AwarenessOutbox)
-                         WHERE earlier.packetId = a.packetId
-                           AND earlier.status IN ['pending', 'failed', 'delivering']
-                           AND earlier.streamVersion < a.streamVersion
-                     }
-                     WITH a ORDER BY a.nextAttemptAt, a.createdAt LIMIT $limit
-                     SET a.status = 'delivering',
-                         a.leaseOwner = $workerId,
-                         a.leaseToken = $leaseToken,
-                         a.leaseExpiresAt = $leaseExpiresAt
-                     RETURN a`,
-                        {
-                            now,
-                            limit: neo4j.int(limit),
-                            workerId: this.workerId,
-                            leaseToken,
-                            leaseExpiresAt: now + this.leaseMs,
-                        },
-                    ),
+                    tx.run(buildLeaseQuery(), {
+                        eventIds,
+                        now,
+                        limit: neo4j.int(limit),
+                        workerId: this.workerId,
+                        leaseToken,
+                        leaseExpiresAt: Date.now() + this.leaseMs,
+                    }),
                 { timeout: this.dbTimeoutMs },
             );
             return result.records.map((record) => {

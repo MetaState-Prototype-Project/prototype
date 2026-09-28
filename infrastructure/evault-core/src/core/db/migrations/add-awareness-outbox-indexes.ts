@@ -14,6 +14,14 @@ export async function createAwarenessOutboxIndexes(
         await session.run(
             "CREATE INDEX awareness_outbox_due IF NOT EXISTS FOR (a:AwarenessOutbox) ON (a.status, a.nextAttemptAt)",
         );
+        // Lease recovery reads its own index rather than OR-ing onto the due
+        // one, which no index can serve. Outbox rows are created without the
+        // lease properties and finish() sets them back to null (Neo4j removes
+        // the property), so this index only ever holds rows currently leased -
+        // it stays small however large the outbox grows.
+        await session.run(
+            "CREATE INDEX awareness_outbox_lease IF NOT EXISTS FOR (a:AwarenessOutbox) ON (a.status, a.leaseExpiresAt)",
+        );
         await session.run(
             "CREATE INDEX awareness_outbox_stream IF NOT EXISTS FOR (a:AwarenessOutbox) ON (a.packetId, a.status, a.streamVersion)",
         );
