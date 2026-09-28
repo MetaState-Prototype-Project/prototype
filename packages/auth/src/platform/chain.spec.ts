@@ -1,6 +1,12 @@
 import { createLocalJWKSet } from "jose";
 import { describe, expect, it } from "vitest";
-import { softwareVersionEName, verifyDeploymentChain } from "./chain.js";
+import {
+	DEFAULT_TRUSTED_PPA_ISSUERS,
+	normalizePpaIssuers,
+	ppaJwksUri,
+	softwareVersionEName,
+	verifyDeploymentChain,
+} from "./chain.js";
 import { answerChallenge } from "./deployment.js";
 import { createChallengeStore, verifyHandshake } from "./handshake.js";
 import {
@@ -44,6 +50,7 @@ function options(roots: TrustRoots): ChainOptions {
 		registryJwksUri: REGISTRY_JWKS,
 		verifyWalletSignature: roots.verifyWalletSignature,
 		resolveJwks: (uri) => (uri === ISSUER_JWKS ? association : registry),
+		trustedPpaIssuers: ["https://ppa.example"],
 	};
 }
 
@@ -288,5 +295,79 @@ describe("verifyHandshake", () => {
 		clock = 2000;
 
 		expect(store.redeem(issued.nonce)).toBe(false);
+	});
+});
+
+describe("trusted certifying authorities", () => {
+	it("refuses a validly signed certificate from an issuer that is not trusted", async () => {
+		const roots = await createTrustRoots();
+		const { identity } = await mintDeployment(
+			roots,
+			spec({ issuerJwksUri: "https://self-certified.example/.well-known/jwks.json" }),
+		);
+		const association = createLocalJWKSet(roots.association.jwks);
+		const response = await answerChallenge(identity, challenge());
+
+		const result = await verifyDeploymentChain(response, {
+			...options(roots),
+			// Even if its keys resolved, an unknown issuer must not count.
+			resolveJwks: (uri) =>
+				uri === REGISTRY_JWKS ? createLocalJWKSet(roots.registry.jwks) : association,
+		});
+
+		expect(result.ok).toBe(false);
+		expect(result.failedAt).toBe("accreditation");
+		expect(result.links.find((l) => l.id === "accreditation")?.detail).toContain(
+			"not a trusted certifying authority",
+		);
+	});
+
+	it("verifies against the trusted issuer's own keys, not the key set the evidence names", async () => {
+		const roots = await createTrustRoots();
+		const attacker = await createTrustRoots(roots.wallet.ename);
+		const { identity } = await mintDeployment(roots, spec());
+		// A certificate the attacker signed while claiming to be the trusted PPA,
+		// pointing the verifier at the attacker's own key set.
+		const forged = await mintDeployment(attacker, spec());
+		identity.evidence.accreditationJws = forged.identity.evidence.accreditationJws;
+		identity.evidence.issuerJwksUri = "https://attacker.example/.well-known/jwks.json";
+		const attackerKeys = createLocalJWKSet(attacker.association.jwks);
+		const base = options(roots);
+		const response = await answerChallenge(identity, challenge());
+
+		const result = await verifyDeploymentChain(response, {
+			...base,
+			resolveJwks: (uri) =>
+				uri === "https://attacker.example/.well-known/jwks.json"
+					? attackerKeys
+					: (base.resolveJwks as NonNullable<typeof base.resolveJwks>)(uri),
+		});
+
+		expect(result.ok).toBe(false);
+		expect(result.failedAt).toBe("accreditation");
+	});
+
+	it("trusts only the MetaState PPA by default", async () => {
+		const roots = await createTrustRoots();
+		const { identity } = await mintDeployment(roots, spec());
+		const { trustedPpaIssuers: _ignored, ...defaults } = options(roots);
+		const response = await answerChallenge(identity, challenge());
+
+		const result = await verifyDeploymentChain(response, defaults);
+
+		expect(result.failedAt).toBe("accreditation");
+		expect(DEFAULT_TRUSTED_PPA_ISSUERS).toEqual(["https://ppa.w3ds.metastate.foundation"]);
+	});
+
+	it("normalises configured issuers to origins", () => {
+		expect(
+			normalizePpaIssuers([
+				" ppa.w3ds.metastate.foundation/ ",
+				"http://localhost:4210",
+				"",
+				"ftp://nope.example",
+			]),
+		).toEqual(["https://ppa.w3ds.metastate.foundation", "http://localhost:4210"]);
+		expect(ppaJwksUri("https://ppa.example")).toBe("https://ppa.example/.well-known/jwks.json");
 	});
 });

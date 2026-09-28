@@ -218,6 +218,9 @@ export async function mintDeployment(
 		reviewedBy: spec.reviewedByEName ?? roots.wallet.ename,
 	})
 		.setProtectedHeader({ alg: "ES256", kid: roots.association.kid })
+		// Like the real PPA, the certificate names its issuer; verifiers only
+		// accept issuers they trust and fetch keys from that issuer.
+		.setIssuer(new URL(spec.issuerJwksUri).origin)
 		.setSubject(spec.platformEname)
 		.setJti(randomUUID())
 		.setIssuedAt(now)

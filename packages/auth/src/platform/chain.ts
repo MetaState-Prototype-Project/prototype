@@ -19,7 +19,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { createRemoteJWKSet, decodeJwt, jwtVerify } from "jose";
 import {
 	bindingDocumentHash,
 	canonicalSubmissionStatement,
@@ -100,7 +100,46 @@ export interface ChainOptions {
 	 * set, share a cache, or run offline.
 	 */
 	resolveJwks?: JwksResolver;
+	/**
+	 * The PPA services whose certificates count, as hosts or origins. Defaults
+	 * to {@link DEFAULT_TRUSTED_PPA_ISSUERS}. A certificate is only accepted if
+	 * its `iss` is on this list, and it is verified against the keys that issuer
+	 * publishes at `/.well-known/jwks.json` — never against a key set named by
+	 * the evidence, which the deployment itself supplies.
+	 */
+	trustedPpaIssuers?: readonly string[];
 	now?: Date;
+}
+
+/** The certifying authorities trusted when a verifier configures none. */
+export const DEFAULT_TRUSTED_PPA_ISSUERS: readonly string[] = [
+	"https://ppa.w3ds.metastate.foundation",
+];
+
+/**
+ * Normalises configured issuers to origins. A bare host means https; http is
+ * accepted as written, for local development only.
+ */
+export function normalizePpaIssuers(values: readonly string[]): string[] {
+	const issuers: string[] = [];
+	for (const raw of values) {
+		let value = raw.trim().replace(/\/+$/, "");
+		if (!value) continue;
+		if (!value.includes("://")) value = `https://${value}`;
+		try {
+			const url = new URL(value);
+			if (url.protocol !== "https:" && url.protocol !== "http:") continue;
+			issuers.push(url.origin);
+		} catch {
+			// Ignore entries that are not URLs.
+		}
+	}
+	return issuers;
+}
+
+/** Where a trusted issuer publishes the keys its certificates verify against. */
+export function ppaJwksUri(issuer: string): string {
+	return new URL("/.well-known/jwks.json", issuer).toString();
 }
 
 async function defaultWalletVerifier(
@@ -403,12 +442,36 @@ export async function verifyDeploymentChain(
 	let claim: PlatformClaim | null = null;
 	let accredited = false;
 	let accreditationDetail = "No certificate was presented.";
-	if (evidence.accreditationJws && evidence.issuerJwksUri) {
+	const trustedIssuers = new Set(
+		normalizePpaIssuers(options.trustedPpaIssuers ?? DEFAULT_TRUSTED_PPA_ISSUERS),
+	);
+	let claimedIssuer = "";
+	if (evidence.accreditationJws) {
+		try {
+			claimedIssuer = String(decodeJwt(evidence.accreditationJws).iss ?? "");
+		} catch {
+			// Reported below as a certificate without a trusted issuer.
+		}
+	}
+	const issuer = normalizePpaIssuers([claimedIssuer])[0];
+	if (evidence.accreditationJws && (!issuer || !trustedIssuers.has(issuer))) {
+		// Anyone can sign a certificate; only a recognised certifying authority's
+		// signature means anything. Checked before any key is fetched, so the
+		// evidence cannot point the verifier at a key set of its choosing.
+		accreditationDetail = claimedIssuer
+			? `The certificate was issued by ${claimedIssuer}, which is not a trusted certifying authority.`
+			: "The certificate does not name a trusted certifying authority.";
+	} else if (evidence.accreditationJws && issuer) {
 		try {
 			const { payload } = await jwtVerify(
 				evidence.accreditationJws,
-				jwks(evidence.issuerJwksUri),
-				{ algorithms: ["ES256"], subject: evidence.platformEname, currentDate: now },
+				jwks(ppaJwksUri(issuer)),
+				{
+					algorithms: ["ES256"],
+					issuer: claimedIssuer,
+					subject: evidence.platformEname,
+					currentDate: now,
+				},
 			);
 			const level = String(payload.level ?? "") as CertificationLevel;
 			const domains = Array.isArray(payload.domains)

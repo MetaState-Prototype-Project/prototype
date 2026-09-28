@@ -19,9 +19,13 @@ Six links, each failing closed. A verifier checks all six and reports all six �
 | **Bundle integrity** | Both binding documents hash to the values that signature covered, so neither can be swapped independently of the other. |
 | **Version identity** | The version eName is derivable from the platform eName and version by UUIDv5. Arithmetic, not a lookup — nothing to spoof and no network call. |
 | **Release authorship** | The release's submission proof re-verifies against its registry key-binding certificate. The same proof the association reviewed, checked again rather than taken on trust. |
-| **Accreditation** | The association's ES256 certificate verifies against its JWKS, names this platform as `sub` and this exact version, and grants a level and a set of domains. |
+| **Accreditation** | The certificate was issued (`iss`) by a trusted certifying authority, verifies against the JWKS that authority publishes at its own `/.well-known/jwks.json`, names this platform as `sub` and this exact version, and grants a level and a set of domains. |
 
 If every link holds, the verifier returns a **claim**: the platform, the deployment, the version, the certification level, and the domains — intersected with what the release actually asked for, so a certificate naming more than the submission requested cannot widen it.
+
+## Trusted certifying authorities
+
+Only certificates from a recognised Post Platforms Association count. By default that is `https://ppa.w3ds.metastate.foundation` alone; a verifier can set its own list with `trustedPpaIssuers`. The issuer is checked before any key is fetched, and keys always come from the trusted issuer's own JWKS. The `issuerJwksUri` in the evidence is never used for verification, because the deployment being checked supplies it, and a deployment could otherwise point the verifier at a key set it controls and certify itself.
 
 ## The handshake
 

@@ -61,3 +61,14 @@ export function jwtSecret(): string {
 
 /** Name this app presents to the registry when minting its read token. */
 export const PLATFORM_NAME = "pp-auth-demo";
+
+/**
+ * Certifying authorities whose certificates the chain accepts, as a comma
+ * separated list of hosts or origins. Unset means the library default: only
+ * the MetaState PPA. Add a local PPA (e.g. http://localhost:4210) for dev.
+ */
+export function trustedPpaIssuers(): string[] | undefined {
+	const value = raw("PP_AUTH_TRUSTED_PPA_ISSUERS");
+	if (!value) return undefined;
+	return value.split(",").map((issuer) => issuer.trim()).filter(Boolean);
+}
