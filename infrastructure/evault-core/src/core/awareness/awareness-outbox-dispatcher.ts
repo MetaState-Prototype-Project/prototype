@@ -80,26 +80,59 @@ export function buildCandidateQuery(lane: ClaimLane): string {
             LIMIT $page`;
 }
 
+/** Eligible for dispatch: due work, or a lease nobody is holding any more. */
+const ELIGIBLE = `((a.status IN ['pending', 'failed'] AND a.nextAttemptAt <= $now)
+                OR (a.status = 'delivering' AND a.leaseExpiresAt <= $now))`;
+
 /**
- * Leases the eligible members of one candidate page.
+ * Narrows one candidate page to the events that would actually be claimed.
  *
- * The OR is harmless here: `a` is pinned by `eventId`, which carries a
- * uniqueness constraint, so this filters one page of nodes instead of driving a
- * scan. The predecessor check therefore runs at most `page` times, each an index
- * seek on `awareness_outbox_stream`.
+ * Read-only, so it costs nothing beyond the predecessor check, and it is what
+ * keeps {@link buildLeaseQuery}'s lock probe bounded: the write transaction
+ * touches at most `limit` nodes rather than the whole page.
  *
- * Eligibility is re-checked in the same transaction that writes the lease, so
- * two dispatchers race exactly as they did before this split; candidate
- * discovery is only advisory, and anything stale is filtered out here.
+ * `a` is pinned by `eventId` (unique constraint), so this is one index seek per
+ * candidate plus one `awareness_outbox_stream` seek for the predecessor check.
+ */
+export function buildShortlistQuery(): string {
+    return `UNWIND $eventIds AS eventId
+            MATCH (a:AwarenessOutbox { eventId: eventId })
+            WHERE ${ELIGIBLE}
+              AND NOT EXISTS {${ACTIVE_PREDECESSOR}
+              }
+            RETURN a.eventId AS eventId
+            ORDER BY a.nextAttemptAt, a.createdAt
+            LIMIT $limit`;
+}
+
+/**
+ * Leases the shortlist, taking an exclusive lock on each row before reading the
+ * state it is judged on.
+ *
+ * That ordering is the whole point. Neo4j acquires the node write lock at SET
+ * time, so a plain `MATCH ... WHERE ... SET` lets every concurrent dispatcher
+ * evaluate the predicate against state that was current when it read but stale
+ * by the time it writes - and all of them then claim the same events. Writing
+ * `claimProbe` first forces the lock, so a dispatcher that loses the race reads
+ * the winner's `delivering` status and filters itself out.
+ *
+ * `claimProbe` exists only to take that lock and is never read; it is written
+ * before the predicate, so it must be a property no one relies on. Writing
+ * `leaseToken` here instead would clobber the winner's token and break the
+ * fencing in {@link AwarenessOutboxDispatcher.finish}.
+ *
+ * The predecessor lookup is deliberately left unlocked: its blocking set is
+ * `pending`/`failed`/`delivering`, and the only way out of that set is genuine
+ * completion, so a concurrent claim of a predecessor keeps it blocking.
  */
 export function buildLeaseQuery(): string {
     return `UNWIND $eventIds AS eventId
             MATCH (a:AwarenessOutbox { eventId: eventId })
-            WHERE ((a.status IN ['pending', 'failed'] AND a.nextAttemptAt <= $now)
-                OR (a.status = 'delivering' AND a.leaseExpiresAt <= $now))
+            SET a.claimProbe = $leaseToken
+            WITH a
+            WHERE ${ELIGIBLE}
               AND NOT EXISTS {${ACTIVE_PREDECESSOR}
               }
-            WITH a ORDER BY a.nextAttemptAt, a.createdAt LIMIT $limit
             SET a.status = 'delivering',
                 a.leaseOwner = $workerId,
                 a.leaseToken = $leaseToken,
@@ -298,7 +331,12 @@ export class AwarenessOutboxDispatcher {
         return merged;
     }
 
-    /** Leases whichever candidates are still eligible, up to `limit`. */
+    /**
+     * Leases whichever candidates are still eligible, up to `limit`.
+     *
+     * Shortlisting first keeps the write transaction's lock probe proportional
+     * to the batch rather than to the candidate page.
+     */
     private async lease(
         eventIds: string[],
         now: number,
@@ -307,12 +345,25 @@ export class AwarenessOutboxDispatcher {
         const leaseToken = randomUUID();
         const session = this.driver.session();
         try {
-            const result = await session.executeWrite(
+            const shortlist = await session.executeRead(
                 (tx) =>
-                    tx.run(buildLeaseQuery(), {
+                    tx.run(buildShortlistQuery(), {
                         eventIds,
                         now,
                         limit: neo4j.int(limit),
+                    }),
+                { timeout: this.dbTimeoutMs },
+            );
+            const shortlisted = shortlist.records.map(
+                (record) => record.get("eventId") as string,
+            );
+            if (shortlisted.length === 0) return [];
+
+            const result = await session.executeWrite(
+                (tx) =>
+                    tx.run(buildLeaseQuery(), {
+                        eventIds: shortlisted,
+                        now,
                         workerId: this.workerId,
                         leaseToken,
                         leaseExpiresAt: Date.now() + this.leaseMs,

@@ -256,6 +256,56 @@ describe("AwarenessOutboxDispatcher claim (integration)", () => {
         expect(new Set(claimed.map((e: any) => e.eventId)).size).toBe(40);
     });
 
+    it("never hands one event to two dispatchers at once", async () => {
+        await seed(
+            Array.from({ length: 60 }, (_, i) => ({
+                eventId: `c${i}`,
+                packetId: `C${i}`,
+                streamVersion: 1,
+                status: "pending" as const,
+                nextAttemptAt: now - 1_000 + i,
+            })),
+        );
+
+        const workers = [
+            dispatcher(),
+            dispatcher(),
+            dispatcher(),
+            dispatcher(),
+        ];
+        const ids = (
+            await Promise.all(workers.map((worker) => worker.claim(25)))
+        )
+            .flat()
+            .map((event: any) => event.eventId);
+
+        expect(new Set(ids).size).toBe(ids.length);
+    });
+
+    it("gives every event of one packet to a single dispatcher at a time", async () => {
+        // Four workers racing the same stream heads: whoever loses must not
+        // also get a lease, or both would deliver the packet.
+        await seed(
+            Array.from({ length: 20 }, (_, i) => ({
+                eventId: `d${i}`,
+                packetId: "D",
+                streamVersion: i + 1,
+                status: "pending" as const,
+                nextAttemptAt: now - 1_000 + i,
+            })),
+        );
+
+        const claimed = (
+            await Promise.all(
+                [dispatcher(), dispatcher(), dispatcher(), dispatcher()].map(
+                    (worker) => worker.claim(25),
+                ),
+            )
+        ).flat();
+
+        expect(claimed.map((event: any) => event.eventId)).toEqual(["d0"]);
+    });
+
     it("fences a stolen lease so the previous owner cannot complete it", async () => {
         await seed([
             {
