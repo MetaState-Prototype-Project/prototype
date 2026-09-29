@@ -1,3 +1,5 @@
+import type { Profile } from "./profile.js";
+
 /** Authentication method references (RFC 8176) the connector can assert. */
 export type Amr = "hwk" | "swk";
 
@@ -8,6 +10,11 @@ export interface Identity {
     amr: Amr[];
     /** Seconds since the epoch. */
     authTime: number;
+    /**
+     * What the user's eVault profile says about them. Self-asserted, so it
+     * describes the user but never identifies them.
+     */
+    profile?: Profile;
 }
 
 /** The parameters of a validated /authorize request, carried to /token. */

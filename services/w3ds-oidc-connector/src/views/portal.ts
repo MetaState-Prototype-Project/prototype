@@ -176,7 +176,7 @@ export function portalHomePage(
 <td class="name"><a href="${clientPath(client)}">${clientAvatar(client)}<span>${escapeHtml(client.name)}</span></a></td>
 <td>${copyField(client.clientId, { label: "client ID", field: "client-id" })}</td>
 <td class="num">${client.redirectUris.length}</td>
-<td>${client.syntheticEmail ? '<span class="badge accent">Synthetic email</span>' : '<span class="badge">Standard</span>'}</td>
+<td>${client.syntheticEmail ? '<span class="badge accent">Always email</span>' : '<span class="badge">Standard</span>'}</td>
 <td class="nowrap">${shortDate(client.createdAt)}</td>
 <td class="nowrap">${shortDate(client.lastUsedAt)}</td>
 </tr>`,
@@ -242,7 +242,7 @@ function clientFields(ctx: PortalContext, values: ClientFormValues): string {
 <div class="form-row">
 <label class="check"><input type="checkbox" name="synthetic_email"${values.syntheticEmail ? " checked" : ""}>
 <span><strong>My identity provider requires an email address</strong>
-<span class="hint">Some identity providers refuse users without an email. This adds <code>&lt;username&gt;@w3ds.invalid</code> with <code>email_verified: false</code>; the address can never receive mail.</span></span></label>
+<span class="hint">The user's email from their eVault profile is sent whenever your identity provider requests the <code>email</code> scope. Turn this on if your identity provider refuses users without an email: the claim is then always sent, and users with no email in their profile get <code>&lt;username&gt;@w3ds.invalid</code>, which can never receive mail. Profile emails are self-asserted, so <code>email_verified</code> is always <code>false</code>.</span></span></label>
 </div>`;
 }
 
@@ -266,7 +266,7 @@ ${csrfField(ctx.session)}
 
 /** Everything an identity provider needs to connect, each value copyable. */
 function connectionPanel(issuer: string, client: ClientRecord): string {
-    const scope = client.syntheticEmail ? "openid profile email" : "openid profile";
+    const scope = "openid profile email";
     const copy = (label: string, field: string, value: string) =>
         copyField(value, { label, field });
     const rows: [string, string][] = [
@@ -283,7 +283,10 @@ function connectionPanel(issuer: string, client: ClientRecord): string {
         ],
         ["PKCE", "Required, method <code>S256</code>"],
         ["ID token signing", "<code>ES256</code>"],
-        ["User identifier", "Link accounts on the <code>sub</code> claim (the eName)"],
+        [
+            "User identifier",
+            "Link accounts on <code>sub</code> (the eName). Apps behind your identity provider get the eName as <code>preferred_username</code>",
+        ],
     ];
     return `<section class="panel">
 <div class="panel-header"><div><h2>Connection details</h2><p>Most identity providers only need the discovery URL, client ID and client secret.</p></div></div>

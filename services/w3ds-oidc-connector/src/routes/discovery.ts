@@ -14,6 +14,9 @@ export const SUPPORTED_CLAIMS = [
     "nonce",
     "amr",
     "preferred_username",
+    "name",
+    "given_name",
+    "family_name",
     "email",
     "email_verified",
 ];

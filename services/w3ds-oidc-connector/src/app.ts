@@ -21,6 +21,7 @@ import { userinfoRouter } from "./routes/userinfo.js";
 import { w3dsRouter } from "./routes/w3ds.js";
 import { discoveryRouter } from "./routes/discovery.js";
 import { portalRouter } from "./routes/portal.js";
+import { createProfileReader, type ProfileReader } from "./profile.js";
 import { CodeStore } from "./store/codes.js";
 import { SessionStore } from "./store/sessions.js";
 import { AccessTokenStore } from "./store/tokens.js";
@@ -40,6 +41,8 @@ export interface AppDeps {
     tokens: AccessTokenStore;
     bus: SessionBus;
     verifier: WalletVerifier;
+    /** Reads the user's eVault profile; never throws. */
+    profiles: ProfileReader;
     /** HMAC key for developer portal session cookies. */
     portalKey: Uint8Array;
     /** Milliseconds since the epoch; injectable for tests. */
@@ -78,6 +81,11 @@ export function createDeps(
                 timeoutMs: config.upstreamTimeoutMs,
                 jwksCacheMs: config.jwksCacheSeconds * 1000,
             }),
+        profiles: createProfileReader({
+            registryUrl: config.registryUrl,
+            platformName: config.platformName,
+            timeoutMs: config.upstreamTimeoutMs,
+        }),
         portalKey: overrides.portalKey ?? portalKey(config),
         now: Date.now,
         ...overrides,

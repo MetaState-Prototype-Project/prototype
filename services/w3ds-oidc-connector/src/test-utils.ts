@@ -59,7 +59,10 @@ export async function testApp(
         jwk: JSON.stringify(await generateSigningJwk()),
         production: false,
     });
-    const deps = createDeps(config, keys, repository, rest);
+    const deps = createDeps(config, keys, repository, {
+        profiles: async () => ({}),
+        ...rest,
+    });
     return { deps, repository, app: createApp(deps) };
 }
 
