@@ -31,7 +31,7 @@ Every IdP already supports upstream OIDC providers, so one connector that speaks
 
 The connector proves one fact: **this browser belongs to the holder of eName X**. It returns that fact as a signed ID token.
 
-It stores no users, passwords or profile data. Users, roles, groups and sessions stay in your IdP. The only data it keeps is the list of clients that developers register in the portal.
+It stores no users, passwords or profile data. At login it reads the user's name and email from their own eVault profile and passes them on as claims, but keeps nothing. Users, roles, groups and sessions stay in your IdP. The only data it keeps is the list of clients that developers register in the portal.
 
 ```
 Your apps --OIDC--> Your IdP (Keycloak, Rauthy, …) --OIDC--> oidc.w3ds.metastate.foundation --w3ds://auth--> eID wallet
@@ -82,11 +82,18 @@ All paths are relative to `https://oidc.w3ds.metastate.foundation`.
 | Claim | Value | Notes |
 | --- | --- | --- |
 | `sub` | The eName, e.g. `@e4d1c2b0-5a6f-…` | Stable identifier. **Link accounts on this.** |
-| `preferred_username` | The eName without `@`, lowercased and sanitised | A suggestion only. Two eNames can sanitise to the same value. |
-| `email` | `<username>@w3ds.invalid` | Only for clients with **"requires an email"** turned on. The `.invalid` domain can never receive mail. |
-| `email_verified` | `false` | Sent with `email`. Stops IdPs from linking accounts by email. |
+| `preferred_username` | The eName without `@`, e.g. `e4d1c2b0-5a6f-…` | eNames are UUIDs, so this is the eName exactly. It is how the eName reaches apps behind your IdP; see [below](#using-the-ename-behind-your-idp). |
+| `name`, `given_name`, `family_name` | From the user's eVault profile | `profile` scope. Left out when the profile has no name. |
+| `email` | The email in the user's eVault profile | `email` scope. Read from the `User` profile, falling back to the `ProfessionalProfile`. If the profile has none, clients with **"My identity provider requires an email address"** turned on get `<username>@w3ds.invalid`, which can never receive mail; other clients get no `email`. |
+| `email_verified` | `false` | Sent with `email`. The profile is written by the user and nobody has verified it. |
 | `amr` | `["hwk"]` or `["swk"]` | Hardware or software wallet key (RFC 8176). See the note below. |
 | `iss`, `aud`, `exp`, `iat`, `auth_time`, `nonce` | Standard OIDC values | |
+
+:::warning The email is not verified
+The user writes their own profile, so the email is whatever they put there. Never let your IdP link or merge accounts because an email matches, whether that's called *auto-link*, *trust email* or *link by email*. Someone could put another person's address in their profile and take over that person's account. Link accounts on the IdP's federated user ID, which it derives from `sub`.
+:::
+
+The profile is read from the user's eVault during login. If the Registry or eVault is slow or unreachable, the login still succeeds, just without the name or the real email.
 
 :::caution
 `amr` is a hint, not an attestation. It is inferred from how the wallet encoded its signature: hardware keys use multibase base58btc and software keys use base64. Neither the wallet nor the Registry attests the key type, so do not use `hwk` as a security boundary.
@@ -122,15 +129,41 @@ To connect one:
    | Client ID and client secret | From the portal |
    | Client authentication | Client secret over HTTP Basic (`client_secret_basic`), or in the request body (`client_secret_post`) |
    | PKCE | On, method `S256` |
-   | Scopes | `openid profile`, plus `email` if the client has "requires an email" turned on |
+   | Scopes | `openid profile email` |
    | Signature validation | On, using the JWKS URL from discovery |
 
    If your IdP can't read the discovery document, enter the endpoints yourself: `/authorize`, `/token`, `/userinfo` and `/jwks` under the issuer.
 4. **Map the claims.**
    - Use `sub` as the stable user identifier, and link accounts on it.
-   - Use `preferred_username` as the suggested username.
-   - Never trust the email or link accounts on it: it is synthetic and unverified.
+   - Use `preferred_username` as the username. It is the eName without `@`.
+   - Import `email`, `name`, `given_name` and `family_name` if you want them, but never link accounts on the email. It is unverified.
 5. **Test it.** Log in through your IdP. The client's **Last used** time in the portal updates once your IdP has exchanged a code.
+
+## Using the eName behind your IdP
+
+Your apps don't talk to the connector. They talk to your IdP, and **every IdP issues its own `sub`**: Keycloak's user ID, Rauthy's user ID, and so on. The eName in the connector's `sub` stops at the IdP. An app that keys users on its IdP's `sub` (the OIDC default) gets an ID that means nothing outside that IdP.
+
+What an IdP does pass on is the standard profile claims. The eName travels as `preferred_username`, which every IdP stores as the user's username and sends to its own apps under the `profile` scope. To carry the eName through to an app:
+
+1. **In your IdP**, set the username from the connector's `preferred_username`. Most IdPs do this by default; some need a mapper (see the [provider guides](./OIDC-Provider-Guides.md)).
+2. **In your app**, request `openid profile email` from your IdP, and take the local username from `preferred_username`, not from `sub`. Turn off any option that hashes or prefixes the ID.
+3. **Don't treat the username as proof.** An IdP with local accounts or self-registration may let someone choose a username that looks like another person's eName. Apps that act on a user's W3DS identity, for example by reading their eVault, should use `preferred_username` only as a hint and have the user confirm the eName with their wallet once. The Nextcloud W3DS Connector app does this.
+
+### Example: Nextcloud behind an IdP
+
+Nextcloud's [OpenID Connect user backend](https://github.com/nextcloud/user_oidc) (`user_oidc`) by default names each user `sha256(<provider id>_0_<sub>)`, which is why logins show a 64-character hex user ID. Configure the provider so the user ID is the eName instead:
+
+```bash
+occ user_oidc:provider <your-idp> \
+  --scope="openid profile email" \
+  --unique-uid=0 \
+  --mapping-uid=preferred_username \
+  --mapping-email=email
+```
+
+`user_oidc` pins an account to the (provider, `sub`) pair when it first sees it, so accounts created before this change keep their hex IDs. Delete them (`occ user:delete <uid>`) so they are recreated at the next login.
+
+With the [W3DS Connector app](https://github.com/ensombl/nextcloud-w3ds-login) installed, users who arrive this way are asked to scan once with their wallet to connect their eName. After that, their Talk conversations sync as they do for users who sign in with W3DS directly.
 
 For step-by-step instructions for specific products, such as Keycloak and Rauthy, see the [OIDC Provider Guides](./OIDC-Provider-Guides.md).
 

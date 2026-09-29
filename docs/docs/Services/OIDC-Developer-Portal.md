@@ -26,7 +26,7 @@ You can only finish signing in in the browser where you opened the QR code. The 
    - **Name:** shown to your users on the W3DS login page and as the title of the approval card in their eID wallet, e.g. your organisation or product. Up to 64 characters.
    - **Logo URL** (optional): an `https` link to a square image (PNG, JPEG, WebP or SVG, at least 128×128 pixels). It is shown on the W3DS login page and in the eID wallet. Host it somewhere stable; if it fails to load, the connector's own logo is shown instead.
    - **Redirect URIs:** one per line, up to 10. These are your IdP's callback URLs: the URL your IdP shows when you add an OpenID Connect provider. The [provider guides](./OIDC-Provider-Guides.md) list them for popular products. Redirect URIs must use `https`; plain `http` is allowed only on `localhost`, for development. They must not contain a fragment (`#`). The connector matches them exactly, character for character.
-   - **My identity provider requires an email address:** turn this on if your IdP refuses upstream logins without an email. The connector then sends `email: <username>@w3ds.invalid` with `email_verified: false`. These addresses can never receive mail and never match a real account.
+   - **My identity provider requires an email address:** turn this on if your IdP refuses upstream logins without an email. Normally the connector sends the email from the user's eVault profile only when the IdP requests the `email` scope. With this on, it always sends one, and users whose profile has no email get `<username>@w3ds.invalid`, which can never receive mail. `email_verified` is always `false`.
 3. Click **Create client**.
 4. The next page shows your **client ID** and **client secret**, each with a **Copy** button.
 
