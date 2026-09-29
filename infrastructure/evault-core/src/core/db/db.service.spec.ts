@@ -1,5 +1,6 @@
 import neo4j, { Driver } from "neo4j-driver";
 import { DbService } from "./db.service"; // adjust if needed
+import { createMetaEnvelopeVersionIndexes } from "./migrations/add-metaenvelope-version-indexes";
 import { it, describe, beforeAll, afterAll, expect } from "vitest";
 import { Neo4jContainer, StartedNeo4jContainer } from "@testcontainers/neo4j";
 
@@ -25,6 +26,7 @@ describe("DbService (integration)", () => {
         const uri = `bolt://localhost:${boltPort}`;
 
         driver = neo4j.driver(uri, neo4j.auth.basic(username, password));
+        await createMetaEnvelopeVersionIndexes(driver);
         service = new DbService(driver);
     }, 120000);
 
@@ -634,6 +636,202 @@ describe("DbService (integration)", () => {
                     ),
                 ).toBe(true);
             }
+        });
+    });
+
+    describe("MetaEnvelope versioning", () => {
+        const VERSION_ENAME = "versions@example.com";
+
+        async function countNodes(label: string, id: string): Promise<number> {
+            const result = await service.runQuery(
+                `MATCH (n:${label} { id: $id }) RETURN count(n) AS total`,
+                { id },
+            );
+            return result.records[0].get("total").toNumber();
+        }
+
+        it("records create, update and delete as immutable versions", async () => {
+            const stored = await service.storeMetaEnvelope(
+                {
+                    ontology: "VersionedPost",
+                    payload: { title: "first", body: "hello" },
+                    acl: ["*"],
+                },
+                ["*"],
+                VERSION_ENAME,
+                { evaultPublicKey: null, requestingPlatform: "platform-a" },
+            );
+            const id = stored.metaEnvelope.id;
+
+            await service.updateMetaEnvelopeById(
+                id,
+                {
+                    ontology: "VersionedPost",
+                    payload: { title: "second" },
+                    acl: ["*"],
+                },
+                ["*"],
+                VERSION_ENAME,
+            );
+            await service.deleteMetaEnvelope(id, VERSION_ENAME);
+
+            const history = await service.getMetaEnvelopeVersions(
+                id,
+                VERSION_ENAME,
+            );
+            expect(history.totalCount).toBe(3);
+            expect(history.edges.map((e) => e.node.version)).toEqual([3, 2, 1]);
+            expect(history.edges.map((e) => e.node.operation)).toEqual([
+                "delete",
+                "update",
+                "create",
+            ]);
+            expect(history.edges[2].node.parsed).toEqual({
+                title: "first",
+                body: "hello",
+            });
+            expect(history.edges[2].node.requestingPlatform).toBe("platform-a");
+            // An update records the full merged state, not just the patch
+            expect(history.edges[1].node.parsed).toEqual({
+                title: "second",
+                body: "hello",
+            });
+            expect(history.edges[0].node.parsed).toBeNull();
+        });
+
+        it("prunes a deleted record instead of destroying it", async () => {
+            const stored = await service.storeMetaEnvelope(
+                { ontology: "PrunedPost", payload: { text: "keep me" }, acl: ["*"] },
+                ["*"],
+                VERSION_ENAME,
+            );
+            const id = stored.metaEnvelope.id;
+            const envelopeId = stored.envelopes[0].id;
+
+            await service.deleteMetaEnvelope(id, VERSION_ENAME);
+
+            expect(await service.findMetaEnvelopeById(id, VERSION_ENAME)).toBeNull();
+            expect(
+                await service.findMetaEnvelopesByOntology("PrunedPost", VERSION_ENAME),
+            ).toEqual([]);
+            expect(
+                (await service.getAllEnvelopes(VERSION_ENAME)).some(
+                    (e) => e.id === envelopeId,
+                ),
+            ).toBe(false);
+            const page = await service.findMetaEnvelopesPaginated(VERSION_ENAME, {
+                filter: { ontologyId: "PrunedPost" },
+            });
+            expect(page.totalCount).toBe(0);
+
+            expect(await countNodes("MetaEnvelope", id)).toBe(0);
+            expect(await countNodes("PrunedMetaEnvelope", id)).toBe(1);
+            expect(await countNodes("Envelope", envelopeId)).toBe(0);
+            const pruned = await service.runQuery(
+                `MATCH (:PrunedMetaEnvelope { id: $id })-[:LINKS_TO]->(e:PrunedEnvelope)
+                 RETURN e.value AS value`,
+                { id },
+            );
+            expect(pruned.records[0].get("value")).toBe("keep me");
+        });
+
+        it("records a baseline for a record written before versioning", async () => {
+            const id = "legacy-meta-envelope-1";
+            await service.runQuery(
+                `CREATE (m:MetaEnvelope { id: $id, ontology: 'LegacyPost', acl: ['*'], eName: $eName })
+                 CREATE (m)-[:LINKS_TO]->(:Envelope { id: 'legacy-envelope-1', ontology: 'text', value: 'before', valueType: 'string' })`,
+                { id, eName: VERSION_ENAME },
+            );
+
+            await service.updateEnvelopeValue(
+                "legacy-envelope-1",
+                "after",
+                VERSION_ENAME,
+            );
+
+            const history = await service.getMetaEnvelopeVersions(
+                id,
+                VERSION_ENAME,
+            );
+            expect(history.edges.map((e) => e.node.operation)).toEqual([
+                "update",
+                "create",
+            ]);
+            expect(history.edges[1].node.parsed).toEqual({ text: "before" });
+            expect(history.edges[0].node.parsed).toEqual({ text: "after" });
+        });
+
+        it("prunes duplicate envelopes instead of deleting them", async () => {
+            const id = "duplicate-meta-envelope-1";
+            await service.runQuery(
+                `CREATE (m:MetaEnvelope { id: $id, ontology: 'DupPost', acl: ['*'], eName: $eName })
+                 CREATE (m)-[:LINKS_TO]->(:Envelope { id: 'dup-envelope-a', ontology: 'text', value: 'a', valueType: 'string' })
+                 CREATE (m)-[:LINKS_TO]->(:Envelope { id: 'dup-envelope-b', ontology: 'text', value: 'b', valueType: 'string' })`,
+                { id, eName: VERSION_ENAME },
+            );
+
+            await service.updateMetaEnvelopeById(
+                id,
+                { ontology: "DupPost", payload: { text: "c" }, acl: ["*"] },
+                ["*"],
+                VERSION_ENAME,
+            );
+
+            const live = await service.findMetaEnvelopeById(id, VERSION_ENAME);
+            expect(live?.envelopes).toHaveLength(1);
+            expect(live?.parsed).toEqual({ text: "c" });
+            const pruned = await service.runQuery(
+                `MATCH (:MetaEnvelope { id: $id })-[:LINKS_TO]->(e:PrunedEnvelope) RETURN count(e) AS total`,
+                { id },
+            );
+            expect(pruned.records[0].get("total").toNumber()).toBe(1);
+        });
+
+        it("keeps history isolated per eName", async () => {
+            const stored = await service.storeMetaEnvelope(
+                { ontology: "IsolatedPost", payload: { text: "mine" }, acl: ["*"] },
+                ["*"],
+                VERSION_ENAME,
+            );
+            const other = await service.getMetaEnvelopeVersions(
+                stored.metaEnvelope.id,
+                "someone-else@example.com",
+            );
+            expect(other.totalCount).toBe(0);
+            expect(other.edges).toEqual([]);
+        });
+
+        it("paginates history newest first", async () => {
+            const stored = await service.storeMetaEnvelope(
+                { ontology: "PagedPost", payload: { n: 0 }, acl: ["*"] },
+                ["*"],
+                VERSION_ENAME,
+            );
+            const id = stored.metaEnvelope.id;
+            for (let n = 1; n <= 4; n++) {
+                await service.updateMetaEnvelopeById(
+                    id,
+                    { ontology: "PagedPost", payload: { n }, acl: ["*"] },
+                    ["*"],
+                    VERSION_ENAME,
+                );
+            }
+
+            const page1 = await service.getMetaEnvelopeVersions(id, VERSION_ENAME, {
+                first: 2,
+            });
+            expect(page1.edges.map((e) => e.node.version)).toEqual([5, 4]);
+            expect(page1.pageInfo.hasNextPage).toBe(true);
+
+            const page2 = await service.getMetaEnvelopeVersions(id, VERSION_ENAME, {
+                first: 2,
+                after: page1.pageInfo.endCursor ?? undefined,
+            });
+            expect(page2.edges.map((e) => e.node.version)).toEqual([3, 2]);
+            expect(page2.edges.map((e) => e.node.parsed)).toEqual([
+                { n: 2 },
+                { n: 1 },
+            ]);
         });
     });
 });

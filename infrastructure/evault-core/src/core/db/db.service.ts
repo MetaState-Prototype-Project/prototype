@@ -1,4 +1,4 @@
-import neo4j, { type Driver } from "neo4j-driver";
+import neo4j, { type Driver, type ManagedTransaction } from "neo4j-driver";
 import { randomUUID } from "node:crypto";
 import { W3IDBuilder } from "w3id";
 import { timed } from "../utils/timing";
@@ -17,6 +17,8 @@ import type {
     MetaEnvelopeFilterInput,
     MetaEnvelopeResult,
     MetaEnvelopeSearchInput,
+    MetaEnvelopeVersion,
+    MetaEnvelopeVersionConnection,
     PageInfo,
     SearchMetaEnvelopesResult,
     StoreMetaEnvelopeResult,
@@ -72,6 +74,75 @@ const CREATE_AWARENESS_OUTBOX = `
     })
 `;
 
+export type MetaEnvelopeVersionOperation = "create" | "update" | "delete";
+
+/**
+ * The full state of a MetaEnvelope at one point in time. `payload` is null for
+ * a delete, which records that the record was pruned rather than a new state.
+ */
+interface MetaEnvelopeSnapshot {
+    ontology: string;
+    acl: string[];
+    aclBlock: string | null;
+    payload: Record<string, unknown> | null;
+}
+
+function metaEnvelopeVersionParams(
+    metaEnvelopeId: string,
+    eName: string,
+    operation: MetaEnvelopeVersionOperation,
+    snapshot: MetaEnvelopeSnapshot,
+    requestingPlatform: string | null,
+): Record<string, unknown> {
+    return {
+        versionMetaEnvelopeId: metaEnvelopeId,
+        versionEName: eName,
+        versionOperation: operation,
+        versionOntology: snapshot.ontology,
+        versionAcl: snapshot.acl ?? [],
+        versionAclBlock: snapshot.aclBlock ?? null,
+        versionPayloadJson:
+            snapshot.payload === null ? null : JSON.stringify(snapshot.payload),
+        versionRequestingPlatform: requestingPlatform,
+        versionCreatedAt: new Date().toISOString(),
+        versionNow: Date.now(),
+    };
+}
+
+// Every write to a MetaEnvelope appends an immutable snapshot of its resulting
+// state. History lives on its own nodes keyed by (metaEnvelopeId, eName) and is
+// never linked into the MetaEnvelope graph, so live reads are unaffected and
+// the history outlives pruning and re-creation of the record.
+const APPEND_METAENVELOPE_VERSION = `
+    MERGE (h:MetaEnvelopeHistory { metaEnvelopeId: $versionMetaEnvelopeId, eName: $versionEName })
+    ON CREATE SET h.createdAt = $versionNow
+    SET h.latestVersion = coalesce(h.latestVersion, 0) + 1, h.updatedAt = $versionNow
+    CREATE (:MetaEnvelopeVersion {
+        metaEnvelopeId: $versionMetaEnvelopeId,
+        eName: $versionEName,
+        version: h.latestVersion,
+        operation: $versionOperation,
+        ontology: $versionOntology,
+        acl: $versionAcl,
+        aclBlock: $versionAclBlock,
+        payloadJson: $versionPayloadJson,
+        requestingPlatform: $versionRequestingPlatform,
+        createdAt: $versionCreatedAt
+    })
+`;
+
+function payloadFromEnvelopeNodes(nodes: any[]): Record<string, unknown> {
+    const payload: Record<string, unknown> = {};
+    for (const node of nodes) {
+        if (!node) continue;
+        payload[node.properties.ontology] = deserializeValue(
+            node.properties.value,
+            node.properties.valueType,
+        );
+    }
+    return payload;
+}
+
 /**
  * Service for managing meta-envelopes and their associated envelopes in Neo4j.
  * Provides functionality for storing, retrieving, searching, and updating data
@@ -114,6 +185,105 @@ export class DbService {
      */
     async runQuery(query: string, params: Record<string, any>) {
         return this.runQueryInternal(query, params);
+    }
+
+    /**
+     * Takes the write lock on a record's history and returns its latest
+     * version (0 when none has been recorded yet). Every writer locks the
+     * history before touching the record, so snapshots are appended in the
+     * order the writes land.
+     */
+    private async lockHistory(
+        tx: ManagedTransaction,
+        metaEnvelopeId: string,
+        eName: string,
+    ): Promise<number> {
+        const result = await tx.run(
+            `
+            MERGE (h:MetaEnvelopeHistory { metaEnvelopeId: $metaEnvelopeId, eName: $eName })
+            ON CREATE SET h.createdAt = $now, h.latestVersion = 0
+            SET h.updatedAt = $now
+            RETURN h.latestVersion AS latestVersion
+            `,
+            { metaEnvelopeId, eName, now: Date.now() },
+        );
+        const latest = result.records[0]?.get("latestVersion");
+        return typeof latest?.toNumber === "function"
+            ? latest.toNumber()
+            : Number(latest ?? 0);
+    }
+
+    /**
+     * Reads the live state of a record inside a transaction, or null when no
+     * live record exists for the id and eName.
+     */
+    private async readLiveSnapshot(
+        tx: ManagedTransaction,
+        metaEnvelopeId: string,
+        eName: string,
+    ): Promise<MetaEnvelopeSnapshot | null> {
+        const result = await tx.run(
+            `
+            MATCH (m:MetaEnvelope { id: $metaEnvelopeId, eName: $eName })
+            OPTIONAL MATCH (m)-[:LINKS_TO]->(e:Envelope)
+            RETURN m.ontology AS ontology, m.acl AS acl, m.aclBlock AS aclBlock, collect(e) AS envelopes
+            `,
+            { metaEnvelopeId, eName },
+        );
+        const record = result.records[0];
+        if (!record) return null;
+        return {
+            ontology: record.get("ontology"),
+            acl: record.get("acl") ?? [],
+            aclBlock: record.get("aclBlock") ?? null,
+            payload: payloadFromEnvelopeNodes(record.get("envelopes")),
+        };
+    }
+
+    private async appendVersion(
+        tx: ManagedTransaction,
+        metaEnvelopeId: string,
+        eName: string,
+        operation: MetaEnvelopeVersionOperation,
+        snapshot: MetaEnvelopeSnapshot,
+        requestingPlatform: string | null,
+    ): Promise<void> {
+        await tx.run(
+            APPEND_METAENVELOPE_VERSION,
+            metaEnvelopeVersionParams(
+                metaEnvelopeId,
+                eName,
+                operation,
+                snapshot,
+                requestingPlatform,
+            ),
+        );
+    }
+
+    /**
+     * Locks a record's history and returns its live state before the caller
+     * changes it. A record written before versioning existed has no history,
+     * so its current state is recorded first as the baseline it started from.
+     */
+    private async prepareVersionedWrite(
+        tx: ManagedTransaction,
+        metaEnvelopeId: string,
+        eName: string,
+        requestingPlatform: string | null,
+    ): Promise<MetaEnvelopeSnapshot | null> {
+        const latestVersion = await this.lockHistory(tx, metaEnvelopeId, eName);
+        const live = await this.readLiveSnapshot(tx, metaEnvelopeId, eName);
+        if (latestVersion === 0 && live) {
+            await this.appendVersion(
+                tx,
+                metaEnvelopeId,
+                eName,
+                "create",
+                live,
+                requestingPlatform,
+            );
+        }
+        return live;
     }
 
     /**
@@ -188,6 +358,23 @@ export class DbService {
 
                 counter++;
             }
+
+            cypher.push("WITH m", APPEND_METAENVELOPE_VERSION);
+            Object.assign(
+                envelopeParams,
+                metaEnvelopeVersionParams(
+                    w3id.id,
+                    eName,
+                    "create",
+                    {
+                        ontology: meta.ontology,
+                        acl,
+                        aclBlock: envelopeParams.aclBlock ?? null,
+                        payload: meta.payload,
+                    },
+                    awareness?.requestingPlatform ?? null,
+                ),
+            );
 
             if (awareness && !awareness.skipAwareness) {
                 cypher.push(CREATE_AWARENESS_OUTBOX);
@@ -306,7 +493,66 @@ export class DbService {
             );
         }
 
-        await this.runQueryInternal(cypher.join("\n"), envelopeParams);
+        const requestingPlatform = awareness?.requestingPlatform ?? null;
+        const session = this.driver.session();
+        try {
+            await session.executeWrite(async (tx) => {
+                // The MERGE only matches on id, so a re-run against an existing
+                // record adds to it rather than creating it; version it as an
+                // update of that record's owner.
+                const existing = await tx.run(
+                    "MATCH (m:MetaEnvelope { id: $metaId }) RETURN m.eName AS eName LIMIT 1",
+                    { metaId },
+                );
+                const existed = existing.records.length > 0;
+                const historyEName: string =
+                    existing.records[0]?.get("eName") ?? eName;
+                if (existed) {
+                    await this.prepareVersionedWrite(
+                        tx,
+                        metaId,
+                        historyEName,
+                        requestingPlatform,
+                    );
+                }
+
+                await tx.run(cypher.join("\n"), envelopeParams);
+
+                if (!existed) {
+                    await this.appendVersion(
+                        tx,
+                        metaId,
+                        eName,
+                        "create",
+                        {
+                            ontology: meta.ontology,
+                            acl,
+                            aclBlock: envelopeParams.aclBlock ?? null,
+                            payload: meta.payload,
+                        },
+                        requestingPlatform,
+                    );
+                    return;
+                }
+                const live = await this.readLiveSnapshot(
+                    tx,
+                    metaId,
+                    historyEName,
+                );
+                if (live) {
+                    await this.appendVersion(
+                        tx,
+                        metaId,
+                        historyEName,
+                        "update",
+                        live,
+                        requestingPlatform,
+                    );
+                }
+            });
+        } finally {
+            await session.close();
+        }
 
         return {
             metaEnvelope: {
@@ -620,7 +866,10 @@ export class DbService {
     }
 
     /**
-     * Deletes a meta-envelope and all its associated envelopes.
+     * Deletes a meta-envelope by pruning it: nothing is destroyed. The record
+     * and its envelopes are relabelled PrunedMetaEnvelope / PrunedEnvelope, so
+     * every live read stops seeing them, and a delete version is appended to
+     * the record's history, which stays readable.
      * @param id - The ID of the meta-envelope to delete
      * @param eName - The eName identifier for multi-tenant isolation
      */
@@ -633,7 +882,12 @@ export class DbService {
             throw new Error("eName is required for deleting meta-envelopes");
         }
 
-        const params: Record<string, unknown> = { id, eName };
+        const requestingPlatform = awareness?.requestingPlatform ?? null;
+        const params: Record<string, unknown> = {
+            id,
+            eName,
+            prunedAt: Date.now(),
+        };
         const outbox = awareness && !awareness.skipAwareness;
         if (outbox) {
             Object.assign(
@@ -641,8 +895,20 @@ export class DbService {
                 awarenessOutboxParams(id, "", eName, null, "delete", awareness),
             );
         }
-        await this.runQueryInternal(
-            `
+
+        const session = this.driver.session();
+        try {
+            await session.executeWrite(async (tx) => {
+                const live = await this.prepareVersionedWrite(
+                    tx,
+                    id,
+                    eName,
+                    requestingPlatform,
+                );
+                if (!live) return;
+
+                await tx.run(
+                    `
       MATCH (m:MetaEnvelope { id: $id, eName: $eName })
       OPTIONAL MATCH (m)-[:LINKS_TO]->(e:Envelope)
       WITH m, collect(e) AS envelopes
@@ -667,11 +933,27 @@ export class DbService {
                  WITH m, envelopes`
               : ""
       }
-      FOREACH (node IN envelopes | DETACH DELETE node)
-      DETACH DELETE m
+      FOREACH (node IN envelopes |
+          REMOVE node:Envelope
+          SET node:PrunedEnvelope, node.prunedAt = $prunedAt)
+      REMOVE m:MetaEnvelope
+      SET m:PrunedMetaEnvelope, m.prunedAt = $prunedAt
       `,
-            params,
-        );
+                    params,
+                );
+
+                await this.appendVersion(
+                    tx,
+                    id,
+                    eName,
+                    "delete",
+                    { ...live, payload: null },
+                    requestingPlatform,
+                );
+            });
+        } finally {
+            await session.close();
+        }
     }
 
     /**
@@ -696,25 +978,59 @@ export class DbService {
         const session = this.driver.session();
         try {
             await session.executeWrite(async (tx) => {
+                const owner = await tx.run(
+                    `
+                    MATCH (m:MetaEnvelope { eName: $eName })-[:LINKS_TO]->(:Envelope { id: $envelopeId })
+                    RETURN m.id AS id LIMIT 1
+                    `,
+                    { envelopeId, eName },
+                );
+                const metaEnvelopeId: string | undefined =
+                    owner.records[0]?.get("id");
+                if (!metaEnvelopeId) return;
+                const requestingPlatform = awareness?.requestingPlatform ?? null;
+                await this.prepareVersionedWrite(
+                    tx,
+                    metaEnvelopeId,
+                    eName,
+                    requestingPlatform,
+                );
+
                 const result = await tx.run(
                     `
-                    MATCH (m:MetaEnvelope { eName: $eName })-[:LINKS_TO]->(e:Envelope { id: $envelopeId })
+                    MATCH (m:MetaEnvelope { id: $metaEnvelopeId, eName: $eName })-[:LINKS_TO]->(e:Envelope { id: $envelopeId })
                     SET e.value = $newValue, e.valueType = $valueType
                     WITH m
                     MATCH (m)-[:LINKS_TO]->(allEnvelope:Envelope)
-                    RETURN m.id AS id, m.ontology AS ontology, collect(allEnvelope) AS envelopes
+                    RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, m.aclBlock AS aclBlock, collect(allEnvelope) AS envelopes
                     `,
-                    { envelopeId, newValue: storedValue, valueType, eName },
+                    {
+                        metaEnvelopeId,
+                        envelopeId,
+                        newValue: storedValue,
+                        valueType,
+                        eName,
+                    },
                 );
                 const record = result.records[0];
-                if (!record || !awareness || awareness.skipAwareness) return;
-                const payload: Record<string, unknown> = {};
-                for (const node of record.get("envelopes")) {
-                    payload[node.properties.ontology] = deserializeValue(
-                        node.properties.value,
-                        node.properties.valueType,
-                    );
-                }
+                if (!record) return;
+                const payload = payloadFromEnvelopeNodes(
+                    record.get("envelopes"),
+                );
+                await this.appendVersion(
+                    tx,
+                    metaEnvelopeId,
+                    eName,
+                    "update",
+                    {
+                        ontology: record.get("ontology"),
+                        acl: record.get("acl") ?? [],
+                        aclBlock: record.get("aclBlock") ?? null,
+                        payload,
+                    },
+                    requestingPlatform,
+                );
+                if (!awareness || awareness.skipAwareness) return;
                 await tx.run(
                     `MATCH (m:MetaEnvelope { id: $awarenessPacketId, eName: $awarenessW3id })
                      ${CREATE_AWARENESS_OUTBOX}`,
@@ -758,13 +1074,22 @@ export class DbService {
             }
 
             // The whole read-modify-write cycle runs inside a single Neo4j write
-            // transaction. The opening MERGE+SET acquires a write lock on the
-            // MetaEnvelope node, so concurrent updates to the same id serialize
-            // here — without this, request B's "delete stale envelopes" step
-            // could clobber fields that request A just wrote.
+            // transaction. Locking the record's history first, and then the
+            // opening MERGE+SET on the MetaEnvelope node, makes concurrent
+            // updates to the same id serialize here — without this, request
+            // B's "delete stale envelopes" step could clobber fields that
+            // request A just wrote, and versions could be recorded out of order.
             const session = this.driver.session();
+            const requestingPlatform = awareness?.requestingPlatform ?? null;
             try {
                 return await session.executeWrite(async (tx) => {
+                    const previous = await this.prepareVersionedWrite(
+                        tx,
+                        id,
+                        eName,
+                        requestingPlatform,
+                    );
+
                     const findResult = await tx.run(
                         `
                     MERGE (m:MetaEnvelope { id: $id, eName: $eName })
@@ -772,7 +1097,7 @@ export class DbService {
                     ON MATCH SET m.ontology = $ontology, m.acl = $acl, m.aclBlock = coalesce($aclBlock, m.aclBlock)
                     WITH m
                     OPTIONAL MATCH (m)-[:LINKS_TO]->(e:Envelope)
-                    RETURN collect(e) AS envelopes
+                    RETURN m.aclBlock AS aclBlock, collect(e) AS envelopes
                     `,
                         {
                             id,
@@ -799,26 +1124,31 @@ export class DbService {
                         }));
 
                     // Deduplicate envelopes — if multiple Envelope nodes share the
-                    // same ontology, keep the first and delete the rest.
+                    // same ontology, keep the first and prune the rest.
                     const seen = new Map<string, string>();
-                    const dupsToDelete: string[] = [];
+                    const dupsToPrune: string[] = [];
                     for (const env of workingEnvelopes) {
                         if (seen.has(env.ontology)) {
-                            dupsToDelete.push(env.id);
+                            dupsToPrune.push(env.id);
                         } else {
                             seen.set(env.ontology, env.id);
                         }
                     }
-                    if (dupsToDelete.length > 0) {
+                    if (dupsToPrune.length > 0) {
                         console.warn(
-                            `[eVault] Cleaning ${dupsToDelete.length} duplicate envelope(s) for MetaEnvelope ${id}`,
+                            `[eVault] Pruning ${dupsToPrune.length} duplicate envelope(s) for MetaEnvelope ${id}`,
                         );
                         await tx.run(
-                            `MATCH (e:Envelope) WHERE e.id IN $ids DETACH DELETE e`,
-                            { ids: dupsToDelete },
+                            `
+                            MATCH (:MetaEnvelope { id: $id, eName: $eName })-[:LINKS_TO]->(e:Envelope)
+                            WHERE e.id IN $ids
+                            REMOVE e:Envelope
+                            SET e:PrunedEnvelope, e.prunedAt = $now
+                            `,
+                            { id, eName, ids: dupsToPrune, now: Date.now() },
                         );
                         workingEnvelopes = workingEnvelopes.filter(
-                            (e) => !dupsToDelete.includes(e.id),
+                            (e) => !dupsToPrune.includes(e.id),
                         );
                     }
 
@@ -898,6 +1228,21 @@ export class DbService {
                     for (const env of createdEnvelopes) {
                         mergedPayload[env.ontology] = env.value;
                     }
+
+                    await this.appendVersion(
+                        tx,
+                        id,
+                        eName,
+                        previous ? "update" : "create",
+                        {
+                            ontology: meta.ontology,
+                            acl,
+                            aclBlock:
+                                findResult.records[0]?.get("aclBlock") ?? null,
+                            payload: mergedPayload,
+                        },
+                        requestingPlatform,
+                    );
 
                     if (awareness && !awareness.skipAwareness) {
                         await tx.run(
@@ -1161,6 +1506,41 @@ export class DbService {
             }
         }
 
+        // Copy the version history so it survives the move with its records
+        const historyResult = await this.runQueryInternal(
+            `MATCH (h:MetaEnvelopeHistory { eName: $eName }) RETURN properties(h) AS props`,
+            { eName },
+        );
+        const histories = historyResult.records.map((r) => r.get("props"));
+        if (histories.length > 0) {
+            await targetDbService.runQuery(
+                `
+                UNWIND $rows AS row
+                MERGE (h:MetaEnvelopeHistory { metaEnvelopeId: row.metaEnvelopeId, eName: row.eName })
+                SET h += row
+                `,
+                { rows: histories },
+            );
+        }
+        const versionResult = await this.runQueryInternal(
+            `MATCH (v:MetaEnvelopeVersion { eName: $eName }) RETURN properties(v) AS props`,
+            { eName },
+        );
+        const versions = versionResult.records.map((r) => r.get("props"));
+        if (versions.length > 0) {
+            await targetDbService.runQuery(
+                `
+                UNWIND $rows AS row
+                MERGE (v:MetaEnvelopeVersion { metaEnvelopeId: row.metaEnvelopeId, eName: row.eName, version: row.version })
+                SET v += row
+                `,
+                { rows: versions },
+            );
+            console.log(
+                `[MIGRATION] Copied ${versions.length} MetaEnvelope versions for eName: ${eName}`,
+            );
+        }
+
         // Copy User node with public keys if it exists
         try {
             const userResult = await this.runQueryInternal(
@@ -1385,6 +1765,142 @@ export class DbService {
             hasMore && last ? `${last.timestamp}|${last.id}` : null;
 
         return { logs, nextCursor, hasMore };
+    }
+
+    /**
+     * Returns the version history of a MetaEnvelope, newest first. History is
+     * kept for pruned records too, so this answers for ids that no live read
+     * returns any more.
+     * @param id - The ID of the meta-envelope
+     * @param eName - The eName identifier for multi-tenant isolation
+     */
+    async getMetaEnvelopeVersions<
+        T extends Record<string, any> = Record<string, any>,
+    >(
+        id: string,
+        eName: string,
+        options: { first?: number; after?: string } = {},
+    ): Promise<MetaEnvelopeVersionConnection<T>> {
+        if (!eName) {
+            throw new Error(
+                "eName is required for reading meta-envelope history",
+            );
+        }
+
+        const limit = Math.min(Math.max(1, options.first ?? 20), 100);
+        let afterVersion: number | null = null;
+        if (options.after) {
+            afterVersion = Number(
+                Buffer.from(options.after, "base64").toString("utf-8"),
+            );
+            if (!Number.isInteger(afterVersion)) {
+                throw new Error("Invalid cursor");
+            }
+        }
+
+        const session = this.driver.session();
+        let countResult;
+        let result;
+        try {
+            countResult = await session.run(
+                `
+                MATCH (v:MetaEnvelopeVersion { metaEnvelopeId: $id, eName: $eName })
+                RETURN count(v) AS total
+                `,
+                { id, eName },
+            );
+            result = await session.run(
+                `
+                MATCH (v:MetaEnvelopeVersion { metaEnvelopeId: $id, eName: $eName })
+                WHERE $afterVersion IS NULL OR v.version < $afterVersion
+                WITH v
+                ORDER BY v.version DESC
+                LIMIT $limitPlusOne
+                RETURN v.version AS version, v.operation AS operation, v.ontology AS ontology,
+                       v.payloadJson AS payloadJson, v.requestingPlatform AS requestingPlatform,
+                       v.createdAt AS createdAt
+                `,
+                {
+                    id,
+                    eName,
+                    afterVersion:
+                        afterVersion === null ? null : neo4j.int(afterVersion),
+                    limitPlusOne: neo4j.int(limit + 1),
+                },
+            );
+        } finally {
+            await session.close();
+        }
+
+        const total = countResult.records[0]?.get("total");
+        const totalCount =
+            typeof total?.toNumber === "function"
+                ? total.toNumber()
+                : Number(total ?? 0);
+
+        const hasMore = result.records.length > limit;
+        const edges = result.records.slice(0, limit).map((record) => {
+            const rawVersion = record.get("version");
+            const version =
+                typeof rawVersion?.toNumber === "function"
+                    ? rawVersion.toNumber()
+                    : Number(rawVersion);
+            const payloadJson = record.get("payloadJson");
+            const node: MetaEnvelopeVersion<T> = {
+                metaEnvelopeId: id,
+                version,
+                operation: record.get("operation"),
+                ontology: record.get("ontology"),
+                parsed: payloadJson == null ? null : JSON.parse(payloadJson),
+                requestingPlatform: record.get("requestingPlatform") ?? null,
+                createdAt: record.get("createdAt"),
+            };
+            return {
+                cursor: Buffer.from(String(version)).toString("base64"),
+                node,
+            };
+        });
+
+        return {
+            edges,
+            pageInfo: {
+                hasNextPage: hasMore,
+                hasPreviousPage: afterVersion !== null,
+                startCursor: edges[0]?.cursor ?? null,
+                endCursor: edges[edges.length - 1]?.cursor ?? null,
+            },
+            totalCount,
+        };
+    }
+
+    /**
+     * Returns the access policy a MetaEnvelope carried at its latest recorded
+     * version, so its history stays guarded by the same rules once pruned.
+     */
+    async getLatestMetaEnvelopeVersionAcl(
+        id: string,
+        eName: string,
+    ): Promise<Pick<MetaEnvelopeResult, "acl" | "_acl"> | null> {
+        if (!eName) {
+            throw new Error(
+                "eName is required for reading meta-envelope history",
+            );
+        }
+        const result = await this.runQueryInternal(
+            `
+            MATCH (v:MetaEnvelopeVersion { metaEnvelopeId: $id, eName: $eName })
+            RETURN v.acl AS acl, v.aclBlock AS aclBlock
+            ORDER BY v.version DESC
+            LIMIT 1
+            `,
+            { id, eName },
+        );
+        const record = result.records[0];
+        if (!record) return null;
+        return {
+            acl: record.get("acl") ?? [],
+            _acl: parseStoredAclBlock(record.get("aclBlock")),
+        };
     }
 
     /**

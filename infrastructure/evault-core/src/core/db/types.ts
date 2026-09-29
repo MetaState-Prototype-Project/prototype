@@ -178,6 +178,27 @@ export type MetaEnvelopeConnection<T extends Record<string, any> = Record<string
 };
 
 /**
+ * One recorded state of a MetaEnvelope. Versions are immutable: every write
+ * appends one, and a delete appends a tombstone (`parsed` null) rather than
+ * removing anything.
+ */
+export type MetaEnvelopeVersion<T extends Record<string, any> = Record<string, any>> = {
+    metaEnvelopeId: string;
+    version: number;
+    operation: "create" | "update" | "delete";
+    ontology: string;
+    parsed: T | null;
+    requestingPlatform: string | null;
+    createdAt: string;
+};
+
+export type MetaEnvelopeVersionConnection<T extends Record<string, any> = Record<string, any>> = {
+    edges: { cursor: string; node: MetaEnvelopeVersion<T> }[];
+    pageInfo: PageInfo;
+    totalCount: number;
+};
+
+/**
  * Options for paginated MetaEnvelope queries.
  */
 export type FindMetaEnvelopesPaginatedOptions = {

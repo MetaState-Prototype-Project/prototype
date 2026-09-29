@@ -165,6 +165,15 @@ const initializeEVault = async (
         console.warn("Failed to create awareness outbox indexes:", error);
     }
 
+    try {
+        const { createMetaEnvelopeVersionIndexes } = await import(
+            "./core/db/migrations/add-metaenvelope-version-indexes"
+        );
+        await createMetaEnvelopeVersionIndexes(driver);
+    } catch (error) {
+        console.warn("Failed to create MetaEnvelope version indexes:", error);
+    }
+
     // One-time backfill: create operation logs for existing metaenvelopes (platform inferred from ontology)
     try {
         const { backfillEnvelopeOperationLogs } = await import(

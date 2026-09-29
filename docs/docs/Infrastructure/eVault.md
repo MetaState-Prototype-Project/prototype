@@ -87,6 +87,15 @@ In Neo4j, the structure looks like:
 (MetaEnvelope {id, ontology, acl, aclBlock}) -[:LINKS_TO]-> (Envelope {id, value, valueType})
 ```
 
+This graph always holds the current state. History is kept alongside it, never linked into it:
+
+```cypher
+(MetaEnvelopeHistory {metaEnvelopeId, eName, latestVersion})
+(MetaEnvelopeVersion {metaEnvelopeId, eName, version, operation, ontology, acl, aclBlock, payloadJson, requestingPlatform, createdAt})
+```
+
+A removed record is relabelled `PrunedMetaEnvelope`, and its Envelopes `PrunedEnvelope`, so no read returns it while its data is kept.
+
 This flat graph structure allows:
 - Efficient field-level updates
 - Flexible querying
@@ -188,6 +197,37 @@ query {
 - `first` / `after`: Forward pagination
 - `last` / `before`: Backward pagination
 
+#### metaEnvelopeHistory
+
+Retrieve every recorded version of a MetaEnvelope, newest first. Each create, update and remove appends an immutable version holding the full payload as it stood after that write; nothing is overwritten. History stays readable after `removeMetaEnvelope`, guarded by the access policy the record last carried.
+
+**Query**:
+```graphql
+query {
+  metaEnvelopeHistory(id: "global-id-123", first: 20) {
+    edges {
+      cursor
+      node {
+        version
+        operation
+        ontology
+        parsed
+        requestingPlatform
+        createdAt
+      }
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    totalCount
+  }
+}
+```
+
+- `operation` is `create`, `update` or `delete`. A `delete` version has `parsed: null`.
+- Records written before versioning existed get a baseline `create` version from their state at their first later write.
+
 ### Mutations
 
 #### createMetaEnvelope
@@ -259,7 +299,7 @@ mutation {
 
 #### removeMetaEnvelope
 
-Delete a MetaEnvelope and all its Envelopes. Returns a structured payload confirming deletion.
+Remove a MetaEnvelope. Removal prunes rather than destroys: the record and its Envelopes disappear from every read, but their data is kept and the record's version history remains available through `metaEnvelopeHistory`. Returns a structured payload confirming the removal.
 
 **Mutation**:
 ```graphql

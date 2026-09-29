@@ -95,6 +95,34 @@ export const typeDefs = /* GraphQL */ `
         totalCount: Int
     }
 
+    "One recorded state of a MetaEnvelope. Versions are immutable and never removed."
+    type MetaEnvelopeVersion {
+        metaEnvelopeId: String!
+        "Starts at 1 and increases by one with every write to the record"
+        version: Int!
+        "create, update or delete. A delete means the record was pruned, and parsed is null"
+        operation: String!
+        "The ontology schema ID (W3ID) at this version"
+        ontology: String!
+        "The full payload as it stood after this write"
+        parsed: JSON
+        "The platform that made the write, when known"
+        requestingPlatform: String
+        "ISO-8601 time the version was recorded"
+        createdAt: String!
+    }
+
+    type MetaEnvelopeVersionEdge {
+        cursor: String!
+        node: MetaEnvelopeVersion!
+    }
+
+    type MetaEnvelopeVersionConnection {
+        edges: [MetaEnvelopeVersionEdge!]!
+        pageInfo: PageInfo!
+        totalCount: Int
+    }
+
     # ============================================================================
     # Search and Filter Types
     # ============================================================================
@@ -318,6 +346,19 @@ export const typeDefs = /* GraphQL */ `
             "Cursor to start before (backward pagination)"
             before: String
         ): MetaEnvelopeConnection!
+
+        """
+        The version history of a MetaEnvelope, newest first. Updates never
+        overwrite a recorded version and a removal only prunes the record, so
+        the history stays readable after removeMetaEnvelope.
+        """
+        metaEnvelopeHistory(
+            id: ID!
+            "Number of versions to return (default 20, max 100)"
+            first: Int
+            "Cursor to start after"
+            after: String
+        ): MetaEnvelopeVersionConnection
 
         # --- LEGACY API (preserved for backward compatibility) ---
         getMetaEnvelopeById(id: String!): MetaEnvelope

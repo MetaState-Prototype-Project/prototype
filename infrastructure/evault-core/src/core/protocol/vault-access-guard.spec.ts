@@ -1420,4 +1420,65 @@ describe("group grants and denials end to end", () => {
             ).resolves.toBeDefined();
         });
     });
+
+    describe("history of a pruned record", () => {
+        const PLATFORM = "@platform-history";
+        const OTHER_PLATFORM = "@platform-history-other";
+
+        const storeAndPrune = async (eName: string, _acl: any) => {
+            const result = await dbService.storeMetaEnvelope(
+                { ontology: "Test", payload: { field: "value" }, acl: ["*"], _acl },
+                ["*"],
+                eName,
+            );
+            await dbService.deleteMetaEnvelope(result.metaEnvelope.id, eName);
+            return result.metaEnvelope.id;
+        };
+
+        const contextFor = async (eName: string, platform: string) => {
+            const token = await createValidToken({ platform });
+            return createMockContext({
+                eName,
+                request: {
+                    headers: new Headers({ authorization: `Bearer ${token}` }),
+                } as any,
+            });
+        };
+
+        const policy = {
+            v: 1,
+            grants: [{ ename: PLATFORM, perms: 0x01 }],
+            denials: { enames: [OTHER_PLATFORM], conditions: [] },
+            default_perms: 0x00,
+            require: [],
+        };
+
+        it("admits a party the pruned record's last policy allowed", async () => {
+            const eName = "@vault-history-1";
+            const id = await storeAndPrune(eName, policy);
+
+            const context = await contextFor(eName, PLATFORM);
+            const resolver = vi.fn(async () => ({ edges: [] }));
+            await expect(
+                guard.middleware(resolver, Permission.READ, {
+                    includePruned: true,
+                })(null, { id }, context),
+            ).resolves.toBeDefined();
+            expect(resolver).toHaveBeenCalled();
+        });
+
+        it("denies a party the pruned record's last policy denied", async () => {
+            const eName = "@vault-history-2";
+            const id = await storeAndPrune(eName, policy);
+
+            const context = await contextFor(eName, OTHER_PLATFORM);
+            const resolver = vi.fn(async () => ({ edges: [] }));
+            await expect(
+                guard.middleware(resolver, Permission.READ, {
+                    includePruned: true,
+                })(null, { id }, context),
+            ).rejects.toThrow("Access denied");
+            expect(resolver).not.toHaveBeenCalled();
+        });
+    });
 });

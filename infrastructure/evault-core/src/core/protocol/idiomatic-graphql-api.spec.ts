@@ -754,6 +754,128 @@ describe("Idiomatic GraphQL API", () => {
         });
     });
 
+    describe("metaEnvelopeHistory query", () => {
+        const HISTORY_QUERY = `
+            query History($id: ID!, $first: Int, $after: String) {
+                metaEnvelopeHistory(id: $id, first: $first, after: $after) {
+                    edges {
+                        cursor
+                        node { metaEnvelopeId version operation ontology parsed createdAt }
+                    }
+                    pageInfo { hasNextPage endCursor }
+                    totalCount
+                }
+            }
+        `;
+
+        it("keeps every version and stays readable after removal", async () => {
+            const created = await makeGraphQLRequest(
+                server,
+                `mutation Create($input: MetaEnvelopeInput!) {
+                    createMetaEnvelope(input: $input) { metaEnvelope { id } }
+                }`,
+                {
+                    input: {
+                        ontology: "HistoryTestOntology",
+                        payload: { title: "v1", body: "unchanged" },
+                        acl: ["*"],
+                    },
+                },
+                getAuthHeaders(),
+            );
+            const id = created.createMetaEnvelope.metaEnvelope.id;
+
+            await makeGraphQLRequest(
+                server,
+                `mutation Update($id: ID!, $input: MetaEnvelopeInput!) {
+                    updateMetaEnvelope(id: $id, input: $input) { errors { message } }
+                }`,
+                {
+                    id,
+                    input: {
+                        ontology: "HistoryTestOntology",
+                        payload: { title: "v2" },
+                        acl: ["*"],
+                    },
+                },
+                getAuthHeaders(),
+            );
+
+            const removed = await makeGraphQLRequest(
+                server,
+                `mutation Remove($id: ID!) {
+                    removeMetaEnvelope(id: $id) { success }
+                }`,
+                { id },
+                getAuthHeaders(),
+            );
+            expect(removed.removeMetaEnvelope.success).toBe(true);
+
+            // Gone from every live read
+            const live = await makeGraphQLRequest(
+                server,
+                `query Live($id: ID!) { metaEnvelope(id: $id) { id } }`,
+                { id },
+                getAuthHeaders(),
+            );
+            expect(live.metaEnvelope).toBeNull();
+            const listed = await makeGraphQLRequest(
+                server,
+                `query List { metaEnvelopes(filter: { ontologyId: "HistoryTestOntology" }) { totalCount } }`,
+                {},
+                getAuthHeaders(),
+            );
+            expect(listed.metaEnvelopes.totalCount).toBe(0);
+
+            // ...but its history is still there, newest first
+            const result = await makeGraphQLRequest(
+                server,
+                HISTORY_QUERY,
+                { id },
+                getAuthHeaders(),
+            );
+            const history = result.metaEnvelopeHistory;
+            expect(history.totalCount).toBe(3);
+            expect(
+                history.edges.map((e: any) => [e.node.version, e.node.operation]),
+            ).toEqual([
+                [3, "delete"],
+                [2, "update"],
+                [1, "create"],
+            ]);
+            expect(history.edges[0].node.parsed).toBeNull();
+            expect(history.edges[1].node.parsed).toEqual({
+                title: "v2",
+                body: "unchanged",
+            });
+            expect(history.edges[2].node.parsed).toEqual({
+                title: "v1",
+                body: "unchanged",
+            });
+            expect(history.edges[2].node.metaEnvelopeId).toBe(id);
+
+            const page = await makeGraphQLRequest(
+                server,
+                HISTORY_QUERY,
+                { id, first: 1, after: history.edges[0].cursor },
+                getAuthHeaders(),
+            );
+            expect(page.metaEnvelopeHistory.edges[0].node.version).toBe(2);
+            expect(page.metaEnvelopeHistory.pageInfo.hasNextPage).toBe(true);
+        });
+
+        it("requires authentication", async () => {
+            await expect(
+                makeGraphQLRequest(
+                    server,
+                    HISTORY_QUERY,
+                    { id: "any-id" },
+                    { "X-ENAME": evault.w3id },
+                ),
+            ).rejects.toThrow();
+        });
+    });
+
     describe("Envelope.fieldKey resolver", () => {
         it("should return fieldKey as alias for ontology", async () => {
             const mutation = `
