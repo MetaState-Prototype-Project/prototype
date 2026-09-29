@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/7d5a2c1e-6b3f-4c8a-9e21-0a1b2c3d4e60",
+  "schemaId": "7d5a2c1e-6b3f-4c8a-9e21-0a1b2c3d4e60",
+  "title": "DatasetQuery",
+  "domain": "agriculture",
+  "description": "The re-runnable selection CRITERIA that produced a Dataset, stored separately from the snapshot so the same criteria can be applied to the growing corpus later to pull more data. Referenced by Dataset.queryRef.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "recordedAt": { "type": "string", "format": "date-time" },
+    "supersedes": { "type": "string", "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$" },
+    "deleted": { "type": "boolean" },
+    "name": { "type": "string", "minLength": 1 },
+    "scope": { "description": "Which corpus the criteria run over.", "type": "string", "enum": ["public", "mine"] },
+    "access": { "description": "Access filter within one's own vaults.", "type": "string", "enum": ["public", "private", "both"] },
+    "query": { "description": "Free-text search term.", "type": "string" },
+    "imgMode": { "type": "string", "enum": ["all", "annotated", "unannotated"] },
+    "crops": { "type": "array", "items": { "type": "string" } },
+    "weeds": { "type": "array", "items": { "type": "string" } },
+    "rating": { "type": "array", "items": { "type": "string" } },
+    "soil": { "type": "array", "items": { "type": "string" } },
+    "robot": { "type": "array", "items": { "type": "string" } },
+    "region": { "type": "array", "items": { "type": "string" } },
+    "dateFrom": { "anyOf": [{ "type": "string", "format": "date" }, { "type": "string", "format": "date-time" }] },
+    "dateTo": { "anyOf": [{ "type": "string", "format": "date" }, { "type": "string", "format": "date-time" }] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "createdBy": { "type": "string", "pattern": "^@[^/\\s]+$" }
+  },
+  "required": ["name"],
+  "additionalProperties": true
+}

@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/7d5a2c1e-6b3f-4c8a-9e21-0a1b2c3d4e61",
+  "schemaId": "7d5a2c1e-6b3f-4c8a-9e21-0a1b2c3d4e61",
+  "title": "FieldLayer",
+  "domain": "agriculture",
+  "description": "A georeferenced raster (or vector) analytics product for one field — e.g. Soil Organic Matter, NDVI, biomass — produced by an external service and written to the eVault as a file. Carries the layer type, acquisition date, per-layer statistics, CRS and bounds, and references the raster file blob (fileRef) plus an optional rendered preview. Distinct from Observation (a point/footprint scan with photos): a FieldLayer is a whole-field gridded product.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "recordedAt": { "type": "string", "format": "date-time" },
+    "supersedes": { "type": "string", "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$" },
+    "deleted": { "type": "boolean" },
+    "logicalFieldRef": {
+      "description": "w3ds:// reference to the LogicalField this layer covers.",
+      "type": "string", "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "fieldExternalId": { "description": "The producing service's own field id, when there is no LogicalField ref.", "type": "string" },
+    "layerType": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "minLength": 1 },
+        "dataType": { "type": "string", "enum": ["raster", "vector"] }
+      },
+      "required": ["name", "dataType"],
+      "additionalProperties": true
+    },
+    "acquiredAt": { "type": "string", "format": "date-time" },
+    "acquiredAtEnd": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+    "fileRef": {
+      "description": "w3ds:// reference to the raster file blob (e.g. a GeoTIFF).",
+      "type": "string", "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "previewRef": {
+      "description": "Optional w3ds:// reference to a rendered preview (e.g. a coloured PNG).",
+      "type": "string", "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "format": { "description": "File format of fileRef.", "type": "string", "examples": ["geotiff", "png", "cog"] },
+    "crs": { "description": "Coordinate reference system of the raster, e.g. EPSG:28992.", "type": "string" },
+    "bbox": {
+      "description": "Bounds in the raster CRS: [minX, minY, maxX, maxY].",
+      "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4
+    },
+    "bbox4326": {
+      "description": "Convenience WGS84 bounds [west, south, east, north] for map overlay.",
+      "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4
+    },
+    "nodata": { "description": "The nodata sentinel value in the raster.", "type": "number" },
+    "unit": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+    "statistics": {
+      "type": "object",
+      "properties": {
+        "count": { "type": "number" }, "min": { "type": "number" }, "max": { "type": "number" },
+        "mean": { "type": "number" }, "median": { "type": "number" }, "std": { "type": "number" },
+        "variance": { "type": "number" }, "LCL_95": { "type": "number" }, "UCL_95": { "type": "number" }
+      },
+      "additionalProperties": true
+    },
+    "source": { "description": "The producing service (e.g. Bioscope).", "type": "string" },
+    "integrity": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+  },
+  "required": ["layerType", "acquiredAt", "fileRef"],
+  "additionalProperties": true
+}
