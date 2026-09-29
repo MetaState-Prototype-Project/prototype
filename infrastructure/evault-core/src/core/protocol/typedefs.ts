@@ -108,6 +108,10 @@ export const typeDefs = /* GraphQL */ `
         parsed: JSON
         "The platform that made the write, when known"
         requestingPlatform: String
+        "The user the writing platform said it acted for (X-ON-BEHALF-OF or a wallet token), when known"
+        author: String
+        "Set when this version was written by rolling back to an earlier version"
+        restoredFromVersion: Int
         "ISO-8601 time the version was recorded"
         createdAt: String!
     }
@@ -178,6 +182,17 @@ export const typeDefs = /* GraphQL */ `
     type UpdateMetaEnvelopePayload {
         "The updated MetaEnvelope, null if errors occurred"
         metaEnvelope: MetaEnvelope
+        "List of errors that occurred during the mutation"
+        errors: [UserError!]
+    }
+
+    type RollbackMetaEnvelopePayload {
+        "The MetaEnvelope as it stands after the rollback, null if errors occurred"
+        metaEnvelope: MetaEnvelope
+        "The new version the rollback was recorded as"
+        version: Int
+        "The version whose state was restored"
+        restoredFromVersion: Int
         "List of errors that occurred during the mutation"
         errors: [UserError!]
     }
@@ -483,6 +498,14 @@ export const typeDefs = /* GraphQL */ `
 
         "Update an existing MetaEnvelope by ID"
         updateMetaEnvelope(id: ID!, input: MetaEnvelopeInput!): UpdateMetaEnvelopePayload!
+
+        """
+        Restore a MetaEnvelope to the state it had at an earlier version. The
+        restore is written as a new version, so history only ever grows. The
+        payload is replaced exactly (fields that version lacked are pruned),
+        the current access policy is kept, and a removed record is brought back.
+        """
+        rollbackMetaEnvelope(id: ID!, version: Int!): RollbackMetaEnvelopePayload!
 
         "Delete a MetaEnvelope by ID"
         removeMetaEnvelope(id: ID!): DeleteMetaEnvelopePayload!

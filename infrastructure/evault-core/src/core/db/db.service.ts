@@ -27,7 +27,22 @@ import type {
 export interface AwarenessWriteContext {
     evaultPublicKey: string | null;
     requestingPlatform?: string | null;
+    /** The party the write is recorded against, when the caller named one. */
+    author?: string | null;
     skipAwareness?: boolean;
+}
+
+/** Who made a write, as recorded in the record's history. */
+interface WriteOrigin {
+    requestingPlatform: string | null;
+    author: string | null;
+}
+
+function writeOrigin(awareness?: AwarenessWriteContext): WriteOrigin {
+    return {
+        requestingPlatform: awareness?.requestingPlatform ?? null,
+        author: awareness?.author ?? null,
+    };
 }
 
 function awarenessOutboxParams(
@@ -87,12 +102,27 @@ interface MetaEnvelopeSnapshot {
     payload: Record<string, unknown> | null;
 }
 
+/**
+ * The payload with each field's stored value and type, so a rollback can put
+ * back exactly what was there (a date stays a date) rather than its JSON form.
+ */
+function typedFieldsJson(payload: Record<string, unknown> | null): string | null {
+    if (payload === null) return null;
+    const fields: Record<string, { value: unknown; valueType: string }> = {};
+    for (const [key, value] of Object.entries(payload)) {
+        const { value: stored, type } = serializeValue(value);
+        fields[key] = { value: stored ?? null, valueType: type };
+    }
+    return JSON.stringify(fields);
+}
+
 function metaEnvelopeVersionParams(
     metaEnvelopeId: string,
     eName: string,
     operation: MetaEnvelopeVersionOperation,
     snapshot: MetaEnvelopeSnapshot,
-    requestingPlatform: string | null,
+    origin: WriteOrigin,
+    restoredFromVersion: number | null = null,
 ): Record<string, unknown> {
     return {
         versionMetaEnvelopeId: metaEnvelopeId,
@@ -103,7 +133,11 @@ function metaEnvelopeVersionParams(
         versionAclBlock: snapshot.aclBlock ?? null,
         versionPayloadJson:
             snapshot.payload === null ? null : JSON.stringify(snapshot.payload),
-        versionRequestingPlatform: requestingPlatform,
+        versionFieldsJson: typedFieldsJson(snapshot.payload),
+        versionRequestingPlatform: origin.requestingPlatform,
+        versionAuthor: origin.author,
+        versionRestoredFromVersion:
+            restoredFromVersion === null ? null : neo4j.int(restoredFromVersion),
         versionCreatedAt: new Date().toISOString(),
         versionNow: Date.now(),
     };
@@ -126,10 +160,63 @@ const APPEND_METAENVELOPE_VERSION = `
         acl: $versionAcl,
         aclBlock: $versionAclBlock,
         payloadJson: $versionPayloadJson,
+        fieldsJson: $versionFieldsJson,
         requestingPlatform: $versionRequestingPlatform,
+        author: $versionAuthor,
+        restoredFromVersion: $versionRestoredFromVersion,
         createdAt: $versionCreatedAt
     })
 `;
+
+export type MetaEnvelopeRollbackErrorCode =
+    | "INVALID_VERSION"
+    | "VERSION_NOT_FOUND"
+    | "VERSION_IS_DELETE";
+
+export class MetaEnvelopeRollbackError extends Error {
+    constructor(
+        readonly code: MetaEnvelopeRollbackErrorCode,
+        message: string,
+    ) {
+        super(message);
+        this.name = "MetaEnvelopeRollbackError";
+    }
+}
+
+export interface MetaEnvelopeRollbackResult {
+    metaEnvelope: MetaEnvelopeResult;
+    /** "create" when the rollback brought a pruned record back. */
+    operation: "create" | "update";
+    /** The version the rollback was recorded as. */
+    version: number;
+    restoredFromVersion: number;
+}
+
+/**
+ * The stored value and type of each field of a recorded version. Versions
+ * written before typed fields were recorded only have their JSON payload, so
+ * their types are re-derived from it (a date comes back as its ISO string).
+ */
+function restorableFields(
+    fieldsJson: string | null,
+    payloadJson: string | null,
+): Record<string, { value: unknown; valueType: string }> {
+    if (fieldsJson) return JSON.parse(fieldsJson);
+    const payload: Record<string, unknown> = payloadJson
+        ? JSON.parse(payloadJson)
+        : {};
+    const fields: Record<string, { value: unknown; valueType: string }> = {};
+    for (const [key, value] of Object.entries(payload)) {
+        const { value: stored, type } = serializeValue(value);
+        fields[key] = { value: stored ?? null, valueType: type };
+    }
+    return fields;
+}
+
+function toNumberOrNull(value: any): number | null {
+    if (value === null || value === undefined) return null;
+    return typeof value.toNumber === "function" ? value.toNumber() : Number(value);
+}
 
 function payloadFromEnvelopeNodes(nodes: any[]): Record<string, unknown> {
     const payload: Record<string, unknown> = {};
@@ -246,7 +333,8 @@ export class DbService {
         eName: string,
         operation: MetaEnvelopeVersionOperation,
         snapshot: MetaEnvelopeSnapshot,
-        requestingPlatform: string | null,
+        origin: WriteOrigin,
+        restoredFromVersion: number | null = null,
     ): Promise<void> {
         await tx.run(
             APPEND_METAENVELOPE_VERSION,
@@ -255,7 +343,8 @@ export class DbService {
                 eName,
                 operation,
                 snapshot,
-                requestingPlatform,
+                origin,
+                restoredFromVersion,
             ),
         );
     }
@@ -269,19 +358,15 @@ export class DbService {
         tx: ManagedTransaction,
         metaEnvelopeId: string,
         eName: string,
-        requestingPlatform: string | null,
     ): Promise<MetaEnvelopeSnapshot | null> {
         const latestVersion = await this.lockHistory(tx, metaEnvelopeId, eName);
         const live = await this.readLiveSnapshot(tx, metaEnvelopeId, eName);
         if (latestVersion === 0 && live) {
-            await this.appendVersion(
-                tx,
-                metaEnvelopeId,
-                eName,
-                "create",
-                live,
-                requestingPlatform,
-            );
+            // Who wrote the pre-existing state is unknown; it is not this caller.
+            await this.appendVersion(tx, metaEnvelopeId, eName, "create", live, {
+                requestingPlatform: null,
+                author: null,
+            });
         }
         return live;
     }
@@ -372,7 +457,7 @@ export class DbService {
                         aclBlock: envelopeParams.aclBlock ?? null,
                         payload: meta.payload,
                     },
-                    awareness?.requestingPlatform ?? null,
+                    writeOrigin(awareness),
                 ),
             );
 
@@ -493,7 +578,7 @@ export class DbService {
             );
         }
 
-        const requestingPlatform = awareness?.requestingPlatform ?? null;
+        const origin = writeOrigin(awareness);
         const session = this.driver.session();
         try {
             await session.executeWrite(async (tx) => {
@@ -508,12 +593,7 @@ export class DbService {
                 const historyEName: string =
                     existing.records[0]?.get("eName") ?? eName;
                 if (existed) {
-                    await this.prepareVersionedWrite(
-                        tx,
-                        metaId,
-                        historyEName,
-                        requestingPlatform,
-                    );
+                    await this.prepareVersionedWrite(tx, metaId, historyEName);
                 }
 
                 await tx.run(cypher.join("\n"), envelopeParams);
@@ -530,7 +610,7 @@ export class DbService {
                             aclBlock: envelopeParams.aclBlock ?? null,
                             payload: meta.payload,
                         },
-                        requestingPlatform,
+                        origin,
                     );
                     return;
                 }
@@ -546,7 +626,7 @@ export class DbService {
                         historyEName,
                         "update",
                         live,
-                        requestingPlatform,
+                        origin,
                     );
                 }
             });
@@ -882,7 +962,7 @@ export class DbService {
             throw new Error("eName is required for deleting meta-envelopes");
         }
 
-        const requestingPlatform = awareness?.requestingPlatform ?? null;
+        const origin = writeOrigin(awareness);
         const params: Record<string, unknown> = {
             id,
             eName,
@@ -899,12 +979,7 @@ export class DbService {
         const session = this.driver.session();
         try {
             await session.executeWrite(async (tx) => {
-                const live = await this.prepareVersionedWrite(
-                    tx,
-                    id,
-                    eName,
-                    requestingPlatform,
-                );
+                const live = await this.prepareVersionedWrite(tx, id, eName);
                 if (!live) return;
 
                 await tx.run(
@@ -948,7 +1023,7 @@ export class DbService {
                     eName,
                     "delete",
                     { ...live, payload: null },
-                    requestingPlatform,
+                    origin,
                 );
             });
         } finally {
@@ -988,13 +1063,8 @@ export class DbService {
                 const metaEnvelopeId: string | undefined =
                     owner.records[0]?.get("id");
                 if (!metaEnvelopeId) return;
-                const requestingPlatform = awareness?.requestingPlatform ?? null;
-                await this.prepareVersionedWrite(
-                    tx,
-                    metaEnvelopeId,
-                    eName,
-                    requestingPlatform,
-                );
+                const origin = writeOrigin(awareness);
+                await this.prepareVersionedWrite(tx, metaEnvelopeId, eName);
 
                 const result = await tx.run(
                     `
@@ -1028,7 +1098,7 @@ export class DbService {
                         aclBlock: record.get("aclBlock") ?? null,
                         payload,
                     },
-                    requestingPlatform,
+                    origin,
                 );
                 if (!awareness || awareness.skipAwareness) return;
                 await tx.run(
@@ -1080,15 +1150,10 @@ export class DbService {
             // B's "delete stale envelopes" step could clobber fields that
             // request A just wrote, and versions could be recorded out of order.
             const session = this.driver.session();
-            const requestingPlatform = awareness?.requestingPlatform ?? null;
+            const origin = writeOrigin(awareness);
             try {
                 return await session.executeWrite(async (tx) => {
-                    const previous = await this.prepareVersionedWrite(
-                        tx,
-                        id,
-                        eName,
-                        requestingPlatform,
-                    );
+                    const previous = await this.prepareVersionedWrite(tx, id, eName);
 
                     const findResult = await tx.run(
                         `
@@ -1241,7 +1306,7 @@ export class DbService {
                                 findResult.records[0]?.get("aclBlock") ?? null,
                             payload: mergedPayload,
                         },
-                        requestingPlatform,
+                        origin,
                     );
 
                     if (awareness && !awareness.skipAwareness) {
@@ -1277,6 +1342,244 @@ export class DbService {
                 await session.close();
             }
         });
+    }
+
+    /**
+     * Rolls a MetaEnvelope back to an earlier version. Nothing is rewritten:
+     * the earlier state is written as a new version on top of the history, so
+     * the version number keeps increasing and the rollback can itself be
+     * rolled back.
+     *
+     * Unlike an update this replaces the payload exactly — fields the earlier
+     * version did not have are pruned. The record keeps the access policy it
+     * has now, so restoring old data never restores old access. Rolling back a
+     * pruned record brings it back.
+     * @param id - The ID of the meta-envelope
+     * @param eName - The eName identifier for multi-tenant isolation
+     * @param toVersion - The version whose state to restore
+     */
+    async rollbackMetaEnvelope(
+        id: string,
+        eName: string,
+        toVersion: number,
+        awareness?: AwarenessWriteContext,
+    ): Promise<MetaEnvelopeRollbackResult> {
+        if (!eName) {
+            throw new Error("eName is required for rolling back meta-envelopes");
+        }
+        if (!Number.isInteger(toVersion) || toVersion < 1) {
+            throw new MetaEnvelopeRollbackError(
+                "INVALID_VERSION",
+                "version must be a positive integer",
+            );
+        }
+
+        const origin = writeOrigin(awareness);
+        const session = this.driver.session();
+        try {
+            return await session.executeWrite(async (tx) => {
+                const live = await this.prepareVersionedWrite(tx, id, eName);
+
+                const targetResult = await tx.run(
+                    `
+                    MATCH (v:MetaEnvelopeVersion { metaEnvelopeId: $id, eName: $eName, version: $version })
+                    RETURN v.operation AS operation, v.ontology AS ontology,
+                           v.payloadJson AS payloadJson, v.fieldsJson AS fieldsJson
+                    `,
+                    { id, eName, version: neo4j.int(toVersion) },
+                );
+                const target = targetResult.records[0];
+                if (!target) {
+                    throw new MetaEnvelopeRollbackError(
+                        "VERSION_NOT_FOUND",
+                        `MetaEnvelope ${id} has no version ${toVersion}`,
+                    );
+                }
+                if (target.get("operation") === "delete") {
+                    throw new MetaEnvelopeRollbackError(
+                        "VERSION_IS_DELETE",
+                        `Version ${toVersion} records a removal, not a state to restore`,
+                    );
+                }
+
+                const fields = restorableFields(
+                    target.get("fieldsJson"),
+                    target.get("payloadJson"),
+                );
+                const ontology: string = target.get("ontology");
+
+                // Keep the access policy in force now (or, for a pruned record,
+                // the last one it carried) rather than the target version's.
+                let access = live
+                    ? { acl: live.acl, aclBlock: live.aclBlock }
+                    : null;
+                if (!access) {
+                    const lastAcl = await tx.run(
+                        `
+                        MATCH (v:MetaEnvelopeVersion { metaEnvelopeId: $id, eName: $eName })
+                        RETURN v.acl AS acl, v.aclBlock AS aclBlock
+                        ORDER BY v.version DESC LIMIT 1
+                        `,
+                        { id, eName },
+                    );
+                    access = {
+                        acl: lastAcl.records[0]?.get("acl") ?? [],
+                        aclBlock: lastAcl.records[0]?.get("aclBlock") ?? null,
+                    };
+                }
+
+                const current = await tx.run(
+                    `
+                    MERGE (m:MetaEnvelope { id: $id, eName: $eName })
+                    ON CREATE SET m.ontology = $ontology, m.acl = $acl, m.aclBlock = $aclBlock
+                    ON MATCH SET m.ontology = $ontology
+                    WITH m
+                    OPTIONAL MATCH (m)-[:LINKS_TO]->(e:Envelope)
+                    RETURN collect(e) AS envelopes
+                    `,
+                    {
+                        id,
+                        eName,
+                        ontology,
+                        acl: access.acl,
+                        aclBlock: access.aclBlock,
+                    },
+                );
+
+                // Reuse one envelope per restored field so envelope ids stay
+                // stable; everything else on the record is pruned.
+                const reusable = new Map<string, string>();
+                const toPrune: string[] = [];
+                for (const node of current.records[0]?.get("envelopes") ?? []) {
+                    if (!node) continue;
+                    const key = node.properties.ontology;
+                    if (key in fields && !reusable.has(key)) {
+                        reusable.set(key, node.properties.id);
+                    } else {
+                        toPrune.push(node.properties.id);
+                    }
+                }
+
+                if (toPrune.length > 0) {
+                    await tx.run(
+                        `
+                        MATCH (:MetaEnvelope { id: $id, eName: $eName })-[:LINKS_TO]->(e:Envelope)
+                        WHERE e.id IN $ids
+                        REMOVE e:Envelope
+                        SET e:PrunedEnvelope, e.prunedAt = $now
+                        `,
+                        { id, eName, ids: toPrune, now: Date.now() },
+                    );
+                }
+
+                for (const [key, field] of Object.entries(fields)) {
+                    const envelopeId = reusable.get(key);
+                    if (envelopeId) {
+                        await tx.run(
+                            `
+                            MATCH (:MetaEnvelope { id: $id, eName: $eName })-[:LINKS_TO]->(e:Envelope { id: $envelopeId })
+                            SET e.value = $value, e.valueType = $valueType
+                            `,
+                            {
+                                id,
+                                eName,
+                                envelopeId,
+                                value: field.value,
+                                valueType: field.valueType,
+                            },
+                        );
+                    } else {
+                        await tx.run(
+                            `
+                            MATCH (m:MetaEnvelope { id: $id, eName: $eName })
+                            CREATE (m)-[:LINKS_TO]->(:Envelope {
+                                id: $envelopeId, ontology: $key, value: $value, valueType: $valueType
+                            })
+                            `,
+                            {
+                                id,
+                                eName,
+                                envelopeId: (await new W3IDBuilder().build()).id,
+                                key,
+                                value: field.value,
+                                valueType: field.valueType,
+                            },
+                        );
+                    }
+                }
+
+                const restored = await this.readLiveSnapshot(tx, id, eName);
+                if (!restored) {
+                    throw new Error(`MetaEnvelope ${id} vanished during rollback`);
+                }
+                const operation = live ? "update" : "create";
+                await this.appendVersion(
+                    tx,
+                    id,
+                    eName,
+                    operation,
+                    restored,
+                    origin,
+                    toVersion,
+                );
+
+                if (awareness && !awareness.skipAwareness) {
+                    await tx.run(
+                        `MATCH (m:MetaEnvelope { id: $awarenessPacketId, eName: $awarenessW3id })
+                         ${CREATE_AWARENESS_OUTBOX}`,
+                        awarenessOutboxParams(
+                            id,
+                            ontology,
+                            eName,
+                            restored.payload,
+                            operation,
+                            awareness,
+                        ),
+                    );
+                }
+
+                const versionResult = await tx.run(
+                    `MATCH (h:MetaEnvelopeHistory { metaEnvelopeId: $id, eName: $eName })
+                     RETURN h.latestVersion AS latestVersion`,
+                    { id, eName },
+                );
+                const envelopesResult = await tx.run(
+                    `MATCH (:MetaEnvelope { id: $id, eName: $eName })-[:LINKS_TO]->(e:Envelope)
+                     RETURN collect(e) AS envelopes`,
+                    { id, eName },
+                );
+                const envelopes: Envelope[] = (
+                    envelopesResult.records[0]?.get("envelopes") ?? []
+                ).map((node: any) => ({
+                    id: node.properties.id,
+                    ontology: node.properties.ontology,
+                    value: deserializeValue(
+                        node.properties.value,
+                        node.properties.valueType,
+                    ),
+                    valueType: node.properties.valueType,
+                }));
+
+                return {
+                    metaEnvelope: {
+                        id,
+                        ontology,
+                        acl: restored.acl,
+                        _acl: parseStoredAclBlock(restored.aclBlock),
+                        envelopes,
+                        parsed: restored.payload ?? {},
+                    },
+                    operation,
+                    version:
+                        toNumberOrNull(
+                            versionResult.records[0]?.get("latestVersion"),
+                        ) ?? 0,
+                    restoredFromVersion: toVersion,
+                };
+            });
+        } finally {
+            await session.close();
+        }
     }
 
     /**
@@ -1669,6 +1972,7 @@ export class DbService {
                 envelopeHash: $envelopeHash,
                 operation: $operation,
                 platform: $platform,
+                author: $author,
                 timestamp: $timestamp,
                 ontology: $ontology
             })
@@ -1680,6 +1984,7 @@ export class DbService {
                 envelopeHash: params.envelopeHash,
                 operation: params.operation,
                 platform: platformValue,
+                author: params.author ?? null,
                 timestamp: params.timestamp,
                 ontology: params.ontology ?? null,
             },
@@ -1714,7 +2019,7 @@ export class DbService {
             LIMIT $limitPlusOne
             RETURN l.id AS id, l.eName AS eName, l.metaEnvelopeId AS metaEnvelopeId,
                    l.envelopeHash AS envelopeHash, l.operation AS operation,
-                   l.platform AS platform, l.timestamp AS timestamp, l.ontology AS ontology
+                   l.platform AS platform, l.author AS author, l.timestamp AS timestamp, l.ontology AS ontology
             `
                 : `
             MATCH (l:EnvelopeOperationLog { eName: $eName })
@@ -1723,7 +2028,7 @@ export class DbService {
             LIMIT $limitPlusOne
             RETURN l.id AS id, l.eName AS eName, l.metaEnvelopeId AS metaEnvelopeId,
                    l.envelopeHash AS envelopeHash, l.operation AS operation,
-                   l.platform AS platform, l.timestamp AS timestamp, l.ontology AS ontology
+                   l.platform AS platform, l.author AS author, l.timestamp AS timestamp, l.ontology AS ontology
             `,
             cursor
                 ? {
@@ -1742,6 +2047,7 @@ export class DbService {
             envelopeHash: r.get("envelopeHash"),
             operation: r.get("operation"),
             platform: r.get("platform"),
+            author: r.get("author") ?? null,
             timestamp: r.get("timestamp"),
             ontology: r.get("ontology"),
         }));
@@ -1755,6 +2061,7 @@ export class DbService {
                 envelopeHash: r.envelopeHash,
                 operation: r.operation,
                 platform: r.platform,
+                author: r.author,
                 timestamp: r.timestamp,
                 ...(r.ontology != null && { ontology: r.ontology }),
             }),
@@ -1818,6 +2125,7 @@ export class DbService {
                 LIMIT $limitPlusOne
                 RETURN v.version AS version, v.operation AS operation, v.ontology AS ontology,
                        v.payloadJson AS payloadJson, v.requestingPlatform AS requestingPlatform,
+                       v.author AS author, v.restoredFromVersion AS restoredFromVersion,
                        v.createdAt AS createdAt
                 `,
                 {
@@ -1853,6 +2161,8 @@ export class DbService {
                 ontology: record.get("ontology"),
                 parsed: payloadJson == null ? null : JSON.parse(payloadJson),
                 requestingPlatform: record.get("requestingPlatform") ?? null,
+                author: record.get("author") ?? null,
+                restoredFromVersion: toNumberOrNull(record.get("restoredFromVersion")),
                 createdAt: record.get("createdAt"),
             };
             return {
