@@ -64,6 +64,7 @@ export function tokenRouter(deps: AppDeps): Router {
                     idTokenClaims({
                         identity: record.identity,
                         client,
+                        scope: record.scope,
                         issuer: deps.config.issuer,
                         nonce: record.nonce,
                         nowSeconds,
@@ -72,7 +73,7 @@ export function tokenRouter(deps: AppDeps): Router {
                 );
                 const accessToken = deps.tokens.issue(
                     client.clientId,
-                    userClaims(record.identity, client),
+                    userClaims(record.identity, client, record.scope),
                     now,
                 );
                 deps.codes.recordAccessToken(body.code, accessToken);

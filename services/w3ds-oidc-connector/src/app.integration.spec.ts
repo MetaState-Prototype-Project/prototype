@@ -24,6 +24,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createApp, createDeps } from "./app.js";
 import { generateSigningJwk, loadSigningKeys } from "./keys.js";
 import { s256 } from "./pkce.js";
+import { createProfileReader } from "./profile.js";
 import {
     KEYCLOAK_REDIRECT,
     REGISTRY,
@@ -43,6 +44,8 @@ let wallet: { publicKey: string; privateKey: string };
 interface Upstream {
     certificates: () => Promise<string[]>;
     hang: boolean;
+    /** The User envelopes the eVault holds. */
+    profiles: Record<string, unknown>[];
 }
 let upstream: Upstream;
 
@@ -61,6 +64,17 @@ const upstreamFetch: typeof fetch = async (input, init) => {
     }
     if (url.origin === REGISTRY && url.pathname === "/.well-known/jwks.json") {
         return Response.json({ keys: [registryKey.jwk] });
+    }
+    if (url.origin === REGISTRY && url.pathname === "/platforms/certification") {
+        return Response.json({ token: "platform-token" });
+    }
+    if (url.origin === EVAULT && url.pathname === "/graphql") {
+        const edges = (list: Record<string, unknown>[]) => ({
+            edges: list.map((parsed, i) => ({ node: { id: `p${i}`, parsed } })),
+        });
+        return Response.json({
+            data: { user: edges(upstream.profiles), professional: edges([]) },
+        });
     }
     if (url.origin === EVAULT && url.pathname === "/whois") {
         return Response.json({
@@ -94,6 +108,7 @@ beforeEach(async () => {
     upstream = {
         certificates: async () => [await certify(wallet.publicKey)],
         hang: false,
+        profiles: [],
     };
     // Listen first: the issuer must be the port the socket actually got.
     server = createServer();
@@ -125,11 +140,17 @@ async function buildDeps(issuer: string) {
                 timeoutMs: config.upstreamTimeoutMs,
                 fetch: upstreamFetch,
             }),
+        profiles: createProfileReader({
+            registryUrl: REGISTRY,
+            platformName: config.platformName,
+            timeoutMs: config.upstreamTimeoutMs,
+            fetch: upstreamFetch,
+        }),
     });
 }
 
 /** Steps 1-6: the IdP sends the browser to /authorize and gets the QR page. */
-async function authorize() {
+async function authorize(scope = "openid profile") {
     const discovery = await (
         await fetch(`${base}/.well-known/openid-configuration`)
     ).json();
@@ -138,7 +159,7 @@ async function authorize() {
         client_id: "keycloak",
         redirect_uri: KEYCLOAK_REDIRECT,
         response_type: "code",
-        scope: "openid profile",
+        scope,
         state: "idp-state",
         nonce: "idp-nonce",
         code_challenge: s256(VERIFIER),
@@ -250,6 +271,53 @@ describe("W3DS OIDC login", () => {
             headers: { Authorization: `Bearer ${tokens.access_token}` },
         });
         expect(await userinfo.json()).toMatchObject({ sub: ENAME });
+    });
+
+    it("passes the eVault profile on as standard claims", async () => {
+        upstream.profiles = [
+            {
+                ename: ENAME,
+                displayName: "Ada Lovelace",
+                givenName: "Ada",
+                familyName: "Lovelace",
+                email: "ada@example.org",
+            },
+        ];
+        const { discovery, cookie, session, callback } = await authorize(
+            "openid profile email",
+        );
+        const stream = readEvents(`${base}/w3ds/events/${session}`, {
+            headers: { cookie },
+            until: (event) => event !== "pending",
+        });
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect((await walletPost(callback, session)).status).toBe(200);
+        const { events } = await stream;
+        const redirect = new URL(
+            (events.at(-1)!.data as { redirect: string }).redirect,
+        );
+        const tokens = await (
+            await token(discovery.token_endpoint, redirect.searchParams.get("code")!)
+        ).json();
+        const { payload } = await jwtVerify(
+            tokens.id_token,
+            createRemoteJWKSet(new URL(discovery.jwks_uri)),
+            { issuer: base, audience: "keycloak", algorithms: ["ES256"] },
+        );
+        const expected = {
+            sub: ENAME,
+            preferred_username: ENAME.slice(1),
+            name: "Ada Lovelace",
+            given_name: "Ada",
+            family_name: "Lovelace",
+            email: "ada@example.org",
+            email_verified: false,
+        };
+        expect(payload).toMatchObject(expected);
+        const userinfo = await fetch(discovery.userinfo_endpoint, {
+            headers: { Authorization: `Bearer ${tokens.access_token}` },
+        });
+        expect(await userinfo.json()).toMatchObject(expected);
     });
 
     it("reports a hardware-key signature as amr hwk", async () => {

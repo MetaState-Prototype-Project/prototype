@@ -4,6 +4,7 @@
  * the browser that started it.
  */
 
+import { normalizeEName } from "@metastate-foundation/auth/ename";
 import type { AppDeps } from "./app.js";
 import { withQuery } from "./http/errors.js";
 import { log } from "./log.js";
@@ -49,11 +50,17 @@ export async function completeWalletLogin(
     if (lookup.state === "expired") return "expired";
     if (lookup.session.status !== "pending") return "not_pending";
 
-    const result = await deps.verifier({
-        eName,
-        payload: sessionId,
-        signature,
-    });
+    // Read the profile while the signature is checked; it is used only if
+    // the signature proves this same eName.
+    const { purpose } = lookup.session;
+    const wantsProfile =
+        purpose.kind === "oidc" &&
+        purpose.request.scope.some((s) => s === "email" || s === "profile");
+    const claimedEName = normalizeEName(eName);
+    const [result, profile] = await Promise.all([
+        deps.verifier({ eName, payload: sessionId, signature }),
+        wantsProfile ? deps.profiles(claimedEName) : undefined,
+    ]);
     if (!result.valid || !result.eName) {
         log.info(`wallet signature rejected: ${result.error ?? "invalid"}`);
         deps.bus.emit(sessionId, "attempt_failed");
@@ -67,6 +74,7 @@ export async function completeWalletLogin(
             eName: result.eName,
             amr: [result.keyType === "hardware" ? "hwk" : "swk"],
             authTime: Math.floor(now / 1000),
+            ...(profile && result.eName === claimedEName && { profile }),
         },
         now,
     );
