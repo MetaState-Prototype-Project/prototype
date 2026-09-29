@@ -13,7 +13,11 @@ import {
     BINDING_DOCUMENT_ONTOLOGY,
 } from "../../services/BindingDocumentService";
 import { hashAnswer } from "../utils/security-answer";
-import type { AwarenessWriteContext, DbService } from "../db/db.service";
+import {
+    type AwarenessWriteContext,
+    type DbService,
+    MetaEnvelopeRollbackError,
+} from "../db/db.service";
 import {
     computeEnvelopeHash,
     computeEnvelopeHashForDelete,
@@ -22,7 +26,11 @@ import { exampleQueries } from "./examples/examples";
 import { StorageService } from "../../services/StorageService";
 import { buildFileUri, FILE_SCHEMA_ID } from "../utils/w3ds-uri";
 import { typeDefs } from "./typedefs";
-import { VaultAccessGuard, type VaultContext } from "./vault-access-guard";
+import {
+    isEName,
+    VaultAccessGuard,
+    type VaultContext,
+} from "./vault-access-guard";
 import { MessageNotificationService } from "../../services/MessageNotificationService";
 import { SecurityQuestionService } from "../../services/SecurityQuestionService";
 import { DeviceToken } from "../../entities/DeviceToken";
@@ -98,8 +106,20 @@ export class GraphQLServer {
         return {
             evaultPublicKey: this.evaultPublicKey,
             requestingPlatform: context.tokenPayload?.platform ?? null,
+            author: this.authorOf(context),
             skipAwareness,
         };
+    }
+
+    /**
+     * The party a write is recorded against: the user a platform declared it
+     * acts for, else the token's own subject when that is an eName. This is
+     * what the caller asserted, recorded for history, not proof of identity.
+     */
+    private authorOf(context: VaultContext): string | null {
+        if (isEName(context.onBehalfOf)) return context.onBehalfOf;
+        if (isEName(context.currentUser)) return context.currentUser;
+        return null;
     }
 
     /**
@@ -419,6 +439,7 @@ export class GraphQLServer {
                             });
                             this.db
                                 .appendEnvelopeOperationLog({
+                                    author: this.authorOf(context),
                                     eName: context.eName,
                                     metaEnvelopeId: result.metaEnvelope.id,
                                     envelopeHash,
@@ -529,6 +550,7 @@ export class GraphQLServer {
                             });
                             this.db
                                 .appendEnvelopeOperationLog({
+                                    author: this.authorOf(context),
                                     eName: context.eName,
                                     metaEnvelopeId: id,
                                     envelopeHash,
@@ -568,6 +590,99 @@ export class GraphQLServer {
                         }
                     },
                     Permission.UPDATE,
+                ),
+
+                // Restore an earlier version as a new version. A pruned record
+                // is decided by the policy it last carried, like its history.
+                rollbackMetaEnvelope: this.accessGuard.middleware(
+                    async (
+                        _: any,
+                        { id, version }: { id: string; version: number },
+                        context: VaultContext,
+                    ) => {
+                        if (!context.eName) {
+                            return {
+                                metaEnvelope: null,
+                                errors: [
+                                    {
+                                        message: "X-ENAME header is required",
+                                        code: "MISSING_ENAME",
+                                    },
+                                ],
+                            };
+                        }
+
+                        try {
+                            const result = await this.db.rollbackMetaEnvelope(
+                                id,
+                                context.eName,
+                                version,
+                                this.awarenessContext(context),
+                            );
+
+                            const envelopeHash = computeEnvelopeHash({
+                                id,
+                                ontology: result.metaEnvelope.ontology,
+                                payload: result.metaEnvelope.parsed,
+                            });
+                            this.db
+                                .appendEnvelopeOperationLog({
+                                    author: this.authorOf(context),
+                                    eName: context.eName,
+                                    metaEnvelopeId: id,
+                                    envelopeHash,
+                                    operation: result.operation,
+                                    platform:
+                                        context.tokenPayload?.platform ?? null,
+                                    timestamp: new Date().toISOString(),
+                                    ontology: result.metaEnvelope.ontology,
+                                })
+                                .catch((err) =>
+                                    console.error(
+                                        "appendEnvelopeOperationLog (rollback) failed:",
+                                        err,
+                                    ),
+                                );
+
+                            return {
+                                metaEnvelope: result.metaEnvelope,
+                                version: result.version,
+                                restoredFromVersion: result.restoredFromVersion,
+                                errors: [],
+                            };
+                        } catch (error) {
+                            if (error instanceof MetaEnvelopeRollbackError) {
+                                return {
+                                    metaEnvelope: null,
+                                    errors: [
+                                        {
+                                            field: "version",
+                                            message: error.message,
+                                            code: error.code,
+                                        },
+                                    ],
+                                };
+                            }
+                            console.error(
+                                "Error in rollbackMetaEnvelope:",
+                                error,
+                            );
+                            return {
+                                metaEnvelope: null,
+                                errors: [
+                                    {
+                                        message:
+                                            error instanceof Error
+                                                ? error.message
+                                                : "Failed to roll back MetaEnvelope",
+                                        code: "ROLLBACK_FAILED",
+                                    },
+                                ],
+                            };
+                        }
+                    },
+                    Permission.UPDATE,
+                    { includePruned: true },
                 ),
 
                 // Delete a MetaEnvelope with structured result
@@ -621,6 +736,7 @@ export class GraphQLServer {
                                 computeEnvelopeHashForDelete(id);
                             this.db
                                 .appendEnvelopeOperationLog({
+                                    author: this.authorOf(context),
                                     eName: context.eName,
                                     metaEnvelopeId: id,
                                     envelopeHash,
@@ -749,6 +865,7 @@ export class GraphQLServer {
                                 });
                                 this.db
                                     .appendEnvelopeOperationLog({
+                                        author: this.authorOf(context),
                                         eName: context.eName,
                                         metaEnvelopeId: result.metaEnvelope.id,
                                         envelopeHash,
@@ -885,6 +1002,7 @@ export class GraphQLServer {
 
                             this.db
                                 .appendEnvelopeOperationLog({
+                                    author: this.authorOf(context),
                                     eName: context.eName,
                                     metaEnvelopeId,
                                     envelopeHash,
@@ -983,6 +1101,7 @@ export class GraphQLServer {
 
                             this.db
                                 .appendEnvelopeOperationLog({
+                                    author: this.authorOf(context),
                                     eName: context.eName,
                                     metaEnvelopeId: input.bindingDocumentId,
                                     envelopeHash,
@@ -1206,6 +1325,7 @@ export class GraphQLServer {
                         });
                         this.db
                             .appendEnvelopeOperationLog({
+                                author: this.authorOf(context),
                                 eName: context.eName,
                                 metaEnvelopeId,
                                 envelopeHash,
@@ -1362,6 +1482,7 @@ export class GraphQLServer {
                             });
                             this.db
                                 .appendEnvelopeOperationLog({
+                                    author: this.authorOf(context),
                                     eName: context.eName,
                                     metaEnvelopeId: result.metaEnvelope.id,
                                     envelopeHash,
@@ -1460,6 +1581,7 @@ export class GraphQLServer {
                             });
                             this.db
                                 .appendEnvelopeOperationLog({
+                                    author: this.authorOf(context),
                                     eName: context.eName,
                                     metaEnvelopeId: id,
                                     envelopeHash,
@@ -1509,6 +1631,7 @@ export class GraphQLServer {
                         const envelopeHash = computeEnvelopeHashForDelete(id);
                         this.db
                             .appendEnvelopeOperationLog({
+                                author: this.authorOf(context),
                                 eName: context.eName,
                                 metaEnvelopeId: id,
                                 envelopeHash,
@@ -1560,6 +1683,7 @@ export class GraphQLServer {
                             });
                             this.db
                                 .appendEnvelopeOperationLog({
+                                    author: this.authorOf(context),
                                     eName: context.eName,
                                     metaEnvelopeId: metaInfo.metaEnvelopeId,
                                     envelopeHash,

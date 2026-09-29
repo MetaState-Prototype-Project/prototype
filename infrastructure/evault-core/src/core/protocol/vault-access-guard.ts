@@ -30,7 +30,7 @@ export type VaultContext = YogaInitialContext & {
  * authorize against — notably a JWT `kid`, which for a Registry platform token
  * is a signing-key id rather than a party.
  */
-function isEName(value: unknown): value is string {
+export function isEName(value: unknown): value is string {
     return typeof value === "string" && value.startsWith("@") && value.length > 1;
 }
 

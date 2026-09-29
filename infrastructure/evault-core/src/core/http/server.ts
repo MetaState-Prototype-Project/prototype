@@ -291,6 +291,7 @@ export async function registerHttpRoutes(
                                         envelopeHash: { type: "string" },
                                         operation: { type: "string" },
                                         platform: { type: ["string", "null"] },
+                                        author: { type: ["string", "null"] },
                                         timestamp: { type: "string" },
                                         ontology: { type: "string" },
                                     },

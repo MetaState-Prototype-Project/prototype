@@ -97,6 +97,8 @@ export type EnvelopeOperationLogEntry = {
     envelopeHash: string;
     operation: EnvelopeOperationType;
     platform: string | null;
+    /** The user the writing platform said it acted for, when it named one. */
+    author?: string | null;
     timestamp: string;
     ontology?: string;
 };
@@ -110,6 +112,7 @@ export type AppendEnvelopeOperationLogParams = {
     envelopeHash: string;
     operation: EnvelopeOperationType;
     platform: string | null;
+    author?: string | null;
     timestamp: string;
     ontology?: string;
 };
@@ -189,6 +192,10 @@ export type MetaEnvelopeVersion<T extends Record<string, any> = Record<string, a
     ontology: string;
     parsed: T | null;
     requestingPlatform: string | null;
+    /** The user the writing platform said it acted for, when it named one. */
+    author: string | null;
+    /** Set when this version was written by rolling back to an earlier one. */
+    restoredFromVersion: number | null;
     createdAt: string;
 };
 
