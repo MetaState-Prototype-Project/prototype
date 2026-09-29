@@ -6,7 +6,11 @@ import { createAuthorizeHandler } from "./oidc/authorize.js";
 import { createDiscoveryHandler, createJwksHandler } from "./oidc/discovery.js";
 import { createTokenHandler } from "./oidc/token.js";
 import { createUserinfoHandler } from "./oidc/userinfo.js";
-import { createCallbackHandler, createEventsHandler } from "./w3ds/callback.js";
+import {
+    createCallbackHandler,
+    createDeeplinkHandler,
+    createEventsHandler,
+} from "./w3ds/callback.js";
 
 export function createApp(ctx: BridgeContext): Express {
     const app = express();
@@ -53,6 +57,9 @@ export function createApp(ctx: BridgeContext): Express {
     app.options("/w3ds/callback", w3dsCors);
     app.post("/w3ds/callback", w3dsCors, createCallbackHandler(ctx));
     app.get("/w3ds/events/:session", w3dsCors, createEventsHandler(ctx));
+    // Same-phone sign-in: the wallet opens this in the browser instead of
+    // posting to /w3ds/callback. A top-level navigation, so no CORS.
+    app.get("/deeplink-login", createDeeplinkHandler(ctx));
 
     return app;
 }
