@@ -120,9 +120,26 @@ Updates never overwrite a recorded state. Every create, update and remove append
 ```graphql
 query {
   metaEnvelopeHistory(id: "global-id-123", first: 20) {
-    edges { node { version operation ontology parsed requestingPlatform createdAt } }
+    edges { node { version operation ontology parsed requestingPlatform author restoredFromVersion createdAt } }
     pageInfo { hasNextPage endCursor }
     totalCount
+  }
+}
+```
+
+`author` is the user the writing platform said it acted for (`X-ON-BEHALF-OF`, or a wallet-signed token). Send `X-ON-BEHALF-OF: @<user ename>` on writes made for a user so history can say who.
+
+### Rollback
+
+Restores an earlier version as a new version. History only grows, and the rollback can itself be rolled back. The payload is replaced exactly (fields that version lacked are pruned), the current ACL is kept, and a removed record is brought back. Requires UPDATE. A version that records a removal cannot be restored (`VERSION_IS_DELETE`).
+
+```graphql
+mutation {
+  rollbackMetaEnvelope(id: "global-id-123", version: 2) {
+    metaEnvelope { id parsed }
+    version
+    restoredFromVersion
+    errors { field message code }
   }
 }
 ```

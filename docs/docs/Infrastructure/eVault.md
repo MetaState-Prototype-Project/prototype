@@ -91,7 +91,7 @@ This graph always holds the current state. History is kept alongside it, never l
 
 ```cypher
 (MetaEnvelopeHistory {metaEnvelopeId, eName, latestVersion})
-(MetaEnvelopeVersion {metaEnvelopeId, eName, version, operation, ontology, acl, aclBlock, payloadJson, requestingPlatform, createdAt})
+(MetaEnvelopeVersion {metaEnvelopeId, eName, version, operation, ontology, acl, aclBlock, payloadJson, fieldsJson, requestingPlatform, author, restoredFromVersion, createdAt})
 ```
 
 A removed record is relabelled `PrunedMetaEnvelope`, and its Envelopes `PrunedEnvelope`, so no read returns it while its data is kept.
@@ -213,6 +213,8 @@ query {
         ontology
         parsed
         requestingPlatform
+        author
+        restoredFromVersion
         createdAt
       }
     }
@@ -226,7 +228,9 @@ query {
 ```
 
 - `operation` is `create`, `update` or `delete`. A `delete` version has `parsed: null`.
-- Records written before versioning existed get a baseline `create` version from their state at their first later write.
+- `requestingPlatform` is the platform that made the write. `author` is the user it said it acted for, taken from `X-ON-BEHALF-OF` or from a wallet-signed token. It is the caller's assertion, recorded for history, not proof of identity.
+- `restoredFromVersion` is set on a version written by `rollbackMetaEnvelope`.
+- Records written before versioning existed get a baseline `create` version from their state at their first later write. Its platform and author are unknown.
 
 ### Mutations
 
@@ -296,6 +300,30 @@ mutation {
   }
 }
 ```
+
+#### rollbackMetaEnvelope
+
+Restore a MetaEnvelope to the state it had at an earlier version. Nothing is rewritten: the restore is written as a new version on top of the history, so the version number keeps increasing and the rollback can itself be rolled back.
+
+- The payload is replaced exactly. Unlike `updateMetaEnvelope`, which patches, fields the earlier version did not have are pruned.
+- The record keeps the access policy it has now, so restoring old data never restores old access.
+- Rolling back a removed record brings it back. Access to it is decided by the policy it last carried.
+- A version that records a removal cannot be restored. Use `removeMetaEnvelope` instead.
+- Requires UPDATE permission.
+
+**Mutation**:
+```graphql
+mutation {
+  rollbackMetaEnvelope(id: "global-id-123", version: 2) {
+    metaEnvelope { id parsed }
+    version
+    restoredFromVersion
+    errors { field message code }
+  }
+}
+```
+
+Error codes: `VERSION_NOT_FOUND`, `VERSION_IS_DELETE`, `INVALID_VERSION`, `ROLLBACK_FAILED`.
 
 #### removeMetaEnvelope
 
@@ -594,7 +622,7 @@ curl -X GET http://localhost:4000/whois \
 
 ### /logs
 
-Get paginated envelope operation logs for an eName. Each log entry describes a create, update, delete, or update_envelope_value operation (metaEnvelope id, hash, operation type, platform, timestamp).
+Get paginated envelope operation logs for an eName. Each log entry describes a create, update, delete, or update_envelope_value operation (metaEnvelope id, hash, operation type, platform, author, timestamp). `author` is the user the writing platform said it acted for, or `null`..
 
 **Request**:
 ```http
@@ -619,6 +647,7 @@ Optional query parameters:
             "envelopeHash": "sha256-hex",
             "operation": "create",
             "platform": "https://platform.example.com",
+            "author": "@user-a.w3id",
             "timestamp": "2025-02-04T12:00:00.000Z",
             "ontology": "550e8400-e29b-41d4-a716-446655440001"
         }
