@@ -1,55 +1,43 @@
 <script lang="ts">
 import { m } from "$lib/i18n";
+import {
+    DEFAULT_RIBBON_APPS,
+    MARKETPLACE_URL,
+    type RibbonApp,
+    fetchRibbonApps,
+} from "$lib/utils/marketplaceApps";
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
-
-interface IApp {
-    name: string;
-    category: () => string;
-    logo: string;
-    url: string;
-}
+import { onMount } from "svelte";
 
 interface IAppsMarketplaceProps {
     href?: string;
 }
 
-const {
-    href = "https://marketplace.w3ds.metastate.foundation/",
-}: IAppsMarketplaceProps = $props();
+const { href = `${MARKETPLACE_URL}/` }: IAppsMarketplaceProps = $props();
 
-const apps: IApp[] = [
-    {
-        name: "Blabsy",
-        category: m.marketplace_category_social,
-        logo: "/images/Logo-Blabsy.svg",
-        url: "https://blabsy.w3ds.metastate.foundation",
-    },
-    {
-        name: "Pictique",
-        category: m.marketplace_category_social,
-        logo: "/images/Logo-Pictique.svg",
-        url: "https://pictique.w3ds.metastate.foundation",
-    },
-    {
-        name: "eVoting",
-        category: m.marketplace_category_governance,
-        logo: "/images/Logo-eVoting.svg",
-        url: "https://evoting.w3ds.metastate.foundation",
-    },
-    {
-        name: "eCurrency",
-        category: m.marketplace_category_finance,
-        logo: "/images/Logo-eCurrency.svg",
-        url: "https://ecurrency.w3ds.metastate.foundation",
-    },
-    {
-        name: "Dreamsync",
-        category: m.marketplace_category_governance,
-        logo: "/images/Logo-Dreamsync.svg",
-        url: "https://dreamsync.w3ds.metastate.foundation",
-    },
-];
+const CATEGORY_LABELS: Record<string, () => string> = {
+    social: m.marketplace_category_social,
+    governance: m.marketplace_category_governance,
+    finance: m.marketplace_category_finance,
+};
+
+let apps = $state<RibbonApp[]>(DEFAULT_RIBBON_APPS);
+let failedLogos = $state<Record<string, true>>({});
+
+function categoryLabel(category: string): string {
+    return CATEGORY_LABELS[category.toLowerCase()]?.() ?? category;
+}
+
+onMount(() => {
+    fetchRibbonApps()
+        .then((list) => {
+            if (list.length > 0) apps = list;
+        })
+        .catch((error) => {
+            console.warn("Could not load marketplace apps:", error);
+        });
+});
 </script>
 
 <section class="mt-8">
@@ -72,21 +60,31 @@ const apps: IApp[] = [
     <div
         class="apps-carousel -mx-5 px-5 flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-pl-5 scroll-pr-5"
     >
-        {#each apps as app (app.name)}
+        {#each apps as app (app.id)}
             <a
                 href={app.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 class="snap-start shrink-0 w-28 h-32 bg-card-alternative rounded-3xl px-3 py-4 flex flex-col items-start justify-between active:opacity-70"
             >
-                <img
-                    src={app.logo}
-                    alt=""
-                    width="40"
-                    height="40"
-                    class="block w-10 h-10 object-contain"
-                    aria-hidden="true"
-                />
+                {#if app.logo && !failedLogos[app.id]}
+                    <img
+                        src={app.logo}
+                        alt=""
+                        width="40"
+                        height="40"
+                        class="block w-10 h-10 object-contain"
+                        aria-hidden="true"
+                        onerror={() => (failedLogos[app.id] = true)}
+                    />
+                {:else}
+                    <div
+                        class="w-10 h-10 rounded-xl bg-white text-black-900 font-semibold text-lg flex items-center justify-center"
+                        aria-hidden="true"
+                    >
+                        {Array.from(app.name)[0]?.toUpperCase()}
+                    </div>
+                {/if}
                 <div>
                     <p
                         class="font-medium text-lg text-black-900 leading-tight truncate w-full"
@@ -94,7 +92,7 @@ const apps: IApp[] = [
                         {app.name}
                     </p>
                     <p class="text-black-500 leading-tight">
-                        {app.category()}
+                        {categoryLabel(app.category)}
                     </p>
                 </div>
             </a>
