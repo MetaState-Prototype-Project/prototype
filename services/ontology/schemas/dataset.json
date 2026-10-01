@@ -25,11 +25,6 @@
     "manifestSha256": { "description": "SHA-256 hex of the manifest content — pins the snapshot for reproducibility.", "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "fileCount": { "type": "integer", "minimum": 0 },
     "observationCount": { "type": "integer", "minimum": 0 },
-    "observationRefs": {
-      "description": "Optional inline list of the source observation ids (only for small sets; large sets live in the manifest).",
-      "type": "array", "items": { "type": "string" }
-    },
-    "frozen": { "description": "True for an immutable snapshot (the normal case).", "type": "boolean" },
     "createdAt": { "type": "string", "format": "date-time" },
     "createdBy": { "description": "eName of the person who saved the dataset.", "type": "string", "pattern": "^@[^/\\s]+$" }
   },
