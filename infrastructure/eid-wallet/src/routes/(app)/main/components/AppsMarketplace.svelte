@@ -88,7 +88,7 @@ onMount(() => {
                     class="snap-start shrink-0 w-31.5 h-36 bg-card-alternative rounded-3xl px-3 py-4 flex flex-col items-start justify-between animate-pulse"
                     aria-hidden="true"
                 >
-                    <div class="w-10 h-10 rounded-xl bg-black-100"></div>
+                    <div class="w-11.25 h-11.25 rounded-xl bg-black-100"></div>
                     <div class="w-full flex flex-col gap-1.5">
                         <div class="h-4 w-3/4 rounded bg-black-100"></div>
                         <div class="h-3 w-1/2 rounded bg-black-100"></div>
@@ -108,11 +108,11 @@ onMount(() => {
                     <img
                         src={app.logo}
                         alt=""
-                        width="40"
-                        height="40"
+                        width="45"
+                        height="45"
                         loading="lazy"
                         referrerpolicy="no-referrer"
-                        class="block w-10 h-10 rounded-xl object-contain"
+                        class="block w-11.25 h-11.25 rounded-xl object-contain"
                         aria-hidden="true"
                         onerror={() => markLogoBroken(app.key)}
                     />
@@ -120,12 +120,12 @@ onMount(() => {
                     <!-- Same placeholder the marketplace shows for a
                          platform without a logo. -->
                     <div
-                        class="w-10 h-10 rounded-xl flex items-center justify-center text-black-900 bg-[hsl(270,100%,85%)]"
+                        class="w-11.25 h-11.25 rounded-xl flex items-center justify-center text-black-900 bg-[hsl(270,100%,85%)]"
                         aria-hidden="true"
                     >
                         <HugeiconsIcon
                             icon={Store01Icon}
-                            size={20}
+                            size={22}
                             strokeWidth={2}
                         />
                     </div>
@@ -153,11 +153,11 @@ onMount(() => {
             class="snap-start shrink-0 w-31.5 h-36 bg-card-alternative rounded-3xl px-3 py-4 flex flex-col items-start justify-between active:opacity-70"
         >
             <div
-                class="w-10 h-10 rounded-xl bg-white text-black-900 flex items-center justify-center"
+                class="w-11.25 h-11.25 rounded-xl bg-white text-black-900 flex items-center justify-center"
             >
                 <HugeiconsIcon
                     icon={ArrowRight01Icon}
-                    size={20}
+                    size={22}
                     strokeWidth={3}
                 />
             </div>
