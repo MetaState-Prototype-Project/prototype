@@ -1,55 +1,65 @@
 <script lang="ts">
 import { m } from "$lib/i18n";
+import {
+    MARKETPLACE_URL,
+    type RibbonApp,
+    fetchRibbonApps,
+    readCachedRibbonApps,
+    writeCachedRibbonApps,
+} from "$lib/utils/marketplaceApps";
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
-
-interface IApp {
-    name: string;
-    category: () => string;
-    logo: string;
-    url: string;
-}
+import { onMount } from "svelte";
 
 interface IAppsMarketplaceProps {
     href?: string;
 }
 
-const {
-    href = "https://marketplace.w3ds.metastate.foundation/",
-}: IAppsMarketplaceProps = $props();
+const { href = `${MARKETPLACE_URL}/` }: IAppsMarketplaceProps = $props();
 
-const apps: IApp[] = [
-    {
-        name: "Blabsy",
-        category: m.marketplace_category_social,
-        logo: "/images/Logo-Blabsy.svg",
-        url: "https://blabsy.w3ds.metastate.foundation",
-    },
-    {
-        name: "Pictique",
-        category: m.marketplace_category_social,
-        logo: "/images/Logo-Pictique.svg",
-        url: "https://pictique.w3ds.metastate.foundation",
-    },
-    {
-        name: "eVoting",
-        category: m.marketplace_category_governance,
-        logo: "/images/Logo-eVoting.svg",
-        url: "https://evoting.w3ds.metastate.foundation",
-    },
-    {
-        name: "eCurrency",
-        category: m.marketplace_category_finance,
-        logo: "/images/Logo-eCurrency.svg",
-        url: "https://ecurrency.w3ds.metastate.foundation",
-    },
-    {
-        name: "Dreamsync",
-        category: m.marketplace_category_governance,
-        logo: "/images/Logo-Dreamsync.svg",
-        url: "https://dreamsync.w3ds.metastate.foundation",
-    },
-];
+// Start from the last list that loaded, so the ribbon is filled at once and
+// still has content offline. The live list replaces it when it arrives.
+const cached = readCachedRibbonApps();
+let apps = $state<RibbonApp[]>(cached ?? []);
+let loading = $state(!cached);
+// Keys of apps whose remote logo failed to load; they show an initial.
+let brokenLogos = $state<Set<string>>(new Set());
+
+// Categories the wallet has translations for; anything else is shown as
+// the platform published it.
+const CATEGORY_LABELS: Record<string, () => string> = {
+    social: m.marketplace_category_social,
+    governance: m.marketplace_category_governance,
+    finance: m.marketplace_category_finance,
+};
+
+function categoryLabel(category: string): string {
+    return CATEGORY_LABELS[category.toLowerCase()]?.() ?? category;
+}
+
+function markLogoBroken(key: string) {
+    brokenLogos = new Set(brokenLogos).add(key);
+}
+
+onMount(() => {
+    let cancelled = false;
+    fetchRibbonApps()
+        .then((live) => {
+            if (cancelled) return;
+            apps = live;
+            brokenLogos = new Set();
+            if (live.length) writeCachedRibbonApps(live);
+        })
+        .catch((error) => {
+            console.warn("[AppsMarketplace] could not load apps:", error);
+        })
+        .finally(() => {
+            if (!cancelled) loading = false;
+        });
+    return () => {
+        cancelled = true;
+    };
+});
 </script>
 
 <section class="mt-8">
@@ -72,30 +82,59 @@ const apps: IApp[] = [
     <div
         class="apps-carousel -mx-5 px-5 flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-pl-5 scroll-pr-5"
     >
-        {#each apps as app (app.name)}
+        {#if loading}
+            {#each { length: 3 } as _, i (i)}
+                <div
+                    class="snap-start shrink-0 w-28 h-32 bg-card-alternative rounded-3xl px-3 py-4 flex flex-col items-start justify-between animate-pulse"
+                    aria-hidden="true"
+                >
+                    <div class="w-10 h-10 rounded-xl bg-black-100"></div>
+                    <div class="w-full flex flex-col gap-1.5">
+                        <div class="h-4 w-3/4 rounded bg-black-100"></div>
+                        <div class="h-3 w-1/2 rounded bg-black-100"></div>
+                    </div>
+                </div>
+            {/each}
+        {/if}
+
+        {#each apps as app (app.key)}
             <a
                 href={app.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 class="snap-start shrink-0 w-28 h-32 bg-card-alternative rounded-3xl px-3 py-4 flex flex-col items-start justify-between active:opacity-70"
             >
-                <img
-                    src={app.logo}
-                    alt=""
-                    width="40"
-                    height="40"
-                    class="block w-10 h-10 object-contain"
-                    aria-hidden="true"
-                />
-                <div>
+                {#if app.logo && !brokenLogos.has(app.key)}
+                    <img
+                        src={app.logo}
+                        alt=""
+                        width="40"
+                        height="40"
+                        loading="lazy"
+                        referrerpolicy="no-referrer"
+                        class="block w-10 h-10 rounded-xl object-contain"
+                        aria-hidden="true"
+                        onerror={() => markLogoBroken(app.key)}
+                    />
+                {:else}
+                    <div
+                        class="w-10 h-10 rounded-xl bg-primary text-white font-bold text-lg flex items-center justify-center"
+                        aria-hidden="true"
+                    >
+                        {(Array.from(app.name)[0] ?? "?").toUpperCase()}
+                    </div>
+                {/if}
+                <div class="w-full min-w-0">
                     <p
                         class="font-medium text-lg text-black-900 leading-tight truncate w-full"
                     >
                         {app.name}
                     </p>
-                    <p class="text-black-500 leading-tight">
-                        {app.category()}
-                    </p>
+                    {#if app.category}
+                        <p class="text-black-500 leading-tight truncate w-full">
+                            {categoryLabel(app.category)}
+                        </p>
+                    {/if}
                 </div>
             </a>
         {/each}
