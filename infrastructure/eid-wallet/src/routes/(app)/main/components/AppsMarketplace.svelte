@@ -7,7 +7,7 @@ import {
     readCachedRibbonApps,
     writeCachedRibbonApps,
 } from "$lib/utils/marketplaceApps";
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { ArrowRight01Icon, Store01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import { onMount } from "svelte";
 
@@ -22,7 +22,7 @@ const { href = `${MARKETPLACE_URL}/` }: IAppsMarketplaceProps = $props();
 const cached = readCachedRibbonApps();
 let apps = $state<RibbonApp[]>(cached ?? []);
 let loading = $state(!cached);
-// Keys of apps whose remote logo failed to load; they show an initial.
+// Keys of apps whose remote logo failed to load; they show a placeholder.
 let brokenLogos = $state<Set<string>>(new Set());
 
 // Categories the wallet has translations for; anything else is shown as
@@ -85,7 +85,7 @@ onMount(() => {
         {#if loading}
             {#each { length: 3 } as _, i (i)}
                 <div
-                    class="snap-start shrink-0 w-28 h-32 bg-card-alternative rounded-3xl px-3 py-4 flex flex-col items-start justify-between animate-pulse"
+                    class="snap-start shrink-0 w-31.5 h-36 bg-card-alternative rounded-3xl px-3 py-4 flex flex-col items-start justify-between animate-pulse"
                     aria-hidden="true"
                 >
                     <div class="w-10 h-10 rounded-xl bg-black-100"></div>
@@ -102,7 +102,7 @@ onMount(() => {
                 href={app.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="snap-start shrink-0 w-28 h-32 bg-card-alternative rounded-3xl px-3 py-4 flex flex-col items-start justify-between active:opacity-70"
+                class="snap-start shrink-0 w-31.5 h-36 bg-card-alternative rounded-3xl px-3 py-4 flex flex-col items-start justify-between active:opacity-70"
             >
                 {#if app.logo && !brokenLogos.has(app.key)}
                     <img
@@ -117,11 +117,17 @@ onMount(() => {
                         onerror={() => markLogoBroken(app.key)}
                     />
                 {:else}
+                    <!-- Same placeholder the marketplace shows for a
+                         platform without a logo. -->
                     <div
-                        class="w-10 h-10 rounded-xl bg-primary text-white font-bold text-lg flex items-center justify-center"
+                        class="w-10 h-10 rounded-xl flex items-center justify-center text-black-900 bg-[hsl(270,100%,85%)]"
                         aria-hidden="true"
                     >
-                        {(Array.from(app.name)[0] ?? "?").toUpperCase()}
+                        <HugeiconsIcon
+                            icon={Store01Icon}
+                            size={20}
+                            strokeWidth={2}
+                        />
                     </div>
                 {/if}
                 <div class="w-full min-w-0">
@@ -144,7 +150,7 @@ onMount(() => {
             target="_blank"
             rel="noopener noreferrer"
             aria-label={m.marketplace_see_all_aria()}
-            class="snap-start shrink-0 w-28 h-32 bg-card-alternative rounded-3xl px-3 py-4 flex flex-col items-start justify-between active:opacity-70"
+            class="snap-start shrink-0 w-31.5 h-36 bg-card-alternative rounded-3xl px-3 py-4 flex flex-col items-start justify-between active:opacity-70"
         >
             <div
                 class="w-10 h-10 rounded-xl bg-white text-black-900 flex items-center justify-center"

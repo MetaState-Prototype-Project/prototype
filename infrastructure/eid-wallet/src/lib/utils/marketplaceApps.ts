@@ -9,7 +9,8 @@
  * allow-listed in `src-tauri/capabilities/*.json`.
  *
  * Entries are published by the platforms themselves, so names are cleaned and
- * only https links and logos are kept.
+ * only https links and logos are kept. A platform without its own https link
+ * opens its page on the marketplace instead, as the marketplace site does.
  */
 import { cleanPlatformLogo, cleanPlatformName } from "./platformBranding";
 
@@ -19,20 +20,27 @@ const CACHE_KEY = "marketplace-ribbon-apps:v1";
 const REQUEST_TIMEOUT_MS = 10_000;
 
 export interface RibbonApp {
-    /** Stable key: the platform's eName, or its URL when it has none. */
+    /** Stable key: the platform's eName, or its id/URL when it has none. */
     key: string;
+    /** The marketplace's id for the platform, used for its marketplace page. */
+    id: string;
     name: string;
     /** English category as published, e.g. "Productivity". May be empty. */
     category: string;
     logo: string | null;
+    /** The platform's own site, or its marketplace page when it has none. */
     url: string;
 }
 
 /**
  * Turns a `/api/platforms` response into ribbon entries. Entries without a
- * usable name or https link are skipped, as are repeats of the same app.
+ * usable name, or without both a link and an id, are skipped, as are repeats
+ * of the same app.
  */
-export function toRibbonApps(payload: unknown): RibbonApp[] {
+export function toRibbonApps(
+    payload: unknown,
+    marketplaceUrl = MARKETPLACE_URL,
+): RibbonApp[] {
     const items = (payload as { platforms?: unknown } | null)?.platforms;
     if (!Array.isArray(items)) return [];
 
@@ -40,13 +48,18 @@ export function toRibbonApps(payload: unknown): RibbonApp[] {
     const apps: RibbonApp[] = [];
     for (const item of items) {
         if (!item || typeof item !== "object") continue;
-        const { name, category, logoUrl, url, ename } = item as Record<
+        const { id, name, category, logoUrl, url, ename } = item as Record<
             string,
             unknown
         >;
         const cleanName = cleanPlatformName(asString(name));
-        const link = cleanPlatformLogo(asString(url));
-        if (!cleanName || !link) continue;
+        if (!cleanName) continue;
+        const appId = asString(id)?.trim() ?? "";
+        const ownLink = cleanPlatformLogo(asString(url));
+        const link =
+            ownLink ??
+            (appId ? marketplacePageUrl(appId, marketplaceUrl) : null);
+        if (!link) continue;
 
         const key = asString(ename)?.trim() || link;
         if (seen.has(key) || seen.has(link)) continue;
@@ -55,6 +68,7 @@ export function toRibbonApps(payload: unknown): RibbonApp[] {
 
         apps.push({
             key,
+            id: appId,
             name: cleanName,
             category: cleanPlatformName(asString(category)) ?? "",
             logo: cleanPlatformLogo(asString(logoUrl)),
@@ -62,6 +76,23 @@ export function toRibbonApps(payload: unknown): RibbonApp[] {
         });
     }
     return apps;
+}
+
+/** The platform's detail page on the marketplace site. */
+export function marketplacePageUrl(
+    id: string,
+    marketplaceUrl = MARKETPLACE_URL,
+): string | null {
+    try {
+        return cleanPlatformLogo(
+            new URL(
+                `/app/${encodeURIComponent(id)}`,
+                marketplaceUrl,
+            ).toString(),
+        );
+    } catch {
+        return null;
+    }
 }
 
 /** Fetches the live list. Throws on network or HTTP errors. */
@@ -79,7 +110,7 @@ export async function fetchRibbonApps(
             signal: controller.signal,
         });
         if (!res.ok) throw new Error(`Marketplace returned ${res.status}`);
-        return toRibbonApps(await res.json());
+        return toRibbonApps(await res.json(), baseUrl);
     } finally {
         clearTimeout(timer);
     }
@@ -110,6 +141,7 @@ export function writeCachedRibbonApps(
             CACHE_KEY,
             JSON.stringify(
                 apps.map((a) => ({
+                    id: a.id,
                     ename: a.key,
                     name: a.name,
                     category: a.category,

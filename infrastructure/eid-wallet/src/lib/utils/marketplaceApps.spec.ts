@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
     fetchRibbonApps,
+    marketplacePageUrl,
     readCachedRibbonApps,
     toRibbonApps,
     writeCachedRibbonApps,
@@ -31,6 +32,7 @@ describe("toRibbonApps", () => {
         expect(toRibbonApps({ platforms: [platform()], count: 1 })).toEqual([
             {
                 key: "@29217af0",
+                id: "80hours",
                 name: "80hours Task Manager",
                 category: "Productivity",
                 logo: "https://80hours.postplatforms.com/logo.svg",
@@ -49,16 +51,62 @@ describe("toRibbonApps", () => {
         expect(apps.map((a) => a.name)).toEqual(["A", "B"]);
     });
 
-    it("skips platforms without an https link", () => {
-        const apps = toRibbonApps({
+    it("links a platform without an https link to its marketplace page", () => {
+        const apps = toRibbonApps(
+            {
+                platforms: [
+                    platform({ id: "a", ename: "@1", url: "" }),
+                    platform({
+                        id: "b",
+                        ename: "@2",
+                        url: "http://plain.test",
+                    }),
+                    platform({
+                        id: "c",
+                        ename: "@3",
+                        url: "javascript:alert(1)",
+                    }),
+                    platform({ id: "d", ename: "@4", url: null }),
+                ],
+            },
+            "https://market.test",
+        );
+        expect(apps.map((a) => a.url)).toEqual([
+            "https://market.test/app/a",
+            "https://market.test/app/b",
+            "https://market.test/app/c",
+            "https://market.test/app/d",
+        ]);
+    });
+
+    it("keeps a live platform like Prikbord (no link, no logo)", () => {
+        const [app] = toRibbonApps({
             platforms: [
-                platform({ ename: "@1", url: "" }),
-                platform({ ename: "@2", url: "http://plain.test" }),
-                platform({ ename: "@3", url: "javascript:alert(1)" }),
-                platform({ ename: "@4", url: null }),
+                {
+                    id: "prikbord",
+                    name: "Prikbord — GWL Terrein",
+                    description: "Neighbourhood time bank",
+                    category: "Other",
+                    logoUrl: null,
+                    url: "",
+                    ename: "@4da46106",
+                },
             ],
         });
-        expect(apps).toEqual([]);
+        expect(app).toEqual({
+            key: "@4da46106",
+            id: "prikbord",
+            name: "Prikbord — GWL Terrein",
+            category: "Other",
+            logo: null,
+            url: "https://marketplace.w3ds.metastate.foundation/app/prikbord",
+        });
+    });
+
+    it("skips a platform with neither a link nor an id", () => {
+        expect(
+            toRibbonApps({ platforms: [platform({ id: "", url: "" })] }),
+        ).toEqual([]);
     });
 
     it("skips platforms without a name", () => {
@@ -92,6 +140,12 @@ describe("toRibbonApps", () => {
     it("falls back to the link as key when there is no eName", () => {
         const [app] = toRibbonApps({ platforms: [platform({ ename: "" })] });
         expect(app.key).toBe("https://80hours.postplatforms.com/");
+    });
+
+    it("encodes ids with spaces in the marketplace link", () => {
+        expect(marketplacePageUrl("tmatic FWM", "https://market.test")).toBe(
+            "https://market.test/app/tmatic%20FWM",
+        );
     });
 
     it("tolerates a missing category", () => {
