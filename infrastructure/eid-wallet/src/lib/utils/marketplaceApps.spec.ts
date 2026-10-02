@@ -182,6 +182,63 @@ describe("fetchRibbonApps", () => {
         expect(apps).toHaveLength(1);
     });
 
+    it("throws when the marketplace reports an error with a 200", async () => {
+        // What /api/platforms answers when Awareness is down.
+        const fetchFn = vi.fn(
+            async () =>
+                new Response(JSON.stringify({ platforms: [], error: "x" }), {
+                    status: 200,
+                }),
+        );
+        await expect(
+            fetchRibbonApps(fetchFn as unknown as typeof fetch),
+        ).rejects.toThrow("x");
+    });
+
+    it("lets a caller keep its cached list when the marketplace reports an error", async () => {
+        // Mirrors AppsMarketplace.svelte: start from the cache, replace it
+        // only on success, and swallow failures.
+        const storage = memoryStorage();
+        writeCachedRibbonApps(
+            toRibbonApps({ platforms: [platform()] }),
+            storage,
+        );
+        let apps = readCachedRibbonApps(storage) ?? [];
+        const fetchFn = vi.fn(
+            async () =>
+                new Response(
+                    JSON.stringify({
+                        platforms: [],
+                        count: 0,
+                        error: "AaaS down",
+                    }),
+                    { status: 200 },
+                ),
+        );
+
+        await fetchRibbonApps(fetchFn as unknown as typeof fetch)
+            .then((live) => {
+                apps = live;
+                if (live.length) writeCachedRibbonApps(live, storage);
+            })
+            .catch(() => {});
+
+        expect(apps.map((a) => a.name)).toEqual(["80hours Task Manager"]);
+        expect(readCachedRibbonApps(storage)).toHaveLength(1);
+    });
+
+    it("still treats an empty list without an error as a valid answer", async () => {
+        const fetchFn = vi.fn(
+            async () =>
+                new Response(JSON.stringify({ platforms: [], count: 0 }), {
+                    status: 200,
+                }),
+        );
+        await expect(
+            fetchRibbonApps(fetchFn as unknown as typeof fetch),
+        ).resolves.toEqual([]);
+    });
+
     it("throws on an HTTP error", async () => {
         const fetchFn = vi.fn(async () => new Response("", { status: 502 }));
         await expect(

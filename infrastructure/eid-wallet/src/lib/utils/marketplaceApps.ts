@@ -110,7 +110,15 @@ export async function fetchRibbonApps(
             signal: controller.signal,
         });
         if (!res.ok) throw new Error(`Marketplace returned ${res.status}`);
-        return toRibbonApps(await res.json(), baseUrl);
+        const body: unknown = await res.json();
+        // When Awareness is down the marketplace still answers 200, with an
+        // empty list and an `error` field. Treat that as a failure so callers
+        // keep the last list they had instead of showing an empty one.
+        const failure = (body as { error?: unknown } | null)?.error;
+        if (failure) {
+            throw new Error(`Marketplace could not list platforms: ${failure}`);
+        }
+        return toRibbonApps(body, baseUrl);
     } finally {
         clearTimeout(timer);
     }
