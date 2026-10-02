@@ -16,7 +16,11 @@
     "crypto-hw:default",
     "notifications:default",
     "process:default",
-    "opener:allow-default-urls"
+    "opener:allow-default-urls",
+    {
+      "identifier": "http:default",
+      "allow": [{ "url": "https://marketplace.w3ds.metastate.foundation/*" }]
+    }
   ],
   "platforms": [
     "iOS",
