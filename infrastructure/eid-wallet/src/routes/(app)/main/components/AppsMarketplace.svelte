@@ -28,9 +28,15 @@ let brokenLogos = $state<Set<string>>(new Set());
 // Categories the wallet has translations for; anything else is shown as
 // the platform published it.
 const CATEGORY_LABELS: Record<string, () => string> = {
-    social: m.marketplace_category_social,
-    governance: m.marketplace_category_governance,
+    communication: m.marketplace_category_communication,
     finance: m.marketplace_category_finance,
+    governance: m.marketplace_category_governance,
+    identity: m.marketplace_category_identity,
+    other: m.marketplace_category_other,
+    productivity: m.marketplace_category_productivity,
+    social: m.marketplace_category_social,
+    storage: m.marketplace_category_storage,
+    wellness: m.marketplace_category_wellness,
 };
 
 function categoryLabel(category: string): string {
