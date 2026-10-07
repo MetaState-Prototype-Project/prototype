@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/7d5a2c1e-6b3f-4c8a-9e21-0a1b2c3d4e5f",
+  "schemaId": "7d5a2c1e-6b3f-4c8a-9e21-0a1b2c3d4e5f",
+  "title": "Dataset",
+  "domain": "agriculture",
+  "description": "An immutable snapshot of a curated set of files (images or annotations) selected for downstream use (annotation, model training). It references a manifest file that lists the members and links to the DatasetQuery that produced it. The dataset references file URIs; it does not copy blobs.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "recordedAt": { "type": "string", "format": "date-time" },
+    "supersedes": { "type": "string", "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$" },
+    "deleted": { "type": "boolean" },
+    "name": { "type": "string", "minLength": 1 },
+    "kind": { "type": "string", "enum": ["images", "annotations"] },
+    "queryRef": {
+      "description": "Reference to the DatasetQuery envelope whose criteria produced this snapshot (kept separately so the same criteria can be re-run later to pull more data). May be a bare envelope id or a w3ds:// ref.",
+      "type": "string", "minLength": 1
+    },
+    "manifestRef": {
+      "description": "w3ds:// reference to the manifest file (a table of the member files). Content-addressed via manifestSha256.",
+      "type": "string", "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "manifestUrl": { "description": "Convenience direct URL to the manifest file, if published.", "type": "string", "format": "uri" },
+    "manifestSha256": { "description": "SHA-256 hex of the manifest content — pins the snapshot for reproducibility.", "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "fileCount": { "type": "integer", "minimum": 0 },
+    "observationCount": { "type": "integer", "minimum": 0 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "createdBy": { "description": "eName of the person who saved the dataset.", "type": "string", "pattern": "^@[^/\\s]+$" }
+  },
+  "required": ["name", "kind", "manifestRef", "createdAt"],
+  "additionalProperties": true
+}
