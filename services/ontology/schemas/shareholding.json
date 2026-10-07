@@ -1,0 +1,143 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "6382a144-5c28-450e-bf47-e37c747791c2",
+  "title": "Shareholding",
+  "domain": "governance",
+  "description": "A holding of a company's shares. Recorded by a director; carries no signing authority.",
+  "type": "object",
+  "properties": {
+    "companyEName": {
+      "type": "string",
+      "pattern": "^@[^\\s]+$"
+    },
+    "holderEName": {
+      "type": "string",
+      "pattern": "^@[^\\s]+$",
+      "description": "The holder, when they have an eName"
+    },
+    "holderName": {
+      "type": "string",
+      "description": "Display or legal name of the holder",
+      "minLength": 1
+    },
+    "shareClass": {
+      "type": "string",
+      "minLength": 1,
+      "description": "e.g. ordinary, preference"
+    },
+    "shares": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "acquiredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "disposed"
+      ]
+    },
+    "disposedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "authorization": {
+      "type": "object",
+      "description": "The wallet signature of the director recording it over this record's canonical form (`w3ds-grant/v1`). The eVault verifies it before accepting the write.",
+      "properties": {
+        "signerEName": {
+          "type": "string",
+          "pattern": "^@[^\\s]+$"
+        },
+        "signedPayload": {
+          "type": "string",
+          "description": "The exact canonical string that was signed",
+          "minLength": 1
+        },
+        "signature": {
+          "type": "string",
+          "minLength": 1
+        },
+        "signedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "signerEName",
+        "signedPayload",
+        "signature",
+        "signedAt"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "companyEName",
+    "shareClass",
+    "shares",
+    "status",
+    "createdAt",
+    "updatedAt",
+    "authorization"
+  ],
+  "anyOf": [
+    {
+      "required": [
+        "holderEName"
+      ]
+    },
+    {
+      "required": [
+        "holderName"
+      ]
+    }
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "disposed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "disposedAt"
+        ],
+        "properties": {
+          "disposedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "disposedAt": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "e2736a06-176e-4004-8fda-b40b9a132669",
+  "title": "DelegatedSignature",
+  "domain": "governance",
+  "description": "Audit record of a signature made for a company under a Delegation. Written to the company's eVault by the platform that verified it.",
+  "type": "object",
+  "properties": {
+    "companyEName": {
+      "type": "string",
+      "pattern": "^@[^\\s]+$"
+    },
+    "signerEName": {
+      "type": "string",
+      "pattern": "^@[^\\s]+$"
+    },
+    "delegationId": {
+      "type": "string",
+      "description": "MetaEnvelope id of the Delegation used",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "description": "The signer's title at signing time"
+    },
+    "scope": {
+      "type": "string",
+      "pattern": "^(ontology:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|@[^\\s:]+:[a-z][a-z0-9-]*)$",
+      "description": "`ontology:<schemaId>` or a platform-declared keyword `@<platform-eName>:<keyword>`"
+    },
+    "documentHash": {
+      "type": "string",
+      "description": "Hash of what was signed, as named in the payload"
+    },
+    "session": {
+      "type": "string"
+    },
+    "signedPayload": {
+      "type": "string",
+      "description": "The exact `w3ds-sign/v1` string the wallet signed",
+      "minLength": 1
+    },
+    "signature": {
+      "type": "string",
+      "minLength": 1
+    },
+    "platformEName": {
+      "type": "string",
+      "pattern": "^@[^\\s]+$",
+      "description": "Platform that requested, verified and recorded the signature"
+    },
+    "signedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "companyEName",
+    "signerEName",
+    "delegationId",
+    "scope",
+    "documentHash",
+    "signedPayload",
+    "signature",
+    "platformEName",
+    "signedAt",
+    "createdAt"
+  ],
+  "additionalProperties": false
+}
