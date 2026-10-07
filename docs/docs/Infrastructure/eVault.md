@@ -587,7 +587,7 @@ The following queries and mutations are preserved for backward compatibility but
 
 ### /whois
 
-Get information about a W3ID, including key binding certificates.
+Get information about a W3ID: key binding certificates, the eVault type and its manifest.
 
 **Request**:
 ```http
@@ -604,13 +604,34 @@ X-ENAME: @user-a.w3id
     "keyBindingCertificates": [
         "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9...",
         "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9..."
-    ]
+    ],
+    "type": "user",
+    "manifest": {
+        "id": "@a1b2c3d4-...",
+        "ontology": "550e8400-e29b-41d4-a716-446655440000",
+        "parsed": { "ename": "@user-a.w3id", "username": "alice", "displayName": "Alice" }
+    }
 }
 ```
 
 - `w3id`: The W3ID (eName) from the request.
 - `evaultId`: The eVault instance identifier (when configured via `EVAULT_ID`). Matches the `evault` value registered with the Registry.
 - `keyBindingCertificates`: JWTs binding the eName to public keys.
+- `type`: `user`, `group` or `company`, or `null` when nothing is known yet.
+- `manifest`: The record describing who the eVault belongs to, or `null` if there is none yet. Always public via `/whois`, whatever its ACL; GraphQL reads still follow the ACL.
+
+#### eVault manifests
+
+The type is decided first, then the manifest is the **earliest** record of that type's ontology whose `ename` / `eName` field is the eVault's own eName:
+
+| Type | Detected when | Manifest ontology |
+|------|---------------|-------------------|
+| `company` | a Company record names the vault | Company (`0f9a3cb8-4a9f-4b5f-a1fa-3a4c2eb1f402`) |
+| `group` | the vault is keyless and a Chat or GroupManifest names it | GroupManifest (`550e8400-e29b-41d4-a716-446655440003`, shared with Chat: only records with `members` and `owner` count; legacy `a8bfb7cf-3200-4b25-9ea9-ee41100f212e` as fallback) |
+| `user` | otherwise, keyed or keyless | UserProfile (`550e8400-e29b-41d4-a716-446655440000`) |
+
+- Pinned lazily on the first `/whois`, stored on the eVault's Neo4j `User` node (`vaultType`, `manifestId`), and never changed afterwards. If the pinned record is deleted, the next `/whois` re-resolves it.
+- A group with only a Chat gets a GroupManifest built from it once (name, members, admins including `adminIds`; owner defaults to the group's eName).
 
 **Example**:
 ```bash
@@ -618,7 +639,7 @@ curl -X GET http://localhost:4000/whois \
   -H "X-ENAME: @user-a.w3id"
 ```
 
-**Use Case**: Platforms use this endpoint to retrieve public keys for signature verification and the eVault instance id for routing or auditing.
+**Use Case**: Platforms use this endpoint to retrieve public keys for signature verification and the eVault instance id for routing or auditing, and to learn who an eVault belongs to.
 
 ### /logs
 

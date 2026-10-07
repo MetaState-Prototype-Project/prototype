@@ -22,6 +22,8 @@ import type {
     PageInfo,
     SearchMetaEnvelopesResult,
     StoreMetaEnvelopeResult,
+    VaultConfig,
+    VaultType,
 } from "./types";
 
 export interface AwarenessWriteContext {
@@ -1721,6 +1723,96 @@ export class DbService {
     }
 
     /**
+     * Reads an eVault's type and pinned manifest from its per-eName node.
+     * @param eName - The eName identifier
+     */
+    async getVaultConfig(eName: string): Promise<VaultConfig> {
+        if (!eName) {
+            throw new Error("eName is required for getting vault config");
+        }
+
+        const result = await this.runQueryInternal(
+            `MATCH (u:User { eName: $eName })
+             RETURN u.vaultType AS vaultType, u.manifestId AS manifestId,
+                    u.manifestPinnedAt AS manifestPinnedAt`,
+            { eName },
+        );
+
+        const record = result.records[0];
+        if (!record) {
+            return { vaultType: null, manifestId: null, manifestPinnedAt: null };
+        }
+        const pinnedAt = record.get("manifestPinnedAt");
+        return {
+            vaultType: record.get("vaultType") ?? null,
+            manifestId: record.get("manifestId") ?? null,
+            manifestPinnedAt:
+                typeof pinnedAt?.toNumber === "function"
+                    ? pinnedAt.toNumber()
+                    : (pinnedAt ?? null),
+        };
+    }
+
+    /**
+     * Pins an eVault's type and manifest unless a manifest is already pinned.
+     * Setting the lock property first takes the node's write lock before the
+     * pin is read, so of concurrent callers exactly one wins and every caller
+     * gets back the config that actually landed.
+     * @param eName - The eName identifier
+     * @param vaultType - The type to record
+     * @param manifestId - The manifest MetaEnvelope id
+     */
+    async pinManifest(
+        eName: string,
+        vaultType: VaultType,
+        manifestId: string,
+    ): Promise<VaultConfig & { won: boolean }> {
+        if (!eName) {
+            throw new Error("eName is required for pinning a manifest");
+        }
+
+        const result = await this.runQueryInternal(
+            `MERGE (u:User { eName: $eName })
+             ON CREATE SET u.publicKeys = []
+             SET u._manifestLock = true
+             WITH u, u.manifestId IS NULL AS free
+             FOREACH (_ IN CASE WHEN free THEN [1] ELSE [] END |
+                 SET u.vaultType = $vaultType,
+                     u.manifestId = $manifestId,
+                     u.manifestPinnedAt = $now)
+             REMOVE u._manifestLock
+             RETURN free AS won, u.vaultType AS vaultType,
+                    u.manifestId AS manifestId, u.manifestPinnedAt AS manifestPinnedAt`,
+            { eName, vaultType, manifestId, now: Date.now() },
+        );
+
+        const record = result.records[0];
+        const pinnedAt = record.get("manifestPinnedAt");
+        return {
+            won: record.get("won") === true,
+            vaultType: record.get("vaultType") ?? null,
+            manifestId: record.get("manifestId") ?? null,
+            manifestPinnedAt:
+                typeof pinnedAt?.toNumber === "function"
+                    ? pinnedAt.toNumber()
+                    : (pinnedAt ?? null),
+        };
+    }
+
+    /**
+     * Clears a pinned manifest, but only if it is still the given id, so a
+     * stale caller cannot clear a pin someone else just made.
+     */
+    async clearManifest(eName: string, manifestId: string): Promise<void> {
+        await this.runQueryInternal(
+            `MATCH (u:User { eName: $eName })
+             WHERE u.manifestId = $manifestId
+             REMOVE u.manifestId, u.manifestPinnedAt`,
+            { eName, manifestId },
+        );
+    }
+
+    /**
      * Copies all meta-envelopes and their envelopes from this evault to a target evault instance.
      * Preserves all IDs (metaEnvelope.id, envelope.id) and the eName property.
      * This bypasses GraphQL resolvers, so no webhooks are triggered.
@@ -1847,12 +1939,35 @@ export class DbService {
         // Copy User node with public keys if it exists
         try {
             const userResult = await this.runQueryInternal(
-                `MATCH (u:User { eName: $eName }) RETURN u.publicKeys AS publicKeys`,
+                `MATCH (u:User { eName: $eName })
+                 RETURN u.publicKeys AS publicKeys, u.vaultType AS vaultType,
+                        u.manifestId AS manifestId, u.manifestPinnedAt AS manifestPinnedAt`,
                 { eName },
             );
 
             if (userResult.records.length > 0) {
                 const publicKeys = userResult.records[0].get("publicKeys");
+                const vaultType = userResult.records[0].get("vaultType");
+                if (vaultType) {
+                    // Keyless vaults (groups) have no keys to copy but still
+                    // carry their type and manifest.
+                    await targetDbService.runQuery(
+                        `MERGE (u:User { eName: $eName })
+                         ON CREATE SET u.publicKeys = []
+                         SET u.vaultType = $vaultType,
+                             u.manifestId = $manifestId,
+                             u.manifestPinnedAt = $manifestPinnedAt`,
+                        {
+                            eName,
+                            vaultType,
+                            manifestId:
+                                userResult.records[0].get("manifestId") ?? null,
+                            manifestPinnedAt:
+                                userResult.records[0].get("manifestPinnedAt") ??
+                                null,
+                        },
+                    );
+                }
                 if (
                     publicKeys &&
                     Array.isArray(publicKeys) &&

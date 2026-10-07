@@ -258,11 +258,21 @@ Returns:
 {
   "w3id": "@user-a.w3id",
   "evaultId": "@evault-identifier",
-  "keyBindingCertificates": ["eyJhbGciOiJFUzI1NiIs...", "..."]
+  "keyBindingCertificates": ["eyJhbGciOiJFUzI1NiIs...", "..."],
+  "type": "user",
+  "manifest": { "id": "@a1b2c3d4-...", "ontology": "550e8400-e29b-41d4-a716-446655440000", "parsed": { "ename": "@user-a.w3id", "username": "alice" } }
 }
 ```
 
 Certificates are ES256 JWTs signed by the Registry. Payload: `{ ename, publicKey, exp, iat }`. Valid 1 hour. Verify signature verification recipe in [protocols.md](protocols.md).
+
+`type` and `manifest` (either may be `null`):
+
+- `company`: a Company record names the vault. Manifest: that Company record.
+- `group`: keyless vault with a Chat or GroupManifest naming it. Manifest: GroupManifest (`…440003` records with `members` + `owner`, else legacy `a8bfb7cf-…`), built once from the Chat if missing.
+- `user`: everything else. Manifest: UserProfile.
+- Manifest = earliest such record whose `ename`/`eName` is the vault, pinned on first `/whois`, re-resolved only if deleted.
+- Public via `/whois` regardless of ACL; GraphQL still enforces the ACL.
 
 ### GET /logs
 
