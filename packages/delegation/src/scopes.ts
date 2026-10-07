@@ -5,6 +5,7 @@ import {
     DELEGATION_ONTOLOGY,
     ROLE_ONTOLOGY,
     SHAREHOLDING_ONTOLOGY,
+    USER_PROFILE_ONTOLOGY,
 } from "./ontologies";
 
 /**
@@ -27,6 +28,7 @@ const PLATFORM_SCOPE = /^(@[^\s:]+):([a-z][a-z0-9-]*)$/;
  * identity. Signing for them on someone else's behalf is never allowed.
  */
 export const CORE_ONTOLOGIES: readonly string[] = [
+    USER_PROFILE_ONTOLOGY,
     BINDING_DOCUMENT_ONTOLOGY,
     COMPANY_ONTOLOGY,
     SHAREHOLDING_ONTOLOGY,

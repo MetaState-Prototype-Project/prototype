@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DELEGATION_ONTOLOGY } from "./ontologies";
+import { DELEGATION_ONTOLOGY, USER_PROFILE_ONTOLOGY } from "./ontologies";
 import {
     checkScopes,
     isCoreScope,
@@ -42,6 +42,7 @@ describe("scopes", () => {
 
     it("treats identity, authority and protocol scopes as core", () => {
         expect(isCoreScope(`ontology:${DELEGATION_ONTOLOGY}`)).toBe(true);
+        expect(isCoreScope(`ontology:${USER_PROFILE_ONTOLOGY}`)).toBe(true);
         expect(isCoreScope("@w3ds:auth")).toBe(true);
         expect(isCoreScope("@W3DS:keys")).toBe(true);
         expect(isCoreScope(INVOICE)).toBe(false);

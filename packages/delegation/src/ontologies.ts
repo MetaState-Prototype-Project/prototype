@@ -1,4 +1,5 @@
 /** Ontology ids the delegation model reads and writes. */
+export const USER_PROFILE_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440000";
 export const COMPANY_ONTOLOGY = "0f9a3cb8-4a9f-4b5f-a1fa-3a4c2eb1f402";
 export const ROLE_ONTOLOGY = "65fd0e21-34b9-43ef-be76-c5b39727010e";
 export const DELEGATION_ONTOLOGY = "0b2f15d8-c3f9-4dba-b959-5cfa11272dae";
