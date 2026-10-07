@@ -56,6 +56,20 @@ describe("delegated sign payload", () => {
 });
 
 describe("grant payload", () => {
+    it("keeps an own __proto__ key in the hash", async () => {
+        const build = (record: Record<string, unknown>) =>
+            buildGrantPayload({
+                ontology: ROLE_ONTOLOGY,
+                companyEName: "@acme",
+                signerEName: "@dir",
+                record,
+            });
+        const smuggled = JSON.parse(
+            '{"appLimits":{"__proto__":{"maxAmount":1}}}',
+        );
+        expect(await build(smuggled)).not.toBe(await build({ appLimits: {} }));
+    });
+
     const record = {
         companyEName: "@acme",
         title: "Head of Finance",

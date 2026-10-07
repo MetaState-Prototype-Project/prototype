@@ -71,18 +71,20 @@ export type ChainResult =
 
 export const MAX_CHAIN_DEPTH = 16;
 
-/** Whether `[validFrom, validUntil)` covers `now`; null if it does. */
+/**
+ * Whether `[validFrom, validUntil)` covers `now`; null if it does. An
+ * unparsable date fails closed rather than comparing as never-expiring.
+ */
 function windowProblem(
     record: Validity,
     now: Date,
-): "NOT_YET_VALID" | "EXPIRED" | null {
+): "NOT_YET_VALID" | "EXPIRED" | "MALFORMED" | null {
     const t = now.getTime();
-    if (record.validFrom && Date.parse(record.validFrom) > t) {
-        return "NOT_YET_VALID";
-    }
-    if (record.validUntil && Date.parse(record.validUntil) <= t) {
-        return "EXPIRED";
-    }
+    const from = record.validFrom ? Date.parse(record.validFrom) : null;
+    const until = record.validUntil ? Date.parse(record.validUntil) : null;
+    if (Number.isNaN(from) || Number.isNaN(until)) return "MALFORMED";
+    if (from !== null && from > t) return "NOT_YET_VALID";
+    if (until !== null && until <= t) return "EXPIRED";
     return null;
 }
 

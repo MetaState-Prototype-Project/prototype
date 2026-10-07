@@ -119,6 +119,7 @@ describe("evaluateDelegation", () => {
             {},
             "WRONG_COMPANY",
         ],
+        ["dated with garbage", {}, { validUntil: "not-a-date" }, "MALFORMED"],
     ])(
         "rejects a delegation that is %s",
         async (_name, roleOver, delOver, code) => {
