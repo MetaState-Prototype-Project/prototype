@@ -26,7 +26,7 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "pattern": "^(ontology:[0-9a-fA-F-]{36}|@[^\\s:]+:[a-z][a-z0-9-]*)$",
+        "pattern": "^(ontology:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|@[^\\s:]+:[a-z][a-z0-9-]*)$",
         "description": "`ontology:<schemaId>` or a platform-declared keyword `@<platform-eName>:<keyword>`"
       },
       "description": "What holders may sign for the company. Core scopes are never accepted."
@@ -123,5 +123,45 @@
     "updatedAt",
     "authorization"
   ],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "revoked"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "revokedAt",
+          "revokedBy"
+        ],
+        "properties": {
+          "revokedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revokedBy": {
+            "type": "string",
+            "pattern": "^@.+"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "revokedAt": {
+            "type": "null"
+          },
+          "revokedBy": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
 }

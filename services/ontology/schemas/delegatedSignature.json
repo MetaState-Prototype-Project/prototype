@@ -24,7 +24,7 @@
     },
     "scope": {
       "type": "string",
-      "pattern": "^(ontology:[0-9a-fA-F-]{36}|@[^\\s:]+:[a-z][a-z0-9-]*)$",
+      "pattern": "^(ontology:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|@[^\\s:]+:[a-z][a-z0-9-]*)$",
       "description": "`ontology:<schemaId>` or a platform-declared keyword `@<platform-eName>:<keyword>`"
     },
     "documentHash": {

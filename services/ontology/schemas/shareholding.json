@@ -17,7 +17,8 @@
     },
     "holderName": {
       "type": "string",
-      "description": "Display or legal name of the holder"
+      "description": "Display or legal name of the holder",
+      "minLength": 1
     },
     "shareClass": {
       "type": "string",
@@ -104,5 +105,37 @@
       ]
     }
   ],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "disposed"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "disposedAt"
+        ],
+        "properties": {
+          "disposedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "disposedAt": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
 }
