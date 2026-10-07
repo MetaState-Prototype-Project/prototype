@@ -24,7 +24,7 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "pattern": "^@.+"
+        "pattern": "^@[^\\s]+$"
       },
       "description": "eNames of the directors. Any one director may create roles and grant delegations; only an existing director may change this list. The creator is the first director."
     },
@@ -79,14 +79,16 @@
       "properties": {
         "signerEName": {
           "type": "string",
-          "pattern": "^@.+"
+          "pattern": "^@[^\\s]+$"
         },
         "signedPayload": {
           "type": "string",
-          "description": "The exact canonical string that was signed"
+          "description": "The exact canonical string that was signed",
+          "minLength": 1
         },
         "signature": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "signedAt": {
           "type": "string",

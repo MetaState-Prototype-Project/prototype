@@ -8,7 +8,7 @@
   "properties": {
     "companyEName": {
       "type": "string",
-      "pattern": "^@.+",
+      "pattern": "^@[^\\s]+$",
       "description": "eName of the company eVault"
     },
     "title": {
@@ -72,7 +72,7 @@
     },
     "createdBy": {
       "type": "string",
-      "pattern": "^@.+",
+      "pattern": "^@[^\\s]+$",
       "description": "The director who created the role"
     },
     "createdAt": {
@@ -89,14 +89,16 @@
       "properties": {
         "signerEName": {
           "type": "string",
-          "pattern": "^@.+"
+          "pattern": "^@[^\\s]+$"
         },
         "signedPayload": {
           "type": "string",
-          "description": "The exact canonical string that was signed"
+          "description": "The exact canonical string that was signed",
+          "minLength": 1
         },
         "signature": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "signedAt": {
           "type": "string",
@@ -148,7 +150,7 @@
           },
           "revokedBy": {
             "type": "string",
-            "pattern": "^@.+"
+            "pattern": "^@[^\\s]+$"
           }
         }
       },

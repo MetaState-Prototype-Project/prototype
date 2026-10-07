@@ -8,12 +8,12 @@
   "properties": {
     "companyEName": {
       "type": "string",
-      "pattern": "^@.+",
+      "pattern": "^@[^\\s]+$",
       "description": "eName of the company eVault"
     },
     "delegateEName": {
       "type": "string",
-      "pattern": "^@.+",
+      "pattern": "^@[^\\s]+$",
       "description": "Who may sign for the company"
     },
     "roleId": {
@@ -62,7 +62,7 @@
     },
     "grantedBy": {
       "type": "string",
-      "pattern": "^@.+",
+      "pattern": "^@[^\\s]+$",
       "description": "The director, or the parent delegation's delegate"
     },
     "status": {
@@ -111,14 +111,16 @@
       "properties": {
         "signerEName": {
           "type": "string",
-          "pattern": "^@.+"
+          "pattern": "^@[^\\s]+$"
         },
         "signedPayload": {
           "type": "string",
-          "description": "The exact canonical string that was signed"
+          "description": "The exact canonical string that was signed",
+          "minLength": 1
         },
         "signature": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "signedAt": {
           "type": "string",
@@ -186,7 +188,8 @@
       "then": {
         "required": [
           "revokedAt",
-          "revokedBy"
+          "revokedBy",
+          "revocationReason"
         ],
         "properties": {
           "revokedAt": {
@@ -195,7 +198,13 @@
           },
           "revokedBy": {
             "type": "string",
-            "pattern": "^@.+"
+            "pattern": "^@[^\\s]+$"
+          },
+          "revocationReason": {
+            "enum": [
+              "revoked",
+              "cascade"
+            ]
           }
         }
       },
@@ -205,6 +214,9 @@
             "type": "null"
           },
           "revokedBy": {
+            "type": "null"
+          },
+          "revocationReason": {
             "type": "null"
           }
         }

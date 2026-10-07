@@ -8,15 +8,16 @@
   "properties": {
     "companyEName": {
       "type": "string",
-      "pattern": "^@.+"
+      "pattern": "^@[^\\s]+$"
     },
     "signerEName": {
       "type": "string",
-      "pattern": "^@.+"
+      "pattern": "^@[^\\s]+$"
     },
     "delegationId": {
       "type": "string",
-      "description": "MetaEnvelope id of the Delegation used"
+      "description": "MetaEnvelope id of the Delegation used",
+      "minLength": 1
     },
     "title": {
       "type": "string",
@@ -36,14 +37,16 @@
     },
     "signedPayload": {
       "type": "string",
-      "description": "The exact `w3ds-sign/v1` string the wallet signed"
+      "description": "The exact `w3ds-sign/v1` string the wallet signed",
+      "minLength": 1
     },
     "signature": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     },
     "platformEName": {
       "type": "string",
-      "pattern": "^@.+",
+      "pattern": "^@[^\\s]+$",
       "description": "Platform that requested, verified and recorded the signature"
     },
     "signedAt": {
