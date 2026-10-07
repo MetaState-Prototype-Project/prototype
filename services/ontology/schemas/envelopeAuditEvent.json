@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "schemaId": "8c2c245e-8714-41da-8407-14ab5ce8ea38",
   "title": "EnvelopeAuditEvent",
-  "description": "One recorded step in the life of a signing envelope, written to the vault of whoever performed it.\n\nIMPORTANT — what this is and is not. Any platform holding a developer key can write an envelope to any vault by naming its owner in X-ENAME; there is no place in the request for the owner's consent. An unsigned event is therefore FORGEABLE: a 'signed' or 'opened' event can be fabricated on the vault of someone who never opened the application. Unsigned events are an operational journal, not evidence.\n\nFor the actions a person may genuinely need to prove — above all 'declined', which is a statement someone may have to defend — the actor signs the event with their eID key and fills signedPayload and signature. Only those events carry evidentiary weight, on exactly the same footing as EIDSignature: the private key lives in the wallet and the platform key cannot forge it. This is deliberately carried no IP address or user agent: those are personal data and would be written into someone else's vault.",
+  "description": "One recorded step in the life of a signing envelope, written to the vault of whoever performed it.\n\nIMPORTANT — what this is and is not. Any platform holding a developer key can write an envelope to any vault by naming its owner in X-ENAME; there is no place in the request for the owner's consent. An unsigned event is therefore FORGEABLE: a 'signed' or 'opened' event can be fabricated on the vault of someone who never opened the application. Unsigned events are an operational journal, not evidence.\n\nFor the actions a person may genuinely need to prove — 'declined' and 'revoked', each a statement someone may have to defend — the actor signs the event with their eID key and fills signedPayload and signature. A withdrawal is written unsigned the instant it takes effect, because stopping a document must not wait for a phone, and is signed immediately afterwards; isAttested says which of the two you are looking at, and an unsigned one must never be read as the sender's own statement. Only those events carry evidentiary weight, on exactly the same footing as EIDSignature: the private key lives in the wallet and the platform key cannot forge it. This is deliberately carried no IP address or user agent: those are personal data and would be written into someone else's vault.",
   "type": "object",
   "properties": {
     "eventId": {
@@ -60,7 +60,7 @@
     },
     "signedPayload": {
       "type": "string",
-      "description": "The exact string signed by the actor, composed as `${action}|${envelopeId}|${actorEName}|${occurredAt}`. Present only on signed events. Absent means this event is unproven and must not be presented as evidence."
+      "description": "The exact string signed by the actor, composed as `docusigner.audit.v1|<action>|<envelopeId>|<actorEName>|<occurredAt>` — actor eName @-prefixed and lowercased, occurredAt exactly as recorded on this event — then SHA-256'd and prefixed with `audit_`, so the signed string is short and of fixed length whatever the composition grows to carry. Recorded verbatim; a verifier MUST recompose it from this event's own fields and compare, never trust the recorded string. Present only on signed events. Absent means this event is unproven and must not be presented as evidence."
     },
     "signature": {
       "type": "string",
