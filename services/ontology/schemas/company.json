@@ -18,6 +18,16 @@
       "type": "string",
       "description": "MetaEnvelope ID of the canonical GroupManifest"
     },
+    "directors": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^@.+"
+      },
+      "description": "eNames of the directors. Any one director may create roles and grant delegations; only an existing director may change this list. The creator is the first director."
+    },
     "legalName": {
       "type": "string",
       "description": "Registered legal name"
@@ -62,6 +72,34 @@
     "updatedAt": {
       "type": "string",
       "format": "date-time"
+    },
+    "authorization": {
+      "type": "object",
+      "description": "The wallet signature, over this record's canonical form (`w3ds-grant/v1`), of the director who set or last changed `directors`: the creator for the first version, then an existing director. The eVault verifies it before accepting the write.",
+      "properties": {
+        "signerEName": {
+          "type": "string",
+          "pattern": "^@.+"
+        },
+        "signedPayload": {
+          "type": "string",
+          "description": "The exact canonical string that was signed"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "signedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "signerEName",
+        "signedPayload",
+        "signature",
+        "signedAt"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [

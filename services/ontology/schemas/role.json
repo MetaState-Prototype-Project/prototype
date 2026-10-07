@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "65fd0e21-34b9-43ef-be76-c5b39727010e",
+  "title": "Role",
+  "domain": "governance",
+  "description": "A titled bundle of signing authority a company hands out, e.g. 'Head of Finance'. Lives in the company's eVault and is public so verifiers can check it. Created and changed only by a director.",
+  "type": "object",
+  "properties": {
+    "companyEName": {
+      "type": "string",
+      "pattern": "^@.+",
+      "description": "eName of the company eVault"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "description": "Easy to remember title shown when signing"
+    },
+    "description": {
+      "type": "string"
+    },
+    "scopes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^(ontology:[0-9a-fA-F-]{36}|@[^\\s:]+:[a-z][a-z0-9-]*)$",
+        "description": "`ontology:<schemaId>` or a platform-declared keyword `@<platform-eName>:<keyword>`"
+      },
+      "description": "What holders may sign for the company. Core scopes are never accepted."
+    },
+    "appLimits": {
+      "type": "object",
+      "description": "Platform-specific limits (e.g. maxAmount), enforced by the platform that declared them"
+    },
+    "mayRedelegate": {
+      "type": "boolean",
+      "description": "Whether holders may pass on a narrower part of this role"
+    },
+    "validFrom": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "validUntil": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "revoked"
+      ]
+    },
+    "revokedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "revokedBy": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "createdBy": {
+      "type": "string",
+      "pattern": "^@.+",
+      "description": "The director who created the role"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "authorization": {
+      "type": "object",
+      "description": "The wallet signature of the director making this change over this record's canonical form (`w3ds-grant/v1`). The eVault verifies it before accepting the write.",
+      "properties": {
+        "signerEName": {
+          "type": "string",
+          "pattern": "^@.+"
+        },
+        "signedPayload": {
+          "type": "string",
+          "description": "The exact canonical string that was signed"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "signedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "signerEName",
+        "signedPayload",
+        "signature",
+        "signedAt"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "companyEName",
+    "title",
+    "scopes",
+    "mayRedelegate",
+    "status",
+    "createdBy",
+    "createdAt",
+    "updatedAt",
+    "authorization"
+  ],
+  "additionalProperties": false
+}

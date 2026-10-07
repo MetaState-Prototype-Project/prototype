@@ -1,0 +1,170 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "0b2f15d8-c3f9-4dba-b959-5cfa11272dae",
+  "title": "Delegation",
+  "domain": "governance",
+  "description": "Lets a person sign for a company within some scopes. Either assigns a Role (granted by a director) or narrows a parent Delegation (re-delegation, only when the parent allows it). Lives in the company's eVault and is public so verifiers can check it.",
+  "type": "object",
+  "properties": {
+    "companyEName": {
+      "type": "string",
+      "pattern": "^@.+",
+      "description": "eName of the company eVault"
+    },
+    "delegateEName": {
+      "type": "string",
+      "pattern": "^@.+",
+      "description": "Who may sign for the company"
+    },
+    "roleId": {
+      "type": "string",
+      "description": "MetaEnvelope id of the Role this assigns"
+    },
+    "parentDelegationId": {
+      "type": "string",
+      "description": "MetaEnvelope id of the Delegation this narrows"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "scopes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^(ontology:[0-9a-fA-F-]{36}|@[^\\s:]+:[a-z][a-z0-9-]*)$",
+        "description": "`ontology:<schemaId>` or a platform-declared keyword `@<platform-eName>:<keyword>`"
+      },
+      "description": "Must be a subset of the role's or parent's scopes"
+    },
+    "appLimits": {
+      "type": "object",
+      "description": "May only tighten the parent's app limits"
+    },
+    "mayRedelegate": {
+      "type": "boolean"
+    },
+    "validFrom": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "validUntil": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "grantedBy": {
+      "type": "string",
+      "pattern": "^@.+",
+      "description": "The director, or the parent delegation's delegate"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "revoked"
+      ]
+    },
+    "revokedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "revokedBy": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "revocationReason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "revoked",
+        "cascade",
+        null
+      ],
+      "description": "`cascade` when revoked because a role or parent was revoked or narrowed"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "authorization": {
+      "type": "object",
+      "description": "The wallet signature of the grantor over this record's canonical form (`w3ds-grant/v1`). The eVault verifies it before accepting the write.",
+      "properties": {
+        "signerEName": {
+          "type": "string",
+          "pattern": "^@.+"
+        },
+        "signedPayload": {
+          "type": "string",
+          "description": "The exact canonical string that was signed"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "signedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "signerEName",
+        "signedPayload",
+        "signature",
+        "signedAt"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "companyEName",
+    "delegateEName",
+    "title",
+    "scopes",
+    "mayRedelegate",
+    "grantedBy",
+    "status",
+    "createdAt",
+    "updatedAt",
+    "authorization"
+  ],
+  "oneOf": [
+    {
+      "required": [
+        "roleId"
+      ],
+      "not": {
+        "required": [
+          "parentDelegationId"
+        ]
+      }
+    },
+    {
+      "required": [
+        "parentDelegationId"
+      ],
+      "not": {
+        "required": [
+          "roleId"
+        ]
+      }
+    }
+  ],
+  "additionalProperties": false
+}
