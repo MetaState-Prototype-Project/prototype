@@ -10,6 +10,10 @@ import type {
 } from "../../services/ProvisioningService";
 import { DbService } from "../db/db.service";
 import { ProtectedZoneService } from "../db/protected-zone.service";
+import {
+    ManifestService,
+    type ResolvedManifest,
+} from "../manifest/manifest.service";
 import { connectWithRetry } from "../db/retry-neo4j";
 import { validatePassphraseStrength } from "../utils/passphrase";
 import { getProvisionerJwk } from "../utils/provisioner-signer";
@@ -95,6 +99,8 @@ export async function registerHttpRoutes(
         },
     );
 
+    const manifestService = dbService ? new ManifestService(dbService) : null;
+
     // Whois endpoint - returns both W3ID identifier and public key
     server.get(
         "/whois",
@@ -118,6 +124,21 @@ export async function registerHttpRoutes(
                             keyBindingCertificates: {
                                 type: "array",
                                 items: { type: "string" },
+                            },
+                            type: {
+                                type: ["string", "null"],
+                                enum: ["user", "group", "company", null],
+                            },
+                            manifest: {
+                                type: ["object", "null"],
+                                properties: {
+                                    id: { type: "string" },
+                                    ontology: { type: "string" },
+                                    parsed: {
+                                        type: "object",
+                                        additionalProperties: true,
+                                    },
+                                },
                             },
                         },
                     },
@@ -237,10 +258,23 @@ export async function registerHttpRoutes(
                     }
                 }
             }
+            // The manifest is public by definition: it is served here
+            // regardless of its ACL, which still governs GraphQL reads.
+            let resolved: ResolvedManifest = { type: null, manifest: null };
+            if (manifestService) {
+                try {
+                    resolved = await manifestService.resolve(eName);
+                } catch (error) {
+                    console.error("Error resolving eVault manifest:", error);
+                }
+            }
+
             const result = {
                 w3id: eName,
                 evaultId,
                 keyBindingCertificates: keyBindingCertificates,
+                type: resolved.type,
+                manifest: resolved.manifest,
             };
             return result;
         },

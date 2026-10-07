@@ -215,3 +215,14 @@ export type FindMetaEnvelopesPaginatedOptions = {
     last?: number;
     before?: string;
 };
+
+/** What kind of subject an eVault belongs to. */
+export type VaultType = "user" | "group" | "company";
+
+/** An eVault's type and pinned manifest, kept on its per-eName node. */
+export type VaultConfig = {
+    vaultType: VaultType | null;
+    manifestId: string | null;
+    /** Epoch ms when the manifest was pinned. */
+    manifestPinnedAt: number | null;
+};

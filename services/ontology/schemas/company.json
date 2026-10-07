@@ -3,6 +3,7 @@
   "schemaId": "0f9a3cb8-4a9f-4b5f-a1fa-3a4c2eb1f402",
   "title": "Company",
   "domain": "work",
+  "description": "A company's profile. The earliest Company record naming its own eVault is that eVault's manifest.",
   "type": "object",
   "properties": {
     "id": {
@@ -17,6 +18,43 @@
       "type": "string",
       "description": "MetaEnvelope ID of the canonical GroupManifest"
     },
+    "legalName": {
+      "type": "string",
+      "description": "Registered legal name"
+    },
+    "displayName": {
+      "type": "string",
+      "description": "Name shown to people"
+    },
+    "description": {
+      "type": "string"
+    },
+    "logo": {
+      "type": "string",
+      "description": "Logo URL or w3ds://file URI"
+    },
+    "website": {
+      "type": "string",
+      "format": "uri"
+    },
+    "email": {
+      "type": "string",
+      "format": "email"
+    },
+    "telephone": {
+      "type": "string"
+    },
+    "address": {
+      "type": "string"
+    },
+    "registrationNumber": {
+      "type": "string",
+      "description": "Company registration number in its jurisdiction"
+    },
+    "jurisdiction": {
+      "type": "string",
+      "description": "Jurisdiction of registration, e.g. an ISO 3166 code"
+    },
     "createdAt": {
       "type": "string",
       "format": "date-time"
@@ -29,7 +67,6 @@
   "required": [
     "id",
     "eName",
-    "groupManifestEnvelopeId",
     "createdAt",
     "updatedAt"
   ],
