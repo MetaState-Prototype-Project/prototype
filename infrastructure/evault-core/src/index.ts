@@ -115,16 +115,6 @@ const initializeEVault = async (
         console.warn("Failed to create eName index:", error);
     }
 
-    // Create User index for public key lookups
-    try {
-        const { createUserIndex } = await import(
-            "./core/db/migrations/add-user-index"
-        );
-        await createUserIndex(driver);
-    } catch (error) {
-        console.warn("Failed to create User index:", error);
-    }
-
     // Create id indexes on Envelope and MetaEnvelope so per-field point
     // lookups inside updateMetaEnvelopeById don't scan the whole label.
     try {
@@ -144,6 +134,17 @@ const initializeEVault = async (
         await migratePublicKeyToArray(driver);
     } catch (error) {
         console.warn("Failed to migrate publicKey to publicKeys array:", error);
+    }
+
+    // Make User.eName unique (also serves public key lookups). Runs after the
+    // publicKey migration so duplicates are merged as arrays.
+    try {
+        const { createUserENameConstraint } = await import(
+            "./core/db/migrations/add-user-ename-constraint"
+        );
+        await createUserENameConstraint(driver);
+    } catch (error) {
+        console.warn("Failed to create User eName constraint:", error);
     }
 
     // Create EnvelopeOperationLog indexes for /logs endpoint

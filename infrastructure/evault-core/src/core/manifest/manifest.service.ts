@@ -4,16 +4,35 @@ import type { DbService } from "../db/db.service";
 import type { VaultType } from "../db/types";
 
 export const USER_PROFILE_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440000";
-export const CHAT_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440003";
-export const GROUP_MANIFEST_ONTOLOGY = "a8bfb7cf-3200-4b25-9ea9-ee41100f212e";
+/** Shared by Chat and the GroupManifest `createGroupEVault` writes. */
+export const GROUP_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440003";
+/** The id in services/ontology/schemas/groupManifest.json. */
+export const LEGACY_GROUP_MANIFEST_ONTOLOGY =
+    "a8bfb7cf-3200-4b25-9ea9-ee41100f212e";
 export const COMPANY_ONTOLOGY = "0f9a3cb8-4a9f-4b5f-a1fa-3a4c2eb1f402";
 
-/** The ontology an eVault's manifest must have, by the vault's type. */
-export const MANIFEST_ONTOLOGIES: Record<VaultType, string> = {
-    user: USER_PROFILE_ONTOLOGY,
-    group: GROUP_MANIFEST_ONTOLOGY,
-    company: COMPANY_ONTOLOGY,
+/**
+ * Which records may be a manifest, by the vault's type, in order of preference.
+ * Under the shared group ontology only records shaped like a GroupManifest
+ * count, so a Chat is never mistaken for one.
+ */
+export const MANIFEST_CANDIDATES: Record<
+    VaultType,
+    { ontology: string; shape: RecordShape }[]
+> = {
+    user: [{ ontology: USER_PROFILE_ONTOLOGY, shape: "any" }],
+    group: [
+        { ontology: GROUP_ONTOLOGY, shape: "manifest" },
+        { ontology: LEGACY_GROUP_MANIFEST_ONTOLOGY, shape: "any" },
+    ],
+    company: [{ ontology: COMPANY_ONTOLOGY, shape: "any" }],
 };
+
+/**
+ * A GroupManifest has `members` and an `owner`, as the control panel also
+ * checks; a Chat sharing its ontology does not.
+ */
+type RecordShape = "any" | "manifest" | "chat";
 
 /** Platforms spelled the self-naming field both ways. */
 const ENAME_FIELDS = ["ename", "eName"];
@@ -66,10 +85,11 @@ export class ManifestService {
         }
 
         const type = await this.inferType(eName);
-        const candidate = await this.earliestSelfNaming(
-            eName,
-            MANIFEST_ONTOLOGIES[type],
-        );
+        let candidate: string | null = null;
+        for (const { ontology, shape } of MANIFEST_CANDIDATES[type]) {
+            candidate = await this.earliestSelfNaming(eName, ontology, shape);
+            if (candidate) break;
+        }
 
         if (!candidate) {
             if (type === "group") return this.createGroupManifest(eName);
@@ -111,7 +131,10 @@ export class ManifestService {
             {
                 eName,
                 company: COMPANY_ONTOLOGY,
-                groupOntologies: [CHAT_ONTOLOGY, GROUP_MANIFEST_ONTOLOGY],
+                groupOntologies: [
+                    GROUP_ONTOLOGY,
+                    LEGACY_GROUP_MANIFEST_ONTOLOGY,
+                ],
                 enameFields: ENAME_FIELDS,
             },
         );
@@ -125,7 +148,8 @@ export class ManifestService {
     }
 
     /**
-     * The earliest record of an ontology in the vault that names the vault.
+     * The earliest record of an ontology in the vault that names the vault,
+     * optionally limited to records shaped like a GroupManifest or not.
      *
      * Records written before version history existed have no history node and
      * are older than any that do, so they sort first; within each group the
@@ -134,6 +158,7 @@ export class ManifestService {
     private async earliestSelfNaming(
         eName: string,
         ontology: string,
+        shape: RecordShape = "any",
     ): Promise<string | null> {
         const result = await this.db.runQuery(
             `
@@ -142,21 +167,29 @@ export class ManifestService {
                 MATCH (m)-[:LINKS_TO]->(n:Envelope)
                 WHERE n.ontology IN $enameFields AND n.value = $eName
             }
+            AND (
+                $shape = "any"
+                OR ($shape = "manifest") = (
+                    EXISTS { (m)-[:LINKS_TO]->(:Envelope { ontology: "members" }) }
+                    AND EXISTS { (m)-[:LINKS_TO]->(:Envelope { ontology: "owner" }) }
+                )
+            )
             OPTIONAL MATCH (h:MetaEnvelopeHistory { metaEnvelopeId: m.id, eName: $eName })
             OPTIONAL MATCH (m)-[:LINKS_TO]->(c:Envelope { ontology: "createdAt" })
             RETURN m.id AS id
             ORDER BY h IS NOT NULL, c.value, h.createdAt, m.id
             LIMIT 1
             `,
-            { eName, ontology, enameFields: ENAME_FIELDS },
+            { eName, ontology, shape, enameFields: ENAME_FIELDS },
         );
         return result.records[0]?.get("id") ?? null;
     }
 
     /**
      * Older group vaults only hold a Chat. A GroupManifest is built from it
-     * once: the pin is claimed with a fresh id first, so concurrent callers
-     * cannot both write one, and only the winner stores the record.
+     * once, under the same ontology `createGroupEVault` writes. The pin is
+     * claimed with a fresh id first, so concurrent callers cannot both write
+     * one, and only the winner stores the record.
      */
     private async createGroupManifest(
         eName: string,
@@ -175,7 +208,7 @@ export class ManifestService {
         try {
             const payload = await this.groupManifestFromChat(eName);
             await this.db.storeMetaEnvelopeWithId(
-                { ontology: GROUP_MANIFEST_ONTOLOGY, payload, acl: ["*"] },
+                { ontology: GROUP_ONTOLOGY, payload, acl: ["*"] },
                 ["*"],
                 eName,
                 id,
@@ -190,13 +223,15 @@ export class ManifestService {
     private async groupManifestFromChat(
         eName: string,
     ): Promise<Record<string, unknown>> {
-        const chatId = await this.earliestSelfNaming(eName, CHAT_ONTOLOGY);
+        const chatId = await this.earliestSelfNaming(
+            eName,
+            GROUP_ONTOLOGY,
+            "chat",
+        );
         const chat = chatId ? await this.load(chatId, eName) : null;
         const fields = chat?.parsed ?? {};
 
-        const admins = Array.isArray(fields.admins)
-            ? fields.admins.filter((a): a is string => typeof a === "string")
-            : [];
+        const admins = await this.adminENames(fields);
         const owner = typeof fields.owner === "string" ? fields.owner : eName;
         const now = new Date().toISOString();
 
@@ -213,6 +248,26 @@ export class ManifestService {
             if (typeof fields[key] === "string") manifest[key] = fields[key];
         }
         return manifest;
+    }
+
+    /**
+     * Admins may be listed as eNames or, as the eVoting, eSigner and
+     * file-manager mappings write them, as profile ids under `adminIds`; ids
+     * are followed to the eNames behind them.
+     */
+    private async adminENames(
+        fields: Record<string, unknown>,
+    ): Promise<string[]> {
+        const entries = [fields.admins, fields.adminIds]
+            .flatMap((v) => (Array.isArray(v) ? v : [v]))
+            .filter((v): v is string => typeof v === "string" && v.length > 0);
+
+        const enames = new Set(entries.filter((e) => e.startsWith("@")));
+        const ids = entries.filter((e) => !e.startsWith("@"));
+        for (const resolved of await this.groups.enamesForProfileIds(ids)) {
+            enames.add(resolved);
+        }
+        return [...enames];
     }
 
     private async load(id: string, eName: string): Promise<Manifest | null> {

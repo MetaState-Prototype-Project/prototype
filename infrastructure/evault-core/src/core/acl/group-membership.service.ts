@@ -105,7 +105,7 @@ export class GroupMembershipService implements GroupResolver {
      * same profile syncs into several vaults, so the vault only identifies the
      * subject when the record does not say so itself.
      */
-    private async enamesForProfileIds(ids: string[]): Promise<EName[]> {
+    async enamesForProfileIds(ids: string[]): Promise<EName[]> {
         if (ids.length === 0) return [];
 
         const result = await this.db.runQuery(

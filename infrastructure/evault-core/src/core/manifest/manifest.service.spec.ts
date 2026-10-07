@@ -5,10 +5,11 @@ import {
     teardownTestNeo4j,
 } from "../../test-utils/neo4j-setup";
 import { DbService } from "../db/db.service";
+import { createUserENameConstraint } from "../db/migrations/add-user-ename-constraint";
 import {
-    CHAT_ONTOLOGY,
     COMPANY_ONTOLOGY,
-    GROUP_MANIFEST_ONTOLOGY,
+    GROUP_ONTOLOGY,
+    LEGACY_GROUP_MANIFEST_ONTOLOGY,
     ManifestService,
     USER_PROFILE_ONTOLOGY,
 } from "./manifest.service";
@@ -23,6 +24,14 @@ describe("ManifestService", () => {
         driver = setup.driver;
         db = new DbService(driver);
         manifests = new ManifestService(db);
+
+        // Duplicates an earlier race could have left, for the migration test.
+        await db.runQuery(
+            `CREATE (:User { eName: "@dup", publicKeys: ["k1"] }),
+                    (:User { eName: "@dup", publicKeys: ["k2", "k1"], vaultType: "user", manifestId: "@m" })`,
+            {},
+        );
+        await createUserENameConstraint(driver);
     }, 120000);
 
     afterAll(async () => {
@@ -42,8 +51,28 @@ describe("ManifestService", () => {
         return result.metaEnvelope.id;
     };
 
-    const countOf = async (vault: string, ontology: string) =>
-        (await db.findMetaEnvelopesByOntology(ontology, vault)).length;
+    /** GroupManifests in a vault, told apart from Chats sharing their ontology. */
+    const groupManifestsIn = async (vault: string) =>
+        (await db.findMetaEnvelopesByOntology(GROUP_ONTOLOGY, vault)).filter(
+            (m) =>
+                Array.isArray(m.parsed.members) &&
+                typeof m.parsed.owner === "string",
+        );
+
+    describe("User eName constraint migration", () => {
+        it("folds duplicate User nodes into one and keeps their fields", async () => {
+            const result = await db.runQuery(
+                "MATCH (u:User { eName: '@dup' }) RETURN u.publicKeys AS keys, u.manifestId AS manifestId",
+                {},
+            );
+            expect(result.records).toHaveLength(1);
+            expect([...result.records[0].get("keys")].sort()).toEqual([
+                "k1",
+                "k2",
+            ]);
+            expect(result.records[0].get("manifestId")).toBe("@m");
+        });
+    });
 
     describe("user vaults", () => {
         it("pins the UserProfile of a keyed vault and serves it despite its ACL", async () => {
@@ -124,9 +153,41 @@ describe("ManifestService", () => {
     });
 
     describe("group vaults", () => {
-        it("pins an existing GroupManifest", async () => {
+        it("pins the GroupManifest createGroupEVault writes, not the Chat beside it", async () => {
             const vault = "@group-with-manifest";
-            const id = await store(vault, GROUP_MANIFEST_ONTOLOGY, {
+            await store(vault, GROUP_ONTOLOGY, {
+                ename: vault,
+                name: "Ops chat",
+                participantIds: ["@alice"],
+                createdAt: "2020-01-01T00:00:00.000Z",
+            });
+            const id = await store(vault, GROUP_ONTOLOGY, {
+                eName: vault,
+                name: "Ops",
+                members: ["@alice"],
+                admins: ["@alice"],
+                owner: "@alice",
+                createdAt: "2024-01-01T00:00:00.000Z",
+            });
+            await store(vault, LEGACY_GROUP_MANIFEST_ONTOLOGY, {
+                eName: vault,
+                name: "Older legacy",
+                members: [],
+                admins: [],
+                owner: "@alice",
+                createdAt: "2019-01-01T00:00:00.000Z",
+            });
+
+            const resolved = await manifests.resolve(vault);
+
+            expect(resolved.type).toBe("group");
+            expect(resolved.manifest?.id).toBe(id);
+            expect(await groupManifestsIn(vault)).toHaveLength(1);
+        });
+
+        it("falls back to a legacy GroupManifest", async () => {
+            const vault = "@group-with-legacy-manifest";
+            const id = await store(vault, LEGACY_GROUP_MANIFEST_ONTOLOGY, {
                 eName: vault,
                 name: "Ops",
                 members: ["@alice"],
@@ -142,17 +203,21 @@ describe("ManifestService", () => {
 
         it("builds a GroupManifest once from an old group's Chat", async () => {
             const vault = "@old-group";
-            await store(vault, CHAT_ONTOLOGY, {
+            const alice = await store("@alice", USER_PROFILE_ONTOLOGY, {
+                ename: "@alice",
+                username: "alice",
+            });
+            await store(vault, GROUP_ONTOLOGY, {
                 ename: vault,
                 name: "Book club",
                 participantIds: ["@alice", "@bob"],
-                admins: ["@alice"],
+                adminIds: [alice],
             });
 
             const resolved = await manifests.resolve(vault);
 
             expect(resolved.type).toBe("group");
-            expect(resolved.manifest?.ontology).toBe(GROUP_MANIFEST_ONTOLOGY);
+            expect(resolved.manifest?.ontology).toBe(GROUP_ONTOLOGY);
             expect(resolved.manifest?.parsed).toMatchObject({
                 eName: vault,
                 name: "Book club",
@@ -164,12 +229,12 @@ describe("ManifestService", () => {
             ).toEqual(["@alice", "@bob"]);
 
             await manifests.resolve(vault);
-            expect(await countOf(vault, GROUP_MANIFEST_ONTOLOGY)).toBe(1);
+            expect(await groupManifestsIn(vault)).toHaveLength(1);
         });
 
         it("writes a single GroupManifest under concurrent lookups", async () => {
             const vault = "@racing-group";
-            await store(vault, CHAT_ONTOLOGY, {
+            await store(vault, GROUP_ONTOLOGY, {
                 ename: vault,
                 name: "Race",
                 participantIds: ["@alice"],
@@ -179,7 +244,7 @@ describe("ManifestService", () => {
                 Array.from({ length: 5 }, () => manifests.resolve(vault)),
             );
 
-            expect(await countOf(vault, GROUP_MANIFEST_ONTOLOGY)).toBe(1);
+            expect(await groupManifestsIn(vault)).toHaveLength(1);
             const pinned = (await db.getVaultConfig(vault)).manifestId;
             for (const r of results) {
                 expect(r.type).toBe("group");
@@ -190,7 +255,7 @@ describe("ManifestService", () => {
         it("does not treat a keyed vault holding a self-naming Chat as a group", async () => {
             const vault = "@keyed-with-chat";
             await db.addPublicKey(vault, "z-key");
-            await store(vault, CHAT_ONTOLOGY, { ename: vault, name: "x" });
+            await store(vault, GROUP_ONTOLOGY, { ename: vault, name: "x" });
 
             expect((await manifests.resolve(vault)).type).toBe("user");
         });
@@ -199,14 +264,18 @@ describe("ManifestService", () => {
     describe("company vaults", () => {
         it("prefers the Company record over an earlier GroupManifest", async () => {
             const vault = "@acme";
-            const groupManifest = await store(vault, GROUP_MANIFEST_ONTOLOGY, {
-                eName: vault,
-                name: "Acme",
-                members: [],
-                admins: [],
-                owner: "@founder",
-                createdAt: "2020-01-01T00:00:00.000Z",
-            });
+            const groupManifest = await store(
+                vault,
+                LEGACY_GROUP_MANIFEST_ONTOLOGY,
+                {
+                    eName: vault,
+                    name: "Acme",
+                    members: [],
+                    admins: [],
+                    owner: "@founder",
+                    createdAt: "2020-01-01T00:00:00.000Z",
+                },
+            );
             const company = await store(vault, COMPANY_ONTOLOGY, {
                 id: "acme",
                 eName: vault,
