@@ -15,7 +15,13 @@ import {
 	parseDelegatedSignPayload,
 	type Version,
 } from "@metastate-foundation/delegation";
-import { normalizeEName, verifyEnameSignature } from "./ename-signature.js";
+import {
+	type EnameVerificationError,
+	normalizeEName,
+	type ResolveCertifiedKeysResult,
+	resolveCertifiedKeys,
+	verifyWithCertifiedKeys,
+} from "./ename-signature.js";
 
 export type DelegatedSignatureError =
 	| "invalid_payload"
@@ -61,6 +67,20 @@ const DEFAULT_TIMEOUT_MS = 5000;
 const HISTORY_PAGE = 100;
 /** Bounds how much history one record may make us read. */
 const MAX_HISTORY_PAGES = 20;
+/**
+ * Bounds how many signers' keys one verification looks up. Anyone can write a
+ * version naming any signer, so without a cap a record could make a single
+ * verification fan out into a lookup per version.
+ */
+const MAX_SIGNERS = 32;
+
+/** Failures of the infrastructure, as opposed to a signature not verifying. */
+const OUTAGES: Partial<Record<EnameVerificationError, DelegatedSignatureError>> = {
+	resolve_failed: "resolve_failed",
+	whois_failed: "resolve_failed",
+	jwks_failed: "resolve_failed",
+	timeout: "timeout",
+};
 
 const HISTORY_QUERY = `query History($id: ID!, $first: Int, $after: String) {
 	metaEnvelopeHistory(id: $id, first: $first, after: $after) {
@@ -96,35 +116,48 @@ export async function verifyDelegatedSignature(
 		fetch: options.fetch ?? globalThis.fetch,
 		signal: options.signal,
 	};
-	const ename = (eName: string, signedPayload: string, signature: string) =>
-		verifyEnameSignature({
-			eName,
-			payload: signedPayload,
-			signature,
-			registryBaseUrl: options.registryBaseUrl,
-			...request,
-		});
+	// Each signer's certified keys are looked up once; every signature is
+	// then checked locally.
+	const signers = new Map<string, Promise<ResolveCertifiedKeysResult>>();
+	const keysOf = (eName: string): Promise<ResolveCertifiedKeysResult> => {
+		const key = normalizeEName(eName);
+		if (!signers.has(key)) {
+			if (signers.size >= MAX_SIGNERS) {
+				return Promise.resolve({ ok: false, error: "no_valid_certificate" });
+			}
+			signers.set(
+				key,
+				resolveCertifiedKeys({
+					eName: key,
+					registryBaseUrl: options.registryBaseUrl,
+					...request,
+				}),
+			);
+		}
+		return signers.get(key) as Promise<ResolveCertifiedKeysResult>;
+	};
+	const verify = async (eName: string, signedPayload: string, signature: string) => {
+		const keys = await keysOf(eName);
+		return keys.ok
+			? (await verifyWithCertifiedKeys(keys.publicKeys, signedPayload, signature)) !== null
+			: false;
+	};
 
 	try {
-		const signed = await ename(payload.signer, options.payload, options.signature);
-		if (!signed.valid) throw new Failure("bad_signature", signed.error);
+		const signerKeys = await keysOf(payload.signer);
+		if (!signerKeys.ok) {
+			throw new Failure(OUTAGES[signerKeys.error] ?? "bad_signature", signerKeys.error);
+		}
+		const signed = await verifyWithCertifiedKeys(
+			signerKeys.publicKeys,
+			options.payload,
+			options.signature,
+		);
+		if (!signed) throw new Failure("bad_signature", "no_valid_certificate");
 
 		const company = normalizeEName(payload.onBehalfOf);
 		const evault = await resolveEVault(company, options.registryBaseUrl, request);
 		const companyId = await companyRecordId(company, evault, request);
-
-		// One verification may check the same grant more than once.
-		const checked = new Map<string, Promise<boolean>>();
-		const verify = (eName: string, signedPayload: string, signature: string) => {
-			const key = JSON.stringify([eName, signedPayload, signature]);
-			if (!checked.has(key)) {
-				checked.set(
-					key,
-					ename(eName, signedPayload, signature).then((r) => r.valid),
-				);
-			}
-			return checked.get(key) as Promise<boolean>;
-		};
 
 		const chain = await evaluateFromHistory({
 			delegationId: payload.delegationId,

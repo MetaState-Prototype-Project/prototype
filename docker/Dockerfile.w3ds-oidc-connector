@@ -20,6 +20,7 @@ RUN npm install -g pnpm@10.25.0
 COPY --from=prepare /app/out/json/ .
 # Copy full source for packages that need postinstall builds
 COPY --from=prepare /app/out/full/packages/auth packages/auth
+COPY --from=prepare /app/out/full/packages/delegation packages/delegation
 COPY --from=prepare /app/out/full/infrastructure/signature-validator infrastructure/signature-validator
 RUN pnpm install --frozen-lockfile
 # Build the project
@@ -34,6 +35,7 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/pnpm-workspace.yaml ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages/auth ./packages/auth
+COPY --from=builder /app/packages/delegation ./packages/delegation
 COPY --from=builder /app/infrastructure/signature-validator ./infrastructure/signature-validator
 COPY --from=builder /app/services/w3ds-oidc-connector/dist ./services/w3ds-oidc-connector/dist
 COPY --from=builder /app/services/w3ds-oidc-connector/package.json ./services/w3ds-oidc-connector/

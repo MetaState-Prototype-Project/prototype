@@ -9,6 +9,7 @@ import {
 	buildGrantPayload,
 	type DelegatedSignPayload,
 } from "@metastate-foundation/delegation";
+import { normalizeEName } from "./ename-signature.js";
 
 export interface SignRequest {
 	/** The `w3ds://sign` URI to show as a QR code or deep link. */
@@ -34,15 +35,16 @@ export function buildDelegatedSignRequest(
 	options: DelegatedSignRequestOptions,
 ): SignRequest {
 	const payload = buildDelegatedSignPayload({
-		onBehalfOf: options.onBehalfOf,
-		signer: options.signer,
+		// The verifier compares these as eNames, so they carry their `@`.
+		onBehalfOf: normalizeEName(options.onBehalfOf),
+		signer: normalizeEName(options.signer),
 		scope: options.scope,
 		delegationId: options.delegationId,
 		documentHash: options.documentHash,
 		session: options.session,
 		issuedAt: options.issuedAt ?? new Date().toISOString(),
 	});
-	const message = `Signing as ${options.title} for ${options.companyName ?? options.onBehalfOf}`;
+	const message = `Signing as ${options.title} for ${options.companyName ?? normalizeEName(options.onBehalfOf)}`;
 	return {
 		payload,
 		uri: signUri(payload, message, options.redirectUri, options.platformUrl),
@@ -76,9 +78,9 @@ export async function buildGrantSignRequest(
 	const signedAt = options.signedAt ?? new Date().toISOString();
 	const payload = await buildGrantPayload({
 		ontology: options.ontology,
-		companyEName: options.companyEName,
+		companyEName: normalizeEName(options.companyEName),
 		recordId: options.recordId,
-		signerEName: options.signerEName,
+		signerEName: normalizeEName(options.signerEName),
 		signedAt,
 		record: options.record,
 	});

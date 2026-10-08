@@ -59,6 +59,9 @@ class World {
 	private clock = Date.parse("2026-10-01T00:00:00.000Z");
 	companyType: string | null = "company";
 	historyCalls = 0;
+	resolveCalls = 0;
+	/** eNames whose Registry lookup fails, as in an outage. */
+	down = new Set<string>();
 
 	async init() {
 		const { privateKey, publicKey } = await generateJoseKeyPair("ES256");
@@ -70,6 +73,10 @@ class World {
 			this.wallets.set(who, await softwareWallet());
 		}
 		return this;
+	}
+
+	async versionsOf(id: string) {
+		return this.history.get(id) ?? [];
 	}
 
 	wallet(eName: string) {
@@ -128,6 +135,8 @@ class World {
 
 		if (url.origin === REGISTRY && url.pathname === "/resolve") {
 			const who = url.searchParams.get("w3id") as string;
+			this.resolveCalls++;
+			if (this.down.has(who)) return json({ error: "unavailable" }, 503);
 			return json({ kind: "evault", ename: who, uri: `http://evault.test/${who.slice(1)}/` });
 		}
 		if (url.origin === REGISTRY && url.pathname === "/.well-known/jwks.json") {
@@ -326,6 +335,59 @@ describe("verifyDelegatedSignature against changing history", () => {
 			valid: false,
 			error: "not_a_company",
 		});
+	});
+});
+
+describe("verifyDelegatedSignature under abuse and outages", () => {
+	it("reports a Registry outage as an outage, not a bad signature", async () => {
+		const world = await acme();
+		const signed = await bobSigns(world);
+		world.down.add("@bob");
+		expect(await check(world, signed)).toMatchObject({ valid: false, error: "resolve_failed" });
+	});
+
+	it("looks up each signer once and caps how many it looks up", async () => {
+		const world = await acme();
+		const [bob] = (await world.versionsOf("bob")) as Version[];
+		const { authorization: _drop, ...record } = bob.parsed as Record<string, unknown>;
+		// Forged grants naming fifty different signers, written after the real one.
+		for (let i = 0; i < 50; i++) {
+			const signer = `@forger${i}`;
+			const signedAt = new Date(Date.parse("2026-10-01T02:00:00.000Z") + i * 60_000).toISOString();
+			const signedPayload = await buildGrantPayload({
+				ontology: DELEGATION_ONTOLOGY,
+				companyEName: ACME,
+				recordId: "bob",
+				signerEName: signer,
+				signedAt,
+				record,
+			});
+			world.write("bob", DELEGATION_ONTOLOGY, {
+				...record,
+				authorization: { signerEName: signer, signedPayload, signature: "AAAA", signedAt },
+			});
+		}
+		world.resolveCalls = 0;
+		expect(await check(world, await bobSigns(world))).toMatchObject({ valid: true });
+		// The company, the real signers, then at most the signer cap.
+		expect(world.resolveCalls).toBeLessThanOrEqual(1 + 32);
+	});
+
+	it("accepts requests built with bare eNames", async () => {
+		const world = await acme();
+		const { payload } = buildDelegatedSignRequest({
+			onBehalfOf: "acme",
+			signer: "bob",
+			scope: NDA,
+			delegationId: "bob",
+			documentHash: "abc123",
+			session: "s-1",
+			issuedAt: NOW.toISOString(),
+			redirectUri: "https://esigner.test/cb",
+			title: "Head of Finance",
+		});
+		const signature = await world.wallet("@bob").sign(payload);
+		expect(await check(world, { payload, signature })).toMatchObject({ valid: true });
 	});
 });
 
