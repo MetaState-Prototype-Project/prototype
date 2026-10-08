@@ -4,6 +4,7 @@ import {
     type ChainSource,
     type DelegationRecord,
     evaluateDelegation,
+    MAX_CHAIN_DEPTH,
     type RoleRecord,
 } from "./chain";
 import {
@@ -115,6 +116,10 @@ const DELEGATION_IMMUTABLE = [
  * a director for a role or a role assignment, the parent's delegate for a
  * re-delegation, and a director or the grantor to revoke. Grants outlive a
  * director's later removal. Revocation is final.
+ *
+ * A source is a snapshot for one verification: it caches what it reads and
+ * never re-reads history, so build a new one per verification (as
+ * `evaluateFromHistory` does) or a later revocation will not be seen.
  */
 export function historyChainSource(ctx: HistoryContext): ChainSource {
     const roles = new Map<string, Promise<RoleRecord | null>>();
@@ -126,7 +131,9 @@ export function historyChainSource(ctx: HistoryContext): ChainSource {
         id: string,
         path: ReadonlySet<string>,
     ): Promise<DelegationRecord | null> => {
-        if (path.has(id)) return null;
+        // A loop, or a chain past the evaluator's depth limit, resolves to
+        // nothing before any more history is read.
+        if (path.has(id) || path.size >= MAX_CHAIN_DEPTH) return null;
         if (delegations.has(id)) return delegations.get(id) ?? null;
         const inner = new Set(path).add(id);
         const resolved = (await resolveRecord(

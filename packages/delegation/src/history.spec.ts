@@ -517,6 +517,39 @@ describe("evaluateFromHistory", () => {
         expect(results.map((r) => r.ok)).toEqual([true, true, true]);
     });
 
+    it("stops reading history past the depth limit", async () => {
+        const vault = await acme();
+        let parent = "bob";
+        for (let i = 0; i < 40; i++) {
+            const id = `deep${i}`;
+            await vault.signed(
+                id,
+                DELEGATION_ONTOLOGY,
+                "@bob",
+                delegation({
+                    roleId: undefined,
+                    parentDelegationId: parent,
+                    grantedBy: "@bob",
+                }),
+            );
+            parent = id;
+        }
+        let reads = 0;
+        const counting = {
+            versions: (id: string) => (reads++, vault.versions(id)),
+        };
+        const result = await evaluateFromHistory({
+            delegationId: parent,
+            companyEName: ACME,
+            companyId: "company",
+            source: counting,
+            verify,
+            now: NOW,
+        });
+        expect(result.ok).toBe(false);
+        expect(reads).toBeLessThan(25);
+    });
+
     it("finds nothing without a board", async () => {
         const vault = new Vault();
         await vault.signed("role", ROLE_ONTOLOGY, "@dir", role());
