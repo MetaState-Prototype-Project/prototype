@@ -505,6 +505,9 @@ importers:
       '@fastify/swagger-ui':
         specifier: ^3.0.0
         version: 3.1.0
+      '@metastate-foundation/delegation':
+        specifier: workspace:*
+        version: link:../../packages/delegation
       '@types/multer':
         specifier: ^1.4.13
         version: 1.4.13

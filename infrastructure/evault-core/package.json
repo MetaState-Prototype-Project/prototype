@@ -21,6 +21,7 @@
         "@fastify/formbody": "^8.0.2",
         "@fastify/swagger": "^8.14.0",
         "@fastify/swagger-ui": "^3.0.0",
+        "@metastate-foundation/delegation": "workspace:*",
         "@types/multer": "^1.4.13",
         "argon2": "^0.44.0",
         "axios": "^1.6.7",

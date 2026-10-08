@@ -36,11 +36,18 @@ import { SecurityQuestionService } from "../../services/SecurityQuestionService"
 import { DeviceToken } from "../../entities/DeviceToken";
 import { SecurityAnswerAttempt } from "../../entities/SecurityAnswerAttempt";
 import { AppDataSource } from "../../config/database";
+import { verifySignature } from "signature-validator";
+import {
+    DelegationWriteError,
+    DelegationWriteGuard,
+    type IntendedWrite,
+} from "../delegation/delegation-write-guard";
 
 export class GraphQLServer {
     private db: DbService;
     private accessGuard: VaultAccessGuard;
     private bindingDocumentService: BindingDocumentService;
+    private delegationGuard: DelegationWriteGuard;
     private schema: GraphQLSchema = createSchema<VaultContext>({
         typeDefs,
         resolvers: {},
@@ -66,6 +73,7 @@ export class GraphQLServer {
             new GroupMembershipService(db),
         );
         this.bindingDocumentService = new BindingDocumentService(db);
+        this.delegationGuard = new DelegationWriteGuard(db, verifyAgainstRegistry);
         this.evaultPublicKey =
             evaultPublicKey || process.env.EVAULT_PUBLIC_KEY || null;
         this.evaultW3ID = evaultW3ID || process.env.W3ID || null;
@@ -109,6 +117,36 @@ export class GraphQLServer {
             author: this.authorOf(context),
             skipAwareness,
         };
+    }
+
+    /**
+     * Runs a whole-MetaEnvelope write under the delegation guard: company
+     * authority records are checked before the write, and a revoked or
+     * narrowed grant cascades once it has landed.
+     */
+    private async guardedWrite<R>(
+        context: VaultContext,
+        write: IntendedWrite,
+        run: () => Promise<R>,
+        idOf: (result: R) => string,
+        skipAwareness = false,
+    ): Promise<R> {
+        const eName = context.eName as string;
+        const ticket = await this.delegationGuard.beforeWrite(eName, write);
+        let result: R;
+        try {
+            result = await run();
+        } catch (error) {
+            await this.delegationGuard.abortWrite(ticket);
+            throw error;
+        }
+        await this.delegationGuard.afterWrite(
+            eName,
+            ticket,
+            idOf(result),
+            this.awarenessContext(context, skipAwareness),
+        );
+        return result;
     }
 
     /**
@@ -375,16 +413,22 @@ export class GraphQLServer {
                         }
 
                         try {
-                            const result = await this.db.storeMetaEnvelope(
-                                {
-                                    ontology: input.ontology,
-                                    payload: input.payload,
-                                    acl: input.acl,
-                                    _acl: aclBlockFromInput(input._acl),
-                                },
-                                input.acl,
-                                context.eName,
-                                this.awarenessContext(context),
+                            const result = await this.guardedWrite(
+                                context,
+                                { ontology: input.ontology, payload: input.payload },
+                                () =>
+                                    this.db.storeMetaEnvelope(
+                                        {
+                                            ontology: input.ontology,
+                                            payload: input.payload,
+                                            acl: input.acl,
+                                            _acl: aclBlockFromInput(input._acl),
+                                        },
+                                        input.acl,
+                                        context.eName as string,
+                                        this.awarenessContext(context),
+                                    ),
+                                (r) => r.metaEnvelope.id,
                             );
 
                             // Build parsed from actual written envelopes, not input
@@ -472,7 +516,10 @@ export class GraphQLServer {
                                             error instanceof Error
                                                 ? error.message
                                                 : "Failed to create MetaEnvelope",
-                                        code: "CREATE_FAILED",
+                                        code:
+                                            error instanceof DelegationWriteError
+                                                ? error.code
+                                                : "CREATE_FAILED",
                                     },
                                 ],
                             };
@@ -512,17 +559,23 @@ export class GraphQLServer {
                         }
 
                         try {
-                            const result = await this.db.updateMetaEnvelopeById(
-                                id,
-                                {
-                                    ontology: input.ontology,
-                                    payload: input.payload,
-                                    acl: input.acl,
-                                    _acl: aclBlockFromInput(input._acl),
-                                },
-                                input.acl,
-                                context.eName,
-                                this.awarenessContext(context),
+                            const result = await this.guardedWrite(
+                                context,
+                                { ontology: input.ontology, payload: input.payload, id },
+                                () =>
+                                    this.db.updateMetaEnvelopeById(
+                                        id,
+                                        {
+                                            ontology: input.ontology,
+                                            payload: input.payload,
+                                            acl: input.acl,
+                                            _acl: aclBlockFromInput(input._acl),
+                                        },
+                                        input.acl,
+                                        context.eName as string,
+                                        this.awarenessContext(context),
+                                    ),
+                                () => id,
                             );
 
                             // Build parsed from actual written envelopes, not input
@@ -583,7 +636,10 @@ export class GraphQLServer {
                                             error instanceof Error
                                                 ? error.message
                                                 : "Failed to update MetaEnvelope",
-                                        code: "UPDATE_FAILED",
+                                        code:
+                                            error instanceof DelegationWriteError
+                                                ? error.code
+                                                : "UPDATE_FAILED",
                                     },
                                 ],
                             };
@@ -613,6 +669,11 @@ export class GraphQLServer {
                         }
 
                         try {
+                            await this.delegationGuard.assertNotGoverned(
+                                context.eName,
+                                id,
+                                "Rolling back",
+                            );
                             const result = await this.db.rollbackMetaEnvelope(
                                 id,
                                 context.eName,
@@ -723,6 +784,11 @@ export class GraphQLServer {
                                 };
                             }
 
+                            await this.delegationGuard.assertNotGoverned(
+                                context.eName,
+                                id,
+                                "Deleting",
+                            );
                             await this.db.deleteMetaEnvelope(
                                 id,
                                 context.eName,
@@ -832,22 +898,34 @@ export class GraphQLServer {
 
                         for (const input of inputs) {
                             try {
-                                const result =
-                                    await this.db.storeMetaEnvelopeWithId(
-                                        {
-                                            ontology: input.ontology,
-                                            payload: input.payload,
-                                            acl: input.acl,
-                                            _acl: aclBlockFromInput(input._acl),
-                                        },
-                                        input.acl,
-                                        context.eName,
-                                        input.id, // Preserve ID if provided
-                                        this.awarenessContext(
-                                            context,
-                                            shouldSkipWebhooks,
+                                const result = await this.guardedWrite(
+                                    context,
+                                    {
+                                        ontology: input.ontology,
+                                        payload: input.payload,
+                                        id: input.id,
+                                    },
+                                    () =>
+                                        this.db.storeMetaEnvelopeWithId(
+                                            {
+                                                ontology: input.ontology,
+                                                payload: input.payload,
+                                                acl: input.acl,
+                                                _acl: aclBlockFromInput(
+                                                    input._acl,
+                                                ),
+                                            },
+                                            input.acl,
+                                            context.eName as string,
+                                            input.id, // Preserve ID if provided
+                                            this.awarenessContext(
+                                                context,
+                                                shouldSkipWebhooks,
+                                            ),
                                         ),
-                                    );
+                                    (r) => r.metaEnvelope.id,
+                                    shouldSkipWebhooks,
+                                );
 
                                 results.push({
                                     id: result.metaEnvelope.id,
@@ -1037,7 +1115,10 @@ export class GraphQLServer {
                                             error instanceof Error
                                                 ? error.message
                                                 : "Failed to create binding document",
-                                        code: "CREATE_FAILED",
+                                        code:
+                                            error instanceof DelegationWriteError
+                                                ? error.code
+                                                : "CREATE_FAILED",
                                     },
                                 ],
                             };
@@ -1270,16 +1351,22 @@ export class GraphQLServer {
                         if (!context.eName) {
                             throw new Error("X-ENAME header is required");
                         }
-                        const result = await this.db.storeMetaEnvelope(
-                            {
-                                ontology: input.ontology,
-                                payload: input.payload,
-                                acl: input.acl,
-                                _acl: aclBlockFromInput(input._acl),
-                            },
-                            input.acl,
-                            context.eName,
-                            this.awarenessContext(context),
+                        const result = await this.guardedWrite(
+                            context,
+                            { ontology: input.ontology, payload: input.payload },
+                            () =>
+                                this.db.storeMetaEnvelope(
+                                    {
+                                        ontology: input.ontology,
+                                        payload: input.payload,
+                                        acl: input.acl,
+                                        _acl: aclBlockFromInput(input._acl),
+                                    },
+                                    input.acl,
+                                    context.eName as string,
+                                    this.awarenessContext(context),
+                                ),
+                            (r) => r.metaEnvelope.id,
                         );
 
                         // Add parsed field to metaEnvelope for GraphQL response
@@ -1558,17 +1645,23 @@ export class GraphQLServer {
                             throw new Error("X-ENAME header is required");
                         }
                         try {
-                            const result = await this.db.updateMetaEnvelopeById(
-                                id,
-                                {
-                                    ontology: input.ontology,
-                                    payload: input.payload,
-                                    acl: input.acl,
-                                    _acl: aclBlockFromInput(input._acl),
-                                },
-                                input.acl,
-                                context.eName,
-                                this.awarenessContext(context),
+                            const result = await this.guardedWrite(
+                                context,
+                                { ontology: input.ontology, payload: input.payload, id },
+                                () =>
+                                    this.db.updateMetaEnvelopeById(
+                                        id,
+                                        {
+                                            ontology: input.ontology,
+                                            payload: input.payload,
+                                            acl: input.acl,
+                                            _acl: aclBlockFromInput(input._acl),
+                                        },
+                                        input.acl,
+                                        context.eName as string,
+                                        this.awarenessContext(context),
+                                    ),
+                                () => id,
                             );
 
                             // Log envelope operation best-effort (do not fail mutation)
@@ -1621,6 +1714,11 @@ export class GraphQLServer {
                             id,
                             context.eName,
                         );
+                        await this.delegationGuard.assertNotGoverned(
+                            context.eName,
+                            id,
+                            "Deleting",
+                        );
                         await this.db.deleteMetaEnvelope(
                             id,
                             context.eName,
@@ -1667,6 +1765,13 @@ export class GraphQLServer {
                                 envelopeId,
                                 context.eName,
                             );
+                        if (metaInfo) {
+                            await this.delegationGuard.assertNotGoverned(
+                                context.eName,
+                                metaInfo.metaEnvelopeId,
+                                "Editing a single field",
+                            );
+                        }
                         await this.db.updateEnvelopeValue(
                             envelopeId,
                             newValue,
@@ -1756,5 +1861,30 @@ export class GraphQLServer {
         });
 
         return yoga;
+    }
+}
+
+/**
+ * Checks a grant signature against the signer's Registry-bound keys. Without a
+ * Registry nothing can be verified, so every company authority write fails.
+ */
+async function verifyAgainstRegistry(
+    eName: string,
+    payload: string,
+    signature: string,
+): Promise<boolean> {
+    const registryBaseUrl =
+        process.env.PUBLIC_REGISTRY_URL || process.env.REGISTRY_URL;
+    if (!registryBaseUrl) return false;
+    try {
+        const result = await verifySignature({
+            eName,
+            signature,
+            payload,
+            registryBaseUrl,
+        });
+        return result.valid;
+    } catch {
+        return false;
     }
 }

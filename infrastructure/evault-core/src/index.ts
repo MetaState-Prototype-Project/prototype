@@ -167,6 +167,15 @@ const initializeEVault = async (
     }
 
     try {
+        const { createDelegationGrantConstraint } = await import(
+            "./core/db/migrations/add-delegation-grant-constraint"
+        );
+        await createDelegationGrantConstraint(driver);
+    } catch (error) {
+        console.warn("Failed to create delegation grant constraint:", error);
+    }
+
+    try {
         const { createMetaEnvelopeVersionIndexes } = await import(
             "./core/db/migrations/add-metaenvelope-version-indexes"
         );

@@ -145,6 +145,42 @@ describe("Idiomatic GraphQL API", () => {
         });
     });
 
+    describe("company authority records", () => {
+        it("refuses an unsigned Role in the company's own vault", async () => {
+            const mutation = `
+                mutation CreateMetaEnvelope($input: MetaEnvelopeInput!) {
+                    createMetaEnvelope(input: $input) {
+                        metaEnvelope { id }
+                        errors { message code }
+                    }
+                }
+            `;
+            const result = await makeGraphQLRequest(
+                server,
+                mutation,
+                {
+                    input: {
+                        ontology: "65fd0e21-34b9-43ef-be76-c5b39727010e",
+                        payload: {
+                            companyEName: evault.w3id,
+                            title: "Head of Finance",
+                            scopes: ["@esigner:nda"],
+                            mayRedelegate: false,
+                            status: "active",
+                            createdBy: "@someone",
+                            createdAt: "2026-10-08T12:00:00.000Z",
+                            updatedAt: "2026-10-08T12:00:00.000Z",
+                        },
+                        acl: ["*"],
+                    },
+                },
+                getAuthHeaders(),
+            );
+            expect(result.createMetaEnvelope.metaEnvelope).toBeNull();
+            expect(result.createMetaEnvelope.errors[0].code).toBe("UNSIGNED");
+        });
+    });
+
     describe("metaEnvelope query", () => {
         let createdId: string;
 
