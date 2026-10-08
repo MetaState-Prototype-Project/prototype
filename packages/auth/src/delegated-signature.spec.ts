@@ -144,6 +144,7 @@ class World {
 		}
 		if (url.origin === "http://evault.test" && url.pathname === "/whois") {
 			const who = headers.get("X-ENAME") as string;
+			if (who === ACME && this.companyType === "broken") return json({}, 503);
 			if (who === ACME) {
 				return json({
 					w3id: ACME,
@@ -344,6 +345,33 @@ describe("verifyDelegatedSignature under abuse and outages", () => {
 		const signed = await bobSigns(world);
 		world.down.add("@bob");
 		expect(await check(world, signed)).toMatchObject({ valid: false, error: "resolve_failed" });
+	});
+
+	it("reports an outage hit while checking a director's grant", async () => {
+		const world = await acme();
+		const signed = await bobSigns(world);
+		world.down.add("@dir");
+		expect(await check(world, signed)).toMatchObject({ valid: false, error: "resolve_failed" });
+	});
+
+	it("reports a company /whois outage as an outage", async () => {
+		const world = await acme();
+		world.companyType = "broken";
+		expect(await check(world, await bobSigns(world))).toMatchObject({ valid: false, error: "resolve_failed" });
+	});
+
+	it("returns the normalised signer for storing a grant", async () => {
+		const request = await buildGrantSignRequest({
+			ontology: ROLE_ONTOLOGY,
+			companyEName: "acme",
+			recordId: "role",
+			signerEName: "dir",
+			record: role(),
+			redirectUri: "https://app.test/cb",
+			message: "Create role",
+		});
+		expect(request.signerEName).toBe("@dir");
+		expect(request.payload).toContain('"signer":"@dir"');
 	});
 
 	it("looks up each signer once and caps how many it looks up", async () => {

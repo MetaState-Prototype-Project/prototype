@@ -70,23 +70,26 @@ export interface GrantSignRequestOptions {
  * A request for a director or delegate to authorise a Company, Role,
  * Delegation or Shareholding record. Once the signature arrives, store the
  * record with `authorization: { signerEName, signedPayload: payload,
- * signature, signedAt }` under `recordId`.
+ * signature, signedAt }` under `recordId`, using the returned (normalised)
+ * `signerEName` and `signedAt`.
  */
 export async function buildGrantSignRequest(
 	options: GrantSignRequestOptions,
-): Promise<SignRequest & { signedAt: string }> {
+): Promise<SignRequest & { signedAt: string; signerEName: string }> {
 	const signedAt = options.signedAt ?? new Date().toISOString();
+	const signerEName = normalizeEName(options.signerEName);
 	const payload = await buildGrantPayload({
 		ontology: options.ontology,
 		companyEName: normalizeEName(options.companyEName),
 		recordId: options.recordId,
-		signerEName: normalizeEName(options.signerEName),
+		signerEName,
 		signedAt,
 		record: options.record,
 	});
 	return {
 		payload,
 		signedAt,
+		signerEName,
 		uri: signUri(payload, options.message, options.redirectUri, options.platformUrl),
 	};
 }

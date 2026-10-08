@@ -136,8 +136,12 @@ export async function verifyDelegatedSignature(
 		}
 		return signers.get(key) as Promise<ResolveCertifiedKeysResult>;
 	};
+	// An outage while checking a historical grant must not read as "no such
+	// grant": remember it, and report it if the chain then fails.
+	let outage: DelegatedSignatureError | null = null;
 	const verify = async (eName: string, signedPayload: string, signature: string) => {
 		const keys = await keysOf(eName);
+		if (!keys.ok && OUTAGES[keys.error]) outage ??= OUTAGES[keys.error] ?? null;
 		return keys.ok
 			? (await verifyWithCertifiedKeys(keys.publicKeys, signedPayload, signature)) !== null
 			: false;
@@ -168,6 +172,7 @@ export async function verifyDelegatedSignature(
 			now: options.now,
 		});
 		const problem = checkDelegatedSignature(payload, chain);
+		if (problem && outage) throw new Failure(outage, "upstream outage while checking grants");
 		if (problem) {
 			throw problem.code === "CHAIN_INVALID"
 				? new Failure("chain_invalid", problem.chain.code)
@@ -256,7 +261,7 @@ async function companyRecordId(
 	evault: URL,
 	request: Request,
 ): Promise<string> {
-	const whois = (await call(new URL("/whois", evault), request, "not_a_company", {
+	const whois = (await call(new URL("/whois", evault), request, "resolve_failed", {
 		headers: { "X-ENAME": eName },
 	})) as { type?: unknown; manifest?: { id?: unknown } | null } | null;
 	if (whois?.type !== "company" || typeof whois.manifest?.id !== "string") {
