@@ -189,6 +189,22 @@ describe("resolveBoard", () => {
         expect(board.map((b) => b.directors)).toEqual([["@dir"]]);
     });
 
+    it("never grants a board to a record born without one", async () => {
+        const vault = new Vault();
+        vault.write("company", COMPANY_ONTOLOGY, {
+            id: "acme",
+            eName: ACME,
+            createdAt: "2026-10-01T00:00:00.000Z",
+        });
+        await vault.signed(
+            "company",
+            COMPANY_ONTOLOGY,
+            "@mallory",
+            company(["@mallory"]),
+        );
+        expect(await resolveBoard("company", ACME, vault, verify)).toEqual([]);
+    });
+
     it("refuses a first board its signer is not on", async () => {
         const vault = new Vault();
         await vault.signed(
