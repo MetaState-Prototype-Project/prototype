@@ -113,14 +113,20 @@ export type Authorization = {
 };
 
 /**
- * The string a grantor signs to authorise a record: it names the record's
- * ontology, company and signer, and commits to the record through its hash,
- * which keeps it short enough to sign whatever the record's size.
+ * The string a grantor signs to authorise a record. It names the record's
+ * ontology, company, MetaEnvelope id, signer and signing time, and commits to
+ * the record through its hash, which keeps it short whatever the record's size.
+ *
+ * Binding the id means a copy onto another record fails; binding the time lets
+ * verifiers refuse an older signed state written back over a newer one. The
+ * writer therefore picks the record's id before signing and creating it.
  */
 export async function buildGrantPayload(input: {
     ontology: string;
     companyEName: string;
+    recordId: string;
     signerEName: string;
+    signedAt: string;
     record: Record<string, unknown>;
 }): Promise<string> {
     const { authorization: _ignored, ...rest } = input.record;
@@ -129,7 +135,9 @@ export async function buildGrantPayload(input: {
         canonicalJson({
             companyEName: input.companyEName,
             ontology: input.ontology,
+            recordId: input.recordId,
             recordSha256: await sha256Hex(canonicalJson(rest)),
+            signedAt: input.signedAt,
             signer: input.signerEName,
         })
     );
@@ -144,16 +152,19 @@ export type VerifySignature = (
 
 export type GrantProblem =
     | { code: "MISSING_AUTHORIZATION" }
+    | { code: "BAD_SIGNED_AT" }
     | { code: "PAYLOAD_MISMATCH" }
     | { code: "BAD_SIGNATURE" };
 
 /**
  * Checks that a record's `authorization` was signed by its stated signer over
- * this exact record. Who that signer must be is the caller's decision.
+ * this exact record under this id. Who that signer must be is the caller's
+ * decision.
  */
 export async function checkGrantAuthorization(
     ontology: string,
     companyEName: string,
+    recordId: string,
     record: Record<string, unknown>,
     verify: VerifySignature,
 ): Promise<GrantProblem | null> {
@@ -166,10 +177,18 @@ export async function checkGrantAuthorization(
     ) {
         return { code: "MISSING_AUTHORIZATION" };
     }
+    if (
+        typeof auth.signedAt !== "string" ||
+        Number.isNaN(Date.parse(auth.signedAt))
+    ) {
+        return { code: "BAD_SIGNED_AT" };
+    }
     const expected = await buildGrantPayload({
         ontology,
         companyEName,
+        recordId,
         signerEName: auth.signerEName,
+        signedAt: auth.signedAt,
         record,
     });
     if (auth.signedPayload !== expected) return { code: "PAYLOAD_MISMATCH" };

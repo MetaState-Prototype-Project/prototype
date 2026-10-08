@@ -55,13 +55,17 @@ describe("delegated sign payload", () => {
     });
 });
 
+const SIGNED_AT = "2026-10-07T12:00:00.000Z";
+
 describe("grant payload", () => {
     it("keeps an own __proto__ key in the hash", async () => {
         const build = (record: Record<string, unknown>) =>
             buildGrantPayload({
                 ontology: ROLE_ONTOLOGY,
                 companyEName: "@acme",
+                recordId: "r1",
                 signerEName: "@dir",
+                signedAt: SIGNED_AT,
                 record,
             });
         const smuggled = JSON.parse(
@@ -80,13 +84,17 @@ describe("grant payload", () => {
         const a = await buildGrantPayload({
             ontology: ROLE_ONTOLOGY,
             companyEName: "@acme",
+            recordId: "r1",
             signerEName: "@dir",
+            signedAt: SIGNED_AT,
             record,
         });
         const b = await buildGrantPayload({
             ontology: ROLE_ONTOLOGY,
             companyEName: "@acme",
+            recordId: "r1",
             signerEName: "@dir",
+            signedAt: SIGNED_AT,
             record: {
                 scopes: record.scopes,
                 authorization: { x: 1 },
@@ -102,14 +110,16 @@ describe("grant payload", () => {
         const signedPayload = await buildGrantPayload({
             ontology: ROLE_ONTOLOGY,
             companyEName: "@acme",
+            recordId: "r1",
             signerEName: "@dir",
+            signedAt: SIGNED_AT,
             record,
         });
         const authorization = {
             signerEName: "@dir",
             signedPayload,
             signature: "sig",
-            signedAt: "2026-10-07T12:00:00.000Z",
+            signedAt: SIGNED_AT,
         };
         const ok = async (e: string, p: string, s: string) =>
             e === "@dir" && p === signedPayload && s === "sig";
@@ -118,6 +128,7 @@ describe("grant payload", () => {
             await checkGrantAuthorization(
                 ROLE_ONTOLOGY,
                 "@acme",
+                "r1",
                 { ...record, authorization },
                 ok,
             ),
@@ -126,6 +137,7 @@ describe("grant payload", () => {
             await checkGrantAuthorization(
                 ROLE_ONTOLOGY,
                 "@acme",
+                "r1",
                 { ...record, scopes: ["@esigner:invoice"], authorization },
                 ok,
             ),
@@ -134,6 +146,7 @@ describe("grant payload", () => {
             await checkGrantAuthorization(
                 ROLE_ONTOLOGY,
                 "@acme",
+                "r1",
                 {
                     ...record,
                     authorization: { ...authorization, signature: "forged" },
@@ -142,9 +155,69 @@ describe("grant payload", () => {
             ),
         ).toEqual({ code: "BAD_SIGNATURE" });
         expect(
-            await checkGrantAuthorization(ROLE_ONTOLOGY, "@acme", record, ok),
+            await checkGrantAuthorization(
+                ROLE_ONTOLOGY,
+                "@acme",
+                "r1",
+                record,
+                ok,
+            ),
         ).toEqual({
             code: "MISSING_AUTHORIZATION",
         });
+    });
+
+    it("binds the record id and signing time", async () => {
+        const signedPayload = await buildGrantPayload({
+            ontology: ROLE_ONTOLOGY,
+            companyEName: "@acme",
+            recordId: "r1",
+            signerEName: "@dir",
+            signedAt: SIGNED_AT,
+            record,
+        });
+        const authorization = {
+            signerEName: "@dir",
+            signedPayload,
+            signature: "sig",
+            signedAt: SIGNED_AT,
+        };
+        const ok = async () => true;
+        expect(
+            await checkGrantAuthorization(
+                ROLE_ONTOLOGY,
+                "@acme",
+                "r2",
+                { ...record, authorization },
+                ok,
+            ),
+        ).toEqual({ code: "PAYLOAD_MISMATCH" });
+        expect(
+            await checkGrantAuthorization(
+                ROLE_ONTOLOGY,
+                "@acme",
+                "r1",
+                {
+                    ...record,
+                    authorization: {
+                        ...authorization,
+                        signedAt: "2026-10-08T00:00:00.000Z",
+                    },
+                },
+                ok,
+            ),
+        ).toEqual({ code: "PAYLOAD_MISMATCH" });
+        expect(
+            await checkGrantAuthorization(
+                ROLE_ONTOLOGY,
+                "@acme",
+                "r1",
+                {
+                    ...record,
+                    authorization: { ...authorization, signedAt: "soon" },
+                },
+                ok,
+            ),
+        ).toEqual({ code: "BAD_SIGNED_AT" });
     });
 });
