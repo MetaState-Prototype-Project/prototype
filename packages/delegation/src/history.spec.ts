@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { sha256Hex } from "./canonical";
-import { checkDelegatedSignature } from "./chain";
+import { checkDelegatedSignature, evaluateDelegation } from "./chain";
 import {
     boardAt,
     evaluateFromHistory,
+    historyChainSource,
     type HistorySource,
     resolveBoard,
     type Version,
@@ -441,6 +442,79 @@ describe("evaluateFromHistory", () => {
             }),
         );
         expect(await evaluate(vault, "a")).toMatchObject({ ok: false });
+    });
+
+    it("ignores a postdated version so it cannot block later changes", async () => {
+        const vault = await acme();
+        await vault.signed(
+            "bob",
+            DELEGATION_ONTOLOGY,
+            "@dir",
+            delegation({ title: "Forever" }),
+            "9999-01-01T00:00:00.000Z",
+        );
+        await vault.signed(
+            "bob",
+            DELEGATION_ONTOLOGY,
+            "@dir",
+            revoked(delegation(), "@dir"),
+        );
+        expect(await evaluate(vault, "bob")).toMatchObject({
+            ok: false,
+            code: "REVOKED",
+        });
+    });
+
+    it("ignores a revocation written before any valid grant", async () => {
+        const vault = await acme();
+        await vault.signed(
+            "pre",
+            DELEGATION_ONTOLOGY,
+            "@mallory",
+            revoked(delegation({ grantedBy: "@mallory" }), "@mallory"),
+        );
+        await vault.signed(
+            "pre",
+            DELEGATION_ONTOLOGY,
+            "@dir",
+            delegation({ delegateEName: "@hal" }),
+        );
+        expect(await evaluate(vault, "pre")).toMatchObject({
+            ok: true,
+            delegateEName: "@hal",
+        });
+    });
+
+    it("resolves concurrent lookups that share a parent", async () => {
+        const vault = await acme();
+        for (const id of ["c1", "c2"]) {
+            await vault.signed(
+                id,
+                DELEGATION_ONTOLOGY,
+                "@bob",
+                delegation({
+                    roleId: undefined,
+                    parentDelegationId: "bob",
+                    delegateEName: `@${id}`,
+                    grantedBy: "@bob",
+                    scopes: [NDA],
+                    mayRedelegate: false,
+                }),
+            );
+        }
+        const board = await resolveBoard("company", ACME, vault, verify);
+        const src = historyChainSource({
+            companyEName: ACME,
+            board,
+            source: vault,
+            verify,
+        });
+        const results = await Promise.all(
+            ["c1", "c2", "bob"].map((id) =>
+                evaluateDelegation(id, src, { now: NOW }),
+            ),
+        );
+        expect(results.map((r) => r.ok)).toEqual([true, true, true]);
     });
 
     it("finds nothing without a board", async () => {

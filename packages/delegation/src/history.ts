@@ -65,6 +65,7 @@ export async function resolveBoard(
             p,
             verify,
             lastSignedAt,
+            v.createdAt,
         );
         if (!signed) continue;
 
@@ -117,8 +118,50 @@ const DELEGATION_IMMUTABLE = [
  */
 export function historyChainSource(ctx: HistoryContext): ChainSource {
     const roles = new Map<string, Promise<RoleRecord | null>>();
-    const delegations = new Map<string, Promise<DelegationRecord | null>>();
-    const resolving = new Set<string>();
+    const delegations = new Map<string, DelegationRecord | null>();
+
+    // Cycles are detected along the current lookup path; only settled results
+    // are shared, so concurrent lookups never wait on each other.
+    const resolveDelegation = async (
+        id: string,
+        path: ReadonlySet<string>,
+    ): Promise<DelegationRecord | null> => {
+        if (path.has(id)) return null;
+        if (delegations.has(id)) return delegations.get(id) ?? null;
+        const inner = new Set(path).add(id);
+        const resolved = (await resolveRecord(
+            id,
+            DELEGATION_ONTOLOGY,
+            DELEGATION_IMMUTABLE,
+            ctx,
+            async (p, state, signer, at) => {
+                const directors = boardAt(ctx.board, at);
+                if (p.status === "revoked") {
+                    // Revoking needs something valid to revoke.
+                    if (!state) return false;
+                    return (
+                        revokedBySigner(p, signer) &&
+                        (directors.includes(signer) ||
+                            signer === state.grantedBy)
+                    );
+                }
+                if (p.grantedBy !== signer) return false;
+                if (typeof p.roleId === "string") {
+                    return directors.includes(signer);
+                }
+                if (typeof p.parentDelegationId === "string") {
+                    const parent = await resolveDelegation(
+                        p.parentDelegationId,
+                        inner,
+                    );
+                    return parent?.delegateEName === signer;
+                }
+                return false;
+            },
+        )) as DelegationRecord | null;
+        delegations.set(id, resolved);
+        return resolved;
+    };
 
     const source: ChainSource = {
         role(id) {
@@ -141,55 +184,7 @@ export function historyChainSource(ctx: HistoryContext): ChainSource {
             }
             return roles.get(id) as Promise<RoleRecord | null>;
         },
-        delegation(id) {
-            // A parent chain that loops back resolves to nothing, rather than
-            // waiting on its own pending result.
-            if (resolving.has(id)) return Promise.resolve(null);
-            if (!delegations.has(id)) {
-                resolving.add(id);
-                delegations.set(
-                    id,
-                    (async () => {
-                        try {
-                            return (await resolveRecord(
-                                id,
-                                DELEGATION_ONTOLOGY,
-                                DELEGATION_IMMUTABLE,
-                                ctx,
-                                async (p, state, signer, at) => {
-                                    const directors = boardAt(ctx.board, at);
-                                    if (p.status === "revoked") {
-                                        const grantor =
-                                            state?.grantedBy ?? p.grantedBy;
-                                        return (
-                                            revokedBySigner(p, signer) &&
-                                            (directors.includes(signer) ||
-                                                signer === grantor)
-                                        );
-                                    }
-                                    if (p.grantedBy !== signer) return false;
-                                    if (typeof p.roleId === "string") {
-                                        return directors.includes(signer);
-                                    }
-                                    if (
-                                        typeof p.parentDelegationId === "string"
-                                    ) {
-                                        const parent = await source.delegation(
-                                            p.parentDelegationId,
-                                        );
-                                        return parent?.delegateEName === signer;
-                                    }
-                                    return false;
-                                },
-                            )) as DelegationRecord | null;
-                        } finally {
-                            resolving.delete(id);
-                        }
-                    })(),
-                );
-            }
-            return delegations.get(id) as Promise<DelegationRecord | null>;
-        },
+        delegation: (id) => resolveDelegation(id, new Set()),
     };
     return source;
 }
@@ -254,6 +249,7 @@ async function resolveRecord(
             p,
             ctx.verify,
             lastSignedAt,
+            v.createdAt,
         );
         if (!signed) continue;
         if (
@@ -275,9 +271,14 @@ async function resolveRecord(
     return state;
 }
 
+/** How far a signer's clock may run ahead of the eVault's. */
+export const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
+
 /**
- * A version's grant is valid if it is signed for this record and is not older
- * than the last valid version, so an earlier state cannot be written back.
+ * A version's grant is valid if it is signed for this record, is not older
+ * than the last valid version (so an earlier state cannot be written back),
+ * and was not dated after the eVault stored it (so a signer cannot postdate a
+ * version to make every later change look older).
  */
 async function validGrant(
     ontology: string,
@@ -286,6 +287,7 @@ async function validGrant(
     record: Record<string, any>,
     verify: VerifySignature,
     lastSignedAt: number,
+    storedAt: string,
 ): Promise<{ signer: string; signedAt: number } | null> {
     if (
         await checkGrantAuthorization(
@@ -300,6 +302,7 @@ async function validGrant(
     }
     const signedAt = Date.parse(record.authorization.signedAt);
     if (signedAt < lastSignedAt) return null;
+    if (signedAt > Date.parse(storedAt) + MAX_CLOCK_SKEW_MS) return null;
     return { signer: record.authorization.signerEName, signedAt };
 }
 
