@@ -156,30 +156,32 @@ function httpUrl(value: unknown): URL | null {
 	}
 }
 
+export interface ResolveCertifiedKeysOptions
+	extends Omit<VerifyEnameSignatureOptions, "payload" | "signature"> {}
+
+export type ResolveCertifiedKeysResult =
+	| { ok: true; eName: string; publicKeys: string[] }
+	| { ok: false; eName?: string; error: EnameVerificationError };
+
 /**
- * Verifies that the wallet holding `eName` signed `payload`: resolves the
- * eName's eVault at the Registry, fetches its key binding certificates, checks
- * each against the Registry's keys, and accepts if any certified key verifies
- * the signature. Never throws; every failure returns `valid: false`.
+ * Fetches the public keys the Registry has certified for `eName`: resolves
+ * its eVault, reads the key binding certificates from `/whois`, and keeps
+ * those that verify against the Registry's keys and name this eName. Lets a
+ * caller check many signatures by one signer with a single lookup. Never
+ * throws.
  */
-export async function verifyEnameSignature(
-	options: VerifyEnameSignatureOptions,
-): Promise<VerifyEnameSignatureResult> {
-	const { payload, signature, registryBaseUrl, signal } = options;
+export async function resolveCertifiedKeys(
+	options: ResolveCertifiedKeysOptions,
+): Promise<ResolveCertifiedKeysResult> {
+	const { registryBaseUrl, signal } = options;
 	if (
 		typeof options.eName !== "string" ||
-		typeof payload !== "string" ||
-		typeof signature !== "string" ||
 		typeof registryBaseUrl !== "string" ||
 		options.eName.trim().replace(/^@+/, "") === "" ||
 		options.eName.length > MAX_ENAME_LENGTH ||
-		payload === "" ||
-		payload.length > MAX_PAYLOAD_LENGTH ||
-		signature === "" ||
-		signature.length > MAX_SIGNATURE_LENGTH ||
 		!httpUrl(registryBaseUrl)
 	) {
-		return { valid: false, error: "invalid_input" };
+		return { ok: false, error: "invalid_input" };
 	}
 
 	const eName = normalizeEName(options.eName);
@@ -197,10 +199,10 @@ export async function verifyEnameSignature(
 			failure: "resolve_failed",
 		})) as { kind?: unknown; uri?: unknown } | null;
 		if (resolved?.kind !== "evault") {
-			return { valid: false, eName, error: "not_an_evault" };
+			return { ok: false, eName, error: "not_an_evault" };
 		}
 		const evault = httpUrl(resolved.uri);
-		if (!evault) return { valid: false, eName, error: "resolve_failed" };
+		if (!evault) return { ok: false, eName, error: "resolve_failed" };
 
 		const whois = (await getJson(new URL("/whois", evault), {
 			...request,
@@ -208,13 +210,13 @@ export async function verifyEnameSignature(
 			failure: "whois_failed",
 		})) as { keyBindingCertificates?: unknown } | null;
 		if (!Array.isArray(whois?.keyBindingCertificates)) {
-			return { valid: false, eName, error: "whois_failed" };
+			return { ok: false, eName, error: "whois_failed" };
 		}
 		const certificates = whois.keyBindingCertificates
 			.filter((value): value is string => typeof value === "string")
 			.slice(0, MAX_CERTIFICATES);
 		if (certificates.length === 0) {
-			return { valid: false, eName, error: "no_certificates" };
+			return { ok: false, eName, error: "no_certificates" };
 		}
 
 		const keyOptions = {
@@ -223,6 +225,7 @@ export async function verifyEnameSignature(
 		};
 		let keys = await registryKeys(registryBaseUrl, { ...keyOptions, refresh: false });
 		let refreshed = false;
+		const publicKeys: string[] = [];
 
 		for (const certificate of certificates) {
 			let claims: Record<string, unknown>;
@@ -242,22 +245,79 @@ export async function verifyEnameSignature(
 			if (typeof claims.ename !== "string" || normalizeEName(claims.ename) !== eName) {
 				continue;
 			}
-			if (typeof claims.publicKey !== "string") continue;
-			const verification = await verifyP256Detailed(claims.publicKey, signature, payload);
-			if (verification.valid) {
-				return {
-					valid: true,
-					eName,
-					publicKey: claims.publicKey,
-					keyType: verification.encoding === "base58" ? "hardware" : "software",
-				};
-			}
+			if (typeof claims.publicKey === "string") publicKeys.push(claims.publicKey);
 		}
-		return { valid: false, eName, error: "no_valid_certificate" };
+		if (publicKeys.length === 0) {
+			return { ok: false, eName, error: "no_valid_certificate" };
+		}
+		return { ok: true, eName, publicKeys };
 	} catch (error) {
 		if (error instanceof VerificationFailure) {
-			return { valid: false, eName, error: error.code };
+			return { ok: false, eName, error: error.code };
 		}
-		return { valid: false, eName, error: isTimeout(error) ? "timeout" : "no_valid_certificate" };
+		return { ok: false, eName, error: isTimeout(error) ? "timeout" : "no_valid_certificate" };
 	}
+}
+
+/**
+ * Checks a signature against already-certified keys, with no network calls.
+ */
+export async function verifyWithCertifiedKeys(
+	publicKeys: string[],
+	payload: string,
+	signature: string,
+): Promise<{ publicKey: string; keyType: EnameKeyType } | null> {
+	if (
+		typeof payload !== "string" ||
+		typeof signature !== "string" ||
+		payload === "" ||
+		payload.length > MAX_PAYLOAD_LENGTH ||
+		signature === "" ||
+		signature.length > MAX_SIGNATURE_LENGTH
+	) {
+		return null;
+	}
+	for (const publicKey of publicKeys) {
+		const verification = await verifyP256Detailed(publicKey, signature, payload);
+		if (verification.valid) {
+			return {
+				publicKey,
+				keyType: verification.encoding === "base58" ? "hardware" : "software",
+			};
+		}
+	}
+	return null;
+}
+
+/**
+ * Verifies that the wallet holding `eName` signed `payload`: resolves the
+ * eName's eVault at the Registry, fetches its key binding certificates, checks
+ * each against the Registry's keys, and accepts if any certified key verifies
+ * the signature. Never throws; every failure returns `valid: false`.
+ */
+export async function verifyEnameSignature(
+	options: VerifyEnameSignatureOptions,
+): Promise<VerifyEnameSignatureResult> {
+	const { payload, signature } = options;
+	if (
+		typeof payload !== "string" ||
+		typeof signature !== "string" ||
+		payload === "" ||
+		payload.length > MAX_PAYLOAD_LENGTH ||
+		signature === "" ||
+		signature.length > MAX_SIGNATURE_LENGTH
+	) {
+		return { valid: false, error: "invalid_input" };
+	}
+	const keys = await resolveCertifiedKeys(options);
+	if (!keys.ok) {
+		return keys.eName
+			? { valid: false, eName: keys.eName, error: keys.error }
+			: { valid: false, error: keys.error };
+	}
+	const verified = await verifyWithCertifiedKeys(keys.publicKeys, payload, signature);
+	if (!verified) {
+		return { valid: false, eName: keys.eName, error: "no_valid_certificate" };
+	}
+	return { valid: true, eName: keys.eName, ...verified };
 }

@@ -41,6 +41,7 @@
 		"dist"
 	],
 	"dependencies": {
+		"@metastate-foundation/delegation": "workspace:*",
 		"jose": "^5.2.2",
 		"jsonwebtoken": "^9.0.2",
 		"signature-validator": "workspace:*",

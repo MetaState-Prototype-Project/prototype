@@ -771,6 +771,9 @@ importers:
 
   packages/auth:
     dependencies:
+      '@metastate-foundation/delegation':
+        specifier: workspace:*
+        version: link:../delegation
       jose:
         specifier: ^5.2.2
         version: 5.10.0

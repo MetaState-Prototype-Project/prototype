@@ -42,7 +42,14 @@ export type BoardTimeline = { from: number; directors: string[] }[];
  * back, is skipped as if it were never there.
  */
 
-/** Builds the board's timeline from the Company record's history. */
+/**
+ * Builds the board's timeline from the Company record's history.
+ *
+ * A board exists only if the record was born with one: its very first version
+ * must carry a board signed by one of its own directors. A Company record that
+ * started without directors can never acquire a board, so an existing company
+ * cannot be claimed by whoever adds directors to it first.
+ */
 export async function resolveBoard(
     companyId: string,
     companyEName: string,
@@ -53,12 +60,19 @@ export async function resolveBoard(
     let board: string[] | null = null;
     let lastSignedAt = Number.NEGATIVE_INFINITY;
 
-    for (const v of await source.versions(companyId)) {
+    const versions = await source.versions(companyId);
+    for (const [index, v] of versions.entries()) {
         const p = v.parsed;
-        if (v.operation === "delete" || !p || v.ontology !== COMPANY_ONTOLOGY) {
+        const isBoard =
+            v.operation !== "delete" &&
+            !!p &&
+            v.ontology === COMPANY_ONTOLOGY &&
+            p.eName === companyEName &&
+            isENameList(p.directors);
+        if (!isBoard) {
+            if (index === 0) return timeline;
             continue;
         }
-        if (p.eName !== companyEName || !isENameList(p.directors)) continue;
         const signed = await validGrant(
             COMPANY_ONTOLOGY,
             companyEName,
@@ -68,12 +82,13 @@ export async function resolveBoard(
             lastSignedAt,
             v.createdAt,
         );
-        if (!signed) continue;
-
         // The first board is set by one of its own directors; after that only
         // a sitting director may change it.
         const entitled: string[] = board ?? p.directors;
-        if (!entitled.includes(signed.signer)) continue;
+        if (!signed || !entitled.includes(signed.signer)) {
+            if (index === 0) return timeline;
+            continue;
+        }
 
         lastSignedAt = signed.signedAt;
         if (board && canonicalJson(board) === canonicalJson(p.directors))
