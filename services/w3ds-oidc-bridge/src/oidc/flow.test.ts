@@ -757,3 +757,80 @@ describe("userinfo", () => {
         expect(response.status).toBe(401);
     });
 });
+
+describe("same-phone sign-in", () => {
+    async function openSession() {
+        const page = await fetch(authorizeUrl(bridge.url));
+        return sessionFromQrPage(await page.text());
+    }
+
+    function deeplink(fields: Record<string, string>) {
+        const url = new URL("/deeplink-login", bridge.url);
+        for (const [key, value] of Object.entries(fields)) {
+            url.searchParams.set(key, value);
+        }
+        return fetch(url, { redirect: "manual" });
+    }
+
+    it("is served where the wallet derives it: the origin root", async () => {
+        // The wallet builds `new URL("/deeplink-login", redirect)`, which
+        // drops any path the bridge is mounted under.
+        const session = await openSession();
+        const response = await deeplink({
+            ename: "@alice",
+            session,
+            signature: "sig",
+            appVersion: "0.4.0",
+        });
+        expect(response.status).toBe(303);
+        const location = new URL(response.headers.get("location") ?? "");
+        expect(`${location.origin}${location.pathname}`).toBe(REDIRECT_URI);
+        const code = location.searchParams.get("code");
+        expect(code).toBeTruthy();
+
+        const token = await tokenRequest({
+            code: code ?? "",
+            redirect_uri: REDIRECT_URI,
+            code_verifier: CODE_VERIFIER,
+        });
+        expect(token.status).toBe(200);
+    });
+
+    it("tells the waiting login page too", async () => {
+        const session = await openSession();
+        const events = bridge.watch(session);
+        await deeplink({
+            ename: "@alice",
+            session,
+            signature: "sig",
+            appVersion: "0.4.0",
+        });
+        expect(events.events[0]?.type).toBe("redirect");
+    });
+
+    it("shows a page, not a redirect, when the signature is wrong", async () => {
+        bridge.setVerifyResult({ valid: false });
+        const session = await openSession();
+        const response = await deeplink({
+            ename: "@alice",
+            session,
+            signature: "forged",
+            appVersion: "0.4.0",
+        });
+        expect(response.status).toBe(401);
+        expect(response.headers.get("location")).toBeNull();
+        expect(await response.text()).toContain("could not be verified");
+    });
+
+    it("cannot reuse a session", async () => {
+        const session = await openSession();
+        const fields = {
+            ename: "@alice",
+            session,
+            signature: "sig",
+            appVersion: "0.4.0",
+        };
+        expect((await deeplink(fields)).status).toBe(303);
+        expect((await deeplink(fields)).status).toBe(400);
+    });
+});
