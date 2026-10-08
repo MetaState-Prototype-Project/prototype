@@ -31,6 +31,16 @@
       "minimum": 0,
       "description": "File size in bytes"
     },
+    "width": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Pixel width of the image or video, as stored. Optional; present only for visual files. Lets a reader reserve the correct space before the bytes arrive."
+    },
+    "height": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Pixel height of the image or video, as stored. Optional; present only for visual files. Paired with width."
+    },
     "md5Hash": {
       "type": "string",
       "description": "MD5 hash of the file content for integrity verification"
