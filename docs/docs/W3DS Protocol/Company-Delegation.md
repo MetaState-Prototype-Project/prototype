@@ -61,8 +61,9 @@ All of these live in the **company's own eVault**, are public (`acl: ["*"]`) so 
 
 Exactly one of `roleId` or `parentDelegationId` is set.
 
-- **From a role:** granted (signed) by a director. `scopes` must be a subset of the role's.
-- **From a parent delegation:** granted by the parent's delegate, only if the parent has `mayRedelegate: true`. `scopes` must be a subset of the parent's, and the validity window must lie within the parent's.
+- **From a role:** granted (signed) by a director. `scopes` must be a subset of the role's scopes **at the time it was granted**.
+- **From a parent delegation:** granted by the parent's delegate, only if the parent had `mayRedelegate: true` at the time. `scopes` must be a subset of the parent's scopes at that time, and the validity window must lie within the parent's.
+- `status` is `"active"` or `"revoked"`. Any other value makes the record unusable as a link, and that includes a status it held in the past.
 - `grantedBy` is the signer. Immutable after creation: `companyEName`, `delegateEName`, `roleId`, `parentDelegationId`, `grantedBy`.
 - **Revoking:** a director, or a grantor whose own authority hasn't been revoked, writes a signed version with `status: "revoked"` and `revokedBy` set to themselves. Revocation is final. See [Firing and cascading](#firing-and-cascading).
 
@@ -141,7 +142,7 @@ Every payload in this model starts with `w3ds-`. Login verifiers (`verifyLoginSi
    Each resolved record also carries the eVault's storage times of its first valid grant and of its revocation. Those times decide firing, not dates the signer wrote.
 5. Walk the chain to the role (at most 16 links):
    - The signer's own delegation must be active and within its validity window.
-   - Every link above must be for the same company, granted by its parent's delegate, and from a parent that allows re-delegation.
+   - Every link above must be for the same company, granted by its parent's delegate, and from a parent that allows re-delegation. For a revoked parent, the right is judged as it stood when the child was granted.
    - A revoked link above still counts **if it was revoked after granting what is below it, without cascading** (see below).
 6. Effective scopes are the **intersection of every link's current scopes**, role included.
 7. Check the payload against the chain:
@@ -157,6 +158,8 @@ Every payload in this model starts with `w3ds-`. Login verifiers (`verifyLoginSi
 - **Anything signed after the revocation doesn't count.** A fired Bob can't grant, update or revoke anything.
 - **Holders below a fired link can keep handing on.** Dave can still re-delegate, if his own record allows it.
 - **A grant can never be wider than its source was when it was made.** If Bob holds only NDAs when he grants Dave NDAs and invoices, that grant never counts, even if Bob is widened later.
+- **A revocation that also switches off `mayRedelegate` still only fires.** What was handed on before keeps standing; only a cascade takes it down.
+- **Malformed input fails closed.** A `revocationCascade` that isn't `true`, `false` or absent counts as a cascade. A parent with any status other than `active` or `revoked` (now, or at the moment a child was granted) backs nothing.
 - **Narrowing always follows the parent now.** If Bob's delegation (or the role) loses invoices, everyone below Bob loses invoices at the next verification, whatever they were originally given.
 
 ```mermaid
@@ -180,6 +183,7 @@ flowchart LR
 | `EXPIRED` / `NOT_YET_VALID` | Outside its validity window |
 | `CORE_SCOPE` | Includes a scope that can never be delegated |
 | `CYCLE` / `TOO_DEEP` | Parents loop, or more than 16 links |
+| `MALFORMED` | A link has an unknown status, malformed scopes, or names both (or neither) of `roleId` and `parentDelegationId` |
 | `SCOPE_NOT_DELEGATED` | The chain is fine but doesn't cover what was signed |
 
 ## Limits and trade-offs

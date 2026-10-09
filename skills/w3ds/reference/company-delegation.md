@@ -48,6 +48,8 @@ const r = await verifyDelegatedSignature({ payload: body.sessionId, signature: b
 
 - **Don't add company or delegation checks to evault-core.** The eVault stays a plain store, and checks belong in verifiers.
 - **Don't delete authority records to revoke them.** Verifiers read history, so deleting does nothing. Write a signed revoked version instead.
+- **Grants are capped at grant time.** A grant must fit what its source held when it was stored. Widening the source later never wakes up a grant that was too wide.
+- **Fail closed on bad data.** Statuses other than `active`/`revoked`, malformed scopes and non-boolean cascade flags refuse (a malformed cascade flag counts as a cascade).
 - **Firing doesn't cascade by default.** Revoking Bob stops Bob, but what he granted before stays valid. Use `revocationCascade: true` to take everything below. Anything Bob signs after being fired is ignored.
 - **`appLimits` are opaque to the model.** The platform enforces them, and must satisfy every link's limits.
 - **Verifiers read at most 2,000 versions of any one record.**
