@@ -377,6 +377,7 @@ function traceScene(o, c) {
       const d = start + i * BEAT;
       lines.push({ text: `${i + 1}. ${s.text}${s.ok === true ? " ✓" : s.ok === false ? " ✗" : ""}`, cls: s.ok === false ? "bad" : s.ok === true ? "ok" : "muted", d });
       if (s.ok === false && s.reason) lines.push({ text: `   ↳ ${s.reason}`, cls: "bad", d: d + .2 });
+      if (s.note) lines.push({ text: `   ↳ ${s.note}`, cls: "", d: d + .2 });
     });
     body += carried("paper", c.paper, [POS[c.signer] + 20, 330], LAND, .2);
     // ticks and crosses land on the people the trace passes through
@@ -530,26 +531,49 @@ const slides = [
   },
   {
     kicker: "Act 10", id: "revoke-bob",
-    title: "Dana revokes Bob",
-    text: `Dana signs a revocation of Bob's delegation. Nobody touches Dave's or Tim's records, yet their authority came <b>through</b> Bob's. Tim signs again, and the trace breaks at Bob.`,
+    title: "Dana fires Bob",
+    text: `Dana signs a revocation of Bob's delegation, without cascading. Bob can't sign for Acme any more. But Dave's grant was signed by Bob <b>while he was still Head of Finance</b>, so it stands, and so does Tim's. Firing someone stops them, not the work they already handed on.`,
     scene: (o) => {
       const done = !!o && busy !== "revoke-bob";
       return traceScene(o, {
         signer: "tim", cast: ["dave", "bob", "dana"], paper: "NDA",
         say: done ? "Can I still sign?" : "Another NDA for Acme.",
-        before: done ? say("dana", "Bob is out.", .2) : carried("paper", "revoke Bob", [POS.dana + 20, 330], CAB_DROP, .3),
+        before: done
+          ? say("dana", "Bob, you're fired.", .2) + say("bob", "I can't sign for Acme any more.", .6)
+          : carried("paper", "fire Bob", [POS.dana + 20, 330], CAB_DROP, .3),
         held: done
-          ? [["bob", "revoked", true, .4], ["dave", "falls with it", true, .7], ["tim", "falls with it", true, 1.0]]
+          ? [["bob", "fired", true, .4], ["dave", "Finance officer"], ["tim", "NDA signer"]]
           : [["bob", "Head of Finance"], ["dave", "Finance officer"], ["tim", "NDA signer"]],
-        bad: "The chain breaks at Bob. Refused.",
-        badCaption: "Revoke one link and everything handed on from it falls too.",
+        ok: "Bob's out, but Dave's grant came first. Tim may sign.",
+        okCaption: "Firing Bob stops Bob. What he handed on while valid still stands.",
+        bad: "Refused.", badCaption: "Refused.",
+      });
+    },
+  },
+  {
+    kicker: "Act 11", id: "revoke-dave",
+    title: "Dana revokes Dave, and everything he handed on",
+    text: `Sometimes the company wants it all gone, for example if Dave misused it. Dana revokes Dave's delegation <b>with cascade</b>: one signed record that also revokes everything Dave handed on. Nobody touches Tim's record, yet his trace now breaks at Dave.`,
+    scene: (o) => {
+      const done = !!o && busy !== "revoke-dave";
+      return traceScene(o, {
+        signer: "tim", cast: ["dave", "bob", "dana"], paper: "NDA",
+        say: done ? "Can I still sign?" : "Another NDA for Acme.",
+        before: done
+          ? say("dana", "Dave, and everyone under you: out.", .2)
+          : carried("paper", "revoke Dave + all below", [POS.dana + 20, 330], CAB_DROP, .3),
+        held: done
+          ? [["dave", "revoked + cascade", true, .4], ["tim", "falls with it", true, .8]]
+          : [["dave", "Finance officer"], ["tim", "NDA signer"]],
+        bad: "Dave's revocation took everything he handed on. Refused.",
+        badCaption: "With cascade, one revocation takes everything handed on below it.",
       });
     },
   },
   {
     kicker: "Curtain",
     title: "What just happened",
-    text: `Acme's eVault stored everything, Mallory's and Tim's bad grants included, and enforced nothing. Every outcome came from tracing signatures back through Acme's history to the board.`,
+    text: `Acme's eVault stored everything, Mallory's and Tim's bad grants included, and enforced nothing. Every outcome came from tracing signatures back through Acme's history to the board. Firing someone stopped only them; a cascading revocation took everything below.`,
     recap: true,
     scene: () => world([...PEOPLE, "acme", "laptop"], {
       cabinet: cabinetLines(),
@@ -563,9 +587,9 @@ const slides = [
 const params = new URLSearchParams(location.search);
 let index = clamp(Number(params.get("slide") || 0), 0, slides.length - 1);
 const current = () => slides[index];
-/* Revoking Bob breaks Tim's chain for good on this Acme. */
-const NEEDS_BOB = ["tim-nda", "tim-invoice", "tim-passes-on"];
-const locked = (id) => NEEDS_BOB.includes(id) && !!outcomes()["revoke-bob"];
+/* Revoking Dave with cascade breaks Tim's chain for good on this Acme. */
+const NEEDS_DAVE = ["tim-nda", "tim-invoice", "tim-passes-on", "revoke-bob", "revoke-dave"];
+const locked = (id) => NEEDS_DAVE.includes(id) && !!outcomes()["revoke-dave"];
 
 function render() {
   const s = current();
@@ -588,7 +612,7 @@ function render() {
   } else if (s.id) {
     controls += `<button class="go" id="act" ${busy ? "disabled" : ""}>${busy === s.id ? "Signing and verifying…" : o ? "Play it again" : "Play this scene"}</button>`;
     if (!ready()) controls += `<span class="note">No Acme yet: playing this founds one first.</span>`;
-    else if (locked(s.id)) controls += `<span class="note">Bob was revoked: playing this founds a fresh Acme first.</span>`;
+    else if (locked(s.id)) controls += `<span class="note">Dave was revoked with cascade: playing this founds a fresh Acme first.</span>`;
   }
   controls += `<div class="nav"><button id="back" ${index === 0 ? "disabled" : ""}>← Back</button><button id="next" ${index === slides.length - 1 ? "disabled" : ""}>Next →</button></div>`;
   document.getElementById("controls").innerHTML = controls;

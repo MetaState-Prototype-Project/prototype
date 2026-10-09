@@ -97,6 +97,13 @@
       ],
       "description": "`cascade` when revoked because a role or parent was revoked or narrowed"
     },
+    "revocationCascade": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "On a revocation: true also revokes everything handed on from this record; false (or absent) stops only this record, and what it granted while valid stands."
+    },
     "createdAt": {
       "type": "string",
       "format": "date-time"
@@ -217,6 +224,9 @@
             "type": "null"
           },
           "revocationReason": {
+            "type": "null"
+          },
+          "revocationCascade": {
             "type": "null"
           }
         }

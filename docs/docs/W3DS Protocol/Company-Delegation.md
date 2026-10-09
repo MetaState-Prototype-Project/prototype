@@ -15,7 +15,8 @@ Bob signs an NDA "for Acme" with **his own** wallet key. The signature names Acm
 - Bob's delegation was signed by someone entitled to grant it,
 - that grant goes back, hop by hop, to a role created by one of Acme's directors,
 - the directors are the ones Acme's Company record was born with, or later changed to by a sitting director,
-- nothing on the way has been revoked or widened.
+- nothing on the way was revoked before granting what is below it (or revoked with cascade),
+- what was signed is within every link's **current** scopes.
 
 **The eVault enforces none of this.** It stores whatever it is given, and all authority is decided by the verifier from signatures and the eVault's version history.
 
@@ -63,7 +64,7 @@ Exactly one of `roleId` or `parentDelegationId` is set.
 - **From a role:** granted (signed) by a director. `scopes` must be a subset of the role's.
 - **From a parent delegation:** granted by the parent's delegate, only if the parent has `mayRedelegate: true`. `scopes` must be a subset of the parent's, and the validity window must lie within the parent's.
 - `grantedBy` is the signer. Immutable after creation: `companyEName`, `delegateEName`, `roleId`, `parentDelegationId`, `grantedBy`.
-- **Revoking:** a director or the grantor writes a signed version with `status: "revoked"` and `revokedBy` set to themselves. Revocation is final.
+- **Revoking:** a director, or a grantor whose own authority hasn't been revoked, writes a signed version with `status: "revoked"` and `revokedBy` set to themselves. Revocation is final. See [Firing and cascading](#firing-and-cascading).
 
 ## Scopes
 
@@ -130,29 +131,49 @@ Every payload in this model starts with `w3ds-`. Login verifiers (`verifyLoginSi
    - is validly signed and bound to its id,
    - is not dated before the previous valid version, and not after the eVault stored it (5 minutes of clock skew allowed),
    - keeps its immutable fields,
-   - was signed by someone entitled **when it was stored**: a director for roles and role grants, the parent's delegate for re-delegations, a director or the grantor for revocations.
+   - was signed by someone entitled **when it was stored**:
+     - a director, for roles and for grants from a role that wasn't yet revoked,
+     - the delegate of a parent that wasn't yet revoked, for re-delegations,
+     - a director, or a grantor whose own authority wasn't yet revoked, for revocations.
 
    Unsigned, forged, copied or written-back versions are skipped as if absent. Grants made by a director remain valid after that director leaves the board.
-5. Walk the chain to the role (at most 16 links). Every link must be:
-   - active and within its validity window,
-   - for the same company,
-   - narrowing its parent,
-   - granted by the parent's delegate,
-   - from a parent that allows re-delegation.
-6. Check the payload against the chain:
+
+   Each resolved record also carries the eVault's storage times of its first valid grant and of its revocation. Those times decide firing, not dates the signer wrote.
+5. Walk the chain to the role (at most 16 links):
+   - The signer's own delegation must be active and within its validity window.
+   - Every link above must be for the same company, granted by its parent's delegate, and from a parent that allows re-delegation.
+   - A revoked link above still counts **if it was revoked after granting what is below it, without cascading** (see below).
+6. Effective scopes are the **intersection of every link's current scopes**, role included.
+7. Check the payload against the chain:
    - the right company, signer and delegation,
-   - the scope is in the chain's scopes,
+   - the scope is in the effective scopes,
    - the scope is not core.
 
-**Revocation cascades implicitly.** Revoking or narrowing a role or delegation fails the chain of everything handed on from it at the next verification. Nothing else needs to be written.
+### Firing and cascading
+
+- **Revoking a person stops only them.** If Bob is fired, Bob can't sign any more. But a delegation Bob granted to Dave **before** he was fired stays valid, and so does everything Dave handed on. "Before" means the eVault stored Dave's grant before it stored Bob's revocation.
+- **Revoking a role** works the same way. Holders granted before the revocation keep their delegations, and no new grants can be made from the role.
+- **Cascading is explicit.** A revocation with `revocationCascade: true` also revokes everything handed on from that record. One signed record does it; the children are not touched.
+- **Anything signed after the revocation doesn't count.** A fired Bob can't grant, update or revoke anything.
+- **Holders below a fired link can keep handing on.** Dave can still re-delegate, if his own record allows it.
+- **Narrowing always follows the parent now.** If Bob's delegation (or the role) loses invoices, everyone below Bob loses invoices at the next verification, whatever they were originally given.
+
+```mermaid
+flowchart LR
+    A{"parent revoked?"} -- no --> OK["counts"]
+    A -- yes --> B{"revocationCascade?"}
+    B -- yes --> X1["✗ REVOKED"]
+    B -- no --> C{"child granted before<br/>the revocation?"}
+    C -- yes --> OK2["counts"]
+    C -- no --> X2["✗ REVOKED"]
+```
 
 ### Why a trace fails
 
 | Code | Meaning |
 |---|---|
 | `NOT_FOUND` | No valid version: never granted by anyone entitled, or copied from another record |
-| `REVOKED` | This link, or one above it, was revoked |
-| `NOT_A_SUBSET` | Scopes wider than the parent's or role's |
+| `REVOKED` | The signer was revoked, or a link above was revoked before granting what is below it, or revoked with cascade |
 | `REDELEGATION_NOT_ALLOWED` | The parent (or role) did not allow passing it on |
 | `WRONG_GRANTOR` | Not granted by the parent's delegate |
 | `EXPIRED` / `NOT_YET_VALID` | Outside its validity window |

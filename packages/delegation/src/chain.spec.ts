@@ -100,7 +100,6 @@ describe("evaluateDelegation", () => {
             { validFrom: "2027-01-01T00:00:00.000Z" },
             "NOT_YET_VALID",
         ],
-        ["wider than its role", { scopes: [NDA] }, {}, "NOT_A_SUBSET"],
         [
             "a core scope",
             { scopes: ["@w3ds:auth"] },
@@ -130,6 +129,65 @@ describe("evaluateDelegation", () => {
             expect(result).toMatchObject({ ok: false, code });
         },
     );
+
+    it("narrows to what the role covers now", async () => {
+        const result = await evaluate(
+            "d1",
+            source({ r1: role({ scopes: [NDA] }) }, { d1: delegation() }),
+        );
+        expect(result).toMatchObject({ ok: true, scopes: [NDA] });
+    });
+
+    it("keeps a child granted before its parent was revoked", async () => {
+        const result = await evaluate(
+            "d2",
+            source(
+                { r1: role() },
+                {
+                    d1: delegation({
+                        status: "revoked",
+                        createdAt: "2026-01-01T00:00:00.000Z",
+                        revokedAt: "2026-06-01T00:00:00.000Z",
+                    }),
+                    d2: delegation({
+                        roleId: undefined,
+                        parentDelegationId: "d1",
+                        grantedBy: "@bob",
+                        delegateEName: "@carol",
+                        mayRedelegate: false,
+                        createdAt: "2026-03-01T00:00:00.000Z",
+                    }),
+                },
+            ),
+        );
+        expect(result).toMatchObject({ ok: true, delegateEName: "@carol" });
+    });
+
+    it("drops a child when its parent's revocation cascades", async () => {
+        const result = await evaluate(
+            "d2",
+            source(
+                { r1: role() },
+                {
+                    d1: delegation({
+                        status: "revoked",
+                        revocationCascade: true,
+                        createdAt: "2026-01-01T00:00:00.000Z",
+                        revokedAt: "2026-06-01T00:00:00.000Z",
+                    }),
+                    d2: delegation({
+                        roleId: undefined,
+                        parentDelegationId: "d1",
+                        grantedBy: "@bob",
+                        delegateEName: "@carol",
+                        mayRedelegate: false,
+                        createdAt: "2026-03-01T00:00:00.000Z",
+                    }),
+                },
+            ),
+        );
+        expect(result).toMatchObject({ ok: false, code: "REVOKED", at: "d1" });
+    });
 
     it("rejects a revoked role", async () => {
         const result = await evaluate(
