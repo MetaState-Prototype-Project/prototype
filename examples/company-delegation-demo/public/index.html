@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Who Signs for Acme</title>
+<style>
+  :root {
+    --bg: #fbfaf6; --paper: #ffffff; --ink: #22211d; --muted: #75736b; --line: #dedbd2;
+    --accent: #3a5bd9; --ok: #1f8a54; --bad: #c8372d; --hl: #fff1b8; --ground: #ecebe4;
+    --dana: #3a5bd9; --bob: #d9822b; --dave: #2f9e8f; --tim: #b07d12; --mallory: #8a3ab9;
+    --hand: "Comic Neue", "Comic Sans MS", "Chalkboard SE", system-ui, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161614; --paper: #1f1f1c; --ink: #ecebe5; --muted: #a09e95; --line: #34332f;
+      --accent: #8ea4ff; --ok: #6fd39c; --bad: #ff8b82; --hl: #4a4020; --ground: #262622;
+      --dana: #8ea4ff; --bob: #f0a35a; --dave: #5fd0c0; --tim: #e6c25a; --mallory: #c58ef0;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.5 system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 14px; padding: 12px 20px; border-bottom: 1px solid var(--line); }
+  header h1 { font: 700 18px var(--hand); margin: 0; flex: 1; }
+  header a { color: var(--muted); font-size: 13px; }
+  .dots { display: flex; gap: 6px; }
+  .dots span { width: 10px; height: 10px; border-radius: 50%; background: var(--line); cursor: pointer; }
+  .dots span.on { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .dots span.done { background: var(--ok); }
+  .dots span.fail { background: var(--bad); }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 20px 16px 40px; }
+  .stage { background: var(--paper); border: 2px solid var(--ink); border-radius: 14px; box-shadow: 5px 5px 0 var(--ink); overflow: hidden; }
+  .stage svg { width: 100%; height: auto; display: block; }
+  .below { display: grid; grid-template-columns: 1fr 300px; gap: 8px 24px; margin-top: 18px; align-items: start; }
+  @media (max-width: 760px) { .below { grid-template-columns: 1fr; } }
+  .kicker { font: 600 12px var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  h2 { font: 700 26px/1.2 var(--hand); margin: 2px 0 6px; }
+  .text p { margin: 6px 0; max-width: 72ch; }
+  .note { color: var(--muted); font-size: 15px; }
+  .controls { display: flex; flex-direction: column; gap: 10px; align-items: stretch; min-width: 230px; }
+  .nav { display: flex; gap: 10px; }
+  .nav button { flex: 1; }
+  button { font: 700 16px var(--hand); border: 2px solid var(--ink); background: var(--paper); color: var(--ink); border-radius: 10px; padding: 9px 16px; cursor: pointer; box-shadow: 3px 3px 0 var(--ink); }
+  button:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+  button.go { background: var(--accent); color: #fff; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .verdict { border-left: 5px solid var(--line); padding: 6px 12px; margin: 10px 0; }
+  .verdict.ok { border-color: var(--ok); }
+  .verdict.bad { border-color: var(--bad); }
+  .verdict strong { font: 700 19px var(--hand); }
+  .verdict.ok strong { color: var(--ok); }
+  .verdict.bad strong { color: var(--bad); }
+  .verdict .why { font: 13px var(--mono); color: var(--muted); }
+  details { margin-top: 10px; font-size: 13px; }
+  details summary { cursor: pointer; color: var(--muted); }
+  .wire { font: 12px var(--mono); max-height: 240px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin-top: 6px; }
+  .wire div { padding: 4px 0; border-bottom: 1px dashed var(--line); word-break: break-all; }
+  .wire div:last-child { border: 0; }
+  .wire em { color: var(--muted); font-style: normal; display: block; }
+  .error { color: var(--bad); font-weight: 600; }
+  table.recap { border-collapse: collapse; width: 100%; max-width: 640px; font-size: 15px; margin-top: 6px; }
+  table.recap td { padding: 5px 4px; border-bottom: 1px solid var(--line); }
+
+  /* the world */
+  .fig line, .fig circle, .fig path { stroke: currentColor; stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .fig .head { fill: var(--paper); }
+  .t { font: 700 15px var(--hand); fill: var(--ink); text-anchor: middle; }
+  .s { font: 12px var(--mono); fill: var(--muted); text-anchor: middle; }
+  .p path, .p rect, .p line, .p circle, .p polyline { stroke: var(--ink); stroke-width: 2.5; fill: var(--paper); stroke-linejoin: round; stroke-linecap: round; }
+  .dim { opacity: .2; transition: opacity .3s; }
+  .cab-line { font: 12px var(--mono); fill: var(--ink); }
+  .cab-line.bad { fill: var(--bad); }
+  .cab-line.ok { fill: var(--ok); }
+  .cab-line.muted { fill: var(--muted); opacity: .55; }
+  .cab-hl { fill: var(--hl); }
+  .bubble rect { fill: var(--paper); stroke: var(--ink); stroke-width: 2; }
+  .bubble path { fill: var(--paper); stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
+  .bubble text { font: 600 14px var(--hand); fill: var(--ink); }
+  .badge rect { fill: var(--hl); stroke: var(--ink); stroke-width: 2; }
+  .badge text { font: 700 11px var(--hand); fill: var(--ink); text-anchor: middle; }
+  .badge.broken rect { fill: var(--paper); stroke-dasharray: 4 3; }
+  .badge.broken text { fill: var(--bad); }
+  .caption rect { fill: var(--ink); }
+  .caption text { font: 700 17px var(--hand); fill: var(--paper); text-anchor: middle; }
+  .arrow { stroke: var(--muted); stroke-width: 2.5; fill: none; stroke-dasharray: 7 6; }
+  .marching { animation: march .6s linear infinite; stroke: var(--accent); }
+  @keyframes march { to { stroke-dashoffset: -26; } }
+
+  /* beats: appear in order, using --d as the delay */
+  .beat { opacity: 0; animation: appear .45s ease forwards; animation-delay: var(--d, 0s); }
+  @keyframes appear { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .travel { opacity: 0; animation: travel 1.1s ease-in-out forwards; animation-delay: var(--d, 0s); }
+  @keyframes travel { 0% { opacity: 0; transform: translate(var(--fx), var(--fy)); } 15% { opacity: 1; } 100% { opacity: 1; transform: translate(0, 0); } }
+  .loop { animation: loopfly 1.4s ease-in-out infinite; }
+  @keyframes loopfly { 0% { opacity: 0; transform: translate(var(--fx), var(--fy)); } 20% { opacity: 1; } 80% { opacity: 1; transform: translate(0,0); } 100% { opacity: 0; transform: translate(0,0); } }
+  .stamp { opacity: 0; transform-box: fill-box; transform-origin: center; animation: pop .5s cubic-bezier(.2,1.6,.4,1) forwards; animation-delay: var(--d, 0s); }
+  @keyframes pop { from { opacity: 0; transform: scale(.2) rotate(-25deg); } to { opacity: 1; transform: scale(1) rotate(-8deg); } }
+  @media (prefers-reduced-motion: reduce) { .beat, .travel, .stamp, .loop { animation-duration: .01s; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Who signs for Acme? <span style="font-weight:400;color:var(--muted)">· company delegation on W3DS</span></h1>
+  <div class="dots" id="dots"></div>
+  <a href="/dashboard.html">raw records</a>
+</header>
+
+<div class="wrap">
+  <div class="stage" id="stage"></div>
+  <div class="below">
+    <div class="text" id="text"></div>
+    <div class="controls" id="controls"></div>
+  </div>
+</div>
+
+<script>
+/* ===== the world: one fixed layout that every slide reuses ===== */
+const W = 1000, H = 560, TOP = 140; // the stage shows y TOP..H
+const PEOPLE = ["dana", "bob", "dave", "tim", "mallory"];
+const POS = {
+  dana: 55, bob: 165, dave: 275, tim: 385, mallory: 515,  // people stand on the ground (y 400)
+  building: [690, 230], cabinet: [690, 392], laptop: [880, 332], door: [962, 352],
+};
+/* Every other person speaks from a higher row so neighbouring bubbles never collide. */
+const LIFT = { dana: 0, bob: 54, dave: 0, tim: 54, mallory: 0 };
+const NAMES = { dana: "Dana", bob: "Bob", dave: "Dave", tim: "Tim", mallory: "Mallory" };
+const ROLE = { dana: "director", bob: "finance head", dave: "finance", tim: "clerk", mallory: "outsider" };
+const COLOR = { dana: "var(--dana)", bob: "var(--bob)", dave: "var(--dave)", tim: "var(--tim)", mallory: "var(--mallory)" };
+/* Badges sit under names, alternating rows so neighbours' badges never touch. */
+const BADGE_ROW = { dana: 460, bob: 460, dave: 488, tim: 460, mallory: 488 };
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const beat = (d) => `class="beat" style="--d:${d}s"`;
+
+function person(key, opts = {}) {
+  const x = POS[key], y = 364;
+  const extra = {
+    dana: `<path d="M-12,-58 q12,-14 24,0"/><path d="M-3,-27 l3,8 l3,-8"/>`,
+    bob: `<path d="M-14,-56 h28"/><path d="M-9,-56 v-8 h18 v8"/>`,
+    dave: `<circle cx="-5" cy="-46" r="4"/><circle cx="5" cy="-46" r="4"/>`,
+    tim: `<path d="M-13,-55 q13,-12 26,0 h8"/>`,
+    mallory: `<path d="M-14,-49 h28" style="stroke-width:6"/>`,
+  }[key];
+  const arms = opts.wave
+    ? `<line x1="0" y1="-22" x2="-18" y2="-2"/><line x1="0" y1="-22" x2="20" y2="-44"/>`
+    : `<line x1="0" y1="-22" x2="-18" y2="-2"/><line x1="0" y1="-22" x2="18" y2="-2"/>`;
+  return `<g class="fig ${opts.dim ? "dim" : ""}" transform="translate(${x},${y})" style="color:${COLOR[key]}">
+    <circle class="head" cx="0" cy="-46" r="13"/>${extra}
+    <line x1="0" y1="-33" x2="0" y2="8"/>${arms}
+    <line x1="0" y1="8" x2="-14" y2="36"/><line x1="0" y1="8" x2="14" y2="36"/>
+    <g class="p" transform="translate(21,-4)"><rect x="-5" y="-9" width="11" height="18" rx="2"/></g>
+    <text class="t" y="58" style="fill:${COLOR[key]}">${NAMES[key]}</text>
+    <text class="s" y="74">${ROLE[key]}</text></g>`;
+}
+
+function building(dim) {
+  const [x, y] = POS.building;
+  return `<g class="p ${dim ? "dim" : ""}" transform="translate(${x},${y})">
+    <path d="M-60,40 v-74 l60,-32 l60,32 v74 z"/>
+    <rect x="-42" y="-18" width="18" height="16"/><rect x="-9" y="-18" width="18" height="16"/><rect x="24" y="-18" width="18" height="16"/>
+    <rect x="-11" y="12" width="22" height="28"/>
+    <text class="t" y="-46" style="font-size:13px">ACME</text></g>`;
+}
+
+/* Acme's eVault, drawn as a filing cabinet listing what a verifier accepts. */
+function cabinet(lines, dim, hlIndex = -1, hlDelay = 0, label = "Acme's eVault", sublabel = "stores anything · enforces nothing") {
+  const [x, y] = POS.cabinet;
+  const shown = lines.slice(0, 7);
+  const w = 262, h = Math.max(118, 24 + shown.length * 17);
+  const rows = shown.map((l, i) => {
+    const ty = y - h / 2 + 22 + i * 17;
+    const hl = i === hlIndex ? `<rect ${beat(hlDelay)} class="beat cab-hl" x="${x - w / 2 + 6}" y="${ty - 12}" width="${w - 12}" height="16" rx="3"/>` : "";
+    const txt = l.text.length > 33 ? l.text.slice(0, 32) + "…" : l.text;
+    const line = `<text class="cab-line ${l.cls || ""}" x="${x - w / 2 + 14}" y="${ty}">${esc(txt)}</text>`;
+    return hl + (l.d !== undefined ? `<g class="beat" style="--d:${l.d}s">${line}</g>` : line);
+  }).join("");
+  return `<g class="${dim ? "dim" : ""}"><g class="p"><rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="7"/></g>
+    ${rows}<text class="t" x="${x}" y="${y + h / 2 + 20}">${esc(label)}</text>
+    <text class="s" x="${x}" y="${y + h / 2 + 36}">${esc(sublabel)}</text></g>`;
+}
+
+function laptop(dim) {
+  const [x, y] = POS.laptop;
+  return `<g class="p ${dim ? "dim" : ""}" transform="translate(${x},${y})">
+    <rect x="-36" y="-30" width="72" height="46" rx="4"/><path d="M-48,20 h96 l-8,10 h-80 z"/>
+    <text class="t" y="-2" style="font-size:13px">eSigner</text>
+    <text class="t" y="52">a platform</text></g>`;
+}
+
+function door(dim) {
+  const [x, y] = POS.door;
+  return `<g class="p ${dim ? "dim" : ""}" transform="translate(${x},${y})">
+    <rect x="-24" y="-56" width="48" height="104" rx="3"/><circle cx="13" cy="-4" r="3" style="fill:var(--ink)"/>
+    <text class="t" y="66">login</text></g>`;
+}
+
+/* A speech bubble whose tail points at (x, y); wrapped and kept on stage. */
+function bubble(x, y, text, d = 0, color = "var(--ink)", lift = 0) {
+  const words = String(text).split(" ");
+  const lines = []; let cur = "";
+  for (const w of words) { if ((cur + " " + w).trim().length > 26) { lines.push(cur.trim()); cur = w; } else cur += " " + w; }
+  if (cur.trim()) lines.push(cur.trim());
+  const bw = Math.max(...lines.map((l) => l.length)) * 8.6 + 26, bh = lines.length * 18 + 14;
+  const bx = clamp(x - bw / 2, 8, W - bw - 8), by = y - bh - 14 - lift;
+  const tx = clamp(x, bx + 14, bx + bw - 14);
+  return `<g class="bubble beat" style="--d:${d}s">
+    <rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="10" style="stroke:${color}"/>
+    <path d="M${tx - 8},${by + bh - 1} L${x},${y} L${tx + 8},${by + bh - 1}" style="stroke:${color}"/>
+    <rect x="${tx - 9}" y="${by + bh - 3}" width="18" height="4" style="stroke:none;fill:var(--paper)"/>
+    ${lines.map((l, i) => `<text x="${bx + 12}" y="${by + 22 + i * 18}">${esc(l)}</text>`).join("")}</g>`;
+}
+
+const HEAD = 300; // where a bubble tail meets a person's head
+const LAND = [POS.laptop[0] + 66, 322]; // where a signed paper lands beside eSigner
+const STAMP_AT = [POS.laptop[0], 316];
+const CAB_DROP = [POS.cabinet[0], 300]; // where a filed record lands on the cabinet // the verdict is stamped onto eSigner itself
+const at = {
+  person: (k) => [POS[k], HEAD],
+  said: (k) => [POS[k], HEAD, LIFT[k]],
+  laptop: () => [POS.laptop[0], POS.laptop[1] - 36],
+  door: () => [POS.door[0], POS.door[1] - 62],
+  cabinet: () => [POS.cabinet[0], POS.cabinet[1] - 62],
+};
+
+const say = (k, text, d = 0) => bubble(POS[k], HEAD, text, d, COLOR[k], LIFT[k]);
+
+/* Something carried from one place to another: a paper or a badge. */
+function carried(kind, label, from, to, d = 0, loop = false) {
+  const [fx, fy] = from, [tx, ty] = to;
+  const body = kind === "badge"
+    ? (() => { const w = Math.max(64, label.length * 6.6 + 16); return `<g class="badge"><rect x="${-w / 2}" y="-11" width="${w}" height="22" rx="5"/><text y="4">${esc(label)}</text></g>`; })()
+    : `<g class="p"><path d="M-11,-14 h16 l6,6 v22 h-22 z"/><line x1="-6" y1="-3" x2="6" y2="-3"/><line x1="-6" y1="3" x2="6" y2="3"/></g>
+       <text class="s" y="28" style="fill:var(--ink)">${esc(label)}</text>`;
+  return `<g transform="translate(${tx},${ty})"><g class="${loop ? "loop" : "travel"}" style="--fx:${fx - tx}px;--fy:${fy - ty}px;--d:${d}s">${body}</g></g>`;
+}
+
+function badgeAt(x, y, label, broken = false, d = 0) {
+  const w = Math.max(64, label.length * 6.6 + 16);
+  return `<g transform="translate(${x},${y})"><g class="badge ${broken ? "broken" : ""} beat" style="--d:${d}s">
+    <rect x="${-w / 2}" y="-11" width="${w}" height="22" rx="5"/><text y="4">${esc(label)}</text></g></g>`;
+}
+
+function link(from, to, marching = false, d = 0) {
+  const [x1, y1] = from, [x2, y2] = to, mx = (x1 + x2) / 2, top = Math.min(y1, y2) - 50;
+  return `<path class="arrow ${marching ? "marching" : "beat"}" style="--d:${d}s" d="M${x1},${y1} Q${mx},${top} ${x2},${y2}"/>`;
+}
+
+/* A link of a delegation chain, drawn along the ground under the names. */
+function chainArrow(fromX, toX, d = 0) {
+  const y = 462, dir = Math.sign(toX - fromX);
+  const x1 = fromX + dir * 26, x2 = toX - dir * 26;
+  return `<g class="beat" style="--d:${d}s"><path class="arrow" d="M${x1},${y} L${x2},${y}"/>
+    <path d="M${x2},${y} l${-dir * 9},-6 v12 z" style="fill:var(--muted)"/>
+    <text class="s" x="${(x1 + x2) / 2}" y="${y - 8}">via</text></g>`;
+}
+
+function stamp(x, y, ok, d = 0) {
+  const c = ok ? "var(--ok)" : "var(--bad)";
+  const mark = ok ? `<path d="M-14,0 l9,10 l20,-22"/>` : `<path d="M-12,-12 l24,24 M12,-12 l-24,24"/>`;
+  return `<g transform="translate(${x},${y})"><g class="stamp" style="--d:${d}s">
+    <circle r="28" style="fill:var(--paper);stroke:${c};stroke-width:4"/>
+    <g style="stroke:${c};stroke-width:6;fill:none;stroke-linecap:round;stroke-linejoin:round">${mark}</g></g></g>`;
+}
+
+function caption(text, d = 0) {
+  const size = text.length > 92 ? 15 : 17;
+  return `<g class="caption beat" style="--d:${d}s"><rect x="0" y="${H - 46}" width="${W}" height="46"/>
+    <text x="${W / 2}" y="${H - 18}" style="font-size:${size}px">${esc(text)}</text></g>`;
+}
+
+function world(cast, layers) {
+  const on = (k) => cast.includes(k);
+  return `<svg viewBox="0 ${TOP} ${W} ${H - TOP}" role="img" aria-label="scene">
+    <defs><clipPath id="clip"><rect y="${TOP}" width="${W}" height="${H - TOP}"/></clipPath></defs>
+    <g clip-path="url(#clip)">
+    <rect x="0" y="400" width="${W}" height="${H - 400}" style="fill:var(--ground)"/>
+    <g class="p ${on("mallory") ? "" : "dim"}"><path d="M438,400 v-34 M450,400 v-34 M462,400 v-34 M432,384 h36" style="fill:none"/></g>
+    ${PEOPLE.filter((k) => !(layers.hide || []).includes(k)).map((k) => person(k, { dim: !on(k), wave: layers.wave === k })).join("")}
+    ${layers.card ? "" : building(!on("acme")) + cabinet(layers.cabinet, !on("acme") && !layers.trace, layers.hl ?? -1, layers.hlDelay ?? 0, ...(layers.trace ? ["eSigner reads Acme's eVault", "and walks the chain back"] : []))}
+    ${on("door") && !on("laptop") ? "" : laptop(!on("laptop"))}${on("door") ? door(false) : ""}
+    ${layers.body || ""}
+    ${layers.caption ? caption(layers.caption, layers.captionDelay ?? 0) : ""}
+    </g></svg>`;
+}
+
+/* ===== data ===== */
+let state = null;
+let busy = null;      // id of the step being run
+let lastError = "";
+const ready = () => !!(state && state.company);
+const outcomes = () => (state && state.outcomes) || {};
+const nameOf = (eName) => {
+  const p = state && Object.values(state.people).find((x) => x.eName === eName);
+  return p ? p.name : eName ? eName.slice(0, 9) + "…" : "?";
+};
+
+/* What the cabinet shows: what a verifier accepts, plus writes it ignores. */
+function viewFor(i) {
+  if (!state) return null;
+  const s = slides[i];
+  if (s.recap || i === 0) return { records: state.records, verified: state.verified };
+  for (let j = i; j >= 0; j--) {
+    const o = slides[j].id && outcomes()[slides[j].id];
+    if (o && o.view && (j < i || !busy)) return o.view;
+  }
+  return state.setupView || { records: state.records, verified: state.verified };
+}
+
+function cabinetLines() {
+  const view = viewFor(index);
+  if (!ready() || !view || !view.records) return [{ text: "(empty)", cls: "" }];
+  const v = view.verified || { board: [], delegations: {} };
+  const raw = view.records.company || {};
+  const lines = [{ text: `board: ${v.board.map(nameOf).join(", ") || "none"} ✓`, cls: "ok" }];
+  const rawBoard = (raw.directors || []).join(",");
+  if (rawBoard && rawBoard !== v.board.join(",")) {
+    lines.push({ text: `board: ${(raw.directors || []).map(nameOf).join(", ")} ✗ ignored`, cls: "bad" });
+  }
+  for (const r of view.records.roles.filter(Boolean)) lines.push({ text: `role: ${r.title}${r.status === "revoked" ? " ✗" : ""}` });
+  for (const d of view.records.delegations.filter((x) => x.record)) {
+    const code = v.delegations[d.key];
+    const mark = code === "valid" ? "✓" : code === "REVOKED" ? "✗ revoked" : "✗ ignored";
+    lines.push({ text: `${nameOf(d.record.delegateEName)}: ${d.record.title} ${mark}`, cls: code === "valid" ? "" : "bad" });
+  }
+  return lines;
+}
+const cabIndex = (prefix) => cabinetLines().findIndex((l) => l.text.startsWith(prefix));
+
+/* ===== the story ===== */
+const why = (o) => (o && o.result ? (o.result.detail || o.result.error || "") : "");
+const BEAT = 0.75; // seconds between trace hops
+
+/* A record being signed and filed: the giver's paper flies into the cabinet. */
+function handOver(giver, taker, badgeText, line, takerLine, cabPrefix) {
+  return () => {
+    if (!ready()) return world([giver, taker, "acme"], { cabinet: cabinetLines(), caption: "Press Play this scene. Acme is founded automatically if needed." });
+    return world([giver, taker, "acme"], {
+      cabinet: cabinetLines(), hl: cabIndex(cabPrefix), hlDelay: 2.4,
+      body: say(giver, line, .1)
+        + carried("badge", badgeText, [POS[giver], 330], [POS[taker], BADGE_ROW[taker]], .9)
+        + say(taker, takerLine, 1.7)
+        + carried("paper", `signed by ${NAMES[giver]}`, [POS[giver] + 20, 330], CAB_DROP, 2.0),
+      caption: `${NAMES[giver]} signs a Delegation record for ${NAMES[taker]}. It goes into Acme's eVault.`, captionDelay: 2.8,
+    });
+  };
+}
+
+/* Badges people hold at this point of the story. */
+function badges(list) {
+  return list.map(([k, text, broken, d]) => badgeAt(POS[k], BADGE_ROW[k], text, broken, d ?? 0)).join("");
+}
+
+/*
+ * Someone signs for Acme and eSigner traces it back, hop by hop: each line of
+ * the trace appears in turn, a tick or cross lands on the person it is about,
+ * and the verdict is stamped onto eSigner.
+ */
+function traceScene(o, c) {
+  const running = busy === current().id;
+  const done = !!o && !running;
+  const steps = (done && o.trace) || [];
+  const cast = [c.signer, "acme", "laptop", ...(c.cast || [])];
+  let body = say(c.signer, c.say, .1) + (c.before || "") + (c.held ? badges(c.held) : "");
+  if (running) {
+    body += carried("paper", c.paper, [POS[c.signer] + 20, 330], LAND, 0, true)
+      + link(at.laptop(), at.cabinet(), true)
+      + bubble(...at.laptop(), "Tracing it back through Acme's eVault…", 0);
+  }
+  let lines = cabinetLines();
+  let finalDelay = 1;
+  if (done && steps.length) {
+    const start = .9;
+    lines = [];
+    steps.forEach((s, i) => {
+      const d = start + i * BEAT;
+      lines.push({ text: `${i + 1}. ${s.text}${s.ok === true ? " ✓" : s.ok === false ? " ✗" : ""}`, cls: s.ok === false ? "bad" : s.ok === true ? "ok" : "muted", d });
+      if (s.ok === false && s.reason) lines.push({ text: `   ↳ ${s.reason}`, cls: "bad", d: d + .2 });
+    });
+    body += carried("paper", c.paper, [POS[c.signer] + 20, 330], LAND, .2);
+    // ticks and crosses land on the people the trace passes through
+    let prev = null;
+    steps.forEach((s, i) => {
+      if (s.ok === null) return;
+      const d = start + i * BEAT;
+      if (s.person && POS[s.person] !== undefined) {
+        if (prev && prev !== s.person) body += link([POS[prev], 346], [POS[s.person], 346], false, d - .2);
+        body += mark(POS[s.person], 342, s.ok, d);
+        prev = s.person;
+      }
+    });
+    const reached = steps.filter((s) => s.ok !== null).length;
+    finalDelay = start + reached * BEAT;
+  }
+  const accepted = done && o.passed && o.expected === "valid";
+  if (done) {
+    body += bubble(...at.laptop(), accepted ? c.ok : c.bad, finalDelay) + stamp(...STAMP_AT, accepted, finalDelay + .5);
+  }
+  return world(cast, {
+    cabinet: lines, trace: done && steps.length > 0,
+    body,
+    caption: !ready() ? "Press Play this scene. Acme is founded automatically if needed." : running ? "eSigner is reading Acme's eVault history…" : done ? (accepted ? c.okCaption : c.badCaption) : "Press Play this scene.",
+    captionDelay: done ? finalDelay + .8 : 0,
+  });
+}
+
+/* A small tick or cross above someone's head. */
+function mark(x, y, ok, d) {
+  const color = ok ? "var(--ok)" : "var(--bad)";
+  const glyph = ok ? `<path d="M-6,0 l4,5 l9,-10"/>` : `<path d="M-5,-5 l10,10 M5,-5 l-10,10"/>`;
+  return `<g transform="translate(${x},${y})"><g class="stamp" style="--d:${d}s">
+    <circle r="12" style="fill:var(--paper);stroke:${color};stroke-width:3"/>
+    <g style="stroke:${color};stroke-width:3.5;fill:none;stroke-linecap:round;stroke-linejoin:round">${glyph}</g></g></g>`;
+}
+
+const slides = [
+  {
+    kicker: "Cast",
+    title: "Meet the people",
+    text: `Dana runs Acme. Bob runs the finances, Dave works for Bob, and Tim has just joined. Mallory has nothing to do with Acme. Each of them has a real wallet (an eVault and a signing key, made with <code>wallet-sdk</code>), and Acme gets an eVault of its own.`,
+    action: { label: "Start fresh", step: "reset", note: "Gives everyone a wallet and clears the old Acme." },
+    scene: () => world([...PEOPLE, "acme"], {
+      cabinet: cabinetLines(), wave: "dana",
+      body: say("dana", "I run Acme.", .2) + say("bob", "I run the finances.", .9)
+        + say("dave", "I work for Bob.", 1.6) + say("tim", "I'm new here.", 2.3)
+        + say("mallory", "I'd love to sign for Acme…", 3.0),
+      caption: "Five wallets, one company eVault. Who gets to sign for Acme?", captionDelay: 3.6,
+    }),
+  },
+  {
+    kicker: "Act 1",
+    title: "Dana founds Acme",
+    text: `Dana writes Acme's Company record into Acme's eVault with herself on the board, and signs it with her wallet. The board is there from birth, so nobody can claim Acme later. She also defines the role <b>Head of Finance</b>: NDAs and invoices on eSigner.`,
+    action: { label: "Found Acme", step: "setup", note: "Runs every signature in Acts 1–4 for real: each is a w3ds://sign request signed by a wallet." },
+    scene: () => {
+      const running = busy === "setup", done = ready() && !running;
+      return world(["dana", "acme"], {
+        cabinet: cabinetLines(), hl: done ? 0 : -1, hlDelay: 1.0,
+        body: say("dana", done ? "Acme is official, and I'm on its board." : "Let's make Acme official.", .1)
+          + (running ? link([POS.dana + 20, 320], at.cabinet(), true) + carried("paper", "board: Dana", [POS.dana + 20, 330], at.cabinet(), 0, true) : "")
+          + (done ? carried("paper", "board: Dana", [POS.dana + 20, 330], CAB_DROP, .3) : ""),
+        caption: running ? "Wallets are signing Acme's records…" : done ? "Company record and role, signed by Dana, filed in Acme's eVault." : "Press Found Acme.",
+        captionDelay: done ? 1.4 : 0,
+      });
+    },
+  },
+  {
+    kicker: "Act 2",
+    title: "Dana makes Bob Head of Finance",
+    text: `Dana gives Bob the role, NDAs and invoices, and lets him pass it on. That's a Delegation record: who gets it, what it covers, who granted it, all signed by Dana.`,
+    scene: handOver("dana", "bob", "Head of Finance", "Bob, you're Head of Finance.", "I can sign for Acme now.", "Bob:"),
+  },
+  {
+    kicker: "Act 3",
+    title: "Bob passes it to Dave",
+    text: `Bob may pass his role on, so he makes Dave <b>Finance officer</b> with the same NDAs and invoices. This record points at Bob's delegation and is signed by <b>Bob</b>, not Dana. He can only hand on what he holds.`,
+    scene: handOver("bob", "dave", "Finance officer", "Dave, you can sign for Acme too.", "Thanks, Bob.", "Dave:"),
+  },
+  {
+    kicker: "Act 4",
+    title: "Dave gives Tim NDAs only",
+    text: `Dave hands Tim a narrower slice: <b>NDAs only</b>, and Tim may not pass it on. Signed by Dave. Acme's eVault now holds a chain: Tim ← Dave ← Bob ← Dana's board.`,
+    scene: handOver("dave", "tim", "NDA signer", "Tim, you do NDAs. Just NDAs.", "Got it.", "Tim:"),
+  },
+  {
+    kicker: "Act 5", id: "tim-nda",
+    title: "Tim signs an NDA for Acme",
+    text: `eSigner asks Tim to sign <b>nda-globex.pdf</b> for Acme. His wallet signs it. Then eSigner traces it back through Acme's eVault: Tim's grant was signed by Dave, Dave's by Bob, Bob's by Dana, and Dana is on the board. Every hop is a signature it checks.`,
+    scene: (o) => traceScene(o, {
+      signer: "tim", cast: ["dave", "bob", "dana"], paper: "NDA",
+      say: "I'll sign this NDA for Acme.",
+      held: [["bob", "Head of Finance"], ["dave", "Finance officer"], ["tim", "NDA signer"]],
+      ok: "Traced to Dana's board. Tim may sign NDAs for Acme.",
+      okCaption: "Tim ← Dave ← Bob ← Dana: every hop signed by someone who held it.",
+    }),
+  },
+  {
+    kicker: "Act 6", id: "tim-invoice",
+    title: "Tim tries an invoice",
+    text: `Bob and Dave can sign invoices. Tim can't: Dave only gave him NDAs. The trace stops at the very first hop.`,
+    scene: (o) => traceScene(o, {
+      signer: "tim", cast: ["dave", "bob", "dana"], paper: "invoice",
+      say: "And this invoice, while I'm here.",
+      held: [["tim", "NDA signer"]],
+      bad: "Tim's grant doesn't cover invoices.",
+      badCaption: "Refused at the first hop: Dave never gave Tim invoices.",
+    }),
+  },
+  {
+    kicker: "Act 7", id: "tim-passes-on",
+    title: "Tim passes his badge to Mallory",
+    text: `Tim writes a Delegation for Mallory and signs it with his own wallet; the eVault stores it like anything else. Mallory then signs an NDA "for Acme". But Dave gave Tim his slice <b>without</b> the right to pass it on.`,
+    scene: (o) => traceScene(o, {
+      signer: "mallory", cast: ["tim", "dave", "bob", "dana"], paper: "NDA",
+      say: "Tim says I can sign NDAs!",
+      before: carried("badge", "NDA signer", [POS.tim, 330], [POS.mallory, BADGE_ROW.mallory], .4),
+      held: [["tim", "NDA signer"]],
+      bad: "Tim wasn't allowed to pass it on. Refused.",
+      badCaption: "You can only hand on what you were allowed to hand on.",
+    }),
+  },
+  {
+    kicker: "Act 8", id: "login-replay",
+    title: "Tim's signature, replayed as a login",
+    text: `Tim's NDA signature is real. Could someone use it to log in as Tim? No: everything signed for a company starts with <code>w3ds-</code>, and login checks refuse that.`,
+    scene: (o) => {
+      const running = busy === "login-replay", done = !!o && !running;
+      return world(["mallory", "door"], {
+        cabinet: cabinetLines(),
+        body: say("mallory", "Tim's signature… let me in as Tim!", .1)
+          + (running ? carried("paper", "Tim's sig", [POS.mallory + 20, 330], [POS.door[0] - 78, 330], 0, true) : "")
+          + (done ? carried("paper", "Tim's sig", [POS.mallory + 20, 330], [POS.door[0] - 78, 340], .2)
+              + bubble(...at.door(), "That's a company signature, not a login.", 1.0) + stamp(POS.door[0], 300, false, 1.6) : ""),
+        caption: running ? "Trying the login door…" : done ? "A signature made for a company never opens a login." : "Press Play this scene.",
+        captionDelay: done ? 2.0 : 0,
+      });
+    },
+  },
+  {
+    kicker: "Act 9", id: "mallory-board",
+    title: "Mallory writes herself onto the board",
+    text: `An eVault is a plain store, so Mallory writes into Acme's: herself as director, a role "Owner", a delegation to herself, all signed with her own wallet. Then she signs an NDA for Acme.`,
+    scene: (o) => traceScene(o, {
+      signer: "mallory", cast: ["dana"], paper: "NDA",
+      say: "I put myself on Acme's board. Now I sign!",
+      bad: "Nobody entitled granted that. Ignored.",
+      badCaption: "Her records really are there. They count for nothing.",
+    }),
+  },
+  {
+    kicker: "Act 10", id: "revoke-bob",
+    title: "Dana revokes Bob",
+    text: `Dana signs a revocation of Bob's delegation. Nobody touches Dave's or Tim's records, yet their authority came <b>through</b> Bob's. Tim signs again, and the trace breaks at Bob.`,
+    scene: (o) => {
+      const done = !!o && busy !== "revoke-bob";
+      return traceScene(o, {
+        signer: "tim", cast: ["dave", "bob", "dana"], paper: "NDA",
+        say: done ? "Can I still sign?" : "Another NDA for Acme.",
+        before: done ? say("dana", "Bob is out.", .2) : carried("paper", "revoke Bob", [POS.dana + 20, 330], CAB_DROP, .3),
+        held: done
+          ? [["bob", "revoked", true, .4], ["dave", "falls with it", true, .7], ["tim", "falls with it", true, 1.0]]
+          : [["bob", "Head of Finance"], ["dave", "Finance officer"], ["tim", "NDA signer"]],
+        bad: "The chain breaks at Bob. Refused.",
+        badCaption: "Revoke one link and everything handed on from it falls too.",
+      });
+    },
+  },
+  {
+    kicker: "Curtain",
+    title: "What just happened",
+    text: `Acme's eVault stored everything, Mallory's and Tim's bad grants included, and enforced nothing. Every outcome came from tracing signatures back through Acme's history to the board.`,
+    recap: true,
+    scene: () => world([...PEOPLE, "acme", "laptop"], {
+      cabinet: cabinetLines(),
+      body: bubble(...at.laptop(), "I trace every signature back to the board.", .3),
+      caption: "Who signs for Acme? Whoever a signed chain leads back to Acme's board.", captionDelay: 1.0,
+    }),
+  },
+];
+
+/* ===== rendering ===== */
+const params = new URLSearchParams(location.search);
+let index = clamp(Number(params.get("slide") || 0), 0, slides.length - 1);
+const current = () => slides[index];
+/* Revoking Bob breaks Tim's chain for good on this Acme. */
+const NEEDS_BOB = ["tim-nda", "tim-invoice", "tim-passes-on"];
+const locked = (id) => NEEDS_BOB.includes(id) && !!outcomes()["revoke-bob"];
+
+function render() {
+  const s = current();
+  const o = s.id ? outcomes()[s.id] : null;
+  document.getElementById("stage").innerHTML = s.scene(o);
+
+  let text = `<div class="kicker">${index} / ${slides.length - 1} · ${esc(s.kicker)}</div><h2>${esc(s.title)}</h2><p>${s.text}</p>`;
+  if (o && !busy) text += verdictHtml(o);
+  if (s.recap) text += recapHtml();
+  if (lastError) text += `<p class="error">${esc(lastError)}</p>`;
+  if (state && state.log.length) {
+    text += `<details><summary>show the wire: w3ds://sign URIs, wallet POSTs, verifier replies</summary><div class="wire">${
+      state.log.slice(-14).reverse().map((l) => `<div>${l.who ? esc(nameOf(l.who)) + ": " : ""}${esc(l.text)}${l.detail ? `<em>${esc(l.detail)}</em>` : ""}</div>`).join("")}</div></details>`;
+  }
+  document.getElementById("text").innerHTML = text;
+
+  let controls = "";
+  if (s.action) {
+    controls += `<button class="go" id="act" ${busy ? "disabled" : ""}>${busy === s.action.step ? "Working…" : esc(s.action.label)}</button><span class="note">${esc(s.action.note)}</span>`;
+  } else if (s.id) {
+    controls += `<button class="go" id="act" ${busy ? "disabled" : ""}>${busy === s.id ? "Signing and verifying…" : o ? "Play it again" : "Play this scene"}</button>`;
+    if (!ready()) controls += `<span class="note">No Acme yet: playing this founds one first.</span>`;
+    else if (locked(s.id)) controls += `<span class="note">Bob was revoked: playing this founds a fresh Acme first.</span>`;
+  }
+  controls += `<div class="nav"><button id="back" ${index === 0 ? "disabled" : ""}>← Back</button><button id="next" ${index === slides.length - 1 ? "disabled" : ""}>Next →</button></div>`;
+  document.getElementById("controls").innerHTML = controls;
+  const act = document.getElementById("act");
+  if (act) act.addEventListener("click", () => run(s.action ? s.action.step : s.id));
+  document.getElementById("back").addEventListener("click", () => go(index - 1));
+  document.getElementById("next").addEventListener("click", () => go(index + 1));
+
+  document.getElementById("dots").innerHTML = slides.map((sl, i) => {
+    const r = sl.id && outcomes()[sl.id];
+    return `<span title="${esc(sl.title)}" data-i="${i}" class="${i === index ? "on" : ""} ${r ? (r.passed ? "done" : "fail") : ""}"></span>`;
+  }).join("");
+  document.querySelectorAll(".dots span").forEach((d) => d.addEventListener("click", () => go(+d.dataset.i)));
+}
+
+function verdictHtml(o) {
+  const accepted = o.passed && o.expected === "valid";
+  const head = !o.passed ? "Not what the model expects!" : accepted ? "Accepted" : "Refused";
+  return `<div class="verdict ${accepted ? "ok" : "bad"}"><strong>${head}</strong><div class="why">${esc(o.summary)}</div></div>`;
+}
+
+function recapHtml() {
+  const rows = slides.filter((s) => s.id).map((s) => {
+    const o = outcomes()[s.id];
+    const mark = !o ? "–" : !o.passed ? "⚠️ unexpected" : o.expected === "valid" ? "✅ accepted" : "❌ refused";
+    return `<tr><td>${esc(s.title)}</td><td>${mark}</td></tr>`;
+  }).join("");
+  return `<table class="recap">${rows}</table>`;
+}
+
+async function api(method, path) {
+  const res = await fetch(path, { method });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error || res.statusText);
+  return body;
+}
+
+async function run(step) {
+  busy = step; lastError = ""; render();
+  try {
+    if (step === "reset") state = await api("POST", "/api/reset");
+    else if (step === "setup") state = await api("POST", "/api/setup");
+    else state = (await api("POST", `/api/scenario/${step}`)).state;
+  } catch (e) { lastError = e.message; }
+  busy = null; render();
+}
+
+function go(i) {
+  index = clamp(i, 0, slides.length - 1);
+  lastError = "";
+  history.replaceState(null, "", `?slide=${index}`);
+  render();
+}
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") go(index + 1);
+  if (e.key === "ArrowLeft") go(index - 1);
+});
+
+render();
+api("GET", "/api/state").then((s) => { state = s; render(); }).catch((e) => { lastError = e.message; render(); });
+</script>
+</body>
+</html>

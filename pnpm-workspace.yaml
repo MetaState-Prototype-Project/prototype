@@ -2,6 +2,7 @@ packages:
     - platforms/*
     - apps/*
     - packages/*
+    - examples/*
     - platforms/*/*
     - infrastructure/*
     - services/*

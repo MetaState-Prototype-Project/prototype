@@ -1,0 +1,48 @@
+{
+    "company": {
+        "name": "Acme Ltd",
+        "legalName": "Acme Limited",
+        "jurisdiction": "GB"
+    },
+    "people": {
+        "dana": { "name": "Dana", "about": "Director of Acme" },
+        "bob": { "name": "Bob", "about": "Head of Finance" },
+        "dave": { "name": "Dave", "about": "Finance officer" },
+        "tim": { "name": "Tim", "about": "Junior clerk" },
+        "mallory": { "name": "Mallory", "about": "Not part of Acme" }
+    },
+    "directors": ["dana"],
+    "roles": {
+        "finance": {
+            "title": "Head of Finance",
+            "scopes": ["@esigner:nda", "@esigner:invoice"],
+            "mayRedelegate": true
+        }
+    },
+    "delegations": {
+        "bob": {
+            "to": "bob",
+            "role": "finance",
+            "grantedBy": "dana",
+            "title": "Head of Finance",
+            "scopes": ["@esigner:nda", "@esigner:invoice"],
+            "mayRedelegate": true
+        },
+        "dave": {
+            "to": "dave",
+            "parent": "bob",
+            "grantedBy": "bob",
+            "title": "Finance officer",
+            "scopes": ["@esigner:nda", "@esigner:invoice"],
+            "mayRedelegate": true
+        },
+        "tim": {
+            "to": "tim",
+            "parent": "dave",
+            "grantedBy": "dave",
+            "title": "NDA signer",
+            "scopes": ["@esigner:nda"],
+            "mayRedelegate": false
+        }
+    }
+}

@@ -117,16 +117,15 @@ export class ManifestService {
             `
             OPTIONAL MATCH (u:User { eName: $eName })
             WITH coalesce(size(u.publicKeys), 0) = 0 AS keyless
-            RETURN keyless,
-                EXISTS {
-                    MATCH (m:MetaEnvelope { eName: $eName, ontology: $company })-[:LINKS_TO]->(n:Envelope)
-                    WHERE n.ontology IN $enameFields AND n.value = $eName
-                } AS isCompany,
-                EXISTS {
-                    MATCH (m:MetaEnvelope { eName: $eName })-[:LINKS_TO]->(n:Envelope)
-                    WHERE m.ontology IN $groupOntologies
-                      AND n.ontology IN $enameFields AND n.value = $eName
-                } AS hasGroupRecord
+            // Counted matches rather than EXISTS subqueries in RETURN, which
+            // Neo4j 4.4 (the local dev database) does not support.
+            OPTIONAL MATCH (c:MetaEnvelope { eName: $eName, ontology: $company })-[:LINKS_TO]->(cn:Envelope)
+            WHERE cn.ontology IN $enameFields AND cn.value = $eName
+            WITH keyless, count(c) > 0 AS isCompany
+            OPTIONAL MATCH (g:MetaEnvelope { eName: $eName })-[:LINKS_TO]->(gn:Envelope)
+            WHERE g.ontology IN $groupOntologies
+              AND gn.ontology IN $enameFields AND gn.value = $eName
+            RETURN keyless, isCompany, count(g) > 0 AS hasGroupRecord
             `,
             {
                 eName,
@@ -167,11 +166,21 @@ export class ManifestService {
                 MATCH (m)-[:LINKS_TO]->(n:Envelope)
                 WHERE n.ontology IN $enameFields AND n.value = $eName
             }
+            // Plain boolean logic: Neo4j 4.4 only allows EXISTS as a predicate,
+            // not as a value to compare.
             AND (
                 $shape = "any"
-                OR ($shape = "manifest") = (
-                    EXISTS { (m)-[:LINKS_TO]->(:Envelope { ontology: "members" }) }
+                OR (
+                    $shape = "manifest"
+                    AND EXISTS { (m)-[:LINKS_TO]->(:Envelope { ontology: "members" }) }
                     AND EXISTS { (m)-[:LINKS_TO]->(:Envelope { ontology: "owner" }) }
+                )
+                OR (
+                    $shape = "chat"
+                    AND NOT (
+                        EXISTS { (m)-[:LINKS_TO]->(:Envelope { ontology: "members" }) }
+                        AND EXISTS { (m)-[:LINKS_TO]->(:Envelope { ontology: "owner" }) }
+                    )
                 )
             )
             OPTIONAL MATCH (h:MetaEnvelopeHistory { metaEnvelopeId: m.id, eName: $eName })
