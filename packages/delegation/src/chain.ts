@@ -23,7 +23,12 @@ export type RecordMeta = {
     revokedAt?: number;
     cascade?: boolean;
     /** Each valid version's scopes and re-delegation right, by storage time. */
-    timeline?: { at: number; scopes: Scope[]; mayRedelegate: boolean }[];
+    timeline?: {
+        at: number;
+        status: string;
+        scopes: Scope[];
+        mayRedelegate: boolean;
+    }[];
 };
 
 export type RoleRecord = Validity & {
@@ -222,7 +227,10 @@ export async function evaluateDelegation(
                 "revoked before granting, or with everything handed on",
             );
         }
-        if (!parent.mayRedelegate) {
+        // A revoked parent that still backs this child is judged as it was
+        // when the child was granted (history enforces that); its revocation
+        // turning re-delegation off must not cascade.
+        if (!parent.mayRedelegate && parent.status !== "revoked") {
             return fail(
                 "REDELEGATION_NOT_ALLOWED",
                 id,
@@ -253,7 +261,12 @@ function stillBacks(parent: Validity, child: Validity): boolean {
     if (parent.status === "active") return true;
     // Only an explicit revocation can still back what it granted before.
     if (parent.status !== "revoked") return false;
-    const cascade = parent.meta?.cascade ?? parent.revocationCascade === true;
+    // Anything but an explicit false (or no flag) counts as a cascade, so a
+    // malformed flag fails closed.
+    const flag = parent.revocationCascade;
+    const cascade =
+        parent.meta?.cascade ??
+        (flag !== undefined && flag !== null && flag !== false);
     if (cascade) return false;
     const revokedAt =
         parent.meta?.revokedAt ??

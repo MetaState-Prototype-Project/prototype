@@ -712,6 +712,91 @@ describe("evaluateFromHistory", () => {
             });
         });
 
+        it("keeps Carol when Bob's firing also turns off passing it on", async () => {
+            const vault = await acme();
+            await vault.signed(
+                "carol",
+                DELEGATION_ONTOLOGY,
+                "@bob",
+                delegation({
+                    roleId: undefined,
+                    parentDelegationId: "bob",
+                    delegateEName: "@carol",
+                    grantedBy: "@bob",
+                    scopes: [NDA],
+                    mayRedelegate: false,
+                }),
+            );
+            await vault.signed("bob", DELEGATION_ONTOLOGY, "@dir", {
+                ...revoked(delegation(), "@dir"),
+                mayRedelegate: false,
+            });
+            expect(await evaluate(vault, "carol")).toMatchObject({ ok: true });
+        });
+
+        it("treats a malformed cascade flag as a cascade", async () => {
+            const vault = await acme();
+            await vault.signed(
+                "carol",
+                DELEGATION_ONTOLOGY,
+                "@bob",
+                delegation({
+                    roleId: undefined,
+                    parentDelegationId: "bob",
+                    delegateEName: "@carol",
+                    grantedBy: "@bob",
+                    scopes: [NDA],
+                    mayRedelegate: false,
+                }),
+            );
+            await vault.signed("bob", DELEGATION_ONTOLOGY, "@dir", {
+                ...revoked(delegation(), "@dir"),
+                revocationCascade: "true",
+            });
+            expect(await evaluate(vault, "carol")).toMatchObject({
+                ok: false,
+                code: "REVOKED",
+                at: "bob",
+            });
+        });
+
+        it("ignores grants made while the parent was in an unknown status", async () => {
+            const vault = await acme();
+            await vault.signed(
+                "bob",
+                DELEGATION_ONTOLOGY,
+                "@dir",
+                delegation({
+                    status: "suspended",
+                    updatedAt: "2026-10-05T00:00:00.000Z",
+                }),
+            );
+            await vault.signed(
+                "carol",
+                DELEGATION_ONTOLOGY,
+                "@bob",
+                delegation({
+                    roleId: undefined,
+                    parentDelegationId: "bob",
+                    delegateEName: "@carol",
+                    grantedBy: "@bob",
+                    scopes: [NDA],
+                    mayRedelegate: false,
+                }),
+            );
+            await vault.signed(
+                "bob",
+                DELEGATION_ONTOLOGY,
+                "@dir",
+                delegation({ updatedAt: "2026-10-06T00:00:00.000Z" }),
+            );
+            expect(await evaluate(vault, "bob")).toMatchObject({ ok: true });
+            expect(await evaluate(vault, "carol")).toMatchObject({
+                ok: false,
+                code: "NOT_FOUND",
+            });
+        });
+
         it("still narrows Carol when the role is narrowed", async () => {
             const vault = await fired();
             await vault.signed(

@@ -299,8 +299,12 @@ async function resolveRecord(
     // eVault's clock, which no signer controls.
     let grantedAt: number | undefined;
     let revokedAt: number | undefined;
-    const timeline: { at: number; scopes: Scope[]; mayRedelegate: boolean }[] =
-        [];
+    const timeline: {
+        at: number;
+        status: string;
+        scopes: Scope[];
+        mayRedelegate: boolean;
+    }[] = [];
 
     for (const v of await ctx.source.versions(id)) {
         if (state?.status === "revoked") break;
@@ -337,6 +341,7 @@ async function resolveRecord(
         if (p.status === "revoked") revokedAt = storedAt;
         timeline.push({
             at: storedAt,
+            status: String(p.status),
             scopes: Array.isArray(p.scopes) ? p.scopes : [],
             mayRedelegate: p.mayRedelegate === true,
         });
@@ -347,8 +352,12 @@ async function resolveRecord(
         meta: {
             grantedAt,
             revokedAt,
+            // A malformed flag counts as a cascade, so it fails closed.
             cascade:
-                revokedAt !== undefined && state.revocationCascade === true,
+                revokedAt !== undefined &&
+                state.revocationCascade !== undefined &&
+                state.revocationCascade !== null &&
+                state.revocationCascade !== false,
             timeline,
         },
     };
@@ -377,13 +386,21 @@ function stateAt(
 
 /** Whether a record still carried authority at a moment of the eVault's clock. */
 function liveAt(
-    record: { status?: string; meta?: { revokedAt?: number } } | null,
+    record: {
+        status?: string;
+        meta?: { timeline?: { at: number; status: string }[] };
+    } | null,
     at: number,
 ): boolean {
     if (!record) return false;
-    if (record.status === "active") return true;
-    if (record.status !== "revoked") return false;
-    return record.meta?.revokedAt !== undefined && at < record.meta.revokedAt;
+    // Live means active at that moment: not yet revoked, and not in some
+    // other status it may have passed through.
+    let status: string | undefined;
+    for (const entry of record.meta?.timeline ?? []) {
+        if (entry.at <= at) status = entry.status;
+        else break;
+    }
+    return status === "active";
 }
 
 /** How far a signer's clock may run ahead of the eVault's. */
