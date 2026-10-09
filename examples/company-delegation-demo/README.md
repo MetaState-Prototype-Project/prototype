@@ -13,6 +13,10 @@ pnpm --filter company-delegation-demo dev      # http://localhost:5180
 
 The page is a short story in slides (← → to move). Each slide runs its step for real; the raw records are on `/dashboard.html`.
 
+Founding (six slides) shows Acme being created and every record it holds, read back from its eVault: the keyless company eVault, the Company record born with its board, what a `w3ds-grant/v1` signature binds (record id, record hash, time), the Head of Finance role, Bob's delegation and Carol's re-delegation, each with its real fields and signer.
+
+Then the acts:
+
 | Scenario | Expected |
 |---|---|
 | Bob signs an NDA for Acme | valid, as "Head of Finance" |

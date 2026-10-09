@@ -710,6 +710,14 @@ export class Demo {
                 : null,
             records: view?.records ?? null,
             setupView: this.setupView,
+            // MetaEnvelope ids, so the page can show where each record lives.
+            ids: company
+                ? {
+                      company: company.companyId,
+                      roles: company.roles,
+                      delegations: company.delegations,
+                  }
+                : null,
             scenarios: Object.entries(this.scenarios).map(([id, s]) => ({
                 id,
                 label: s.label,
