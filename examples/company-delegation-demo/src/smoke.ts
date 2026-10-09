@@ -10,9 +10,9 @@ const { app, demo } = createApp(port);
 const server: Server = app.listen(port);
 
 const ORDER = [
-    "bob-nda",
-    "bob-invoice",
-    "carol-nda",
+    "tim-nda",
+    "tim-invoice",
+    "tim-passes-on",
     "login-replay",
     "mallory-board",
     "revoke-bob",

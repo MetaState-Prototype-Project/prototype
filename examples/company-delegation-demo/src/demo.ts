@@ -91,6 +91,18 @@ export type Outcome = {
     result?: unknown;
     /** Acme as stored and as verified right after this scenario. */
     view?: unknown;
+    /** The hops a verifier walked, signer first. */
+    trace?: TraceStep[];
+};
+
+export type TraceStep = {
+    kind: "delegation" | "role" | "board";
+    /** The person this hop is about, by config key. */
+    person?: string;
+    text: string;
+    /** true checked, false where it broke, null never reached. */
+    ok: boolean | null;
+    reason?: string;
 };
 
 const now = () => new Date().toISOString();
@@ -108,7 +120,7 @@ export class Demo {
     private cachedView: Awaited<ReturnType<Demo["view"]>> | undefined;
     /** Grant signatures never change, so each is checked against the Registry once. */
     private checked = new Map<string, Promise<boolean>>();
-    private lastBobSignature?: { payload: string; signature: string };
+    private lastSignature?: { payload: string; signature: string };
 
     constructor(private callbackUrl: string) {
         this.state = load();
@@ -165,21 +177,8 @@ export class Demo {
                 return histories.get(id) as ReturnType<typeof readHistory>;
             },
         };
-        const verify = (eName: string, payload: string, signature: string) => {
-            const key = JSON.stringify([eName, payload, signature]);
-            if (!this.checked.has(key)) {
-                this.checked.set(
-                    key,
-                    verifyEnameSignature({
-                        eName,
-                        payload,
-                        signature,
-                        registryBaseUrl: REGISTRY_URL,
-                    }).then((r) => r.valid),
-                );
-            }
-            return this.checked.get(key) as Promise<boolean>;
-        };
+        const verify = (eName: string, payload: string, signature: string) =>
+            this.verifyGrant(eName, payload, signature);
         const board = await resolveBoard(
             company.companyId,
             company.eName,
@@ -384,7 +383,7 @@ export class Demo {
 
     // ---- signing for the company --------------------------------------
 
-    /** `person` signs `document` for Acme under their delegation, and a platform verifies it. */
+    /** `person` signs `document` for Acme under a delegation, and eSigner verifies it. */
     async signFor(
         person: string,
         delegation: string,
@@ -392,12 +391,13 @@ export class Demo {
         document: string,
     ) {
         const company = this.requireCompany();
-        const title = config.delegations[delegation]?.title ?? "someone";
+        const delegationId = company.delegations[delegation];
+        const title = config.delegations[delegation]?.title ?? "Owner";
         const request = buildDelegatedSignRequest({
             onBehalfOf: company.eName,
             signer: this.eName(person),
             scope,
-            delegationId: company.delegations[delegation],
+            delegationId,
             documentHash: createHash("sha256").update(document).digest("hex"),
             session: randomUUID(),
             redirectUri: this.callbackUrl,
@@ -418,8 +418,8 @@ export class Demo {
         this.note(
             undefined,
             result.valid
-                ? `platform verified: ${config.people[person].name} signed ${document} for Acme as "${result.title}"`
-                : `platform refused: ${result.error}${result.detail ? ` (${result.detail})` : ""}`,
+                ? `eSigner verified: ${config.people[person].name} signed ${document} for Acme as "${result.title}"`
+                : `eSigner refused: ${result.error}${result.detail ? ` (${result.detail})` : ""}`,
         );
         if (result.valid) {
             await writeRecord(
@@ -429,7 +429,7 @@ export class Demo {
                 {
                     companyEName: company.eName,
                     signerEName: this.eName(person),
-                    delegationId: company.delegations[delegation],
+                    delegationId,
                     title: result.title,
                     scope,
                     documentHash: result.payload?.documentHash,
@@ -442,7 +442,166 @@ export class Demo {
                 },
             );
         }
-        return { result, payload: request.payload, signature };
+        const trace = await this.trace(delegationId, scope, result);
+        return { result, payload: request.payload, signature, trace };
+    }
+
+    /**
+     * The path a verifier walks for a signature: from the signer's delegation
+     * up through each parent to the role and the board, with the hop where it
+     * broke, if it did.
+     */
+    private async trace(
+        delegationId: string,
+        scope: string,
+        result: VerifyDelegatedSignatureResult,
+    ): Promise<TraceStep[]> {
+        const company = this.requireCompany();
+        const keyOf = (eName: string) =>
+            Object.entries(this.state.people).find(
+                ([, p]) => p.eName === eName,
+            )?.[0];
+        const name = (eName: string) =>
+            config.people[keyOf(eName) ?? ""]?.name ?? "someone";
+
+        // Where the chain evaluation stopped, read from Acme's history.
+        const histories = new Map<string, ReturnType<typeof readHistory>>();
+        const source = {
+            versions: (id: string) => {
+                if (!histories.has(id))
+                    histories.set(id, readHistory(company.eName, id));
+                return histories.get(id) as ReturnType<typeof readHistory>;
+            },
+        };
+        const chain = await evaluateFromHistory({
+            delegationId,
+            companyEName: company.eName,
+            companyId: company.companyId,
+            source,
+            verify: (e, p, s) => this.verifyGrant(e, p, s),
+        });
+        const board = await resolveBoard(
+            company.companyId,
+            company.eName,
+            source,
+            (e, p, s) => this.verifyGrant(e, p, s),
+        );
+        const directors = board.at(-1)?.directors ?? [];
+
+        const steps: (TraceStep & { id: string; grantor?: string })[] = [];
+        let id: string | undefined = delegationId;
+        for (let i = 0; id && i < 8; i++) {
+            const rec = await readRecord(company.eName, id);
+            if (!rec) break;
+            steps.push({
+                id,
+                kind: "delegation",
+                person: keyOf(rec.delegateEName),
+                grantor: name(rec.grantedBy),
+                text: `${name(rec.delegateEName)} · ${rec.title} ← ${name(rec.grantedBy)}`,
+                ok: null,
+            });
+            if (rec.roleId) {
+                const role = await readRecord(company.eName, rec.roleId);
+                steps.push({
+                    id: rec.roleId,
+                    kind: "role",
+                    text: `role ${role?.title ?? "?"} ← ${name(role?.createdBy)}`,
+                    ok: null,
+                });
+                steps.push({
+                    id: company.companyId,
+                    kind: "board",
+                    person: keyOf(directors[0] ?? ""),
+                    text: `board: ${directors.map(name).join(", ") || "none"}`,
+                    ok: null,
+                });
+                break;
+            }
+            id = rec.parentDelegationId;
+        }
+
+        const reasons: Record<string, string> = {
+            REVOKED: "revoked",
+            REDELEGATION_NOT_ALLOWED: "couldn't pass it on",
+            NOT_FOUND: "nobody entitled granted it",
+            NOT_A_SUBSET: "wider than what was given",
+            EXPIRED: "expired",
+        };
+        let failAt = -1;
+        let reason = "";
+        if (result.valid) {
+            failAt = -1;
+        } else if (result.error === "not_covered") {
+            failAt = 0;
+            reason = `doesn't cover ${scope.split(":").pop()}`;
+        } else if (!chain.ok) {
+            failAt = Math.max(
+                0,
+                steps.findIndex((s) => s.id === chain.at),
+            );
+            reason = reasons[chain.code] ?? chain.code.toLowerCase();
+            if (chain.code === "REDELEGATION_NOT_ALLOWED")
+                reason = `${steps[failAt]?.grantor ?? "the giver"} ${reason}`;
+        } else {
+            failAt = 0;
+            reason = result.detail ?? result.error ?? "refused";
+        }
+        return steps.map(({ id: _id, grantor: _g, ...s }, i) => ({
+            ...s,
+            ok: failAt < 0 || i < failAt ? true : i === failAt ? false : null,
+            reason: i === failAt ? reason : undefined,
+        }));
+    }
+
+    private verifyGrant(eName: string, payload: string, signature: string) {
+        const key = JSON.stringify([eName, payload, signature]);
+        if (!this.checked.has(key)) {
+            this.checked.set(
+                key,
+                verifyEnameSignature({
+                    eName,
+                    payload,
+                    signature,
+                    registryBaseUrl: REGISTRY_URL,
+                }).then((r) => r.valid),
+            );
+        }
+        return this.checked.get(key) as Promise<boolean>;
+    }
+
+    /** `from` signs a re-delegation of their own delegation to `to`. */
+    private async passOn(
+        from: string,
+        to: string,
+        title: string,
+        scopes: string[],
+    ) {
+        const company = this.requireCompany();
+        const parent = company.delegations[from];
+        const id = newRecordId();
+        await this.grant(
+            from,
+            company.eName,
+            DELEGATION_ONTOLOGY,
+            id,
+            {
+                companyEName: company.eName,
+                delegateEName: this.eName(to),
+                parentDelegationId: parent,
+                title,
+                scopes,
+                mayRedelegate: false,
+                grantedBy: this.eName(from),
+                status: "active",
+                createdAt: now(),
+                updatedAt: now(),
+            },
+            `Pass "${title}" on to ${config.people[to].name}`,
+        );
+        company.delegations[`${to}-from-${from}`] = id;
+        save(this.state);
+        return `${to}-from-${from}`;
     }
 
     // ---- scenarios -----------------------------------------------------
@@ -451,62 +610,57 @@ export class Demo {
         string,
         { label: string; run: () => Promise<Outcome> }
     > = {
-        "bob-nda": {
-            label: "Bob signs an NDA for Acme",
+        "tim-nda": {
+            label: "Tim signs an NDA for Acme",
             run: async () => {
-                const { result, payload, signature } = await this.signFor(
-                    "bob",
-                    "bob",
-                    "@esigner:nda",
-                    "nda-globex.pdf",
-                );
-                this.lastBobSignature = { payload, signature };
-                return outcome("bob-nda", "valid", result);
+                const { result, payload, signature, trace } =
+                    await this.signFor(
+                        "tim",
+                        "tim",
+                        "@esigner:nda",
+                        "nda-globex.pdf",
+                    );
+                this.lastSignature = { payload, signature };
+                return outcome("tim-nda", "valid", result, trace);
             },
         },
-        "bob-invoice": {
-            label: "Bob signs an invoice (not in his delegation)",
-            run: async () =>
-                outcome(
-                    "bob-invoice",
-                    "refused",
-                    (
-                        await this.signFor(
-                            "bob",
-                            "bob",
-                            "@esigner:invoice",
-                            "invoice-0042.pdf",
-                        )
-                    ).result,
-                ),
+        "tim-invoice": {
+            label: "Tim signs an invoice",
+            run: async () => {
+                const { result, trace } = await this.signFor(
+                    "tim",
+                    "tim",
+                    "@esigner:invoice",
+                    "invoice-0042.pdf",
+                );
+                return outcome("tim-invoice", "refused", result, trace);
+            },
         },
-        "carol-nda": {
-            label: "Carol signs an NDA (re-delegated by Bob)",
-            run: async () =>
-                outcome(
-                    "carol-nda",
-                    "valid",
-                    (
-                        await this.signFor(
-                            "carol",
-                            "carol",
-                            "@esigner:nda",
-                            "nda-initech.pdf",
-                        )
-                    ).result,
-                ),
+        "tim-passes-on": {
+            label: "Tim passes his badge to Mallory",
+            run: async () => {
+                const key = await this.passOn("tim", "mallory", "NDA signer", [
+                    "@esigner:nda",
+                ]);
+                const { result, trace } = await this.signFor(
+                    "mallory",
+                    key,
+                    "@esigner:nda",
+                    "nda-mallory.pdf",
+                );
+                return outcome("tim-passes-on", "refused", result, trace);
+            },
         },
         "login-replay": {
-            label: "Bob's NDA signature replayed as a login",
+            label: "Tim's NDA signature replayed as a login",
             run: async () => {
-                if (!this.lastBobSignature)
-                    await this.scenarios["bob-nda"].run();
-                const { payload, signature } = this.lastBobSignature as {
+                if (!this.lastSignature) await this.scenarios["tim-nda"].run();
+                const { payload, signature } = this.lastSignature as {
                     payload: string;
                     signature: string;
                 };
                 const login = await verifyLoginSignature({
-                    eName: this.eName("bob"),
+                    eName: this.eName("tim"),
                     signature,
                     session: payload,
                     registryBaseUrl: REGISTRY_URL,
@@ -527,13 +681,12 @@ export class Demo {
             },
         },
         "mallory-board": {
-            label: "Mallory writes herself onto Acme's board and delegates to herself",
+            label: "Mallory writes herself onto Acme's board",
             run: async () => {
                 const company = this.requireCompany();
                 const current =
                     (await readRecord(company.eName, company.companyId)) ?? {};
                 const { authorization: _drop, ...board } = current;
-                // A version signed by Mallory over the real Company record.
                 await this.grant(
                     "mallory",
                     company.eName,
@@ -586,22 +739,17 @@ export class Demo {
                 );
                 company.delegations.mallory = delegationId;
                 save(this.state);
-                return outcome(
-                    "mallory-board",
-                    "refused",
-                    (
-                        await this.signFor(
-                            "mallory",
-                            "mallory",
-                            "@esigner:nda",
-                            "nda-mallory.pdf",
-                        )
-                    ).result,
+                const { result, trace } = await this.signFor(
+                    "mallory",
+                    "mallory",
+                    "@esigner:nda",
+                    "nda-mallory.pdf",
                 );
+                return outcome("mallory-board", "refused", result, trace);
             },
         },
         "revoke-bob": {
-            label: "Dana revokes Bob, then Bob and Carol try again",
+            label: "Dana revokes Bob, then Tim signs again",
             run: async () => {
                 const company = this.requireCompany();
                 const current =
@@ -625,30 +773,13 @@ export class Demo {
                     },
                     "Revoke Bob's delegation",
                 );
-                const bob = (
-                    await this.signFor(
-                        "bob",
-                        "bob",
-                        "@esigner:nda",
-                        "nda-after-revoke.pdf",
-                    )
-                ).result;
-                const carol = (
-                    await this.signFor(
-                        "carol",
-                        "carol",
-                        "@esigner:nda",
-                        "nda-after-revoke.pdf",
-                    )
-                ).result;
-                const passed = !bob.valid && !carol.valid;
-                return {
-                    scenario: "revoke-bob",
-                    expected: "refused",
-                    passed,
-                    summary: `Bob: ${describe(bob)} · Carol: ${describe(carol)}`,
-                    result: { bob, carol },
-                };
+                const { result, trace } = await this.signFor(
+                    "tim",
+                    "tim",
+                    "@esigner:nda",
+                    "nda-after-revoke.pdf",
+                );
+                return outcome("revoke-bob", "refused", result, trace);
             },
         },
     };
@@ -754,8 +885,10 @@ function outcome(
     scenario: string,
     expected: "valid" | "refused",
     result: VerifyDelegatedSignatureResult,
+    trace?: TraceStep[],
 ): Outcome {
     return {
+        trace,
         scenario,
         expected,
         passed: expected === "valid" ? result.valid : !result.valid,

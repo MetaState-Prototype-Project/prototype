@@ -8,7 +8,7 @@
   :root {
     --bg: #fbfaf6; --paper: #ffffff; --ink: #22211d; --muted: #75736b; --line: #dedbd2;
     --accent: #3a5bd9; --ok: #1f8a54; --bad: #c8372d; --hl: #fff1b8; --ground: #ecebe4;
-    --dana: #3a5bd9; --bob: #d9822b; --carol: #2f9e8f; --mallory: #8a3ab9;
+    --dana: #3a5bd9; --bob: #d9822b; --dave: #2f9e8f; --tim: #b07d12; --mallory: #8a3ab9;
     --hand: "Comic Neue", "Comic Sans MS", "Chalkboard SE", system-ui, sans-serif;
     --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
@@ -16,7 +16,7 @@
     :root {
       --bg: #161614; --paper: #1f1f1c; --ink: #ecebe5; --muted: #a09e95; --line: #34332f;
       --accent: #8ea4ff; --ok: #6fd39c; --bad: #ff8b82; --hl: #4a4020; --ground: #262622;
-      --dana: #8ea4ff; --bob: #f0a35a; --carol: #5fd0c0; --mallory: #c58ef0;
+      --dana: #8ea4ff; --bob: #f0a35a; --dave: #5fd0c0; --tim: #e6c25a; --mallory: #c58ef0;
     }
   }
   * { box-sizing: border-box; }
@@ -73,6 +73,7 @@
   .cab-line { font: 12px var(--mono); fill: var(--ink); }
   .cab-line.bad { fill: var(--bad); }
   .cab-line.ok { fill: var(--ok); }
+  .cab-line.muted { fill: var(--muted); opacity: .55; }
   .cab-hl { fill: var(--hl); }
   .bubble rect { fill: var(--paper); stroke: var(--ink); stroke-width: 2; }
   .bubble path { fill: var(--paper); stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
@@ -117,15 +118,18 @@
 <script>
 /* ===== the world: one fixed layout that every slide reuses ===== */
 const W = 1000, H = 560, TOP = 140; // the stage shows y TOP..H
+const PEOPLE = ["dana", "bob", "dave", "tim", "mallory"];
 const POS = {
-  dana: 70, bob: 200, carol: 330, mallory: 505,  // people stand on the ground (y 400)
+  dana: 55, bob: 165, dave: 275, tim: 385, mallory: 515,  // people stand on the ground (y 400)
   building: [690, 230], cabinet: [690, 392], laptop: [880, 332], door: [962, 352],
 };
-/* Bob and Mallory speak from a higher row so neighbouring bubbles never collide. */
-const LIFT = { dana: 0, bob: 54, carol: 0, mallory: 54 };
-const NAMES = { dana: "Dana", bob: "Bob", carol: "Carol", mallory: "Mallory" };
-const ROLE = { dana: "director", bob: "finance", carol: "assistant", mallory: "outsider" };
-const COLOR = { dana: "var(--dana)", bob: "var(--bob)", carol: "var(--carol)", mallory: "var(--mallory)" };
+/* Every other person speaks from a higher row so neighbouring bubbles never collide. */
+const LIFT = { dana: 0, bob: 54, dave: 0, tim: 54, mallory: 0 };
+const NAMES = { dana: "Dana", bob: "Bob", dave: "Dave", tim: "Tim", mallory: "Mallory" };
+const ROLE = { dana: "director", bob: "finance head", dave: "finance", tim: "clerk", mallory: "outsider" };
+const COLOR = { dana: "var(--dana)", bob: "var(--bob)", dave: "var(--dave)", tim: "var(--tim)", mallory: "var(--mallory)" };
+/* Badges sit under names, alternating rows so neighbours' badges never touch. */
+const BADGE_ROW = { dana: 460, bob: 460, dave: 488, tim: 460, mallory: 488 };
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const beat = (d) => `class="beat" style="--d:${d}s"`;
@@ -135,7 +139,8 @@ function person(key, opts = {}) {
   const extra = {
     dana: `<path d="M-12,-58 q12,-14 24,0"/><path d="M-3,-27 l3,8 l3,-8"/>`,
     bob: `<path d="M-14,-56 h28"/><path d="M-9,-56 v-8 h18 v8"/>`,
-    carol: `<path d="M-13,-52 q-6,10 -2,18"/><path d="M13,-52 q6,10 2,18"/>`,
+    dave: `<circle cx="-5" cy="-46" r="4"/><circle cx="5" cy="-46" r="4"/>`,
+    tim: `<path d="M-13,-55 q13,-12 26,0 h8"/>`,
     mallory: `<path d="M-14,-49 h28" style="stroke-width:6"/>`,
   }[key];
   const arms = opts.wave
@@ -160,18 +165,20 @@ function building(dim) {
 }
 
 /* Acme's eVault, drawn as a filing cabinet listing what a verifier accepts. */
-function cabinet(lines, dim, hlIndex = -1, hlDelay = 0) {
+function cabinet(lines, dim, hlIndex = -1, hlDelay = 0, label = "Acme's eVault", sublabel = "stores anything · enforces nothing") {
   const [x, y] = POS.cabinet;
-  const w = 262, h = 118;
-  const rows = lines.slice(0, 6).map((l, i) => {
+  const shown = lines.slice(0, 7);
+  const w = 262, h = Math.max(118, 24 + shown.length * 17);
+  const rows = shown.map((l, i) => {
     const ty = y - h / 2 + 22 + i * 17;
     const hl = i === hlIndex ? `<rect ${beat(hlDelay)} class="beat cab-hl" x="${x - w / 2 + 6}" y="${ty - 12}" width="${w - 12}" height="16" rx="3"/>` : "";
     const txt = l.text.length > 33 ? l.text.slice(0, 32) + "…" : l.text;
-    return `${hl}<text class="cab-line ${l.cls || ""}" x="${x - w / 2 + 14}" y="${ty}">${esc(txt)}</text>`;
+    const line = `<text class="cab-line ${l.cls || ""}" x="${x - w / 2 + 14}" y="${ty}">${esc(txt)}</text>`;
+    return hl + (l.d !== undefined ? `<g class="beat" style="--d:${l.d}s">${line}</g>` : line);
   }).join("");
   return `<g class="${dim ? "dim" : ""}"><g class="p"><rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="7"/></g>
-    ${rows}<text class="t" x="${x}" y="${y + h / 2 + 20}">Acme's eVault</text>
-    <text class="s" x="${x}" y="${y + h / 2 + 36}">stores anything · enforces nothing</text></g>`;
+    ${rows}<text class="t" x="${x}" y="${y + h / 2 + 20}">${esc(label)}</text>
+    <text class="s" x="${x}" y="${y + h / 2 + 36}">${esc(sublabel)}</text></g>`;
 }
 
 function laptop(dim) {
@@ -207,8 +214,8 @@ function bubble(x, y, text, d = 0, color = "var(--ink)", lift = 0) {
 
 const HEAD = 300; // where a bubble tail meets a person's head
 const LAND = [POS.laptop[0] + 66, 322]; // where a signed paper lands beside eSigner
-const STAMP_AT = [POS.laptop[0], 316]; // the verdict is stamped onto eSigner itself
-const BADGE_Y = 464; // badges sit under a person's name, clear of speech
+const STAMP_AT = [POS.laptop[0], 316];
+const CAB_DROP = [POS.cabinet[0], 300]; // where a filed record lands on the cabinet // the verdict is stamped onto eSigner itself
 const at = {
   person: (k) => [POS[k], HEAD],
   said: (k) => [POS[k], HEAD, LIFT[k]],
@@ -269,9 +276,9 @@ function world(cast, layers) {
     <defs><clipPath id="clip"><rect y="${TOP}" width="${W}" height="${H - TOP}"/></clipPath></defs>
     <g clip-path="url(#clip)">
     <rect x="0" y="400" width="${W}" height="${H - 400}" style="fill:var(--ground)"/>
-    <g class="p ${on("mallory") ? "" : "dim"}"><path d="M405,400 v-34 M417,400 v-34 M429,400 v-34 M399,384 h36" style="fill:none"/></g>
-    ${["dana", "bob", "carol", "mallory"].filter((k) => !(layers.hide || []).includes(k)).map((k) => person(k, { dim: !on(k), wave: layers.wave === k })).join("")}
-    ${layers.card ? "" : building(!on("acme")) + cabinet(layers.cabinet, !on("acme"), layers.hl ?? -1, layers.hlDelay ?? 0)}
+    <g class="p ${on("mallory") ? "" : "dim"}"><path d="M438,400 v-34 M450,400 v-34 M462,400 v-34 M432,384 h36" style="fill:none"/></g>
+    ${PEOPLE.filter((k) => !(layers.hide || []).includes(k)).map((k) => person(k, { dim: !on(k), wave: layers.wave === k })).join("")}
+    ${layers.card ? "" : building(!on("acme")) + cabinet(layers.cabinet, !on("acme") && !layers.trace, layers.hl ?? -1, layers.hlDelay ?? 0, ...(layers.trace ? ["eSigner reads Acme's eVault", "and walks the chain back"] : []))}
     ${on("door") && !on("laptop") ? "" : laptop(!on("laptop"))}${on("door") ? door(false) : ""}
     ${layers.body || ""}
     ${layers.caption ? caption(layers.caption, layers.captionDelay ?? 0) : ""}
@@ -322,113 +329,188 @@ function cabinetLines() {
 const cabIndex = (prefix) => cabinetLines().findIndex((l) => l.text.startsWith(prefix));
 
 /* ===== the story ===== */
-const signerTitle = (o) => (o && o.result && o.result.title) || "";
 const why = (o) => (o && o.result ? (o.result.detail || o.result.error || "") : "");
+const BEAT = 0.75; // seconds between trace hops
+
+/* A record being signed and filed: the giver's paper flies into the cabinet. */
+function handOver(giver, taker, badgeText, line, takerLine, cabPrefix) {
+  return () => {
+    if (!ready()) return world([giver, taker, "acme"], { cabinet: cabinetLines(), caption: "Found Acme first (Act 1)." });
+    return world([giver, taker, "acme"], {
+      cabinet: cabinetLines(), hl: cabIndex(cabPrefix), hlDelay: 2.4,
+      body: say(giver, line, .1)
+        + carried("badge", badgeText, [POS[giver], 330], [POS[taker], BADGE_ROW[taker]], .9)
+        + say(taker, takerLine, 1.7)
+        + carried("paper", `signed by ${NAMES[giver]}`, [POS[giver] + 20, 330], CAB_DROP, 2.0),
+      caption: `${NAMES[giver]} signs a Delegation record for ${NAMES[taker]}. It goes into Acme's eVault.`, captionDelay: 2.8,
+    });
+  };
+}
+
+/* Badges people hold at this point of the story. */
+function badges(list) {
+  return list.map(([k, text, broken, d]) => badgeAt(POS[k], BADGE_ROW[k], text, broken, d ?? 0)).join("");
+}
+
+/*
+ * Someone signs for Acme and eSigner traces it back, hop by hop: each line of
+ * the trace appears in turn, a tick or cross lands on the person it is about,
+ * and the verdict is stamped onto eSigner.
+ */
+function traceScene(o, c) {
+  const running = busy === current().id;
+  const done = !!o && !running;
+  const steps = (done && o.trace) || [];
+  const cast = [c.signer, "acme", "laptop", ...(c.cast || [])];
+  let body = say(c.signer, c.say, .1) + (c.before || "") + (c.held ? badges(c.held) : "");
+  if (running) {
+    body += carried("paper", c.paper, [POS[c.signer] + 20, 330], LAND, 0, true)
+      + link(at.laptop(), at.cabinet(), true)
+      + bubble(...at.laptop(), "Tracing it back through Acme's eVault…", 0);
+  }
+  let lines = cabinetLines();
+  let finalDelay = 1;
+  if (done && steps.length) {
+    const start = .9;
+    lines = [];
+    steps.forEach((s, i) => {
+      const d = start + i * BEAT;
+      lines.push({ text: `${i + 1}. ${s.text}${s.ok === true ? " ✓" : s.ok === false ? " ✗" : ""}`, cls: s.ok === false ? "bad" : s.ok === true ? "ok" : "muted", d });
+      if (s.ok === false && s.reason) lines.push({ text: `   ↳ ${s.reason}`, cls: "bad", d: d + .2 });
+    });
+    body += carried("paper", c.paper, [POS[c.signer] + 20, 330], LAND, .2);
+    // ticks and crosses land on the people the trace passes through
+    let prev = null;
+    steps.forEach((s, i) => {
+      if (s.ok === null) return;
+      const d = start + i * BEAT;
+      if (s.person && POS[s.person] !== undefined) {
+        if (prev && prev !== s.person) body += link([POS[prev], 346], [POS[s.person], 346], false, d - .2);
+        body += mark(POS[s.person], 342, s.ok, d);
+        prev = s.person;
+      }
+    });
+    const reached = steps.filter((s) => s.ok !== null).length;
+    finalDelay = start + reached * BEAT;
+  }
+  const accepted = done && o.passed && o.expected === "valid";
+  if (done) {
+    body += bubble(...at.laptop(), accepted ? c.ok : c.bad, finalDelay) + stamp(...STAMP_AT, accepted, finalDelay + .5);
+  }
+  return world(cast, {
+    cabinet: lines, trace: done && steps.length > 0,
+    body,
+    caption: !ready() ? "Found Acme first (Act 1)." : running ? "eSigner is reading Acme's eVault history…" : done ? (accepted ? c.okCaption : c.badCaption) : "Press Play this scene.",
+    captionDelay: done ? finalDelay + .8 : 0,
+  });
+}
+
+/* A small tick or cross above someone's head. */
+function mark(x, y, ok, d) {
+  const color = ok ? "var(--ok)" : "var(--bad)";
+  const glyph = ok ? `<path d="M-6,0 l4,5 l9,-10"/>` : `<path d="M-5,-5 l10,10 M5,-5 l-10,10"/>`;
+  return `<g transform="translate(${x},${y})"><g class="stamp" style="--d:${d}s">
+    <circle r="12" style="fill:var(--paper);stroke:${color};stroke-width:3"/>
+    <g style="stroke:${color};stroke-width:3.5;fill:none;stroke-linecap:round;stroke-linejoin:round">${glyph}</g></g></g>`;
+}
 
 const slides = [
   {
     kicker: "Cast",
     title: "Meet the people",
-    text: `Dana runs Acme. Bob handles the money and Carol helps him. Mallory has nothing to do with Acme, but she'd like to. Each of them has a wallet: a real eVault and a real signing key, made with <code>wallet-sdk</code> on this machine.`,
+    text: `Dana runs Acme. Bob runs the finances, Dave works for Bob, and Tim has just joined. Mallory has nothing to do with Acme. Each of them has a real wallet (an eVault and a signing key, made with <code>wallet-sdk</code>), and Acme gets an eVault of its own.`,
     action: { label: "Start fresh", step: "reset", note: "Gives everyone a wallet and clears the old Acme." },
-    scene: () => world(["dana", "bob", "carol", "mallory", "acme"], {
+    scene: () => world([...PEOPLE, "acme"], {
       cabinet: cabinetLines(), wave: "dana",
-      body: say("dana", "I run Acme.", .2)
-        + say("bob", "I do the finances.", 1.0)
-        + say("carol", "I help Bob.", 1.8)
-        + say("mallory", "I'd love to sign for Acme…", 2.6),
-      caption: "Four people, four wallets. Acme gets an eVault of its own.", captionDelay: 3.2,
+      body: say("dana", "I run Acme.", .2) + say("bob", "I run the finances.", .9)
+        + say("dave", "I work for Bob.", 1.6) + say("tim", "I'm new here.", 2.3)
+        + say("mallory", "I'd love to sign for Acme…", 3.0),
+      caption: "Five wallets, one company eVault. Who gets to sign for Acme?", captionDelay: 3.6,
     }),
   },
   {
-    kicker: "Founding 1 / 6",
-    title: "Acme gets its own eVault",
-    text: `Before Acme can have records it needs somewhere to keep them. The demo provisions a <b>keyless</b> eVault for Acme: it has an eName like everyone else, but nobody holds a key to it. It is a plain store, and it doesn't care what goes in it. This one button also runs everything on the next five slides for real.`,
-    action: { label: "Create Acme", step: "setup", note: "Provisions Acme's eVault, then Dana and Bob sign each record through real w3ds://sign requests." },
+    kicker: "Act 1",
+    title: "Dana founds Acme",
+    text: `Dana writes Acme's Company record into Acme's eVault with herself on the board, and signs it with her wallet. The board is there from birth, so nobody can claim Acme later. She also defines the role <b>Head of Finance</b>: NDAs and invoices on eSigner.`,
+    action: { label: "Found Acme", step: "setup", note: "Runs every signature in Acts 1–4 for real: each is a w3ds://sign request signed by a wallet." },
     scene: () => {
-      const running = busy === "setup";
-      const done = ready() && !running;
+      const running = busy === "setup", done = ready() && !running;
       return world(["dana", "acme"], {
-        cabinet: done ? [{ text: "eName " + short(state.company.eName, 20) }, { text: "keys: none (keyless)" }, { text: "type: company" }] : cabinetLines(),
-        body: say("dana", done ? "Acme has a home." : "Acme needs somewhere to keep its records.", .1)
-          + (running ? link([POS.dana + 20, 320], at.cabinet(), true) + carried("paper", "provision", [POS.dana + 20, 330], at.cabinet(), 0, true) : ""),
-        caption: running ? "Provisioning Acme's eVault and signing its records…" : done ? "A keyless eVault: nobody holds Acme's keys. It just stores what it's given." : "Press Create Acme.",
-        captionDelay: done ? .8 : 0,
+        cabinet: cabinetLines(), hl: done ? 0 : -1, hlDelay: 1.0,
+        body: say("dana", done ? "Acme is official, and I'm on its board." : "Let's make Acme official.", .1)
+          + (running ? link([POS.dana + 20, 320], at.cabinet(), true) + carried("paper", "board: Dana", [POS.dana + 20, 330], at.cabinet(), 0, true) : "")
+          + (done ? carried("paper", "board: Dana", [POS.dana + 20, 330], CAB_DROP, .3) : ""),
+        caption: running ? "Wallets are signing Acme's records…" : done ? "Company record and role, signed by Dana, filed in Acme's eVault." : "Press Found Acme.",
+        captionDelay: done ? 1.4 : 0,
       });
     },
   },
   {
-    kicker: "Founding 2 / 6",
-    title: "The Company record: Acme, born with its board",
-    text: `The first record in Acme's eVault is the <b>Company</b> record. It says who Acme is and who its <b>directors</b> are, and it carries Dana's signature. A board only counts if the record was <b>born with it</b>: a Company record that started without directors can never get one later, so nobody can claim an existing company. Any one director can grant roles; only a sitting director can change the board.`,
-    scene: () => recordScene("company"),
+    kicker: "Act 2",
+    title: "Dana makes Bob Head of Finance",
+    text: `Dana gives Bob the role, NDAs and invoices, and lets him pass it on. That's a Delegation record: who gets it, what it covers, who granted it, all signed by Dana.`,
+    scene: handOver("dana", "bob", "Head of Finance", "Bob, you're Head of Finance.", "I can sign for Acme now.", "Bob:"),
   },
   {
-    kicker: "Founding 3 / 6",
-    title: "How a signature gets onto a record",
-    text: `Every record that hands out authority is signed by whoever is entitled to hand it out. The signature covers a short <code>w3ds-grant/v1</code> string. Because it names the record's <b>id</b>, a copy elsewhere fails. Because it includes a <b>hash of the record</b>, any edit breaks it. Because it carries a <b>time</b>, an older version can't be written back over a newer one. The wallet needs no changes: it signs the string like any other.`,
-    scene: () => signingScene(),
+    kicker: "Act 3",
+    title: "Bob passes it to Dave",
+    text: `Bob may pass his role on, so he makes Dave <b>Finance officer</b> with the same NDAs and invoices. This record points at Bob's delegation and is signed by <b>Bob</b>, not Dana. He can only hand on what he holds.`,
+    scene: handOver("bob", "dave", "Finance officer", "Dave, you can sign for Acme too.", "Thanks, Bob.", "Dave:"),
   },
   {
-    kicker: "Founding 4 / 6",
-    title: "A role: Head of Finance",
-    text: `Dana defines what a title is worth: a <b>Role</b> with a title, the <b>scopes</b> it covers (here NDAs and invoices on eSigner) and whether holders may pass it on. Only a director can create one. Scopes are ontology ids or platform keywords like <code>@esigner:nda</code>; anything touching identity, keys, logins or the company's own authority can never be a scope.`,
-    scene: () => recordScene("role"),
+    kicker: "Act 4",
+    title: "Dave gives Tim NDAs only",
+    text: `Dave hands Tim a narrower slice: <b>NDAs only</b>, and Tim may not pass it on. Signed by Dave. Acme's eVault now holds a chain: Tim ← Dave ← Bob ← Dana's board.`,
+    scene: handOver("dave", "tim", "NDA signer", "Tim, you do NDAs. Just NDAs.", "Got it.", "Tim:"),
   },
   {
-    kicker: "Founding 5 / 6",
-    title: "Bob's delegation",
-    text: `A <b>Delegation</b> gives a person a role, or a narrower slice of it. Dana gives Bob Head of Finance, but <b>NDAs only</b>, and lets him pass it on. It points at the role, its scopes must fit inside the role's, and it is signed by Dana, who granted it.`,
-    scene: () => recordScene("bob"),
-  },
-  {
-    kicker: "Founding 6 / 6",
-    title: "Carol's re-delegation, signed by Bob",
-    text: `Bob was allowed to pass his slice on, so he gives Carol <b>NDA signer</b>. This delegation points at <b>Bob's</b> delegation instead of the role, can only narrow it, and is signed by <b>Bob</b>, not Dana. Nobody can hand on more than they hold, and if Bob's delegation goes, Carol's goes with it.`,
-    scene: () => recordScene("carol"),
-  },
-  {
-    kicker: "Act 1", id: "bob-nda",
-    title: "Bob signs an NDA for Acme",
-    text: `eSigner asks Bob to sign nda-globex.pdf for Acme. His wallet signs it like anything else; eSigner then reads Acme's eVault and walks the chain back to Dana's board.`,
-    scene: (o) => actScene(o, "bob", {
-      say: "I'll sign this NDA for Acme.", paper: "NDA",
-      ok: `Bob is ${signerTitle(o) || "Head of Finance"}. Accepted.`,
-      okCaption: "Bob → Head of Finance → Dana's board: every link checks out.",
+    kicker: "Act 5", id: "tim-nda",
+    title: "Tim signs an NDA for Acme",
+    text: `eSigner asks Tim to sign <b>nda-globex.pdf</b> for Acme. His wallet signs it. Then eSigner traces it back through Acme's eVault: Tim's grant was signed by Dave, Dave's by Bob, Bob's by Dana, and Dana is on the board. Every hop is a signature it checks.`,
+    scene: (o) => traceScene(o, {
+      signer: "tim", cast: ["dave", "bob", "dana"], paper: "NDA",
+      say: "I'll sign this NDA for Acme.",
+      held: [["bob", "Head of Finance"], ["dave", "Finance officer"], ["tim", "NDA signer"]],
+      ok: "Traced to Dana's board. Tim may sign NDAs for Acme.",
+      okCaption: "Tim ← Dave ← Bob ← Dana: every hop signed by someone who held it.",
     }),
   },
   {
-    kicker: "Act 2", id: "bob-invoice",
-    title: "Bob tries an invoice",
-    text: `Bob's role covers invoices, but his badge only covers NDAs. Dana handed him the narrower slice.`,
-    scene: (o) => actScene(o, "bob", {
-      say: "And this invoice, while I'm here.", paper: "invoice", badge: "NDA only",
-      bad: "Your badge only says NDA.",
-      badCaption: "Refused: nobody gave Bob invoices.",
+    kicker: "Act 6", id: "tim-invoice",
+    title: "Tim tries an invoice",
+    text: `Bob and Dave can sign invoices. Tim can't: Dave only gave him NDAs. The trace stops at the very first hop.`,
+    scene: (o) => traceScene(o, {
+      signer: "tim", cast: ["dave", "bob", "dana"], paper: "invoice",
+      say: "And this invoice, while I'm here.",
+      held: [["tim", "NDA signer"]],
+      bad: "Tim's grant doesn't cover invoices.",
+      badCaption: "Refused at the first hop: Dave never gave Tim invoices.",
     }),
   },
   {
-    kicker: "Act 3", id: "carol-nda",
-    title: "Carol signs, through Bob",
-    text: `Carol signs an NDA for Acme. eSigner follows her chain: Carol → Bob → Head of Finance → Dana's board, checking every signature on the way.`,
-    scene: (o) => actScene(o, "carol", {
-      say: "NDA for Acme, please.", paper: "NDA", extraCast: ["bob", "dana"],
-      ok: `Carol is ${signerTitle(o) || "NDA signer"}, via Bob. Accepted.`,
-      okCaption: "Carol → Bob → Dana: authority handed down, link by link.",
-      extra: (done) => done ? chainArrow(POS.carol, POS.bob, .5) + chainArrow(POS.bob, POS.dana, .9) : "",
+    kicker: "Act 7", id: "tim-passes-on",
+    title: "Tim passes his badge to Mallory",
+    text: `Tim writes a Delegation for Mallory and signs it with his own wallet; the eVault stores it like anything else. Mallory then signs an NDA "for Acme". But Dave gave Tim his slice <b>without</b> the right to pass it on.`,
+    scene: (o) => traceScene(o, {
+      signer: "mallory", cast: ["tim", "dave", "bob", "dana"], paper: "NDA",
+      say: "Tim says I can sign NDAs!",
+      before: carried("badge", "NDA signer", [POS.tim, 330], [POS.mallory, BADGE_ROW.mallory], .4),
+      held: [["tim", "NDA signer"]],
+      bad: "Tim wasn't allowed to pass it on. Refused.",
+      badCaption: "You can only hand on what you were allowed to hand on.",
     }),
   },
   {
-    kicker: "Act 4", id: "login-replay",
-    title: "Bob's signature, replayed as a login",
-    text: `Bob's NDA signature is real. Could someone use it to log in as Bob? No: everything signed for a company starts with w3ds-, and login checks refuse that.`,
+    kicker: "Act 8", id: "login-replay",
+    title: "Tim's signature, replayed as a login",
+    text: `Tim's NDA signature is real. Could someone use it to log in as Tim? No: everything signed for a company starts with <code>w3ds-</code>, and login checks refuse that.`,
     scene: (o) => {
       const running = busy === "login-replay", done = !!o && !running;
       return world(["mallory", "door"], {
         cabinet: cabinetLines(),
-        body: say("mallory", "Bob's signature… let me in as Bob!", .1)
-          + (running ? carried("paper", "Bob's sig", [POS.mallory + 20, 330], [POS.door[0] - 78, 330], 0, true) : "")
-          + (done ? carried("paper", "Bob's sig", [POS.mallory + 20, 330], [POS.door[0] - 78, 340], .2)
+        body: say("mallory", "Tim's signature… let me in as Tim!", .1)
+          + (running ? carried("paper", "Tim's sig", [POS.mallory + 20, 330], [POS.door[0] - 78, 330], 0, true) : "")
+          + (done ? carried("paper", "Tim's sig", [POS.mallory + 20, 330], [POS.door[0] - 78, 340], .2)
               + bubble(...at.door(), "That's a company signature, not a login.", 1.0) + stamp(POS.door[0], 300, false, 1.6) : ""),
         caption: running ? "Trying the login door…" : done ? "A signature made for a company never opens a login." : "Press Play this scene.",
         captionDelay: done ? 2.0 : 0,
@@ -436,222 +518,53 @@ const slides = [
     },
   },
   {
-    kicker: "Act 5", id: "mallory-board",
-    title: "Mallory breaks into the filing cabinet",
-    text: `An eVault is a plain store, so Mallory can write into Acme's. She signs herself onto the board with her own wallet, makes a role, delegates it to herself, then signs an NDA "for Acme".`,
-    scene: (o) => {
-      const running = busy === "mallory-board", done = !!o && !running;
-      return world(["mallory", "acme", "laptop"], {
-        cabinet: cabinetLines(), hl: done ? cabIndex("board: Mallory") : -1, hlDelay: 1.2,
-        body: say("mallory", done ? "I wrote myself in. Now I sign for Acme!" : "Nobody's guarding this cabinet…", .1)
-          + (running ? carried("paper", "board: Mallory", [POS.mallory + 20, 330], at.cabinet(), 0, true) + link(at.cabinet(), at.laptop(), true) : "")
-          + (done ? carried("paper", "NDA", [POS.mallory + 20, 330], LAND, .3)
-              + bubble(...at.laptop(), "Your board entry isn't signed by a director. Ignored.", 1.2) + stamp(...STAMP_AT, false, 1.9) : ""),
-        caption: running ? "Mallory is writing into Acme's eVault…" : done ? "Her records are really there, and count for nothing." : "Press Play this scene.",
-        captionDelay: done ? 2.3 : 0,
-      });
-    },
+    kicker: "Act 9", id: "mallory-board",
+    title: "Mallory writes herself onto the board",
+    text: `An eVault is a plain store, so Mallory writes into Acme's: herself as director, a role "Owner", a delegation to herself, all signed with her own wallet. Then she signs an NDA for Acme.`,
+    scene: (o) => traceScene(o, {
+      signer: "mallory", cast: ["dana"], paper: "NDA",
+      say: "I put myself on Acme's board. Now I sign!",
+      bad: "Nobody entitled granted that. Ignored.",
+      badCaption: "Her records really are there. They count for nothing.",
+    }),
   },
   {
-    kicker: "Act 6", id: "revoke-bob",
+    kicker: "Act 10", id: "revoke-bob",
     title: "Dana revokes Bob",
-    text: `Dana signs a revocation of Bob's delegation. Nobody touches Carol's record, yet her authority came through Bob's, so it falls with it.`,
+    text: `Dana signs a revocation of Bob's delegation. Nobody touches Dave's or Tim's records, yet their authority came <b>through</b> Bob's. Tim signs again, and the trace breaks at Bob.`,
     scene: (o) => {
-      const running = busy === "revoke-bob", done = !!o && !running;
-      return world(["dana", "bob", "carol", "acme", "laptop"], {
-        cabinet: cabinetLines(), hl: done ? cabIndex("Bob:") : -1, hlDelay: .8,
-        body: say("dana", done ? "Bob is out." : "Bob, I'm taking your badge.", .1)
-          + (running ? carried("paper", "revoke Bob", [POS.dana + 20, 330], at.cabinet(), 0, true) : "")
-          + (done
-            ? badgeAt(POS.bob, BADGE_Y, "revoked", true, .6) + badgeAt(POS.carol, BADGE_Y, "falls with it", true, 1.2)
-              + say("bob", "Can I still sign?", 1.8)
-              + bubble(...at.laptop(), "Neither of you can. Refused.", 2.4) + stamp(...STAMP_AT, false, 3.0)
-            : badgeAt(POS.bob, BADGE_Y, "NDA") + badgeAt(POS.carol, BADGE_Y, "NDA signer")),
-        caption: running ? "Dana's wallet is signing the revocation…" : done ? "Revoke one link and everything handed on from it goes too." : "Press Play this scene.",
-        captionDelay: done ? 3.4 : 0,
+      const done = !!o && busy !== "revoke-bob";
+      return traceScene(o, {
+        signer: "tim", cast: ["dave", "bob", "dana"], paper: "NDA",
+        say: done ? "Can I still sign?" : "Another NDA for Acme.",
+        before: done ? say("dana", "Bob is out.", .2) : carried("paper", "revoke Bob", [POS.dana + 20, 330], CAB_DROP, .3),
+        held: done
+          ? [["bob", "revoked", true, .4], ["dave", "falls with it", true, .7], ["tim", "falls with it", true, 1.0]]
+          : [["bob", "Head of Finance"], ["dave", "Finance officer"], ["tim", "NDA signer"]],
+        bad: "The chain breaks at Bob. Refused.",
+        badCaption: "Revoke one link and everything handed on from it falls too.",
       });
     },
   },
   {
     kicker: "Curtain",
     title: "What just happened",
-    text: `Acme's eVault stored everything, Mallory's records included, and enforced nothing. Every outcome was decided by signatures and the eVault's history.`,
+    text: `Acme's eVault stored everything, Mallory's and Tim's bad grants included, and enforced nothing. Every outcome came from tracing signatures back through Acme's history to the board.`,
     recap: true,
-    scene: () => world(["dana", "bob", "carol", "mallory", "acme", "laptop", "door"], {
+    scene: () => world([...PEOPLE, "acme", "laptop"], {
       cabinet: cabinetLines(),
-      body: bubble(...at.laptop(), "I check signatures and history. The eVault just stores.", .3),
-      caption: "Who signs for Acme? Whoever Acme's own signed records say, and nobody else.", captionDelay: 1.0,
+      body: bubble(...at.laptop(), "I trace every signature back to the board.", .3),
+      caption: "Who signs for Acme? Whoever a signed chain leads back to Acme's board.", captionDelay: 1.0,
     }),
   },
 ];
-
-
-/* ===== founding: records, drawn as cards pulled from Acme's eVault ===== */
-const short = (v, n = 14) => { const t = String(v ?? ""); return t.length > n ? t.slice(0, n - 4) + "…" + t.slice(-3) : t; };
-const who = (eName) => `${nameOf(eName)} (${short(eName, 12)})`;
-const setupRecords = () => (state && (state.setupView || {}).records) || null;
-const isoShort = (t) => String(t || "").replace("T", " ").slice(0, 19);
-
-function card({ x, y, w, title, sub, rows, auth, d = 0 }) {
-  const rowH = 19, top = 46;
-  const body = rows.map((r, i) => {
-    const ty = y + top + 14 + i * rowH;
-    return `<text class="cab-line" x="${x + 16}" y="${ty}" style="fill:var(--muted)" xml:space="preserve">${esc(r.k)}</text>
-      <text class="cab-line" x="${x + 160}" y="${ty}" xml:space="preserve">${esc(r.v)}</text>
-      ${r.note ? `<text x="${x + w - 14}" y="${ty}" style="font:700 12px var(--hand);fill:var(--accent);text-anchor:end">${esc(r.note)}</text>` : ""}`;
-  }).join("");
-  const ay = y + top + 10 + rows.length * rowH + 10;
-  const authRows = (auth || []).map((r, i) => {
-    const ty = ay + 34 + i * rowH;
-    return `<text class="cab-line" x="${x + 16}" y="${ty}" style="fill:var(--muted)" xml:space="preserve">${esc(r.k)}</text>
-      <text class="cab-line" x="${x + 160}" y="${ty}" xml:space="preserve">${esc(r.v)}</text>
-      ${r.note ? `<text x="${x + w - 14}" y="${ty}" style="font:700 12px var(--hand);fill:var(--accent);text-anchor:end">${esc(r.note)}</text>` : ""}`;
-  }).join("");
-  const h = (auth ? ay + 34 + auth.length * rowH : ay) - y + 6;
-  return `<g class="beat" style="--d:${d}s">
-    <rect x="${x + 6}" y="${y + 6}" width="${w}" height="${h}" rx="10" style="fill:var(--ink);opacity:.9"/>
-    <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" style="fill:var(--paper);stroke:var(--ink);stroke-width:2.5"/>
-    <text x="${x + w / 2}" y="${y + h + 26}" class="s" style="fill:var(--muted)">↑ pulled from Acme's eVault</text>
-    <text x="${x + 16}" y="${y + 24}" style="font:700 17px var(--hand);fill:var(--ink)">${esc(title)}</text>
-    <text x="${x + 16}" y="${y + 40}" class="cab-line" style="fill:var(--muted)">${esc(sub)}</text>
-    <line x1="${x}" y1="${y + top}" x2="${x + w}" y2="${y + top}" style="stroke:var(--line);stroke-width:1.5"/>
-    ${body}
-    ${auth ? `<line x1="${x}" y1="${ay}" x2="${x + w}" y2="${ay}" style="stroke:var(--line);stroke-width:1.5"/>
-      <text x="${x + 16}" y="${ay + 18}" style="font:700 14px var(--hand);fill:var(--ink)">authorization</text>${authRows}` : ""}
-  </g>`;
-}
-
-/* The real record from Acme's eVault, as stored after setup. */
-function recordScene(which) {
-  const recs = setupRecords();
-  const ids = state && state.ids;
-  if (!ready() || !recs || !ids) {
-    return world(["dana", "acme"], { cabinet: cabinetLines(), caption: "Create Acme first (Founding 1)." });
-  }
-  const delegation = (key) => (recs.delegations.find((x) => x.key === key) || {}).record || {};
-  const role = recs.roles.filter(Boolean)[0] || {};
-  let cast, speaker, line, title, sub, rows, rec;
-  if (which === "company") {
-    rec = recs.company || {};
-    cast = ["dana", "acme"]; speaker = "dana"; line = "I sign Acme into being, with me on the board.";
-    title = "Company record"; sub = `ontology Company · id ${short(ids.company, 18)}`;
-    rows = [
-      { k: "displayName", v: rec.displayName },
-      { k: "legalName", v: rec.legalName },
-      { k: "jurisdiction", v: rec.jurisdiction },
-      { k: "eName", v: short(rec.eName, 22), note: "Acme's own eVault" },
-      { k: "directors", v: (rec.directors || []).map(nameOf).join(", "), note: "born with its board" },
-      { k: "createdAt", v: isoShort(rec.createdAt) },
-    ];
-  } else if (which === "role") {
-    rec = role;
-    cast = ["dana", "acme"]; speaker = "dana"; line = "Head of Finance: NDAs and invoices.";
-    title = "Role record"; sub = `ontology Role · id ${short(Object.values(ids.roles)[0], 18)}`;
-    rows = [
-      { k: "title", v: rec.title, note: "what people see" },
-      { k: "scopes", v: (rec.scopes || []).join(", "), note: "what it covers" },
-      { k: "mayRedelegate", v: String(rec.mayRedelegate), note: "holders may pass it on" },
-      { k: "createdBy", v: who(rec.createdBy), note: "must be a director" },
-      { k: "status", v: rec.status },
-      { k: "companyEName", v: short(rec.companyEName, 22) },
-    ];
-  } else {
-    rec = delegation(which);
-    const isCarol = which === "carol";
-    cast = isCarol ? ["bob", "carol", "acme"] : ["dana", "bob", "acme"];
-    speaker = isCarol ? "bob" : "dana";
-    line = isCarol ? "Carol, you can sign NDAs too." : "Bob, you sign NDAs for Acme.";
-    title = isCarol ? "Delegation record (re-delegation)" : "Delegation record";
-    sub = `ontology Delegation · id ${short(ids.delegations[which], 18)}`;
-    rows = [
-      { k: "delegateEName", v: who(rec.delegateEName), note: "who may sign" },
-      isCarol
-        ? { k: "parentDelegationId", v: short(rec.parentDelegationId, 18), note: "→ Bob's delegation" }
-        : { k: "roleId", v: short(rec.roleId, 18), note: "→ Head of Finance" },
-      { k: "title", v: rec.title },
-      { k: "scopes", v: (rec.scopes || []).join(", "), note: isCarol ? "inside Bob's" : "narrower than the role" },
-      { k: "mayRedelegate", v: String(rec.mayRedelegate) },
-      { k: "grantedBy", v: who(rec.grantedBy), note: isCarol ? "the parent's delegate" : "a director" },
-      { k: "status", v: rec.status },
-    ];
-  }
-  const a = rec.authorization || {};
-  const auth = [
-    { k: "signerEName", v: who(a.signerEName), note: "checked against the board" },
-    { k: "signedAt", v: isoShort(a.signedAt) },
-    { k: "signature", v: short(a.signature, 30), note: "P-256, from the wallet" },
-  ];
-  const badge = which === "bob" ? carried("badge", "Head of Finance · NDA", [POS.dana, 330], [POS.bob, BADGE_Y], .4)
-    : which === "carol" ? carried("badge", "NDA signer", [POS.bob, 330], [POS.carol, BADGE_Y], .4) : "";
-  return world(cast, {
-    cabinet: cabinetLines(), card: true, hide: ["mallory"],
-    body: say(speaker, line, .1) + badge + card({ x: 400, y: 150, w: 586, title, sub, rows, auth, d: .6 }),
-    caption: "Stored in Acme's eVault exactly like this; the eVault never checks it.", captionDelay: 1.4,
-  });
-}
-
-/* How Dana's signature ends up on the Company record. */
-function signingScene() {
-  const recs = setupRecords();
-  if (!ready() || !recs) return world(["dana", "acme"], { cabinet: cabinetLines(), caption: "Create Acme first (Founding 1)." });
-  const a = (recs.company || {}).authorization || {};
-  let p = {};
-  try { p = JSON.parse(String(a.signedPayload || "").split("\n")[1] || "{}"); } catch {}
-  const steps = [
-    { k: "1  pick the id", v: short(p.recordId, 22), note: "before anything is signed" },
-    { k: "2  build the grant", v: "w3ds-grant/v1 {", note: "" },
-    { k: "     companyEName", v: short(p.companyEName, 20), note: "which company" },
-    { k: "     ontology", v: "Company", note: "which kind of record" },
-    { k: "     recordId", v: short(p.recordId, 20), note: "a copy elsewhere fails" },
-    { k: "     recordSha256", v: short(p.recordSha256, 20), note: "any edit breaks it" },
-    { k: "     signedAt", v: isoShort(p.signedAt), note: "no older version comes back" },
-    { k: "     signer", v: nameOf(p.signer) + " }", note: "who vouches" },
-    { k: "3  w3ds://sign", v: "wallet signs, POSTs back", note: "no wallet changes" },
-    { k: "4  write", v: "record + authorization", note: "under the chosen id" },
-  ];
-  return world(["dana", "acme"], {
-    cabinet: cabinetLines(), card: true, hide: ["mallory"],
-    body: say("dana", "I approve: Set Acme's board.", .1)
-      + carried("paper", "w3ds-grant/v1", [POS.dana + 20, 330], [330, 300], 1.4)
-      + card({ x: 400, y: 150, w: 586, title: "What Dana's wallet actually signs", sub: "the w3ds-grant/v1 string from the Company record", rows: steps, d: .5 }),
-    caption: "Dana signs one short string; the record's id, contents and time are all bound to it.", captionDelay: 2.0,
-  });
-}
-
-/* Acts 1-3 share a shape: someone signs for Acme, eSigner checks. */
-function actScene(o, who, c) {
-  const running = busy && busy === current().id;
-  const done = !!o && !running;
-  const accepted = done && o.passed && o.expected === "valid";
-  const cast = [who, "acme", "laptop", ...(c.extraCast || [])];
-  const from = [POS[who] + 20, 330];
-  let body = say(who, c.say, .1);
-  if (c.badge) body += badgeAt(POS[who], BADGE_Y, c.badge);
-  if (running) {
-    body += carried("paper", c.paper, from, LAND, 0, true)
-      + link(at.laptop(), at.cabinet(), true)
-      + bubble(...at.laptop(), "Checking Acme's eVault…", 0);
-  }
-  if (done) {
-    body += carried("paper", c.paper, from, LAND, .2)
-      + link(at.laptop(), at.cabinet(), false, .7)
-      + bubble(...at.laptop(), accepted ? c.ok : (c.bad || `Refused: ${why(o)}`), 1.2)
-      + stamp(...STAMP_AT, accepted, 1.8)
-      + (c.extra ? c.extra(done) : "");
-  }
-  return world(cast, {
-    cabinet: cabinetLines(),
-    body,
-    caption: !ready() ? "Create Acme first (Founding 1)." : running ? "eSigner is reading Acme's eVault history…" : done ? (accepted ? c.okCaption : (c.badCaption || "Refused.")) : "Press Play this scene.",
-    captionDelay: done ? 2.2 : 0,
-  });
-}
 
 /* ===== rendering ===== */
 const params = new URLSearchParams(location.search);
 let index = clamp(Number(params.get("slide") || 0), 0, slides.length - 1);
 const current = () => slides[index];
-const NEEDS_BOB = ["bob-nda", "carol-nda"];
+/* Revoking Bob breaks Tim's chain for good on this Acme. */
+const NEEDS_BOB = ["tim-nda", "tim-invoice", "tim-passes-on"];
 const locked = (id) => NEEDS_BOB.includes(id) && !!outcomes()["revoke-bob"];
 
 function render() {
@@ -675,8 +588,8 @@ function render() {
   } else if (s.id) {
     const blocked = !ready() || locked(s.id);
     controls += `<button class="go" id="act" ${busy || blocked ? "disabled" : ""}>${busy === s.id ? "Signing and verifying…" : o ? "Play it again" : "Play this scene"}</button>`;
-    if (!ready()) controls += `<span class="note">Create Acme first (Founding 1).</span>`;
-    if (locked(s.id)) controls += `<span class="note">Bob was revoked in Act 6. Start fresh to replay.</span>`;
+    if (!ready()) controls += `<span class="note">Found Acme first (Act 1).</span>`;
+    if (locked(s.id)) controls += `<span class="note">Bob was revoked in Act 10. Start fresh to replay.</span>`;
   }
   controls += `<div class="nav"><button id="back" ${index === 0 ? "disabled" : ""}>← Back</button><button id="next" ${index === slides.length - 1 ? "disabled" : ""}>Next →</button></div>`;
   document.getElementById("controls").innerHTML = controls;

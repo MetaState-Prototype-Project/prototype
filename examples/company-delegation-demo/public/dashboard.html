@@ -85,7 +85,7 @@
 
 <script>
   const EXPECT = {
-    "bob-nda": "valid", "bob-invoice": "refused", "carol-nda": "valid",
+    "tim-nda": "valid", "tim-invoice": "refused", "tim-passes-on": "refused",
     "login-replay": "refused", "mallory-board": "refused", "revoke-bob": "refused",
   };
   const results = {};
@@ -138,7 +138,7 @@
     $("scenarios").innerHTML = state.scenarios.map((s) => {
       const r = results[s.id];
       const badge = r ? `<span class="tag ${r.passed ? "ok" : "bad"}">${r.passed ? "as expected" : "unexpected"}</span>` : "";
-      const locked = ["bob-nda", "carol-nda"].includes(s.id) && !!results["revoke-bob"];
+      const locked = ["tim-nda", "tim-invoice", "tim-passes-on"].includes(s.id) && !!results["revoke-bob"];
       return `<div><button data-id="${s.id}" ${locked ? "disabled title='Bob is revoked: start over to replay'" : ""}>${esc(s.label)} <span class="tag">expect ${EXPECT[s.id]}</span></button>
         ${r ? `<div class="result">${badge} ${esc(r.summary)}</div>` : ""}</div>`;
     }).join("");

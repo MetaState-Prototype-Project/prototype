@@ -13,20 +13,18 @@ pnpm --filter company-delegation-demo dev      # http://localhost:5180
 
 The page is a short story in slides (← → to move). Each slide runs its step for real; the raw records are on `/dashboard.html`.
 
-Founding (six slides) shows Acme being created and every record it holds, read back from its eVault: the keyless company eVault, the Company record born with its board, what a `w3ds-grant/v1` signature binds (record id, record hash, time), the Head of Finance role, Bob's delegation and Carol's re-delegation, each with its real fields and signer.
-
-Then the acts:
+Dana founds Acme and makes Bob Head of Finance; Bob passes it to Dave, and Dave gives Tim NDAs only. Each hand-over is a Delegation record signed by the giver. Then eSigner verifies signatures by tracing each one back through Acme's eVault, hop by hop, to the board:
 
 | Scenario | Expected |
 |---|---|
-| Bob signs an NDA for Acme | valid, as "Head of Finance" |
-| Bob signs an invoice | refused, not in his delegation |
-| Carol signs an NDA, re-delegated by Bob | valid, as "NDA signer" |
-| Bob's NDA signature replayed as a login | refused, reserved payload |
-| Mallory writes herself onto Acme's board and delegates to herself | refused, her records are ignored |
-| Dana revokes Bob, then Bob and Carol try again | both refused |
+| Tim signs an NDA for Acme | valid: Tim ← Dave ← Bob ← Dana |
+| Tim signs an invoice | refused at Tim: Dave only gave him NDAs |
+| Tim passes his badge to Mallory | refused at Mallory: Tim couldn't pass it on |
+| Tim's signature replayed as a login | refused: reserved payload |
+| Mallory writes herself onto the board | refused: nobody entitled granted it |
+| Dana revokes Bob, Tim signs again | refused at Bob: revoked |
 
-**Start fresh** (slide 0) clears Acme and Act 1 provisions a fresh company eVault; on the dashboard, **Start over with a new Acme** does both. Wallets are reused. Revoking Bob is permanent for that Acme, so the acts that need him lock until you start fresh.
+**Start fresh** (slide 0) clears Acme and Act 1 provisions a fresh company eVault; on the dashboard, **Start over with a new Acme** does both. Wallets are reused. Revoking Bob is permanent for that Acme, so the acts that need Tim's chain lock until you start fresh.
 
 ## Headless
 
