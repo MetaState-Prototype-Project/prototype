@@ -123,3 +123,43 @@ export async function readRecord(
 
 /** A fresh record id, chosen before the record is signed and written. */
 export const newRecordId = () => `@${randomUUID()}`;
+
+/** A record's versions, oldest first, from the eVault's history API. */
+export async function readHistory(
+    eName: string,
+    id: string,
+): Promise<
+    {
+        version: number;
+        operation: "create" | "update" | "delete";
+        ontology: string;
+        parsed: Record<string, any> | null;
+        createdAt: string;
+    }[]
+> {
+    const versions: any[] = [];
+    let after: string | null = null;
+    for (let page = 0; page < 20; page++) {
+        const data: {
+            metaEnvelopeHistory: {
+                edges: { node: any }[];
+                pageInfo: { hasNextPage: boolean; endCursor: string | null };
+            } | null;
+        } = await graphql(
+            eName,
+            `query History($id: ID!, $after: String) {
+                metaEnvelopeHistory(id: $id, first: 100, after: $after) {
+                    edges { node { version operation ontology parsed createdAt } }
+                    pageInfo { hasNextPage endCursor }
+                }
+            }`,
+            { id, after },
+        );
+        const conn = data.metaEnvelopeHistory;
+        if (!conn) break;
+        versions.push(...conn.edges.map((e) => e.node));
+        if (!conn.pageInfo.hasNextPage || !conn.pageInfo.endCursor) break;
+        after = conn.pageInfo.endCursor;
+    }
+    return versions.reverse();
+}

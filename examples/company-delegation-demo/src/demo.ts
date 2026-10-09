@@ -6,6 +6,7 @@ import {
     buildDelegatedSignRequest,
     buildGrantSignRequest,
     verifyDelegatedSignature,
+    verifyEnameSignature,
     verifyLoginSignature,
     type VerifyDelegatedSignatureResult,
 } from "@metastate-foundation/auth";
@@ -13,6 +14,8 @@ import {
     COMPANY_ONTOLOGY,
     DELEGATED_SIGNATURE_ONTOLOGY,
     DELEGATION_ONTOLOGY,
+    evaluateFromHistory,
+    resolveBoard,
     ROLE_ONTOLOGY,
 } from "@metastate-foundation/delegation";
 import { provision, syncPublicKeyToEvaultWithOptions } from "wallet-sdk";
@@ -21,6 +24,7 @@ import {
     platformToken,
     PROVISIONER_URL,
     provisionKeylessEVault,
+    readHistory,
     readRecord,
     REGISTRY_URL,
     VERIFICATION_ID,
@@ -85,6 +89,8 @@ export type Outcome = {
     passed: boolean;
     summary: string;
     result?: unknown;
+    /** Acme as stored and as verified right after this scenario. */
+    view?: unknown;
 };
 
 const now = () => new Date().toISOString();
@@ -94,6 +100,14 @@ export class Demo {
     private adapter: NodeWalletAdapter;
     private pending = new Map<string, (signature: string) => void>();
     readonly log: LogEntry[] = [];
+    /** The latest outcome per scenario, so a reloaded page shows them. */
+    readonly outcomes: Record<string, Outcome> = {};
+    /** Acme as stored and as verified right after setup. */
+    private setupView: unknown = null;
+    /** The last computed view; recomputed only after something changed. */
+    private cachedView: Awaited<ReturnType<Demo["view"]>> | undefined;
+    /** Grant signatures never change, so each is checked against the Registry once. */
+    private checked = new Map<string, Promise<boolean>>();
     private lastBobSignature?: { payload: string; signature: string };
 
     constructor(private callbackUrl: string) {
@@ -121,6 +135,69 @@ export class Demo {
         this.state.company = undefined;
         save(this.state);
         this.log.length = 0;
+        for (const k of Object.keys(this.outcomes)) delete this.outcomes[k];
+        this.setupView = null;
+    }
+
+    /** Runs a scenario and remembers how it ended. */
+    async run(id: string): Promise<Outcome> {
+        const scenario = this.scenarios[id];
+        if (!scenario) throw new Error(`unknown scenario ${id}`);
+        const outcome = await scenario.run();
+        outcome.view = this.cachedView = await this.view();
+        this.outcomes[id] = outcome;
+        return outcome;
+    }
+
+    /**
+     * Acme as a verifier sees it: the board and each delegation resolved from
+     * the eVault's history, where unsigned or unentitled writes count for nothing.
+     */
+    private async verifiedView() {
+        const company = this.state.company;
+        if (!company) return null;
+        // Each record's history is read once per view, however many chains use it.
+        const histories = new Map<string, ReturnType<typeof readHistory>>();
+        const source = {
+            versions: (id: string) => {
+                if (!histories.has(id))
+                    histories.set(id, readHistory(company.eName, id));
+                return histories.get(id) as ReturnType<typeof readHistory>;
+            },
+        };
+        const verify = (eName: string, payload: string, signature: string) => {
+            const key = JSON.stringify([eName, payload, signature]);
+            if (!this.checked.has(key)) {
+                this.checked.set(
+                    key,
+                    verifyEnameSignature({
+                        eName,
+                        payload,
+                        signature,
+                        registryBaseUrl: REGISTRY_URL,
+                    }).then((r) => r.valid),
+                );
+            }
+            return this.checked.get(key) as Promise<boolean>;
+        };
+        const board = await resolveBoard(
+            company.companyId,
+            company.eName,
+            source,
+            verify,
+        );
+        const delegations: Record<string, string> = {};
+        for (const [key, id] of Object.entries(company.delegations)) {
+            const chain = await evaluateFromHistory({
+                delegationId: id,
+                companyEName: company.eName,
+                companyId: company.companyId,
+                source,
+                verify,
+            });
+            delegations[key] = chain.ok ? "valid" : chain.code;
+        }
+        return { board: board.at(-1)?.directors ?? [], delegations };
     }
 
     // ---- setup ---------------------------------------------------------
@@ -578,9 +655,19 @@ export class Demo {
 
     // ---- view ------------------------------------------------------------
 
-    async snapshot() {
+    /** Acme's records as stored, and as a verifier resolves them. */
+    private async view() {
         const company = this.state.company;
-        const records = company
+        if (!company) return null;
+        return {
+            records: await this.records(),
+            verified: await this.verifiedView(),
+        };
+    }
+
+    private async records() {
+        const company = this.state.company;
+        return company
             ? {
                   company: await readRecord(company.eName, company.companyId),
                   roles: await Promise.all(
@@ -599,6 +686,18 @@ export class Demo {
                   ),
               }
             : null;
+    }
+
+    /**
+     * The page's state. Reading Acme's history costs eVault requests, so the
+     * view is only recomputed after setup, reset or a scenario changed it.
+     */
+    async snapshot(refresh = false) {
+        const company = this.state.company;
+        if (refresh || this.cachedView === undefined)
+            this.cachedView = await this.view();
+        const view = this.cachedView;
+        if (company && !this.setupView) this.setupView = view;
         return {
             people: Object.fromEntries(
                 Object.entries(this.state.people).map(([k, p]) => [
@@ -609,11 +708,14 @@ export class Demo {
             company: company
                 ? { eName: company.eName, companyId: company.companyId }
                 : null,
-            records,
+            records: view?.records ?? null,
+            setupView: this.setupView,
             scenarios: Object.entries(this.scenarios).map(([id, s]) => ({
                 id,
                 label: s.label,
             })),
+            verified: view?.verified ?? null,
+            outcomes: this.outcomes,
             log: this.log.slice(-60),
         };
     }

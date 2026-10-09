@@ -46,7 +46,7 @@ export function createApp(port: number) {
         "/api/setup",
         handle(async () => {
             await demo.setup();
-            return demo.snapshot();
+            return demo.snapshot(true);
         }),
     );
     app.post(
@@ -54,18 +54,14 @@ export function createApp(port: number) {
         handle(async () => {
             demo.reset();
             await demo.preparePeople();
-            return demo.snapshot();
+            return demo.snapshot(true);
         }),
     );
     app.post(
         "/api/scenario/:id",
         handle(async (req) => {
-            const scenario = demo.scenarios[req.params.id];
-            if (!scenario) throw new Error(`unknown scenario ${req.params.id}`);
-            return {
-                outcome: await scenario.run(),
-                state: await demo.snapshot(),
-            };
+            const outcome = await demo.run(req.params.id);
+            return { outcome, state: await demo.snapshot() };
         }),
     );
     return { app, demo };

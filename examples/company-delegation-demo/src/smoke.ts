@@ -23,7 +23,7 @@ try {
     await demo.setup();
     console.log("setup ✓");
     for (const id of ORDER) {
-        const outcome = await demo.scenarios[id].run();
+        const outcome = await demo.run(id);
         console.log(
             `${outcome.passed ? "✓" : "✗"} ${demo.scenarios[id].label}: ${outcome.summary}`,
         );
