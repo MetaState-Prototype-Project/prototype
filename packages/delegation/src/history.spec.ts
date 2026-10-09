@@ -674,6 +674,44 @@ describe("evaluateFromHistory", () => {
             });
         });
 
+        it("never wakes up a grant that was wider than its parent when made", async () => {
+            const vault = await acme();
+            // Bob is narrowed to NDAs, then grants Carol NDAs and invoices.
+            await vault.signed(
+                "bob",
+                DELEGATION_ONTOLOGY,
+                "@dir",
+                delegation({
+                    scopes: [NDA],
+                    updatedAt: "2026-10-05T00:00:00.000Z",
+                }),
+            );
+            await vault.signed(
+                "carol",
+                DELEGATION_ONTOLOGY,
+                "@bob",
+                delegation({
+                    roleId: undefined,
+                    parentDelegationId: "bob",
+                    delegateEName: "@carol",
+                    grantedBy: "@bob",
+                    scopes: [NDA, INVOICE],
+                    mayRedelegate: false,
+                }),
+            );
+            // Widening Bob again must not make Carol's old grant valid.
+            await vault.signed(
+                "bob",
+                DELEGATION_ONTOLOGY,
+                "@dir",
+                delegation({ updatedAt: "2026-10-06T00:00:00.000Z" }),
+            );
+            expect(await evaluate(vault, "carol")).toMatchObject({
+                ok: false,
+                code: "NOT_FOUND",
+            });
+        });
+
         it("still narrows Carol when the role is narrowed", async () => {
             const vault = await fired();
             await vault.signed(

@@ -13,6 +13,7 @@ import {
     ROLE_ONTOLOGY,
 } from "./ontologies";
 import { checkGrantAuthorization, type VerifySignature } from "./payloads";
+import { isScopeSubset, type Scope } from "./scopes";
 
 /**
  * One version of a MetaEnvelope as the eVault's `metaEnvelopeHistory` returns
@@ -162,13 +163,31 @@ export function historyChainSource(ctx: HistoryContext): ChainSource {
                 const directors = boardAt(ctx.board, at);
                 // Whether the grantor of this record still held their
                 // authority at that moment: a sitting director for a role
-                // assignment, a live parent for a re-delegation.
-                const grantorLive = async (rec: Record<string, any>) => {
+                // assignment, a live parent for a re-delegation. A grant must
+                // also fit what its source held then, so widening the source
+                // later can never wake up a grant that was too wide.
+                const grantorLive = async (
+                    rec: Record<string, any>,
+                    isGrant: boolean,
+                ) => {
+                    const fits = (
+                        source: {
+                            scopes: Scope[];
+                            mayRedelegate: boolean;
+                        } | null,
+                        needsRedelegate: boolean,
+                    ) =>
+                        !isGrant ||
+                        (!!source &&
+                            Array.isArray(rec.scopes) &&
+                            isScopeSubset(rec.scopes, source.scopes) &&
+                            (!needsRedelegate || source.mayRedelegate));
                     if (typeof rec.roleId === "string") {
                         const role = await source.role(rec.roleId);
                         return (
                             directors.includes(rec.grantedBy) &&
-                            liveAt(role, at)
+                            liveAt(role, at) &&
+                            fits(stateAt(role, at), rec.mayRedelegate === true)
                         );
                     }
                     if (typeof rec.parentDelegationId === "string") {
@@ -178,7 +197,8 @@ export function historyChainSource(ctx: HistoryContext): ChainSource {
                         );
                         return (
                             parent?.delegateEName === rec.grantedBy &&
-                            liveAt(parent, at)
+                            liveAt(parent, at) &&
+                            fits(stateAt(parent, at), true)
                         );
                     }
                     return false;
@@ -190,11 +210,12 @@ export function historyChainSource(ctx: HistoryContext): ChainSource {
                     if (!revokedBySigner(p, signer)) return false;
                     if (directors.includes(signer)) return true;
                     return (
-                        signer === state.grantedBy && (await grantorLive(state))
+                        signer === state.grantedBy &&
+                        (await grantorLive(state, false))
                     );
                 }
                 if (p.grantedBy !== signer) return false;
-                return grantorLive(p);
+                return grantorLive(p, true);
             },
         )) as DelegationRecord | null;
         delegations.set(id, resolved);
@@ -278,6 +299,8 @@ async function resolveRecord(
     // eVault's clock, which no signer controls.
     let grantedAt: number | undefined;
     let revokedAt: number | undefined;
+    const timeline: { at: number; scopes: Scope[]; mayRedelegate: boolean }[] =
+        [];
 
     for (const v of await ctx.source.versions(id)) {
         if (state?.status === "revoked") break;
@@ -312,6 +335,11 @@ async function resolveRecord(
         const storedAt = Date.parse(v.createdAt);
         grantedAt ??= storedAt;
         if (p.status === "revoked") revokedAt = storedAt;
+        timeline.push({
+            at: storedAt,
+            scopes: Array.isArray(p.scopes) ? p.scopes : [],
+            mayRedelegate: p.mayRedelegate === true,
+        });
     }
     if (!state) return null;
     return {
@@ -321,8 +349,30 @@ async function resolveRecord(
             revokedAt,
             cascade:
                 revokedAt !== undefined && state.revocationCascade === true,
+            timeline,
         },
     };
+}
+
+/** A record's scopes and re-delegation right as they stood at a moment. */
+function stateAt(
+    record: {
+        meta?: {
+            timeline?: {
+                at: number;
+                scopes: Scope[];
+                mayRedelegate: boolean;
+            }[];
+        };
+    } | null,
+    at: number,
+): { scopes: Scope[]; mayRedelegate: boolean } | null {
+    let found: { scopes: Scope[]; mayRedelegate: boolean } | null = null;
+    for (const entry of record?.meta?.timeline ?? []) {
+        if (entry.at <= at) found = entry;
+        else break;
+    }
+    return found;
 }
 
 /** Whether a record still carried authority at a moment of the eVault's clock. */
@@ -331,7 +381,8 @@ function liveAt(
     at: number,
 ): boolean {
     if (!record) return false;
-    if (record.status !== "revoked") return true;
+    if (record.status === "active") return true;
+    if (record.status !== "revoked") return false;
     return record.meta?.revokedAt !== undefined && at < record.meta.revokedAt;
 }
 

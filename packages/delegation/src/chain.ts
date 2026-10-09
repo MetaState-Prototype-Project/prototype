@@ -22,6 +22,8 @@ export type RecordMeta = {
     grantedAt?: number;
     revokedAt?: number;
     cascade?: boolean;
+    /** Each valid version's scopes and re-delegation right, by storage time. */
+    timeline?: { at: number; scopes: Scope[]; mayRedelegate: boolean }[];
 };
 
 export type RoleRecord = Validity & {
@@ -136,10 +138,12 @@ export async function evaluateDelegation(
     const appLimits: Record<string, unknown>[] = [];
     // What the signer may sign now: every link's current scopes, intersected,
     // so narrowing anything above shrinks everything below.
-    let effective = new Set(leaf.scopes.map((s) => normaliseScope(s)));
-    const narrow = (scopes: Scope[]) => {
+    let effective = new Set<string | null>();
+    const narrow = (scopes: unknown): boolean => {
+        if (!Array.isArray(scopes)) return false;
         const keep = new Set(scopes.map((s) => normaliseScope(s)));
         effective = new Set([...effective].filter((s) => keep.has(s)));
+        return true;
     };
     let id = delegationId;
     let current = leaf;
@@ -159,6 +163,10 @@ export async function evaluateDelegation(
             current !== leaf,
         );
         if (problem) return fail(problem.code, id, problem.message);
+        // The signer's scopes are only read once they are known to be well formed.
+        if (current === leaf) {
+            effective = new Set(leaf.scopes.map((s) => normaliseScope(s)));
+        }
         if (current.appLimits) appLimits.unshift(current.appLimits);
 
         if (current.roleId) {
@@ -200,6 +208,13 @@ export async function evaluateDelegation(
         const parentId = current.parentDelegationId as string;
         const parent = await source.delegation(parentId);
         if (!parent) return fail("NOT_FOUND", parentId, "parent not found");
+        if (parent.status !== "active" && parent.status !== "revoked") {
+            return fail(
+                "MALFORMED",
+                parentId,
+                `unknown status ${String(parent.status)}`,
+            );
+        }
         if (!stillBacks(parent, current)) {
             return fail(
                 "REVOKED",
@@ -221,7 +236,9 @@ export async function evaluateDelegation(
                 "not granted by the parent's delegate",
             );
         }
-        narrow(parent.scopes);
+        if (!narrow(parent.scopes)) {
+            return fail("MALFORMED", parentId, "bad scopes");
+        }
         id = parentId;
         current = parent;
     }
@@ -233,7 +250,9 @@ export async function evaluateDelegation(
  * revocation explicitly cascades to everything handed on.
  */
 function stillBacks(parent: Validity, child: Validity): boolean {
-    if (parent.status !== "revoked") return true;
+    if (parent.status === "active") return true;
+    // Only an explicit revocation can still back what it granted before.
+    if (parent.status !== "revoked") return false;
     const cascade = parent.meta?.cascade ?? parent.revocationCascade === true;
     if (cascade) return false;
     const revokedAt =
@@ -268,8 +287,18 @@ function linkProblem(
             };
         }
     }
-    if (record.status !== "active" && !revokedIsJudgedSeparately) {
-        return { code: "REVOKED", message: "revoked" };
+    if (record.status !== "active") {
+        // Only an explicit revocation above the signer is judged separately;
+        // any other status fails closed.
+        if (record.status !== "revoked") {
+            return {
+                code: "MALFORMED",
+                message: `unknown status ${String(record.status)}`,
+            };
+        }
+        if (!revokedIsJudgedSeparately) {
+            return { code: "REVOKED", message: "revoked" };
+        }
     }
     const window = windowProblem(record, now);
     if (window) return { code: window, message: window.toLowerCase() };

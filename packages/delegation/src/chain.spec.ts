@@ -189,6 +189,62 @@ describe("evaluateDelegation", () => {
         expect(result).toMatchObject({ ok: false, code: "REVOKED", at: "d1" });
     });
 
+    it("fails closed on an ancestor with an unknown status", async () => {
+        const result = await evaluate(
+            "d2",
+            source(
+                { r1: role() },
+                {
+                    d1: delegation({ status: "suspended" as "active" }),
+                    d2: delegation({
+                        roleId: undefined,
+                        parentDelegationId: "d1",
+                        grantedBy: "@bob",
+                        delegateEName: "@carol",
+                        mayRedelegate: false,
+                    }),
+                },
+            ),
+        );
+        expect(result).toMatchObject({
+            ok: false,
+            code: "MALFORMED",
+            at: "d1",
+        });
+    });
+
+    it("refuses malformed scopes instead of throwing", async () => {
+        const leaf = await evaluate(
+            "d1",
+            source(
+                { r1: role() },
+                {
+                    d1: delegation({
+                        scopes: undefined as unknown as string[],
+                    }),
+                },
+            ),
+        );
+        expect(leaf).toMatchObject({ ok: false, code: "MALFORMED" });
+        const parent = await evaluate(
+            "d2",
+            source(
+                { r1: role() },
+                {
+                    d1: delegation({ scopes: "nda" as unknown as string[] }),
+                    d2: delegation({
+                        roleId: undefined,
+                        parentDelegationId: "d1",
+                        grantedBy: "@bob",
+                        delegateEName: "@carol",
+                        mayRedelegate: false,
+                    }),
+                },
+            ),
+        );
+        expect(parent).toMatchObject({ ok: false, code: "MALFORMED" });
+    });
+
     it("rejects a revoked role", async () => {
         const result = await evaluate(
             "d1",

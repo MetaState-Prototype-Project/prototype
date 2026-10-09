@@ -156,6 +156,7 @@ Every payload in this model starts with `w3ds-`. Login verifiers (`verifyLoginSi
 - **Cascading is explicit.** A revocation with `revocationCascade: true` also revokes everything handed on from that record. One signed record does it; the children are not touched.
 - **Anything signed after the revocation doesn't count.** A fired Bob can't grant, update or revoke anything.
 - **Holders below a fired link can keep handing on.** Dave can still re-delegate, if his own record allows it.
+- **A grant can never be wider than its source was when it was made.** If Bob holds only NDAs when he grants Dave NDAs and invoices, that grant never counts, even if Bob is widened later.
 - **Narrowing always follows the parent now.** If Bob's delegation (or the role) loses invoices, everyone below Bob loses invoices at the next verification, whatever they were originally given.
 
 ```mermaid
