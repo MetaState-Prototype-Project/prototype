@@ -22,7 +22,7 @@ The page is a short story in slides (← → to move). Each slide runs its step 
 | Mallory writes herself onto Acme's board and delegates to herself | refused, her records are ignored |
 | Dana revokes Bob, then Bob and Carol try again | both refused |
 
-**Start over with a new Acme** provisions a fresh company eVault; the people's wallets are reused.
+**Start fresh** (slide 0) clears Acme and Act 1 provisions a fresh company eVault; on the dashboard, **Start over with a new Acme** does both. Wallets are reused. Revoking Bob is permanent for that Acme, so the acts that need him lock until you start fresh.
 
 ## Headless
 

@@ -138,7 +138,8 @@
     $("scenarios").innerHTML = state.scenarios.map((s) => {
       const r = results[s.id];
       const badge = r ? `<span class="tag ${r.passed ? "ok" : "bad"}">${r.passed ? "as expected" : "unexpected"}</span>` : "";
-      return `<div><button data-id="${s.id}">${esc(s.label)} <span class="tag">expect ${EXPECT[s.id]}</span></button>
+      const locked = ["bob-nda", "carol-nda"].includes(s.id) && !!results["revoke-bob"];
+      return `<div><button data-id="${s.id}" ${locked ? "disabled title='Bob is revoked: start over to replay'" : ""}>${esc(s.label)} <span class="tag">expect ${EXPECT[s.id]}</span></button>
         ${r ? `<div class="result">${badge} ${esc(r.summary)}</div>` : ""}</div>`;
     }).join("");
     $("scenarios").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => run(b.dataset.id)));
@@ -157,7 +158,8 @@
 
   $("setup").addEventListener("click", async () => { const s = await call("POST", "/api/setup"); if (s) { state = s; render(); } });
   $("reset").addEventListener("click", async () => {
-    const s = await call("POST", "/api/reset");
+    if (!(await call("POST", "/api/reset"))) return;
+    const s = await call("POST", "/api/setup");
     if (s) { for (const k in results) delete results[k]; state = s; render(); }
   });
   call("GET", "/api/state").then((s) => { if (s) { state = s; render(); } });

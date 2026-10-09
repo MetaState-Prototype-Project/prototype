@@ -224,7 +224,7 @@ const slides = [
     scene: () => svg(person("dana", 90, 200, { phone: true, wave: true, sub: "director" }) + person("bob", 210, 200, { phone: true, sub: "finance" })
       + person("carol", 320, 200, { phone: true, sub: "assistant" }) + person("mallory", 640, 200, { phone: true, sub: "outsider" })
       + building(470, 160) + `<text class="sub" x="360" y="400" style="text-anchor:middle">${ready() ? "everyone has an eVault" : "nobody exists yet"}</text>`),
-    action: { label: "Start fresh", run: () => api("POST", "/api/reset"), note: "Creates the wallets and a brand-new Acme." },
+    action: { label: "Start fresh", run: () => api("POST", "/api/reset"), note: "Makes sure everyone has a wallet and clears the old Acme. Act 1 creates the new one." },
   },
   {
     kicker: "Act 1",
@@ -316,6 +316,11 @@ function verdictStamp(o, x, y) {
 }
 const expectedValid = (o) => o.expected === "valid";
 
+/* Revoking Bob is permanent for this Acme, so acts that need Bob's
+   delegation can only be replayed on a fresh one. */
+const NEEDS_BOB = ["bob-nda", "carol-nda"];
+const lockedByRevoke = (id) => NEEDS_BOB.includes(id) && !!outcomes["revoke-bob"];
+
 /* ---------- rendering ---------- */
 let index = 0;
 
@@ -332,8 +337,10 @@ function render() {
              <p class="note">${esc(s.action.note)}</p>`;
   }
   if (s.id) {
-    html += `<div class="actions"><button class="go" id="act" ${busy || !ready() ? "disabled" : ""}>${busy ? "Signing and verifying…" : o ? "Run it again" : "Play this scene"}</button></div>`;
+    const locked = lockedByRevoke(s.id);
+    html += `<div class="actions"><button class="go" id="act" ${busy || !ready() || locked ? "disabled" : ""}>${busy ? "Signing and verifying…" : o ? "Run it again" : "Play this scene"}</button></div>`;
     if (!ready()) html += `<p class="note">Create Acme in Act 1 first.</p>`;
+    if (locked) html += `<p class="note">Dana revoked Bob in Act 8, which is permanent for this Acme. Start fresh (slide 0) to replay this act.</p>`;
     if (o) html += verdictHtml(o) + (s.after || "");
   }
   if (s.recap) html += recapHtml();
