@@ -335,7 +335,7 @@ const BEAT = 0.75; // seconds between trace hops
 /* A record being signed and filed: the giver's paper flies into the cabinet. */
 function handOver(giver, taker, badgeText, line, takerLine, cabPrefix) {
   return () => {
-    if (!ready()) return world([giver, taker, "acme"], { cabinet: cabinetLines(), caption: "Found Acme first (Act 1)." });
+    if (!ready()) return world([giver, taker, "acme"], { cabinet: cabinetLines(), caption: "Press Play this scene. Acme is founded automatically if needed." });
     return world([giver, taker, "acme"], {
       cabinet: cabinetLines(), hl: cabIndex(cabPrefix), hlDelay: 2.4,
       body: say(giver, line, .1)
@@ -400,7 +400,7 @@ function traceScene(o, c) {
   return world(cast, {
     cabinet: lines, trace: done && steps.length > 0,
     body,
-    caption: !ready() ? "Found Acme first (Act 1)." : running ? "eSigner is reading Acme's eVault history…" : done ? (accepted ? c.okCaption : c.badCaption) : "Press Play this scene.",
+    caption: !ready() ? "Press Play this scene. Acme is founded automatically if needed." : running ? "eSigner is reading Acme's eVault history…" : done ? (accepted ? c.okCaption : c.badCaption) : "Press Play this scene.",
     captionDelay: done ? finalDelay + .8 : 0,
   });
 }
@@ -586,10 +586,9 @@ function render() {
   if (s.action) {
     controls += `<button class="go" id="act" ${busy ? "disabled" : ""}>${busy === s.action.step ? "Working…" : esc(s.action.label)}</button><span class="note">${esc(s.action.note)}</span>`;
   } else if (s.id) {
-    const blocked = !ready() || locked(s.id);
-    controls += `<button class="go" id="act" ${busy || blocked ? "disabled" : ""}>${busy === s.id ? "Signing and verifying…" : o ? "Play it again" : "Play this scene"}</button>`;
-    if (!ready()) controls += `<span class="note">Found Acme first (Act 1).</span>`;
-    if (locked(s.id)) controls += `<span class="note">Bob was revoked in Act 10. Start fresh to replay.</span>`;
+    controls += `<button class="go" id="act" ${busy ? "disabled" : ""}>${busy === s.id ? "Signing and verifying…" : o ? "Play it again" : "Play this scene"}</button>`;
+    if (!ready()) controls += `<span class="note">No Acme yet: playing this founds one first.</span>`;
+    else if (locked(s.id)) controls += `<span class="note">Bob was revoked: playing this founds a fresh Acme first.</span>`;
   }
   controls += `<div class="nav"><button id="back" ${index === 0 ? "disabled" : ""}>← Back</button><button id="next" ${index === slides.length - 1 ? "disabled" : ""}>Next →</button></div>`;
   document.getElementById("controls").innerHTML = controls;

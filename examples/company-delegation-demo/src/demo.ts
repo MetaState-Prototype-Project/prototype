@@ -155,6 +155,7 @@ export class Demo {
     async run(id: string): Promise<Outcome> {
         const scenario = this.scenarios[id];
         if (!scenario) throw new Error(`unknown scenario ${id}`);
+        await this.heal(id);
         const outcome = await scenario.run();
         outcome.view = this.cachedView = await this.view();
         this.outcomes[id] = outcome;
@@ -857,6 +858,41 @@ export class Demo {
             outcomes: this.outcomes,
             log: this.log.slice(-60),
         };
+    }
+
+    /**
+     * Scenarios can run in any order, so each first gets what it needs: an
+     * Acme that exists in its eVault, and for the ones that rely on Tim's
+     * chain, one where Bob has not been revoked. Anything else starts a fresh
+     * Acme.
+     */
+    private async heal(id: string): Promise<void> {
+        const company = this.state.company;
+        let usable = false;
+        if (company) {
+            try {
+                usable =
+                    (await readRecord(company.eName, company.companyId)) !==
+                    null;
+            } catch {
+                usable = false;
+            }
+        }
+        const needsChain = ["tim-nda", "tim-invoice", "tim-passes-on"].includes(
+            id,
+        );
+        const chainBroken = needsChain && !!this.outcomes["revoke-bob"];
+        if (usable && !chainBroken) return;
+        const why = !company
+            ? "no Acme yet: founding it first"
+            : chainBroken
+              ? "Bob was revoked on this Acme: founding a fresh one"
+              : "Acme's eVault is gone: founding a fresh one";
+        this.reset();
+        this.note(undefined, why);
+        await this.setup();
+        this.cachedView = await this.view();
+        this.setupView = this.cachedView;
     }
 
     private requireCompany() {
