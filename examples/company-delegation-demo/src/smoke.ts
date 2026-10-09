@@ -16,6 +16,7 @@ const ORDER = [
     "login-replay",
     "mallory-board",
     "revoke-bob",
+    "revoke-dave",
 ];
 let failed = 0;
 try {

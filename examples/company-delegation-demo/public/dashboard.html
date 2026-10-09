@@ -86,7 +86,7 @@
 <script>
   const EXPECT = {
     "tim-nda": "valid", "tim-invoice": "refused", "tim-passes-on": "refused",
-    "login-replay": "refused", "mallory-board": "refused", "revoke-bob": "refused",
+    "login-replay": "refused", "mallory-board": "refused", "revoke-bob": "valid", "revoke-dave": "refused",
   };
   const results = {};
   const $ = (id) => document.getElementById(id);
@@ -138,8 +138,8 @@
     $("scenarios").innerHTML = state.scenarios.map((s) => {
       const r = results[s.id];
       const badge = r ? `<span class="tag ${r.passed ? "ok" : "bad"}">${r.passed ? "as expected" : "unexpected"}</span>` : "";
-      const locked = ["tim-nda", "tim-invoice", "tim-passes-on"].includes(s.id) && !!results["revoke-bob"];
-      return `<div><button data-id="${s.id}" ${locked ? "title='Bob is revoked: plays on a fresh Acme'" : ""}>${esc(s.label)} <span class="tag">expect ${EXPECT[s.id]}</span></button>
+      const locked = ["tim-nda", "tim-invoice", "tim-passes-on", "revoke-bob", "revoke-dave"].includes(s.id) && !!results["revoke-dave"];
+      return `<div><button data-id="${s.id}" ${locked ? "title='Dave is revoked: plays on a fresh Acme'" : ""}>${esc(s.label)} <span class="tag">expect ${EXPECT[s.id]}</span></button>
         ${r ? `<div class="result">${badge} ${esc(r.summary)}</div>` : ""}</div>`;
     }).join("");
     $("scenarios").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => run(b.dataset.id)));

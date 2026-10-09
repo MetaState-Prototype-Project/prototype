@@ -1,16 +1,34 @@
 import type { DelegatedSignPayload } from "./payloads";
-import {
-    checkScopes,
-    isCoreScope,
-    isScopeSubset,
-    normaliseScope,
-    type Scope,
-} from "./scopes";
+import { checkScopes, isCoreScope, normaliseScope, type Scope } from "./scopes";
 
 type Validity = {
     validFrom?: string | null;
     validUntil?: string | null;
     status: "active" | "revoked";
+    createdAt?: string;
+    revokedAt?: string | null;
+    /** Set on a revocation that also revokes everything handed on from it. */
+    revocationCascade?: boolean | null;
+    /** Trusted timing from the eVault's history, when the source has it. */
+    meta?: RecordMeta;
+};
+
+/**
+ * When a record was first validly granted and validly revoked, by the eVault's
+ * own storage clock, and whether that revocation cascades. History-backed
+ * sources fill this in; without it the record's own dates are used.
+ */
+export type RecordMeta = {
+    grantedAt?: number;
+    revokedAt?: number;
+    cascade?: boolean;
+    /** Each valid version's scopes and re-delegation right, by storage time. */
+    timeline?: {
+        at: number;
+        status: string;
+        scopes: Scope[];
+        mayRedelegate: boolean;
+    }[];
 };
 
 export type RoleRecord = Validity & {
@@ -47,7 +65,6 @@ export type ChainFailureCode =
     | "MALFORMED"
     | "CORE_SCOPE"
     | "WRONG_COMPANY"
-    | "NOT_A_SUBSET"
     | "REDELEGATION_NOT_ALLOWED"
     | "WRONG_GRANTOR"
     | "CYCLE"
@@ -100,9 +117,11 @@ export function isWindowWithin(child: Validity, parent: Validity): boolean {
 
 /**
  * Walks a delegation up to the role it ultimately assigns and decides what it
- * lets its delegate sign now. Every link must be live, stay within the
- * company, only narrow its parent, be granted by its parent's delegate, and
- * come from a parent that allows re-delegation.
+ * lets its delegate sign now. The delegate's own link must be live. Each link
+ * above must stay within the company, allow re-delegation, and either be live
+ * or have been revoked only after granting what is below it (and without
+ * cascading). What can be signed is the intersection of every link's current
+ * scopes, so narrowing a parent narrows everything below it.
  *
  * Whether a director was entitled to assign the role is checked when the
  * record is written (the eVault's write guard), not here.
@@ -122,6 +141,15 @@ export async function evaluateDelegation(
 
     const chain: string[] = [];
     const appLimits: Record<string, unknown>[] = [];
+    // What the signer may sign now: every link's current scopes, intersected,
+    // so narrowing anything above shrinks everything below.
+    let effective = new Set<string | null>();
+    const narrow = (scopes: unknown): boolean => {
+        if (!Array.isArray(scopes)) return false;
+        const keep = new Set(scopes.map((s) => normaliseScope(s)));
+        effective = new Set([...effective].filter((s) => keep.has(s)));
+        return true;
+    };
     let id = delegationId;
     let current = leaf;
 
@@ -132,15 +160,25 @@ export async function evaluateDelegation(
         }
         chain.push(id);
 
-        const problem = linkProblem(current, leaf.companyEName, now);
+        // The signer must be live; a revoked link above may still back them.
+        const problem = linkProblem(
+            current,
+            leaf.companyEName,
+            now,
+            current !== leaf,
+        );
         if (problem) return fail(problem.code, id, problem.message);
+        // The signer's scopes are only read once they are known to be well formed.
+        if (current === leaf) {
+            effective = new Set(leaf.scopes.map((s) => normaliseScope(s)));
+        }
         if (current.appLimits) appLimits.unshift(current.appLimits);
 
         if (current.roleId) {
             const role = await source.role(current.roleId);
             if (!role)
                 return fail("NOT_FOUND", current.roleId, "role not found");
-            const roleProblem = linkProblem(role, leaf.companyEName, now);
+            const roleProblem = linkProblem(role, leaf.companyEName, now, true);
             if (roleProblem) {
                 return fail(
                     roleProblem.code,
@@ -148,9 +186,10 @@ export async function evaluateDelegation(
                     roleProblem.message,
                 );
             }
-            if (!isScopeSubset(current.scopes, role.scopes)) {
-                return fail("NOT_A_SUBSET", id, "scopes exceed the role");
+            if (!stillBacks(role, current)) {
+                return fail("REVOKED", current.roleId, "role revoked");
             }
+            narrow(role.scopes);
             if (current.mayRedelegate && !role.mayRedelegate) {
                 return fail(
                     "REDELEGATION_NOT_ALLOWED",
@@ -164,7 +203,7 @@ export async function evaluateDelegation(
                 companyEName: leaf.companyEName,
                 delegateEName: leaf.delegateEName,
                 title: leaf.title,
-                scopes: leaf.scopes.map((s) => normaliseScope(s) as Scope),
+                scopes: [...effective].filter((s): s is Scope => s !== null),
                 appLimits,
                 chain,
                 roleId: current.roleId,
@@ -174,7 +213,24 @@ export async function evaluateDelegation(
         const parentId = current.parentDelegationId as string;
         const parent = await source.delegation(parentId);
         if (!parent) return fail("NOT_FOUND", parentId, "parent not found");
-        if (!parent.mayRedelegate) {
+        if (parent.status !== "active" && parent.status !== "revoked") {
+            return fail(
+                "MALFORMED",
+                parentId,
+                `unknown status ${String(parent.status)}`,
+            );
+        }
+        if (!stillBacks(parent, current)) {
+            return fail(
+                "REVOKED",
+                parentId,
+                "revoked before granting, or with everything handed on",
+            );
+        }
+        // A revoked parent that still backs this child is judged as it was
+        // when the child was granted (history enforces that); its revocation
+        // turning re-delegation off must not cascade.
+        if (!parent.mayRedelegate && parent.status !== "revoked") {
             return fail(
                 "REDELEGATION_NOT_ALLOWED",
                 id,
@@ -188,18 +244,48 @@ export async function evaluateDelegation(
                 "not granted by the parent's delegate",
             );
         }
-        if (!isScopeSubset(current.scopes, parent.scopes)) {
-            return fail("NOT_A_SUBSET", id, "scopes exceed the parent");
+        if (!narrow(parent.scopes)) {
+            return fail("MALFORMED", parentId, "bad scopes");
         }
         id = parentId;
         current = parent;
     }
 }
 
+/**
+ * Whether a parent still backs a child granted under it. Revoking someone
+ * stops only them: what they granted while still valid stands, unless the
+ * revocation explicitly cascades to everything handed on.
+ */
+function stillBacks(parent: Validity, child: Validity): boolean {
+    if (parent.status === "active") return true;
+    // Only an explicit revocation can still back what it granted before.
+    if (parent.status !== "revoked") return false;
+    // Anything but an explicit false (or no flag) counts as a cascade, so a
+    // malformed flag fails closed.
+    const flag = parent.revocationCascade;
+    const cascade =
+        parent.meta?.cascade ??
+        (flag !== undefined && flag !== null && flag !== false);
+    if (cascade) return false;
+    const revokedAt =
+        parent.meta?.revokedAt ??
+        (parent.revokedAt ? Date.parse(parent.revokedAt) : Number.NaN);
+    const grantedAt =
+        child.meta?.grantedAt ??
+        (child.createdAt ? Date.parse(child.createdAt) : Number.NaN);
+    return (
+        Number.isFinite(revokedAt) &&
+        Number.isFinite(grantedAt) &&
+        grantedAt < revokedAt
+    );
+}
+
 function linkProblem(
     record: (RoleRecord | DelegationRecord) & Validity,
     companyEName: string,
     now: Date,
+    revokedIsJudgedSeparately = false,
 ): { code: ChainFailureCode; message: string } | null {
     if (record.companyEName !== companyEName) {
         return { code: "WRONG_COMPANY", message: "belongs to another company" };
@@ -215,7 +301,17 @@ function linkProblem(
         }
     }
     if (record.status !== "active") {
-        return { code: "REVOKED", message: "revoked" };
+        // Only an explicit revocation above the signer is judged separately;
+        // any other status fails closed.
+        if (record.status !== "revoked") {
+            return {
+                code: "MALFORMED",
+                message: `unknown status ${String(record.status)}`,
+            };
+        }
+        if (!revokedIsJudgedSeparately) {
+            return { code: "REVOKED", message: "revoked" };
+        }
     }
     const window = windowProblem(record, now);
     if (window) return { code: window, message: window.toLowerCase() };

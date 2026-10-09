@@ -103,6 +103,8 @@ export type TraceStep = {
     /** true checked, false where it broke, null never reached. */
     ok: boolean | null;
     reason?: string;
+    /** Why a revoked link still counts, e.g. it was revoked after granting. */
+    note?: string;
 };
 
 const now = () => new Date().toISOString();
@@ -489,7 +491,12 @@ export class Demo {
         );
         const directors = board.at(-1)?.directors ?? [];
 
-        const steps: (TraceStep & { id: string; grantor?: string })[] = [];
+        const steps: (TraceStep & {
+            id: string;
+            grantor?: string;
+            revoked?: boolean;
+            cascade?: boolean;
+        })[] = [];
         let id: string | undefined = delegationId;
         for (let i = 0; id && i < 8; i++) {
             const rec = await readRecord(company.eName, id);
@@ -499,6 +506,8 @@ export class Demo {
                 kind: "delegation",
                 person: keyOf(rec.delegateEName),
                 grantor: name(rec.grantedBy),
+                revoked: rec.status === "revoked",
+                cascade: rec.revocationCascade === true,
                 text: `${name(rec.delegateEName)} · ${rec.title} ← ${name(rec.grantedBy)}`,
                 ok: null,
             });
@@ -544,15 +553,36 @@ export class Demo {
             reason = reasons[chain.code] ?? chain.code.toLowerCase();
             if (chain.code === "REDELEGATION_NOT_ALLOWED")
                 reason = `${steps[failAt]?.grantor ?? "the giver"} ${reason}`;
+            if (chain.code === "REVOKED" && failAt > 0) {
+                reason = steps[failAt]?.cascade
+                    ? "revoked with cascade"
+                    : "revoked before granting";
+            }
         } else {
             failAt = 0;
             reason = result.detail ?? result.error ?? "refused";
         }
-        return steps.map(({ id: _id, grantor: _g, ...s }, i) => ({
-            ...s,
-            ok: failAt < 0 || i < failAt ? true : i === failAt ? false : null,
-            reason: i === failAt ? reason : undefined,
-        }));
+        return steps.map(
+            ({ id: _id, grantor: _g, revoked, cascade: _c, ...s }, i) => {
+                const ok =
+                    failAt < 0 || i < failAt
+                        ? true
+                        : i === failAt
+                          ? false
+                          : null;
+                return {
+                    ...s,
+                    ok,
+                    reason: i === failAt ? reason : undefined,
+                    // A revoked link above the signer that still checks out was
+                    // revoked after granting, without cascading.
+                    note:
+                        ok === true && revoked && i > 0
+                            ? "fired after granting"
+                            : undefined,
+                };
+            },
+        );
     }
 
     private verifyGrant(eName: string, payload: string, signature: string) {
@@ -569,6 +599,30 @@ export class Demo {
             );
         }
         return this.checked.get(key) as Promise<boolean>;
+    }
+
+    /** Dana revokes someone's delegation, optionally with everything they handed on. */
+    private async revoke(key: string, cascade: boolean, message: string) {
+        const company = this.requireCompany();
+        const current =
+            (await readRecord(company.eName, company.delegations[key])) ?? {};
+        const { authorization: _drop, ...delegation } = current;
+        await this.grant(
+            "dana",
+            company.eName,
+            DELEGATION_ONTOLOGY,
+            company.delegations[key],
+            {
+                ...delegation,
+                status: "revoked",
+                revokedAt: now(),
+                revokedBy: this.eName("dana"),
+                revocationReason: "revoked",
+                revocationCascade: cascade,
+                updatedAt: now(),
+            },
+            message,
+        );
     }
 
     /** `from` signs a re-delegation of their own delegation to `to`. */
@@ -750,37 +804,50 @@ export class Demo {
             },
         },
         "revoke-bob": {
-            label: "Dana revokes Bob, then Tim signs again",
+            label: "Dana fires Bob, then Bob and Tim sign",
             run: async () => {
-                const company = this.requireCompany();
-                const current =
-                    (await readRecord(
-                        company.eName,
-                        company.delegations.bob,
-                    )) ?? {};
-                const { authorization: _drop, ...delegation } = current;
-                await this.grant(
-                    "dana",
-                    company.eName,
-                    DELEGATION_ONTOLOGY,
-                    company.delegations.bob,
-                    {
-                        ...delegation,
-                        status: "revoked",
-                        revokedAt: now(),
-                        revokedBy: this.eName("dana"),
-                        revocationReason: "revoked",
-                        updatedAt: now(),
-                    },
-                    "Revoke Bob's delegation",
+                await this.revoke("bob", false, "Fire Bob");
+                const bob = await this.signFor(
+                    "bob",
+                    "bob",
+                    "@esigner:nda",
+                    "nda-bob-after-firing.pdf",
+                );
+                const tim = await this.signFor(
+                    "tim",
+                    "tim",
+                    "@esigner:nda",
+                    "nda-tim-after-firing.pdf",
+                );
+                const said = (r: VerifyDelegatedSignatureResult) =>
+                    r.valid
+                        ? `valid as "${r.title}"`
+                        : `refused (${r.detail ?? r.error})`;
+                return {
+                    scenario: "revoke-bob",
+                    expected: "valid",
+                    passed: !bob.result.valid && tim.result.valid,
+                    summary: `Bob: ${said(bob.result)} · Tim: ${said(tim.result)}`,
+                    result: tim.result,
+                    trace: tim.trace,
+                };
+            },
+        },
+        "revoke-dave": {
+            label: "Dana revokes Dave and everything he handed on",
+            run: async () => {
+                await this.revoke(
+                    "dave",
+                    true,
+                    "Revoke Dave and everything he handed on",
                 );
                 const { result, trace } = await this.signFor(
                     "tim",
                     "tim",
                     "@esigner:nda",
-                    "nda-after-revoke.pdf",
+                    "nda-after-cascade.pdf",
                 );
-                return outcome("revoke-bob", "refused", result, trace);
+                return outcome("revoke-dave", "refused", result, trace);
             },
         },
     };
@@ -878,15 +945,20 @@ export class Demo {
                 usable = false;
             }
         }
-        const needsChain = ["tim-nda", "tim-invoice", "tim-passes-on"].includes(
-            id,
-        );
-        const chainBroken = needsChain && !!this.outcomes["revoke-bob"];
+        // Tim's chain needs Dave live; firing Bob alone no longer breaks it.
+        const needsChain = [
+            "tim-nda",
+            "tim-invoice",
+            "tim-passes-on",
+            "revoke-bob",
+            "revoke-dave",
+        ].includes(id);
+        const chainBroken = needsChain && !!this.outcomes["revoke-dave"];
         if (usable && !chainBroken) return;
         const why = !company
             ? "no Acme yet: founding it first"
             : chainBroken
-              ? "Bob was revoked on this Acme: founding a fresh one"
+              ? "Dave was revoked with everything he handed on: founding a fresh Acme"
               : "Acme's eVault is gone: founding a fresh one";
         this.reset();
         this.note(undefined, why);

@@ -22,9 +22,10 @@ Dana founds Acme and makes Bob Head of Finance; Bob passes it to Dave, and Dave 
 | Tim passes his badge to Mallory | refused at Mallory: Tim couldn't pass it on |
 | Tim's signature replayed as a login | refused: reserved payload |
 | Mallory writes herself onto the board | refused: nobody entitled granted it |
-| Dana revokes Bob, Tim signs again | refused at Bob: revoked |
+| Dana fires Bob, then Bob and Tim sign | Bob refused; Tim valid: Bob was fired after granting |
+| Dana revokes Dave and everything he handed on | refused at Dave: revoked with cascade |
 
-**Start fresh** (slide 0) clears Acme and Act 1 provisions a fresh company eVault; on the dashboard, **Start over with a new Acme** does both. Wallets are reused. Revoking Bob is permanent for that Acme, so the acts that need Tim's chain lock until you start fresh.
+**Start fresh** (slide 0) clears Acme and Act 1 provisions a fresh company eVault; on the dashboard, **Start over with a new Acme** does both. Wallets are reused. Acts heal themselves: if Acme is missing, or Dave was already revoked with cascade, playing an act founds a fresh Acme first.
 
 ## Headless
 

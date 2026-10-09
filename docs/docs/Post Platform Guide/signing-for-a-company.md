@@ -157,7 +157,7 @@ Rules your tool should follow (verifiers ignore records that break them):
 - **Role:** signed by a director, and `createdBy` must be that director.
 - **Delegation from a role:** signed by a director, with `grantedBy` set to that director and scopes inside the role's.
 - **Re-delegation:** signed by the parent's delegate, the parent must allow re-delegation, and scopes must be inside the parent's.
-- **Revoking:** write a new signed version with `status: "revoked"` and `revokedBy` set to the signer (a director or the grantor). Revoking a parent fails everything below it without touching those records, but you may also write signed revocations for them so the data reads clearly.
+- **Revoking:** write a new signed version with `status: "revoked"` and `revokedBy` set to the signer (a director, or a grantor who hasn't been revoked). By default this stops only that person: what they granted before stays valid. Set `revocationCascade: true` to also revoke everything handed on from them. Narrowing a delegation or role always narrows everything below it.
 - **Never delete** these records. Deletion doesn't revoke anything, because verifiers read history.
 
 ## Logins
