@@ -156,10 +156,14 @@ export async function readHistory(
             { id, after },
         );
         const conn = data.metaEnvelopeHistory;
-        if (!conn) break;
+        if (!conn) return versions.reverse();
         versions.push(...conn.edges.map((e) => e.node));
-        if (!conn.pageInfo.hasNextPage || !conn.pageInfo.endCursor) break;
+        if (!conn.pageInfo.hasNextPage || !conn.pageInfo.endCursor) {
+            return versions.reverse();
+        }
         after = conn.pageInfo.endCursor;
     }
-    return versions.reverse();
+    // A truncated history would hide a record's first version, which is what
+    // decides its board, so refuse rather than judge a partial one.
+    throw new Error(`history of ${id} is longer than 2,000 versions`);
 }
