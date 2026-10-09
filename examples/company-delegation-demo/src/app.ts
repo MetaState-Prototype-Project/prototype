@@ -53,7 +53,7 @@ export function createApp(port: number) {
         "/api/reset",
         handle(async () => {
             demo.reset();
-            await demo.setup();
+            await demo.preparePeople();
             return demo.snapshot();
         }),
     );

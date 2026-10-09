@@ -11,7 +11,7 @@ pnpm dev:core                                  # Registry :4321, provisioner :30
 pnpm --filter company-delegation-demo dev      # http://localhost:5180
 ```
 
-Press **Set up Acme**, then run the scenarios:
+The page is a short story in slides (← → to move). Each slide runs its step for real; the raw records are on `/dashboard.html`.
 
 | Scenario | Expected |
 |---|---|

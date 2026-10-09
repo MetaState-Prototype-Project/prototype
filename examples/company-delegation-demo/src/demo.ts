@@ -125,8 +125,13 @@ export class Demo {
 
     // ---- setup ---------------------------------------------------------
 
-    async setup(): Promise<void> {
+    /** Everyone's wallet and eVault; created once and reused. */
+    async preparePeople(): Promise<void> {
         for (const key of Object.keys(config.people)) await this.person(key);
+    }
+
+    async setup(): Promise<void> {
+        await this.preparePeople();
         if (this.state.company) return;
 
         const company = await provisionKeylessEVault();

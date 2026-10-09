@@ -3,164 +3,415 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Company Delegation Demo</title>
+<title>Who Signs for Acme</title>
 <style>
   :root {
-    --bg: #f7f7f5; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6b66; --line: #e4e3df;
-    --accent: #3a5bd9; --ok: #1f7a4d; --ok-bg: #e6f4ec; --bad: #b3261e; --bad-bg: #fbeaea;
+    --bg: #fbfaf6; --paper: #ffffff; --ink: #22211d; --muted: #75736b; --line: #dedbd2;
+    --accent: #3a5bd9; --ok: #1f8a54; --bad: #c8372d; --hl: #fff3c4;
+    --dana: #3a5bd9; --bob: #d9822b; --carol: #2f9e8f; --mallory: #8a3ab9;
+    --hand: "Comic Neue", "Comic Sans MS", "Chalkboard SE", system-ui, sans-serif;
     --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #141413; --panel: #1d1d1b; --ink: #ecebe6; --muted: #9a9993; --line: #2e2e2b;
-      --accent: #8ea4ff; --ok: #7fd3a4; --ok-bg: #16301f; --bad: #ff9a92; --bad-bg: #3a1a18;
+      --bg: #161614; --paper: #1f1f1c; --ink: #ecebe5; --muted: #a09e95; --line: #34332f;
+      --accent: #8ea4ff; --ok: #6fd39c; --bad: #ff8b82; --hl: #3b3520;
+      --dana: #8ea4ff; --bob: #f0a35a; --carol: #5fd0c0; --mallory: #c58ef0;
     }
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, sans-serif; }
-  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 12px; }
-  p.lead { color: var(--muted); margin: 0 0 20px; max-width: 70ch; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
-  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
-  button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
-           border-radius: 8px; padding: 8px 12px; cursor: pointer; text-align: left; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.5 system-ui, sans-serif; display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line); }
+  header h1 { font: 700 18px var(--hand); margin: 0; flex: 1; }
+  header a { color: var(--muted); font-size: 13px; }
+  .dots { display: flex; gap: 6px; }
+  .dots span { width: 9px; height: 9px; border-radius: 50%; background: var(--line); cursor: pointer; }
+  .dots span.on { background: var(--accent); }
+  .dots span.done { background: var(--ok); }
+  .dots span.fail { background: var(--bad); }
+
+  main { flex: 1; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, 1fr); gap: 24px; padding: 24px; max-width: 1240px; width: 100%; margin: 0 auto; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; padding: 16px; } }
+  .stage { background: var(--paper); border: 2px solid var(--ink); border-radius: 14px; padding: 8px; box-shadow: 4px 4px 0 var(--ink); align-self: start; }
+  .stage svg { width: 100%; height: auto; display: block; }
+  .story h2 { font: 700 28px/1.2 var(--hand); margin: 0 0 6px; }
+  .story .kicker { font: 600 13px var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .story p { margin: 10px 0; }
+  .story .note { color: var(--muted); font-size: 15px; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0; }
+  button { font: 600 16px var(--hand); border: 2px solid var(--ink); background: var(--paper); color: var(--ink); border-radius: 10px; padding: 9px 16px; cursor: pointer; box-shadow: 3px 3px 0 var(--ink); }
+  button:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+  button.go { background: var(--accent); color: #fff; border-color: var(--ink); }
   button:disabled { opacity: .5; cursor: progress; }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-  .ename { font-family: var(--mono); font-size: 12px; color: var(--muted); word-break: break-all; }
-  ul { list-style: none; padding: 0; margin: 0; }
-  li { padding: 8px 0; border-top: 1px solid var(--line); }
-  li:first-child { border-top: 0; }
-  .tag { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
-  .tag.ok { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
-  .tag.bad { background: var(--bad-bg); color: var(--bad); border-color: transparent; }
-  .scenario { display: grid; gap: 6px; }
-  .scenario button { width: 100%; }
-  .result { font-size: 13px; }
-  .log { font-family: var(--mono); font-size: 12px; max-height: 420px; overflow: auto; }
-  .log li { padding: 6px 0; }
-  .log .uri { color: var(--muted); word-break: break-all; display: block; }
-  .error { color: var(--bad); margin: 8px 0 0; }
+  .verdict { border: 2px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: 12px 0; }
+  .verdict.ok { border-color: var(--ok); }
+  .verdict.bad { border-color: var(--bad); }
+  .verdict strong { font: 700 20px var(--hand); }
+  .verdict.ok strong { color: var(--ok); }
+  .verdict.bad strong { color: var(--bad); }
+  .verdict .why { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+  details { margin-top: 10px; font-size: 13px; }
+  details summary { cursor: pointer; color: var(--muted); }
+  .wire { font-family: var(--mono); font-size: 12px; max-height: 260px; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin-top: 6px; }
+  .wire div { padding: 4px 0; border-bottom: 1px dashed var(--line); word-break: break-all; }
+  .wire div:last-child { border: 0; }
+  .wire em { color: var(--muted); font-style: normal; display: block; }
+  .error { color: var(--bad); font-weight: 600; }
+  footer { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-top: 1px solid var(--line); }
+  footer .hint { color: var(--muted); font-size: 13px; }
+  table.recap { border-collapse: collapse; width: 100%; font-size: 15px; }
+  table.recap td { padding: 6px 4px; border-bottom: 1px solid var(--line); }
+
+  /* scene pieces */
+  .fig line, .fig circle, .fig path { stroke: currentColor; stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .fig .head { fill: var(--paper); }
+  .fig text, .label { font: 700 15px var(--hand); fill: var(--ink); stroke: none; text-anchor: middle; }
+  .sub { font: 12px var(--mono); fill: var(--muted); text-anchor: middle; }
+  .prop path, .prop rect, .prop line, .prop circle, .prop polyline { stroke: var(--ink); stroke-width: 2.5; fill: var(--paper); stroke-linejoin: round; stroke-linecap: round; }
+  .prop .fillink { fill: var(--ink); }
+  .prop .hl { fill: var(--hl); }
+  .arrow { stroke: var(--muted); stroke-width: 2.5; fill: none; stroke-dasharray: 7 6; marker-end: url(#tip); }
+  .running .arrow { animation: march .6s linear infinite; stroke: var(--accent); }
+  @keyframes march { to { stroke-dashoffset: -26; } }
+  .stamp { opacity: 0; transform-box: fill-box; transform-origin: center; }
+  .shown .stamp { animation: pop .45s cubic-bezier(.2,1.6,.4,1) forwards; }
+  @keyframes pop { from { opacity: 0; transform: scale(.2) rotate(-25deg); } to { opacity: 1; transform: scale(1) rotate(-8deg); } }
+  .flyer { animation: fly 1.4s ease-in-out infinite; }
+  @keyframes fly { 0% { transform: translate(0,0); opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)); opacity: 0; } }
+  .cracked { opacity: .45; }
+  .badge rect { fill: var(--hl); stroke: var(--ink); stroke-width: 2; }
+  .badge text { font: 700 11px var(--hand); fill: var(--ink); text-anchor: middle; }
 </style>
 </head>
 <body>
+<header>
+  <h1>Who signs for Acme? <span style="font-weight:400;color:var(--muted)">· company delegation on W3DS</span></h1>
+  <div class="dots" id="dots"></div>
+  <a href="/dashboard.html">dashboard view</a>
+</header>
+
 <main>
-  <h1>Company delegation demo</h1>
-  <p class="lead">
-    Real eVaults on your local stack, real wallets (wallet-sdk) and real <code>w3ds://sign</code> requests.
-    Acme's board, roles and delegations are signed records in its own eVault. A platform checks every
-    signature made for Acme against that eVault's history; the eVault itself enforces nothing.
-  </p>
-
-  <div class="row">
-    <button class="primary" id="setup">Set up Acme</button>
-    <button id="reset">Start over with a new Acme</button>
-  </div>
-  <p class="error" id="error" hidden></p>
-
-  <div class="grid">
-    <section>
-      <h2>Scenarios</h2>
-      <div id="scenarios" class="scenario"></div>
-    </section>
-
-    <section>
-      <h2>Acme, as stored in its eVault</h2>
-      <div id="company"><p class="ename">Not set up yet.</p></div>
-    </section>
-
-    <section>
-      <h2>People (wallets)</h2>
-      <ul id="people"></ul>
-    </section>
-
-    <section>
-      <h2>What happened</h2>
-      <ul class="log" id="log"></ul>
-    </section>
-  </div>
+  <div class="stage" id="stage"></div>
+  <div class="story" id="story"></div>
 </main>
 
+<footer>
+  <button id="back">← Back</button>
+  <span class="hint">Every step runs for real on your local stack: real eVaults, real wallets, real signatures. ← → keys work too.</span>
+  <button id="next" class="go">Next →</button>
+</footer>
+
 <script>
-  const EXPECT = {
-    "bob-nda": "valid", "bob-invoice": "refused", "carol-nda": "valid",
-    "login-replay": "refused", "mallory-board": "refused", "revoke-bob": "refused",
-  };
-  const results = {};
-  const $ = (id) => document.getElementById(id);
-  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-  let state = null;
+/* ---------- tiny SVG kit ---------- */
+const C = { dana: "var(--dana)", bob: "var(--bob)", carol: "var(--carol)", mallory: "var(--mallory)" };
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
-  async function call(method, path) {
-    $("error").hidden = true;
-    document.querySelectorAll("button").forEach((b) => (b.disabled = true));
-    try {
-      const res = await fetch(path, { method });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || res.statusText);
-      return body;
-    } catch (e) {
-      $("error").textContent = e.message;
-      $("error").hidden = false;
-      return null;
-    } finally {
-      document.querySelectorAll("button").forEach((b) => (b.disabled = false));
-    }
+function person(key, x, y, opts = {}) {
+  const color = C[key];
+  const name = { dana: "Dana", bob: "Bob", carol: "Carol", mallory: "Mallory" }[key];
+  const extra = {
+    dana: `<path d="M-12,-58 q12,-14 24,0" /><line x1="-3" y1="-26" x2="3" y2="-26"/>`,          // hair + tie knot
+    bob: `<path d="M-13,-55 h26" /><path d="M-9,-55 v-7 h18 v7" />`,                            // hat
+    carol: `<path d="M-13,-52 q-6,10 -2,18" /><path d="M13,-52 q6,10 2,18" />`,                // long hair
+    mallory: `<path d="M-14,-49 h28" style="stroke-width:6"/>`,                                  // mask
+  }[key];
+  const arms = opts.wave
+    ? `<line x1="0" y1="-22" x2="-18" y2="-2"/><line x1="0" y1="-22" x2="20" y2="-44"/>`
+    : `<line x1="0" y1="-22" x2="-18" y2="-2"/><line x1="0" y1="-22" x2="18" y2="-2"/>`;
+  return `<g class="fig ${opts.cls || ""}" transform="translate(${x},${y})" style="color:${color}">
+    <circle class="head" cx="0" cy="-46" r="13"/>${extra}
+    <line x1="0" y1="-33" x2="0" y2="8"/>${arms}
+    <line x1="0" y1="8" x2="-14" y2="36"/><line x1="0" y1="8" x2="14" y2="36"/>
+    ${opts.phone ? `<g class="prop" transform="translate(20,-6)"><rect x="-5" y="-9" width="11" height="18" rx="2"/></g>` : ""}
+    <text y="56">${name}</text>
+    ${opts.sub ? `<text class="sub" y="72">${esc(opts.sub)}</text>` : ""}
+  </g>`;
+}
+
+function building(x, y, label = "Acme Ltd") {
+  return `<g class="prop" transform="translate(${x},${y})">
+    <path d="M-50,40 v-80 l50,-28 l50,28 v80 z"/>
+    <rect x="-34" y="-22" width="16" height="16"/><rect x="-8" y="-22" width="16" height="16"/><rect x="18" y="-22" width="16" height="16"/>
+    <rect x="-10" y="12" width="20" height="28"/>
+    <text class="label" y="62">${esc(label)}</text></g>`;
+}
+
+function cabinet(x, y, lines = []) {
+  const rows = lines.slice(0, 4).map((l, i) =>
+    `<text x="0" y="${-30 + i * 22}" style="font:11px var(--mono);fill:var(--ink);text-anchor:middle">${esc(l)}</text>`).join("");
+  return `<g class="prop" transform="translate(${x},${y})">
+    <rect x="-70" y="-52" width="140" height="100" rx="6"/>
+    <line x1="-70" y1="-8" x2="70" y2="-8"/><line x1="-70" y1="20" x2="70" y2="20"/>
+    ${rows}
+    <text class="label" y="70">Acme's eVault</text>
+    <text class="sub" y="86">a plain store · enforces nothing</text></g>`;
+}
+
+function laptop(x, y, label = "a platform") {
+  return `<g class="prop" transform="translate(${x},${y})">
+    <rect x="-34" y="-30" width="68" height="44" rx="4"/><path d="M-46,18 h92 l-8,10 h-76 z"/>
+    <text x="0" y="-2" style="font:700 12px var(--hand);fill:var(--ink);text-anchor:middle">verify</text>
+    <text class="label" y="50">${esc(label)}</text></g>`;
+}
+
+function door(x, y) {
+  return `<g class="prop" transform="translate(${x},${y})">
+    <rect x="-28" y="-60" width="56" height="96" rx="3"/><circle cx="16" cy="-10" r="3" class="fillink"/>
+    <text class="label" y="58">login</text></g>`;
+}
+
+function badge(x, y, text, cls = "") {
+  const w = Math.max(70, text.length * 7 + 16);
+  return `<g class="badge ${cls}" transform="translate(${x},${y})"><rect x="${-w/2}" y="-11" width="${w}" height="22" rx="5"/><text y="4">${esc(text)}</text></g>`;
+}
+
+function paper(x, y, label, dx = 0, dy = 0) {
+  return `<g class="prop flyer" style="--dx:${dx}px;--dy:${dy}px" transform="translate(${x},${y})">
+    <path d="M-12,-15 h18 l6,6 v24 h-24 z"/><line x1="-7" y1="-4" x2="7" y2="-4"/><line x1="-7" y1="3" x2="7" y2="3"/>
+    ${label ? `<text class="sub" y="30">${esc(label)}</text>` : ""}</g>`;
+}
+
+function arrow(x1, y1, x2, y2) {
+  return `<path class="arrow" d="M${x1},${y1} C${(x1 + x2) / 2},${y1 - 40} ${(x1 + x2) / 2},${y2 - 40} ${x2},${y2}"/>`;
+}
+
+function stamp(x, y, ok, text) {
+  const color = ok ? "var(--ok)" : "var(--bad)";
+  const mark = ok
+    ? `<path d="M-14,0 l9,10 l20,-22" style="stroke:${color};stroke-width:6;fill:none;stroke-linecap:round;stroke-linejoin:round"/>`
+    : `<path d="M-12,-12 l24,24 M12,-12 l-24,24" style="stroke:${color};stroke-width:6;fill:none;stroke-linecap:round"/>`;
+  return `<g class="stamp" transform="translate(${x},${y})">
+    <circle r="30" style="fill:var(--paper);stroke:${color};stroke-width:4"/>${mark}
+    ${text ? `<text y="50" style="font:700 14px var(--hand);fill:${color};text-anchor:middle">${esc(text)}</text>` : ""}</g>`;
+}
+
+const svg = (body) => `<svg viewBox="0 0 720 420" role="img" aria-label="scene">
+  <defs><marker id="tip" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+  <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker></defs>${body}</svg>`;
+
+/* ---------- state ---------- */
+let state = null;
+const outcomes = {};
+let busy = false;
+let lastError = "";
+
+const nameOf = (eName) => {
+  const p = state && Object.values(state.people).find((x) => x.eName === eName);
+  return p ? p.name : eName ? eName.slice(0, 10) + "…" : "?";
+};
+const short = (e) => (e ? e.slice(0, 9) + "…" : "");
+const ready = () => !!(state && state.records);
+
+function cabinetLines() {
+  if (!ready()) return ["(empty)"];
+  const c = state.records.company || {};
+  const lines = [`board: ${(c.directors || []).map(nameOf).join(", ")}`];
+  for (const r of state.records.roles.filter(Boolean)) lines.push(`role: ${r.title}`);
+  for (const d of state.records.delegations.filter((x) => x.record)) {
+    lines.push(`${nameOf(d.record.delegateEName)}: ${d.record.title}${d.record.status === "revoked" ? " ✗" : ""}`);
   }
+  return lines;
+}
 
-  function render() {
-    if (!state) return;
-    const names = Object.fromEntries(Object.values(state.people).map((p) => [p.eName, p.name]));
-    const who = (e) => names[e] ? `${esc(names[e])} <span class="ename">${esc(e)}</span>` : `<span class="ename">${esc(e)}</span>`;
+/* ---------- the story ---------- */
+const slides = [
+  {
+    kicker: "Cast",
+    title: "Meet the people",
+    text: `<p>Dana runs <b>Acme Ltd</b>. Bob handles finance and Carol helps him. Mallory has nothing to do with Acme, but she'd like to.</p>
+           <p>Each of them has a wallet: a real eVault and a real signing key, created with <code>wallet-sdk</code> on your machine. Acme gets an eVault of its own.</p>`,
+    scene: () => svg(person("dana", 90, 200, { phone: true, wave: true, sub: "director" }) + person("bob", 210, 200, { phone: true, sub: "finance" })
+      + person("carol", 320, 200, { phone: true, sub: "assistant" }) + person("mallory", 640, 200, { phone: true, sub: "outsider" })
+      + building(470, 160) + `<text class="sub" x="360" y="400" style="text-anchor:middle">${ready() ? "everyone has an eVault" : "nobody exists yet"}</text>`),
+    action: { label: "Start fresh", run: () => api("POST", "/api/reset"), note: "Creates the wallets and a brand-new Acme." },
+  },
+  {
+    kicker: "Act 1",
+    title: "Acme is born with a board",
+    text: `<p>Dana writes Acme's <b>Company</b> record into Acme's eVault with herself as director, and signs it with her wallet.</p>
+           <p>The record is born with its board. A Company record that started without directors can never get one later, so nobody can claim an existing company.</p>`,
+    scene: () => svg(person("dana", 110, 230, { phone: true, sub: "signs the board" }) + building(330, 190)
+      + cabinet(560, 200, cabinetLines()) + arrow(140, 180, 490, 150) + (ready() ? "" : paper(140, 170, "board", 340, -30))),
+    action: { label: "Create Acme", run: () => api("POST", "/api/setup"), note: "Dana's wallet signs a w3ds://sign request; the record lands in Acme's eVault." },
+  },
+  {
+    kicker: "Act 2",
+    title: "Titles, handed down",
+    text: `<p>Dana creates the role <b>Head of Finance</b> (NDAs and invoices) and gives Bob a narrower slice: <b>NDAs only</b>, with permission to pass it on.</p>
+           <p>Bob passes NDA signing on to Carol as <b>NDA signer</b>. Every hand-over is a record signed by whoever gives it, and nobody can give away more than they hold.</p>`,
+    scene: () => svg(person("dana", 100, 220, { phone: true }) + person("bob", 340, 220, { phone: true }) + person("carol", 580, 220, { phone: true })
+      + arrow(130, 150, 310, 150) + arrow(370, 150, 550, 150)
+      + badge(220, 112, "Head of Finance · NDA") + badge(460, 112, "NDA signer")
+      + `<text class="sub" x="360" y="380">${ready() ? "already signed in Act 1: see the eVault on the dashboard" : "run Act 1 first"}</text>`),
+  },
+  {
+    kicker: "Act 3",
+    title: "Bob signs an NDA for Acme",
+    text: `<p>A platform (say eSigner) asks Bob to sign <b>nda-globex.pdf</b> <i>for Acme</i>. His wallet signs it as it signs anything else.</p>
+           <p>The platform then reads Acme's eVault and walks the chain: Bob's delegation, the role, Dana's board.</p>`,
+    id: "bob-nda",
+    scene: (o) => svg(person("bob", 110, 230, { phone: true }) + laptop(360, 210, "eSigner") + cabinet(590, 200, cabinetLines())
+      + paper(140, 200, "nda", 200, 0) + arrow(140, 180, 320, 180) + arrow(400, 180, 520, 160) + verdictStamp(o, 360, 110)),
+  },
+  {
+    kicker: "Act 4",
+    title: "Bob tries an invoice",
+    text: `<p>Bob's role covers invoices, but <b>his</b> delegation only covers NDAs. Dana gave him the narrower slice.</p>`,
+    id: "bob-invoice",
+    scene: (o) => svg(person("bob", 110, 230, { phone: true }) + laptop(360, 210, "eSigner") + cabinet(590, 200, cabinetLines())
+      + paper(140, 200, "invoice", 200, 0) + arrow(140, 180, 320, 180) + badge(110, 110, "NDA only") + verdictStamp(o, 360, 110)),
+  },
+  {
+    kicker: "Act 5",
+    title: "Carol signs, through Bob",
+    text: `<p>Carol signs an NDA for Acme. The platform follows her chain <b>Carol → Bob → Head of Finance → Dana's board</b>, checking every signature on the way.</p>`,
+    id: "carol-nda",
+    scene: (o) => svg(person("carol", 90, 230, { phone: true }) + person("bob", 230, 230) + person("dana", 370, 230)
+      + laptop(560, 210, "eSigner") + arrow(120, 150, 210, 150) + arrow(260, 150, 350, 150) + arrow(400, 150, 520, 170)
+      + paper(120, 200, "nda", 420, 0) + verdictStamp(o, 560, 110)),
+  },
+  {
+    kicker: "Act 6",
+    title: "Someone replays Bob's signature as a login",
+    text: `<p>Bob's NDA signature is real. Could someone use it to log in as Bob?</p>
+           <p>No. Everything signed for a company starts with <code>w3ds-</code>, and login checks refuse that, so a company signature never opens a door.</p>`,
+    id: "login-replay",
+    scene: (o) => svg(person("mallory", 120, 230, { sub: "replaying" }) + paper(150, 200, "Bob's sig", 230, 0) + door(420, 230) + arrow(150, 170, 380, 170) + verdictStamp(o, 560, 160)),
+  },
+  {
+    kicker: "Act 7",
+    title: "Mallory breaks into the filing cabinet",
+    text: `<p>An eVault is a plain store, so Mallory can write into Acme's. She writes herself onto the board, signs it with <i>her own</i> wallet, makes a role and delegates it to herself.</p>
+           <p>Then she signs an NDA "for Acme". Watch what the platform makes of it.</p>`,
+    id: "mallory-board",
+    scene: (o) => svg(person("mallory", 110, 230, { phone: true }) + cabinet(360, 200, o ? cabinetLines() : ["board: Mallory?!", ...cabinetLines().slice(1)])
+      + laptop(600, 210, "eSigner") + arrow(140, 170, 290, 150) + arrow(430, 150, 560, 170) + verdictStamp(o, 600, 100)),
+    after: `<p class="note">Her records really are in the eVault (the cabinet shows the latest write), but none of them was signed by someone entitled to make it, so the platform skips them.</p>`,
+  },
+  {
+    kicker: "Act 8",
+    title: "Dana revokes Bob",
+    text: `<p>Dana signs a revocation of Bob's delegation. Nobody touches Carol's record.</p>
+           <p>Both try to sign again. Carol's authority came <i>through</i> Bob's, so it falls with it.</p>`,
+    id: "revoke-bob",
+    scene: (o) => svg(person("dana", 90, 230, { phone: true, sub: "revokes" }) + person("bob", 300, 230, { cls: o ? "cracked" : "" })
+      + person("carol", 470, 230, { cls: o ? "cracked" : "" }) + laptop(630, 210, "eSigner")
+      + arrow(120, 160, 280, 160) + badge(300, 110, o ? "revoked" : "NDA") + badge(470, 110, o ? "falls with it" : "NDA signer")
+      + verdictStamp(o, 630, 100)),
+  },
+  {
+    kicker: "Curtain",
+    title: "What just happened",
+    text: `<p>Acme's eVault stored everything (Mallory's records too) and enforced nothing. Every outcome was decided by <b>signatures</b> and the eVault's <b>history</b>:</p>`,
+    scene: () => svg(building(150, 180) + cabinet(380, 190, cabinetLines()) + laptop(600, 200, "any platform")
+      + `<text class="label" x="360" y="390">signatures + history decide · the eVault just stores</text>`),
+    recap: true,
+  },
+];
 
-    $("people").innerHTML = Object.values(state.people)
-      .map((p) => `<li><strong>${esc(p.name)}</strong> · ${esc(p.about)}<br><span class="ename">${esc(p.eName)}</span></li>`)
-      .join("");
+function verdictStamp(o, x, y) {
+  if (!o) return "";
+  return stamp(x, y, o.passed && expectedValid(o), o.passed ? (expectedValid(o) ? "accepted" : "refused") : "unexpected!");
+}
+const expectedValid = (o) => o.expected === "valid";
 
-    if (state.records) {
-      const c = state.records.company || {};
-      const roles = state.records.roles.filter(Boolean);
-      $("company").innerHTML = `
-        <p class="ename">${esc(state.company.eName)}</p>
-        <ul>
-          <li><strong>${esc(c.displayName)}</strong> · board now reads: ${(c.directors || []).map(who).join(", ")}
-            <br><span class="ename">signed by ${who(c.authorization?.signerEName)}</span></li>
-          ${roles.map((r) => `<li>Role <strong>${esc(r.title)}</strong> · ${r.scopes.map(esc).join(", ")}
-            <span class="tag ${r.status === "active" ? "ok" : "bad"}">${esc(r.status)}</span></li>`).join("")}
-          ${state.records.delegations.filter((d) => d.record).map(({ record: d }) => `<li>${who(d.delegateEName)} as <strong>${esc(d.title)}</strong>
-            · ${d.scopes.map(esc).join(", ")} · granted by ${who(d.grantedBy)}
-            <span class="tag ${d.status === "active" ? "ok" : "bad"}">${esc(d.status)}</span></li>`).join("")}
-        </ul>`;
-    }
+/* ---------- rendering ---------- */
+let index = 0;
 
-    $("scenarios").innerHTML = state.scenarios.map((s) => {
-      const r = results[s.id];
-      const badge = r ? `<span class="tag ${r.passed ? "ok" : "bad"}">${r.passed ? "as expected" : "unexpected"}</span>` : "";
-      return `<div><button data-id="${s.id}">${esc(s.label)} <span class="tag">expect ${EXPECT[s.id]}</span></button>
-        ${r ? `<div class="result">${badge} ${esc(r.summary)}</div>` : ""}</div>`;
-    }).join("");
-    $("scenarios").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => run(b.dataset.id)));
+function render() {
+  const s = slides[index];
+  const o = s.id ? outcomes[s.id] : null;
+  const stage = document.getElementById("stage");
+  stage.innerHTML = s.scene(o);
+  stage.className = `stage ${busy ? "running" : ""} ${o ? "shown" : ""}`;
 
-    $("log").innerHTML = state.log.slice().reverse().map((l) =>
-      `<li>${l.who ? who(l.who) + " · " : ""}${esc(l.text)}${l.detail ? `<span class="uri">${esc(l.detail)}</span>` : ""}</li>`).join("");
+  let html = `<div class="kicker">${index}/${slides.length - 1} · ${esc(s.kicker)}</div><h2>${esc(s.title)}</h2>${s.text}`;
+  if (s.action) {
+    html += `<div class="actions"><button class="go" id="act" ${busy ? "disabled" : ""}>${busy ? "Working…" : esc(s.action.label)}</button></div>
+             <p class="note">${esc(s.action.note)}</p>`;
   }
+  if (s.id) {
+    html += `<div class="actions"><button class="go" id="act" ${busy || !ready() ? "disabled" : ""}>${busy ? "Signing and verifying…" : o ? "Run it again" : "Play this scene"}</button></div>`;
+    if (!ready()) html += `<p class="note">Create Acme in Act 1 first.</p>`;
+    if (o) html += verdictHtml(o) + (s.after || "");
+  }
+  if (s.recap) html += recapHtml();
+  if (lastError) html += `<p class="error">${esc(lastError)}</p>`;
+  if (state && state.log.length) {
+    html += `<details><summary>show the wire (w3ds://sign URIs, wallet POSTs, verifier)</summary><div class="wire">${
+      state.log.slice(-12).reverse().map((l) => `<div>${l.who ? esc(nameOf(l.who)) + ": " : ""}${esc(l.text)}${l.detail ? `<em>${esc(l.detail)}</em>` : ""}</div>`).join("")
+    }</div></details>`;
+  }
+  document.getElementById("story").innerHTML = html;
+  const act = document.getElementById("act");
+  if (act) act.addEventListener("click", () => (s.action ? doAction(s.action) : play(s.id)));
 
-  async function run(id) {
-    const body = await call("POST", `/api/scenario/${id}`);
-    if (!body) return;
-    results[id] = body.outcome;
+  document.getElementById("dots").innerHTML = slides.map((sl, i) => {
+    const r = sl.id && outcomes[sl.id];
+    return `<span title="${esc(sl.title)}" data-i="${i}" class="${i === index ? "on" : r ? (r.passed ? "done" : "fail") : ""}"></span>`;
+  }).join("");
+  document.querySelectorAll(".dots span").forEach((d) => d.addEventListener("click", () => go(+d.dataset.i)));
+  document.getElementById("back").disabled = index === 0;
+  document.getElementById("next").disabled = index === slides.length - 1;
+}
+
+function verdictHtml(o) {
+  const r = o.result || {};
+  const valid = o.expected === "valid" ? o.passed : !o.passed;
+  const headline = valid ? "Accepted" : "Refused";
+  let why = o.summary;
+  if (r.chain) why += ` · chain: ${r.chain.map(short).join(" → ")}`;
+  return `<div class="verdict ${valid ? "ok" : "bad"}"><strong>${headline}</strong> ${o.passed ? "" : "<b>(not what the model expects!)</b>"}
+    <div class="why">${esc(why)}</div></div>`;
+}
+
+function recapHtml() {
+  const rows = slides.filter((s) => s.id).map((s) => {
+    const o = outcomes[s.id];
+    const mark = !o ? "–" : o.passed ? (o.expected === "valid" ? "✅ accepted" : "❌ refused") : "⚠️ unexpected";
+    return `<tr><td>${esc(s.title)}</td><td>${mark}</td></tr>`;
+  }).join("");
+  return `<table class="recap">${rows}</table><p class="note">The raw records live in the <a href="/dashboard.html">dashboard view</a>.</p>`;
+}
+
+/* ---------- actions ---------- */
+async function api(method, path) {
+  const res = await fetch(path, { method });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error || res.statusText);
+  return body;
+}
+
+async function doAction(action) {
+  busy = true; lastError = ""; render();
+  try {
+    state = await action.run();
+    if (action.label === "Start fresh") for (const k in outcomes) delete outcomes[k];
+  } catch (e) { lastError = e.message; }
+  busy = false; render();
+}
+
+async function play(id) {
+  busy = true; lastError = ""; render();
+  try {
+    const body = await api("POST", `/api/scenario/${id}`);
+    outcomes[id] = body.outcome;
     state = body.state;
-    render();
-  }
+  } catch (e) { lastError = e.message; }
+  busy = false; render();
+}
 
-  $("setup").addEventListener("click", async () => { const s = await call("POST", "/api/setup"); if (s) { state = s; render(); } });
-  $("reset").addEventListener("click", async () => {
-    const s = await call("POST", "/api/reset");
-    if (s) { for (const k in results) delete results[k]; state = s; render(); }
-  });
-  call("GET", "/api/state").then((s) => { if (s) { state = s; render(); } });
+function go(i) { index = Math.max(0, Math.min(slides.length - 1, i)); lastError = ""; render(); }
+document.getElementById("back").addEventListener("click", () => go(index - 1));
+document.getElementById("next").addEventListener("click", () => go(index + 1));
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") go(index + 1);
+  if (e.key === "ArrowLeft") go(index - 1);
+});
+
+api("GET", "/api/state").then((s) => { state = s; render(); }).catch((e) => { lastError = e.message; render(); });
+render();
 </script>
 </body>
 </html>
