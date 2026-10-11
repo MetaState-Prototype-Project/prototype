@@ -8,8 +8,9 @@
  * `platformName` field. AaaS fans those writes out and exposes them at
  * `GET /api/packets?ontology=...`, which is what we page through here.
  *
- * Platforms still in submission, drafts, archived and inactive profiles are
- * filtered out here — the catalogue only shows what is live.
+ * Drafts, archived and inactive profiles are filtered out here — the
+ * catalogue only shows what is live. PPA review is independent of marketplace
+ * visibility, so a published platform remains listed while in submission.
  *
  * The AaaS API key is a secret, so this only ever runs server-side.
  *
@@ -122,7 +123,7 @@ export async function listPlatforms(): Promise<MarketplacePlatform[]> {
   let profileCount = 0;
   let skippedNoPlatformName = 0;
   let skippedArchived = 0;
-  let skippedUnpublished = 0;
+  let skippedDraft = 0;
   for (const p of packets) {
     const data = p.data;
     // Isolate platform profiles from ordinary user profiles sharing the
@@ -136,7 +137,7 @@ export async function listPlatforms(): Promise<MarketplacePlatform[]> {
     if (!ename) continue;
 
     // Excluded platforms are deleted rather than skipped: a profile that was
-    // listed earlier and later withdrawn, archived or put back into review
+    // listed earlier and later withdrawn, archived or made inactive
     // must drop out of the catalogue, and the older packet has already been
     // written into the map.
     if (data.isArchived === true || data.isActive === false) {
@@ -144,10 +145,10 @@ export async function listPlatforms(): Promise<MarketplacePlatform[]> {
       byEname.delete(ename);
       continue;
     }
-    // Not ready to be discovered: still applying to join the network, or not
-    // yet published by its authors.
-    if (data.inSubmission === true || data.isDraft === true) {
-      skippedUnpublished++;
+    // Marketplace visibility is controlled by the authors independently of
+    // the platform's PPA review state.
+    if (data.isDraft === true) {
+      skippedDraft++;
       byEname.delete(ename);
       continue;
     }
@@ -168,7 +169,7 @@ export async function listPlatforms(): Promise<MarketplacePlatform[]> {
   console.log(
     `[awareness] platform profiles=${profileCount} (deduped=${platforms.length}), ` +
       `skipped: non-platform=${skippedNoPlatformName}, archived/inactive=${skippedArchived}, ` +
-      `in-submission/draft=${skippedUnpublished}`,
+      `draft=${skippedDraft}`,
   );
   console.log(
     `[awareness] platforms: ${platforms.map((p) => p.id).join(", ") || "(none)"}`,
