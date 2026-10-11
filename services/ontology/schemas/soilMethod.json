@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/77777777-7777-4777-8777-777777777777",
+  "schemaId": "77777777-7777-4777-8777-777777777777",
+  "title": "SoilMethod",
+  "domain": "agriculture",
+  "description": "Laboratory measurement method and source metadata.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Application record ID stored in the payload; distinct from the containing MetaEnvelope ID."
+    },
+    "bundle_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "name": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string"
+    },
+    "accreditation_flag": {
+      "type": "boolean"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Source-specific metadata retained without imposing a provider-specific structure."
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "source"
+  ],
+  "additionalProperties": false
+}
