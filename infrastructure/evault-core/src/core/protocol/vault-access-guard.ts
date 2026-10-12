@@ -1,6 +1,5 @@
 import axios from "axios";
 import type { YogaInitialContext } from "graphql-yoga";
-import * as jose from "jose";
 import {
     type ConditionEvaluator,
     evaluate,
@@ -10,6 +9,7 @@ import {
     type Principal,
     resolveAclBlock,
 } from "../acl";
+import { verifyRegistryToken } from "../auth/registry-token";
 import type { DbService } from "../db/db.service";
 import type { MetaEnvelope } from "../db/types";
 import { timed } from "../utils/timing";
@@ -34,12 +34,6 @@ export function isEName(value: unknown): value is string {
     return typeof value === "string" && value.startsWith("@") && value.length > 1;
 }
 
-type CachedJWKS = {
-    jwks: ReturnType<typeof jose.createLocalJWKSet>;
-    expiresAt: number;
-};
-const jwksCache = new Map<string, CachedJWKS>();
-const JWKS_TTL_MS = 24 * 60 * 60 * 1000;
 const JWKS_FETCH_TIMEOUT_MS = 5000;
 const PLATFORM_PROFILE_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440000";
 
@@ -178,38 +172,7 @@ export class VaultAccessGuard {
         const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
         try {
-            const registryUrl =
-                process.env.PUBLIC_REGISTRY_URL || process.env.REGISTRY_URL;
-            if (!registryUrl) {
-                console.error("PUBLIC_REGISTRY_URL or REGISTRY_URL is not set");
-                return null;
-            }
-
-            const jwksUrl = new URL(
-                `/.well-known/jwks.json`,
-                registryUrl,
-            ).toString();
-
-            const now = Date.now();
-            let cached = jwksCache.get(jwksUrl);
-            if (!cached || cached.expiresAt <= now) {
-                const jwksResponse = await timed(
-                    "guard.validateToken.fetchJWKS",
-                    () =>
-                        axios.get(jwksUrl, {
-                            timeout: JWKS_FETCH_TIMEOUT_MS,
-                        }),
-                );
-                cached = {
-                    jwks: jose.createLocalJWKSet(jwksResponse.data),
-                    expiresAt: now + JWKS_TTL_MS,
-                };
-                jwksCache.set(jwksUrl, cached);
-            }
-
-            const { payload } = await jose.jwtVerify(token, cached.jwks);
-
-            return payload;
+            return await verifyRegistryToken(token);
         } catch (error) {
             console.error("Token validation failed:", error);
             return null;
