@@ -814,6 +814,68 @@ The provisioning layer supports shared tenancy (multiple W3IDs can be provisione
 - **Isolation**: All queries filtered by W3ID
 - **No Cross-Tenant Access**: Users can only access their own data (unless ACL allows)
 
+## Rate Limiting
+
+The GraphQL and HTTP API (port 4000) is rate limited per minute, first per client IP and then per calling platform. Limits are managed from the control panel's **Rate Limits** page and apply immediately, without a restart.
+
+### How a request is decided
+
+1. A CORS preflight (`OPTIONS`) is always allowed and never counted.
+2. The most specific IP rule covering the client decides first: a **blocked** IP gets `403`, an **exempt** IP skips every limit.
+3. Otherwise the request counts against the IP's limit: its own rule, or the IP default.
+4. If the request carries a valid Registry token, it also counts against that platform's limit: its own rule, or the platform default. A **blocked** platform gets `403`; an **exempt** platform skips only this step.
+
+A request over a limit gets `429` with a `Retry-After` header:
+
+```json
+{ "error": "Too Many Requests", "retryAfterSeconds": 42, "scope": "platform" }
+```
+
+`scope` is `ip` or `platform`, naming the limit that was hit.
+
+### Rules
+
+| Applies to | Subject | Actions |
+| --- | --- | --- |
+| IP | A single address or a CIDR range, IPv4 or IPv6 | Set limit, block, exempt |
+| Platform | The `platform` value of its Registry token, matched exactly | Set limit, block, exempt |
+| Default | Every IP or platform without its own rule | Set limit |
+
+A limit on a range gives each address in it that limit; it is not one shared budget. Block and exempt rules are refused for ranges broader than `/8` (IPv4) or `/32` (IPv6).
+
+### What a platform rule can and cannot do
+
+The Registry signs a token for any platform name it is asked for, so a token proves it is genuine, not who sent it. The limiter verifies the signature and treats an invalid token as no platform at all, but the name itself is self-declared. Two consequences:
+
+- **The IP limit is the ceiling.** A platform limit or exemption never lets a caller exceed its IP limit. To give a platform more headroom, raise or exempt the IPs of its servers as well.
+- **A platform block is advisory.** A blocked caller can request a token under another name. Block its IPs to stop it. Likewise, anyone can send a token carrying another platform's name and use up that platform's budget, up to their own IP limit.
+
+### Configuration
+
+| Variable | Purpose |
+| --- | --- |
+| `RATE_LIMIT_PER_IP` | Default requests per minute per IP (500) until a default is set in the control panel |
+| `RATE_LIMIT_PER_PLATFORM` | Default requests per minute per platform (250) until a default is set in the control panel |
+| `RATE_LIMIT_ADMIN_SECRET` | Shared with the control panel to manage rules. The admin API is disabled while it is empty |
+| `EVAULT_TRUST_PROXY` | Leave empty when clients connect directly. Behind a reverse proxy, the number of proxy hops or the proxies' addresses |
+
+Rules are stored in the `evault_rate_limit_rule` table, so run `pnpm --filter evault-core migration:run` when deploying. If the table or the database is unavailable, the limiter keeps the last rules it loaded, or the defaults above if it never loaded any; it never refuses all traffic.
+
+Behind a reverse proxy, set `EVAULT_TRUST_PROXY` or every client is counted as the proxy's IP. Prefer a hop count or the proxy's address over `true`, which lets any client choose the IP it is counted as by sending `X-Forwarded-For`.
+
+Counters are kept in memory by each eVault process. With several instances behind a load balancer each one counts separately, so the effective limit is the configured value times the number of instances, and the control panel shows the counters of the instance it reached. Rule changes reach every instance within 30 seconds.
+
+### Admin API
+
+The control panel manages rules through the provisioning port (3001), which is not rate limited, so no rule can lock an admin out. Every call needs the `x-shared-secret` header set to `RATE_LIMIT_ADMIN_SECRET`.
+
+| Route | Purpose |
+| --- | --- |
+| `GET /admin/rate-limits` | Defaults, rules and where they were loaded from |
+| `GET /admin/rate-limits/usage` | Live counters per platform and IP for the current window |
+| `PUT /admin/rate-limits/rules` | Create or replace the rule for a subject: `{ kind, subject, mode, limitPerMinute?, note? }` with `kind` `ip` or `platform`, `mode` `limit`, `blocked` or `exempt`, and subject `*` for a default |
+| `DELETE /admin/rate-limits/rules/:id` | Remove a rule |
+
 
 
 ## API Examples
