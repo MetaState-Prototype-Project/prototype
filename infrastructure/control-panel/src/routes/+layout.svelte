@@ -16,6 +16,7 @@
 		{ label: 'Monitoring', href: '/monitoring' },
 		{ label: 'Actions', href: '/actions' },
 		{ label: 'Notifications', href: '/notifications' },
+		{ label: 'Rate Limits', href: '/rate-limits' },
 		{ label: 'Visualizer', href: '/visualizer' }
 	];
 

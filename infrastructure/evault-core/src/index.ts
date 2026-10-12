@@ -9,12 +9,18 @@ import { NotificationController } from "./controllers/NotificationController";
 import { ProvisioningController } from "./controllers/ProvisioningController";
 import { VerificationController } from "./controllers/VerificationController";
 import { LegacyVerificationController } from "./controllers/LegacyVerificationController";
+import { RateLimitAdminController } from "./controllers/RateLimitAdminController";
 import { RecoveryController } from "./controllers/RecoveryController";
 import { ProvisioningService } from "./services/ProvisioningService";
 import { VerificationService } from "./services/VerificationService";
 import { createHmacSignature } from "./utils/hmac";
 
-import { checkGlobalRateLimit } from "./core/http/global-rate-limiter";
+import {
+    GlobalRateLimiter,
+    createRateLimitHook,
+    parseTrustProxy,
+} from "./core/http/global-rate-limiter";
+import { RateLimitConfigService } from "./services/RateLimitConfigService";
 import fastifyCors from "@fastify/cors";
 import fastify, {
     type FastifyInstance,
@@ -84,6 +90,8 @@ let driver: Driver;
 let provisioningService: ProvisioningService | undefined;
 let awarenessOutboxDispatcher: AwarenessOutboxDispatcher | undefined;
 let expressServer: HttpServer | undefined;
+let rateLimitConfig: RateLimitConfigService | undefined;
+let rateLimiter: GlobalRateLimiter | undefined;
 
 // Initialize eVault Core
 const initializeEVault = async (
@@ -213,6 +221,9 @@ const initializeEVault = async (
         // base64-encoded size of the largest allowed file (250MB binary ≈ 343MB
         // base64 + JSON overhead). Keep in sync with MAX_FILE_BYTES in graphql-server.ts.
         bodyLimit: 350 * 1024 * 1024,
+        // Off unless a proxy is declared, so a client cannot choose the IP it
+        // is rate limited as by sending X-Forwarded-For.
+        trustProxy: parseTrustProxy(process.env.EVAULT_TRUST_PROXY),
     });
 
     // Register CORS plugin with relaxed settings
@@ -229,28 +240,10 @@ const initializeEVault = async (
         credentials: true,
     });
 
-    // Global rate limiting by platform token identity (IP fallback)
-    fastifyServer.addHook("onRequest", async (request, reply) => {
-        const authHeader = request.headers.authorization;
-        const token = authHeader?.startsWith("Bearer ")
-            ? authHeader.substring(7)
-            : null;
-        const ip = request.ip;
-        const { allowed, retryAfterSeconds } = checkGlobalRateLimit(token, ip);
-        if (!allowed) {
-            // In an async onRequest hook, Fastify only short-circuits the
-            // handler chain if you return the reply object. Without the
-            // return, the 429 is queued but the downstream handler (GraphQL)
-            // still runs — turning the rate limiter into a silent counter.
-            return reply
-                .code(429)
-                .header("Retry-After", String(retryAfterSeconds))
-                .send({
-                    error: "Too Many Requests",
-                    retryAfterSeconds,
-                });
-        }
-    });
+    // Rate limiting per IP, then per verified platform, under admin-set rules
+    if (rateLimiter) {
+        fastifyServer.addHook("onRequest", createRateLimitHook(rateLimiter));
+    }
 
     // Register HTTP routes with provisioning service if available
     await registerHttpRoutes(
@@ -440,6 +433,18 @@ const start = async () => {
         provisioningController.registerRoutes(expressApp);
         recoveryController.registerRoutes(expressApp);
 
+        const { RateLimitRule } = await import("./entities/RateLimitRule");
+        rateLimitConfig = new RateLimitConfigService(
+            AppDataSource.getRepository(RateLimitRule),
+        );
+        await rateLimitConfig.start();
+        const config = rateLimitConfig;
+        rateLimiter = new GlobalRateLimiter(() => config.snapshot);
+        rateLimiter.start();
+        new RateLimitAdminController(config, rateLimiter).registerRoutes(
+            expressApp,
+        );
+
         // Start eVault Core (Fastify + GraphQL) with provisioning service first
         await initializeEVault(provisioningService);
 
@@ -460,6 +465,8 @@ start();
 async function shutdown(signal: string): Promise<void> {
     console.log(`${signal} received, shutting down eVault`);
     await awarenessOutboxDispatcher?.stop();
+    rateLimitConfig?.stop();
+    rateLimiter?.stop();
     await fastifyServer?.close();
     if (expressServer) {
         await new Promise<void>((resolve) =>
