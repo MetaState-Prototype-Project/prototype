@@ -46,9 +46,15 @@ export function canonicalizeSubject(input: string): string {
         }
         if (
             address.kind() === "ipv6" &&
-            (address as ipaddr.IPv6).isIPv4MappedAddress() &&
-            prefix >= 96
+            (address as ipaddr.IPv6).isIPv4MappedAddress()
         ) {
+            // Clients in the mapped block are matched as IPv4, so a range
+            // reaching beyond it could never apply to them.
+            if (prefix < 96) {
+                throw new Error(
+                    "An IPv4-mapped range must be /96 or narrower; enter it as IPv4",
+                );
+            }
             address = (address as ipaddr.IPv6).toIPv4Address();
             prefix -= 96;
         }

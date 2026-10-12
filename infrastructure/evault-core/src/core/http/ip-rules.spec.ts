@@ -45,7 +45,15 @@ describe("ip-rules", () => {
         });
 
         it("rejects invalid input", () => {
-            for (const bad of ["", "nope", "10", "1.2.3.4/33", "1.2.3/24", "*"]) {
+            for (const bad of [
+                "",
+                "nope",
+                "10",
+                "1.2.3.4/33",
+                "1.2.3/24",
+                "*",
+                "::ffff:0:0/95",
+            ]) {
                 expect(() => canonicalizeSubject(bad)).toThrow();
             }
         });

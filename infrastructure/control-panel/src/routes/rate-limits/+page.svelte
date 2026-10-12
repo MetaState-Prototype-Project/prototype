@@ -115,7 +115,8 @@
 		}
 	}
 
-	async function saveRule(draft: RuleDraft) {
+	// Resolves to whether the rule was saved, so a rejected draft is kept.
+	async function saveRule(draft: RuleDraft): Promise<boolean> {
 		try {
 			await readJson(
 				await fetch('/api/rate-limits/rules', {
@@ -126,8 +127,10 @@
 			);
 			showToast(`Saved ${describe(draft)}`, 'success');
 			await Promise.all([loadConfig(), loadUsage()]);
+			return true;
 		} catch (err) {
 			showToast(err instanceof Error ? err.message : 'Could not save', 'error');
+			return false;
 		}
 	}
 
@@ -200,7 +203,7 @@
 				lines: [
 					`Every ${kind} without its own rule drops from ${current} to ${limit} requests per minute, effective immediately.`
 				],
-				action: () => saveRule(draft)
+				action: async () => void (await saveRule(draft))
 			});
 		} else {
 			void saveRule(draft);
@@ -238,7 +241,7 @@
 			...(formNote.trim() && { note: formNote.trim() })
 		};
 		if (formMode === 'limit') {
-			void saveRule(draft).then(clearForm);
+			void saveAndClear(draft);
 			return;
 		}
 
@@ -268,8 +271,12 @@
 			title: `${formMode === 'blocked' ? 'Block' : 'Exempt'} ${subject}?`,
 			lines,
 			typed: subject,
-			action: () => saveRule(draft).then(clearForm)
+			action: () => saveAndClear(draft)
 		});
+	}
+
+	async function saveAndClear(draft: RuleDraft) {
+		if (await saveRule(draft)) clearForm();
 	}
 
 	function clearForm() {

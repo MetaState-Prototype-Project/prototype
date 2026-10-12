@@ -857,11 +857,11 @@ The Registry signs a token for any platform name it is asked for, so a token pro
 | `RATE_LIMIT_PER_IP` | Default requests per minute per IP (500) until a default is set in the control panel |
 | `RATE_LIMIT_PER_PLATFORM` | Default requests per minute per platform (250) until a default is set in the control panel |
 | `RATE_LIMIT_ADMIN_SECRET` | Shared with the control panel to manage rules. The admin API is disabled while it is empty |
-| `EVAULT_TRUST_PROXY` | Leave empty when clients connect directly. Behind a reverse proxy, the number of proxy hops or the proxies' addresses |
+| `EVAULT_TRUST_PROXY` | Leave empty when clients connect directly. Behind a reverse proxy, the proxies' addresses or CIDR ranges |
 
 Rules are stored in the `evault_rate_limit_rule` table, so run `pnpm --filter evault-core migration:run` when deploying. If the table or the database is unavailable, the limiter keeps the last rules it loaded, or the defaults above if it never loaded any; it never refuses all traffic.
 
-Behind a reverse proxy, set `EVAULT_TRUST_PROXY` or every client is counted as the proxy's IP. Prefer a hop count or the proxy's address over `true`, which lets any client choose the IP it is counted as by sending `X-Forwarded-For`.
+Behind a reverse proxy, set `EVAULT_TRUST_PROXY` to the proxies' addresses or every client is counted as the proxy's IP. A hop count (such as `1`) or `true` is also accepted, but both believe `X-Forwarded-For` from whoever connects: if the eVault port can be reached without going through the proxy, a client can choose the IP it is counted as and sidestep every IP limit and block.
 
 Counters are kept in memory by each eVault process. With several instances behind a load balancer each one counts separately, so the effective limit is the configured value times the number of instances, and the control panel shows the counters of the instance it reached. Rule changes reach every instance within 30 seconds.
 

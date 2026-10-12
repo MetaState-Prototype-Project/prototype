@@ -255,6 +255,10 @@ export function createRateLimitHook(limiter: GlobalRateLimiter) {
  * Reads `EVAULT_TRUST_PROXY` into Fastify's `trustProxy` option: unset or
  * `false` trusts nothing, `true` trusts every hop, a number trusts that many
  * hops, and anything else is a comma-separated list of proxy addresses.
+ *
+ * Only an address list checks who is speaking. `true` and a hop count
+ * believe X-Forwarded-For from any peer, so a client that can reach this
+ * port without going through the proxy picks the IP it is limited as.
  */
 export function parseTrustProxy(
     value: string | undefined,
