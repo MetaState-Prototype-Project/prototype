@@ -569,6 +569,9 @@ importers:
       graphql-yoga:
         specifier: ^5.13.4
         version: 5.18.1(graphql@16.13.1)
+      ipaddr.js:
+        specifier: ^2.3.0
+        version: 2.3.0
       jose:
         specifier: ^5.2.2
         version: 5.10.0
