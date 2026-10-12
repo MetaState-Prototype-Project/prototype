@@ -9,6 +9,7 @@ import { NotificationController } from "./controllers/NotificationController";
 import { ProvisioningController } from "./controllers/ProvisioningController";
 import { VerificationController } from "./controllers/VerificationController";
 import { LegacyVerificationController } from "./controllers/LegacyVerificationController";
+import { RateLimitAdminController } from "./controllers/RateLimitAdminController";
 import { RecoveryController } from "./controllers/RecoveryController";
 import { ProvisioningService } from "./services/ProvisioningService";
 import { VerificationService } from "./services/VerificationService";
@@ -440,6 +441,9 @@ const start = async () => {
         const config = rateLimitConfig;
         rateLimiter = new GlobalRateLimiter(() => config.snapshot);
         rateLimiter.start();
+        new RateLimitAdminController(config, rateLimiter).registerRoutes(
+            expressApp,
+        );
 
         // Start eVault Core (Fastify + GraphQL) with provisioning service first
         await initializeEVault(provisioningService);
