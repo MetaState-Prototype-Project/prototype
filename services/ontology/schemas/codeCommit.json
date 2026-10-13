@@ -1,0 +1,55 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "schemaId": "af7b8ea0-365c-414b-8dbb-5c0cdd6a46b8",
+    "title": "CodeCommit",
+    "type": "object",
+    "description": "A commit pushed to a GitW3 (Forgejo) repository, synced into the pushing author's own eVault by services/forgejo-code-sync. Identity is resolved from the authenticated pusher, never from the commit's own free-text author/committer fields, which are unverified git config and can name anyone. The diff itself is never inlined here - it is uploaded to S3 and diffUrl points at it, uploaded public-read only when the source repo was public at push time, so the object's own accessibility mirrors this envelope's acl - see docs/superpowers/specs/2026-08-14-forgejo-code-sync-design.md.",
+    "properties": {
+        "id": {
+            "type": "string",
+            "description": "The commit sha"
+        },
+        "repo": {
+            "type": "string",
+            "description": "owner/name of the GitW3 repository"
+        },
+        "ref": {
+            "type": "string",
+            "description": "The branch ref the push landed on"
+        },
+        "message": {
+            "type": "string",
+            "description": "The commit message"
+        },
+        "authorEName": {
+            "type": "string",
+            "description": "eName of the pusher this commit was resolved to. Always the envelope owner's own eName, kept here for consistency with other ontology schemas that carry authorEName even when it's implied by the eVault the envelope lives in"
+        },
+        "committedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The commit's own timestamp, as reported by GitW3"
+        },
+        "added": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "File paths added by this commit"
+        },
+        "removed": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "File paths removed by this commit"
+        },
+        "modified": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "File paths modified by this commit"
+        },
+        "diffUrl": {
+            "type": "string",
+            "description": "The commit's unified diff, uploaded to S3 (never inlined - see the schema description). public-read when the source repo was public at push time, otherwise not publicly fetchable"
+        }
+    },
+    "required": ["id", "repo", "ref", "message", "authorEName", "committedAt", "diffUrl"],
+    "additionalProperties": false
+}

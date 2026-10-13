@@ -1,0 +1,36 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "schemaId": "a9b56118-ac82-4f4e-9f70-77444c1a8f34",
+    "title": "RepoSnapshot",
+    "type": "object",
+    "description": "The complete current state of a GitW3 (Forgejo) repository - every file and folder, not a diff - synced into the repository OWNER's own eVault by services/forgejo-code-sync. One envelope per repository, updated in place (via updateMetaEnvelope) on every push rather than a new envelope per push - snapshotUrl always points at an archive of the push's final ref state, replacing whatever it pointed at before. Distinct from codeCommit.json, which is per-pusher and per-commit: this schema is per-repo and per-owner, and exists independently of whether any individual pusher has a linked eVault at all. The archive itself is never inlined here - it is uploaded to S3 and snapshotUrl points at it, uploaded public-read only when the repo was public at the time of that push, so the object's own accessibility mirrors this envelope's acl, the same convention codeCommit.json's diffUrl already uses - see docs/superpowers/specs/2026-08-14-forgejo-code-sync-design.md.",
+    "properties": {
+        "repo": {
+            "type": "string",
+            "description": "owner/name of the GitW3 repository"
+        },
+        "ref": {
+            "type": "string",
+            "description": "The branch ref this snapshot was taken from (the push's own ref, e.g. refs/heads/main)"
+        },
+        "headCommitId": {
+            "type": "string",
+            "description": "The sha the ref pointed at when this snapshot was taken - the push payload's own \"after\" field, which is the archive's own ref parameter"
+        },
+        "ownerEName": {
+            "type": "string",
+            "description": "eName of the repository owner this snapshot was resolved to. Always the envelope owner's own eName, kept here for consistency with other ontology schemas that carry an eName field even when it's implied by the eVault the envelope lives in"
+        },
+        "snapshotUrl": {
+            "type": "string",
+            "description": "A zip archive of the repository at headCommitId, uploaded to S3 (never inlined - see the schema description). public-read when the repo was public at push time, otherwise not publicly fetchable. Overwritten in place on every push - the same S3 key is reused, not a new one per push"
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When this snapshot was last replaced, as recorded by this service - not a field GitW3 itself reports"
+        }
+    },
+    "required": ["repo", "ref", "headCommitId", "ownerEName", "snapshotUrl", "updatedAt"],
+    "additionalProperties": false
+}
