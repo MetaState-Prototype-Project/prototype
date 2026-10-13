@@ -13,7 +13,10 @@ export class Post {
     @Column("text")
     text!: string; // was content
 
-    @Column("simple-array", { nullable: true })
+    // simple-json (JSON.stringify/parse) is used instead of simple-array because
+    // base64 data URLs contain literal commas, which simple-array's naive
+    // comma-join/split encoding corrupts on read.
+    @Column("simple-json", { nullable: true })
     images!: string[]; // was mediaUrls
 
     @OneToMany(() => Comment, (comment: Comment) => comment.post)

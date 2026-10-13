@@ -29,36 +29,11 @@
 		options?: Array<{ name: string; handler: () => void }>;
 	}
 
-	function pairAndJoinChunks(chunks: string[]): string[] {
-		const result: string[] = [];
-
-		console.log('chunks', chunks);
-		for (let i = 0; i < chunks.length; i += 2) {
-			const dataPart = chunks[i];
-			const chunkPart = chunks[i + 1];
-
-			if (dataPart && chunkPart) {
-				if (dataPart.startsWith('data:')) {
-					result.push(`${dataPart},${chunkPart}`);
-				} else {
-					result.push(dataPart);
-					result.push(chunkPart);
-				}
-			} else {
-				if (!dataPart.startsWith('data:')) result.push(dataPart);
-				console.warn(`Skipping incomplete pair at index ${i}`);
-			}
-		}
-		console.log('result', result);
-
-		return result;
-	}
-
 	const {
 		avatar,
 		userId,
 		username,
-		imgUris: uris,
+		imgUris,
 		text,
 		count,
 		callback,
@@ -67,7 +42,6 @@
 		...restProps
 	}: IPostProps = $props();
 
-	let imgUris = $derived(pairAndJoinChunks(uris));
 	let galleryRef: HTMLDivElement | undefined = $state();
 	let currentIndex = $state(0);
 
