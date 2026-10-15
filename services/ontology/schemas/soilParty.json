@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/55555555-5555-4555-8555-555555555555",
+  "schemaId": "55555555-5555-4555-8555-555555555555",
+  "title": "SoilParty",
+  "domain": "agriculture",
+  "description": "Producer, customer, sender or recipient associated with a soil laboratory report.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Application record ID stored in the payload; distinct from the containing MetaEnvelope ID."
+    },
+    "bundle_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "owner_eid": {
+      "type": "string"
+    },
+    "vault_id": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "producer",
+        "customer",
+        "sender",
+        "recipient"
+      ]
+    },
+    "external_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "street": {
+      "type": "string"
+    },
+    "building_number": {
+      "type": "string"
+    },
+    "postcode": {
+      "type": "string"
+    },
+    "city": {
+      "type": "string"
+    },
+    "country": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "owner_eid",
+    "vault_id",
+    "role"
+  ],
+  "additionalProperties": false
+}
