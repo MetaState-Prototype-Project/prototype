@@ -5,6 +5,7 @@ import { config } from "dotenv";
 config({ path: path.resolve(__dirname, "../../../../../.env") });
 
 import { AppDataSource } from "../database/data-source";
+import { Currency } from "../database/entities/Currency";
 import { Group } from "../database/entities/Group";
 import { AccountType, Ledger } from "../database/entities/Ledger";
 import { User } from "../database/entities/User";
@@ -21,18 +22,25 @@ import { adapter } from "../web3adapter";
 // actually returns over GraphQL (not the mapping DB, which can claim a sync
 // that never landed).
 //
+// It also syncs each holder's Account records (one per holder and currency,
+// the shape scripts/backfill-accounts.ts writes). The live adapter never
+// writes or updates these, so they go missing for new holders and their
+// balance goes stale after every transaction.
+//
 // Usage (from platforms/ecurrency/api, with the production .env):
 //   pnpm sync:ledger                      check only, writes nothing
 //   pnpm sync:ledger --apply              write missing/outdated copies, then verify
 //   pnpm sync:ledger --only=@<ename>      limit to one eVault
 //   pnpm sync:ledger --settle=300         ignore rows newer than 300s (default 120)
 //
-// Exit code 0 means every row is verified present in every party's eVault.
+// Exit code 0 means every row is verified present in every party's eVault and
+// every holder's Account record exists with the current balance.
 // One vault failing never stops the others. eNames the Registry has no eVault
 // for (deleted or never provisioned) are listed as skipped, not as failures,
 // since there is nowhere to write to.
 
 const LEDGER_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440006";
+const ACCOUNT_ONTOLOGY = "6fda64db-fd14-4fa2-bd38-77d2e5e6136d";
 const REGISTRY_URL =
     process.env.PUBLIC_REGISTRY_URL ?? "https://registry.w3ds.metastate.foundation";
 // The platform the live adapter certifies as (see web3adapter/watchers/subscriber.ts).
@@ -157,7 +165,7 @@ interface VaultRecord {
     parsed: Record<string, unknown>;
 }
 
-async function listLedger(ename: string): Promise<VaultRecord[]> {
+async function list(ename: string, ontology: string): Promise<VaultRecord[]> {
     const out: VaultRecord[] = [];
     let after: string | null = null;
     do {
@@ -174,7 +182,7 @@ async function listLedger(ename: string): Promise<VaultRecord[]> {
                     pageInfo { hasNextPage endCursor }
                 }
             }`,
-            { first: 100, after, filter: { ontologyId: LEDGER_ONTOLOGY } },
+            { first: 100, after, filter: { ontologyId: ontology } },
         );
         out.push(...data.metaEnvelopes.edges.map((e) => e.node));
         after = data.metaEnvelopes.pageInfo.hasNextPage
@@ -185,24 +193,24 @@ async function listLedger(ename: string): Promise<VaultRecord[]> {
 }
 
 // Same mutations and legacy acl as the live adapter (web3-adapter EVaultClient).
-async function storeLedger(ename: string, payload: object): Promise<string> {
+async function store(ename: string, ontology: string, payload: object): Promise<string> {
     const data: { storeMetaEnvelope: { metaEnvelope: { id: string } } } = await graphql(
         ename,
         `mutation ($input: MetaEnvelopeInput!) {
             storeMetaEnvelope(input: $input) { metaEnvelope { id } }
         }`,
-        { input: { ontology: LEDGER_ONTOLOGY, payload, acl: ["*"] } },
+        { input: { ontology, payload, acl: ["*"] } },
     );
     return data.storeMetaEnvelope.metaEnvelope.id;
 }
 
-async function updateLedger(ename: string, id: string, payload: object): Promise<void> {
+async function update(ename: string, id: string, ontology: string, payload: object): Promise<void> {
     await graphql(
         ename,
         `mutation ($id: String!, $input: MetaEnvelopeInput!) {
             updateMetaEnvelopeById(id: $id, input: $input) { metaEnvelope { id } }
         }`,
-        { id, input: { ontology: LEDGER_ONTOLOGY, payload, acl: ["*"] } },
+        { id, input: { ontology, payload, acl: ["*"] } },
     );
 }
 
@@ -265,6 +273,42 @@ function classify(records: VaultRecord[], row: Ledger) {
     return { status, copies, best: complete ?? copies[0] ?? null };
 }
 
+// ─── Accounts ────────────────────────────────────────────────────────────────
+
+/** One holder's account in one currency, as backfill-accounts.ts writes it. */
+interface ExpectedAccount {
+    key: string;
+    payload: {
+        accountId: string;
+        accountEname: string;
+        accountType: AccountType;
+        currencyEname: string;
+        currencyName: string;
+        balance: number;
+        createdAt: string;
+    };
+}
+
+// Currency eNames are unique, so a holder's account is (accountId, currencyEname).
+const isAccountCopy = (record: Record<string, unknown>, a: ExpectedAccount) =>
+    record.accountId === a.payload.accountId &&
+    typeof record.currencyEname === "string" &&
+    normalizeEname(record.currencyEname) === a.payload.currencyEname;
+
+const isAccountCurrent = (record: Record<string, unknown>, a: ExpectedAccount) =>
+    Number(record.balance) === a.payload.balance &&
+    record.accountType === a.payload.accountType &&
+    record.currencyName === a.payload.currencyName &&
+    typeof record.accountEname === "string" &&
+    normalizeEname(record.accountEname) === a.payload.accountEname;
+
+function classifyAccount(records: VaultRecord[], a: ExpectedAccount) {
+    const copies = records.filter((r) => isAccountCopy(r.parsed, a));
+    const current = copies.find((r) => isAccountCurrent(r.parsed, a));
+    const status: Status = current ? "synced" : copies.length ? "outdated" : "missing";
+    return { status, copies, best: current ?? copies[0] ?? null };
+}
+
 // ─── Run ─────────────────────────────────────────────────────────────────────
 
 interface VaultReport {
@@ -277,12 +321,26 @@ interface VaultReport {
     created: number;
     updated: number;
     stillUnsynced: string[];
+    accounts: {
+        expected: number;
+        synced: number;
+        outdated: number;
+        missing: number;
+        duplicates: number;
+        created: number;
+        updated: number;
+        stillUnsynced: string[];
+    };
     error?: string;
     /** No eVault exists for this eName, so there is nowhere to write; not a failure. */
     skipped?: string;
 }
 
-async function syncVault(ename: string, rows: Ledger[]): Promise<VaultReport> {
+async function syncVault(
+    ename: string,
+    rows: Ledger[],
+    accounts: ExpectedAccount[],
+): Promise<VaultReport> {
     const report: VaultReport = {
         ename,
         expected: rows.length,
@@ -293,9 +351,19 @@ async function syncVault(ename: string, rows: Ledger[]): Promise<VaultReport> {
         created: 0,
         updated: 0,
         stillUnsynced: [],
+        accounts: {
+            expected: accounts.length,
+            synced: 0,
+            outdated: 0,
+            missing: 0,
+            duplicates: 0,
+            created: 0,
+            updated: 0,
+            stillUnsynced: [],
+        },
     };
     try {
-        const records = await listLedger(ename);
+        const records = rows.length ? await list(ename, LEDGER_ONTOLOGY) : [];
         const work: { row: Ledger; status: Status; target: string | null }[] = [];
         for (const row of rows) {
             const { status, copies, best } = classify(records, row);
@@ -310,11 +378,11 @@ async function syncVault(ename: string, rows: Ledger[]): Promise<VaultReport> {
                 const payload = await expectedPayload(row);
                 try {
                     if (status === "outdated" && target) {
-                        await updateLedger(ename, target, payload);
+                        await update(ename, target, LEDGER_ONTOLOGY, payload);
                         await remember(row, ename, target);
                         report.updated++;
                     } else {
-                        const id = await storeLedger(ename, payload);
+                        const id = await store(ename, LEDGER_ONTOLOGY, payload);
                         await remember(row, ename, id);
                         report.created++;
                     }
@@ -324,19 +392,59 @@ async function syncVault(ename: string, rows: Ledger[]): Promise<VaultReport> {
             }
 
             // Verify against the vault itself, not against what was sent.
-            const after = await listLedger(ename);
+            const after = rows.length ? await list(ename, LEDGER_ONTOLOGY) : [];
             report.stillUnsynced = rows
                 .filter((row) => classify(after, row).status !== "synced")
                 .map((row) => row.id);
         } else {
             report.stillUnsynced = work.map((w) => w.row.id);
         }
+
+        await syncAccounts(ename, accounts, report.accounts);
     } catch (error) {
         if (error instanceof NoEVaultError) report.skipped = error.message;
         else report.error = (error as Error).message;
         report.stillUnsynced = rows.map((r) => r.id);
+        report.accounts.stillUnsynced = accounts.map((a) => a.key);
     }
     return report;
+}
+
+async function syncAccounts(
+    ename: string,
+    accounts: ExpectedAccount[],
+    report: VaultReport["accounts"],
+): Promise<void> {
+    if (!accounts.length) return;
+    const records = await list(ename, ACCOUNT_ONTOLOGY);
+    const work: { account: ExpectedAccount; target: string | null }[] = [];
+    for (const account of accounts) {
+        const { status, copies, best } = classifyAccount(records, account);
+        report[status]++;
+        if (copies.length > 1) report.duplicates += copies.length - 1;
+        if (status !== "synced") work.push({ account, target: best?.id ?? null });
+    }
+    if (!APPLY) {
+        report.stillUnsynced = work.map((w) => w.account.key);
+        return;
+    }
+    for (const { account, target } of work) {
+        try {
+            if (target) {
+                await update(ename, target, ACCOUNT_ONTOLOGY, account.payload);
+                report.updated++;
+            } else {
+                await store(ename, ACCOUNT_ONTOLOGY, account.payload);
+                report.created++;
+            }
+        } catch (error) {
+            console.error(`[SYNC] ${ename} account ${account.key}: ${(error as Error).message}`);
+        }
+    }
+    const after = await list(ename, ACCOUNT_ONTOLOGY);
+    report.stillUnsynced = accounts
+        .filter((a) => classifyAccount(after, a).status !== "synced")
+        .map((a) => a.key);
 }
 
 /** Point the live adapter's mapping at the copy that is really in the vault. */
@@ -355,7 +463,7 @@ async function remember(row: Ledger, ename: string, globalId: string): Promise<v
 async function main() {
     if (!PLATFORM) throw new Error("VITE_ECURRENCY_BASE_URL is not set");
     console.log(
-        `[SYNC] eCurrency ledger → eVaults, ${APPLY ? "APPLY (writes enabled)" : "CHECK ONLY (no writes)"}`,
+        `[SYNC] eCurrency ledger + accounts → eVaults, ${APPLY ? "APPLY (writes enabled)" : "CHECK ONLY (no writes)"}`,
     );
     console.log(`[SYNC] Registry ${REGISTRY_URL}, certifying as ${PLATFORM}`);
 
@@ -395,13 +503,49 @@ async function main() {
         }
     }
 
+    // One Account per holder and currency, with the balance of its latest row.
+    // Every row counts here, including ones with no parties ("Account initialized").
+    const currencies = new Map(
+        (await AppDataSource.getRepository(Currency).find()).map((c) => [c.id, c]),
+    );
+    const accountsByVault = new Map<string, Map<string, ExpectedAccount>>();
+    for (const row of rows) {
+        const ename = enameOf.get(`${row.accountType}:${row.accountId}`);
+        const currency = currencies.get(row.currencyId);
+        if (!ename || !currency?.ename) continue;
+        if (ONLY && ename !== ONLY) continue;
+        const accounts = accountsByVault.get(ename) ?? new Map<string, ExpectedAccount>();
+        accountsByVault.set(ename, accounts);
+        const key = `${row.accountType}:${row.accountId}|${normalizeEname(currency.ename)}`;
+        const existing = accounts.get(key);
+        // Rows are in createdAt order, so the last one seen holds the balance.
+        accounts.set(key, {
+            key,
+            payload: {
+                accountId: row.accountId,
+                accountEname: ename,
+                accountType: row.accountType,
+                currencyEname: normalizeEname(currency.ename),
+                currencyName: currency.name,
+                balance: Number(row.balance),
+                createdAt: existing?.payload.createdAt ?? row.createdAt.toISOString(),
+            },
+        });
+    }
+    const accountCount = [...accountsByVault.values()].reduce((s, m) => s + m.size, 0);
+    const vaultNames = new Set([...byVault.keys(), ...accountsByVault.keys()]);
+
     console.log(
-        `[SYNC] ${rows.length} ledger rows, ${byVault.size} eVaults to check` +
+        `[SYNC] ${rows.length} ledger rows, ${accountCount} accounts, ${vaultNames.size} eVaults to check` +
             (noParties ? `, ${noParties} rows with no parties (not synced by design, e.g. "Account initialized")` : "") +
             (unnamed.size ? `, ${unnamed.size} accounts with no eName (cannot be synced)` : ""),
     );
 
-    const vaults = [...byVault.entries()];
+    const vaults = [...vaultNames].map((ename): [string, Ledger[], ExpectedAccount[]] => [
+        ename,
+        byVault.get(ename) ?? [],
+        [...(accountsByVault.get(ename)?.values() ?? [])],
+    ]);
     const reports: VaultReport[] = [];
     const inFlight = new Set<string>();
     const heartbeat = setInterval(() => {
@@ -413,24 +557,29 @@ async function main() {
     await Promise.all(
         Array.from({ length: VAULT_CONCURRENCY }, async () => {
             while (next < vaults.length) {
-                const [ename, vaultRows] = vaults[next++];
+                const [ename, vaultRows, vaultAccounts] = vaults[next++];
                 inFlight.add(ename);
-                const r = await syncVault(ename, vaultRows);
+                const r = await syncVault(ename, vaultRows, vaultAccounts);
                 inFlight.delete(ename);
                 reports.push(r);
                 if (r.skipped) {
-                    console.log(`[SYNC] ${ename}: ${r.expected} rows · SKIPPED, ${r.skipped}`);
+                    console.log(
+                        `[SYNC] ${ename}: ${r.expected} rows, ${r.accounts.expected} accounts · SKIPPED, ${r.skipped}`,
+                    );
                     continue;
                 }
+                const a = r.accounts;
                 const verdict = r.error
                     ? `ERROR ${r.error}`
-                    : r.stillUnsynced.length
-                      ? `✗ ${r.stillUnsynced.length} unsynced`
+                    : r.stillUnsynced.length || a.stillUnsynced.length
+                      ? `✗ ${r.stillUnsynced.length} rows, ${a.stillUnsynced.length} accounts unsynced`
                       : "✓ verified";
                 console.log(
                     `[SYNC] ${ename}: ${r.expected} rows · ${r.synced} synced · ${r.missing} missing · ${r.outdated} outdated` +
                         (r.duplicates ? ` · ${r.duplicates} duplicate copies` : "") +
                         (APPLY ? ` → created ${r.created}, updated ${r.updated}` : "") +
+                        ` | ${a.expected} accounts · ${a.synced} synced · ${a.missing} missing · ${a.outdated} stale` +
+                        (APPLY ? ` → created ${a.created}, updated ${a.updated}` : "") +
                         ` · ${verdict}`,
                 );
             }
@@ -438,11 +587,14 @@ async function main() {
     );
     clearInterval(heartbeat);
 
-    const sum = (k: "expected" | "synced" | "missing" | "outdated" | "duplicates" | "created" | "updated") =>
-        checked.reduce((s, r) => s + r[k], 0);
+    type Counter = "expected" | "synced" | "missing" | "outdated" | "duplicates" | "created" | "updated";
+    const sum = (k: Counter) => checked.reduce((s, r) => s + r[k], 0);
+    const sumAccounts = (k: Counter) => checked.reduce((s, r) => s + r.accounts[k], 0);
     const skipped = reports.filter((r) => r.skipped);
     const checked = reports.filter((r) => !r.skipped);
-    const failed = checked.filter((r) => r.error || r.stillUnsynced.length);
+    const failed = checked.filter(
+        (r) => r.error || r.stillUnsynced.length || r.accounts.stillUnsynced.length,
+    );
     console.log("[SYNC] ==========================================");
     console.log(`[SYNC] Row copies expected  : ${sum("expected")}`);
     console.log(`[SYNC] Already synced       : ${sum("synced")}`);
@@ -453,13 +605,29 @@ async function main() {
         console.log(`[SYNC] Created              : ${sum("created")}`);
         console.log(`[SYNC] Updated in place     : ${sum("updated")}`);
     }
+    console.log(`[SYNC] Accounts expected    : ${sumAccounts("expected")}`);
+    console.log(`[SYNC]   Already synced     : ${sumAccounts("synced")}`);
+    console.log(`[SYNC]   Missing            : ${sumAccounts("missing")}`);
+    console.log(`[SYNC]   Stale              : ${sumAccounts("outdated")} (wrong balance or details)`);
+    console.log(`[SYNC]   Duplicate copies   : ${sumAccounts("duplicates")} (reported, never deleted)`);
+    if (APPLY) {
+        console.log(`[SYNC]   Created            : ${sumAccounts("created")}`);
+        console.log(`[SYNC]   Updated in place   : ${sumAccounts("updated")}`);
+    }
     console.log(
         `[SYNC] Vaults fully in sync : ${checked.length - failed.length}/${checked.length}` +
             (APPLY ? " (re-read from each eVault after writing)" : ""),
     );
     for (const r of failed) {
         console.log(
-            `[SYNC]   ${r.ename}: ${r.error ?? `${r.stillUnsynced.length} rows unsynced: ${r.stillUnsynced.slice(0, 5).join(", ")}${r.stillUnsynced.length > 5 ? ", …" : ""}`}`,
+            `[SYNC]   ${r.ename}: ${r.error ?? [
+                r.stillUnsynced.length &&
+                    `${r.stillUnsynced.length} rows unsynced: ${r.stillUnsynced.slice(0, 5).join(", ")}${r.stillUnsynced.length > 5 ? ", …" : ""}`,
+                r.accounts.stillUnsynced.length &&
+                    `${r.accounts.stillUnsynced.length} accounts unsynced: ${r.accounts.stillUnsynced.slice(0, 5).join(", ")}`,
+            ]
+                .filter(Boolean)
+                .join("; ")}`,
         );
     }
     if (skipped.length) {
