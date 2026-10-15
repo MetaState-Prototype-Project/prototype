@@ -28,6 +28,9 @@ import { adapter } from "../web3adapter";
 //   pnpm sync:ledger --settle=300         ignore rows newer than 300s (default 120)
 //
 // Exit code 0 means every row is verified present in every party's eVault.
+// One vault failing never stops the others. eNames the Registry has no eVault
+// for (deleted or never provisioned) are listed as skipped, not as failures,
+// since there is nowhere to write to.
 
 const LEDGER_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440006";
 const REGISTRY_URL =
@@ -48,6 +51,9 @@ function normalizeEname(value: string): string {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** The Registry has no eVault for this eName (deleted or never provisioned). */
+class NoEVaultError extends Error {}
+
 // ─── Registry ────────────────────────────────────────────────────────────────
 
 let token: { value: string; expiresAt: number } | null = null;
@@ -59,6 +65,7 @@ async function platformToken(force = false): Promise<string> {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ platform: PLATFORM }),
+        signal: AbortSignal.timeout(15_000),
     });
     if (!res.ok) throw new Error(`/platforms/certification responded ${res.status}`);
     const body = (await res.json()) as { token: string; expiresAt?: number };
@@ -68,19 +75,35 @@ async function platformToken(force = false): Promise<string> {
 
 const endpoints = new Map<string, string>();
 
+/** The vault's GraphQL endpoint; retries transient Registry errors, not a 404. */
 async function graphqlUrl(ename: string): Promise<string> {
     const cached = endpoints.get(ename);
     if (cached) return cached;
-    const res = await fetch(
-        new URL(`/resolve?w3id=${encodeURIComponent(ename)}`, REGISTRY_URL),
-    );
-    if (!res.ok) throw new Error(`Registry could not resolve ${ename} (${res.status})`);
-    const body = (await res.json()) as { uri?: string; evaultUrl?: string };
-    const uri = body.uri ?? body.evaultUrl;
-    if (!uri) throw new Error(`Registry returned no eVault for ${ename}`);
-    const url = new URL("/graphql", uri).toString();
-    endpoints.set(ename, url);
-    return url;
+    for (let attempt = 1; ; attempt++) {
+        let res: Response;
+        try {
+            res = await fetch(
+                new URL(`/resolve?w3id=${encodeURIComponent(ename)}`, REGISTRY_URL),
+                { signal: AbortSignal.timeout(15_000) },
+            );
+        } catch (error) {
+            if (attempt >= 3) throw error;
+            await sleep(1000 * 2 ** attempt);
+            continue;
+        }
+        if (res.status === 404) throw new NoEVaultError("no eVault registered");
+        if (!res.ok) {
+            if (attempt >= 3) throw new Error(`Registry could not resolve ${ename} (${res.status})`);
+            await sleep(1000 * 2 ** attempt);
+            continue;
+        }
+        const body = (await res.json()) as { uri?: string; evaultUrl?: string };
+        const uri = body.uri ?? body.evaultUrl;
+        if (!uri) throw new NoEVaultError("Registry returned no eVault");
+        const url = new URL("/graphql", uri).toString();
+        endpoints.set(ename, url);
+        return url;
+    }
 }
 
 // ─── eVault ──────────────────────────────────────────────────────────────────
@@ -88,10 +111,11 @@ async function graphqlUrl(ename: string): Promise<string> {
 /** One GraphQL call against a vault; retries rate limits, 5xx and network errors. */
 async function graphql<T>(ename: string, query: string, variables: object): Promise<T> {
     let refreshed = false;
+    const url = await graphqlUrl(ename);
     for (let attempt = 1; ; attempt++) {
         let res: Response;
         try {
-            res = await fetch(await graphqlUrl(ename), {
+            res = await fetch(url, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -254,6 +278,8 @@ interface VaultReport {
     updated: number;
     stillUnsynced: string[];
     error?: string;
+    /** No eVault exists for this eName, so there is nowhere to write; not a failure. */
+    skipped?: string;
 }
 
 async function syncVault(ename: string, rows: Ledger[]): Promise<VaultReport> {
@@ -306,7 +332,8 @@ async function syncVault(ename: string, rows: Ledger[]): Promise<VaultReport> {
             report.stillUnsynced = work.map((w) => w.row.id);
         }
     } catch (error) {
-        report.error = (error as Error).message;
+        if (error instanceof NoEVaultError) report.skipped = error.message;
+        else report.error = (error as Error).message;
         report.stillUnsynced = rows.map((r) => r.id);
     }
     return report;
@@ -376,13 +403,25 @@ async function main() {
 
     const vaults = [...byVault.entries()];
     const reports: VaultReport[] = [];
+    const inFlight = new Set<string>();
+    const heartbeat = setInterval(() => {
+        console.log(
+            `[SYNC] … ${reports.length}/${vaults.length} vaults done, still working on: ${[...inFlight].join(", ")}`,
+        );
+    }, 30_000);
     let next = 0;
     await Promise.all(
         Array.from({ length: VAULT_CONCURRENCY }, async () => {
             while (next < vaults.length) {
                 const [ename, vaultRows] = vaults[next++];
+                inFlight.add(ename);
                 const r = await syncVault(ename, vaultRows);
+                inFlight.delete(ename);
                 reports.push(r);
+                if (r.skipped) {
+                    console.log(`[SYNC] ${ename}: ${r.expected} rows · SKIPPED, ${r.skipped}`);
+                    continue;
+                }
                 const verdict = r.error
                     ? `ERROR ${r.error}`
                     : r.stillUnsynced.length
@@ -397,10 +436,13 @@ async function main() {
             }
         }),
     );
+    clearInterval(heartbeat);
 
     const sum = (k: "expected" | "synced" | "missing" | "outdated" | "duplicates" | "created" | "updated") =>
-        reports.reduce((s, r) => s + r[k], 0);
-    const failed = reports.filter((r) => r.error || r.stillUnsynced.length);
+        checked.reduce((s, r) => s + r[k], 0);
+    const skipped = reports.filter((r) => r.skipped);
+    const checked = reports.filter((r) => !r.skipped);
+    const failed = checked.filter((r) => r.error || r.stillUnsynced.length);
     console.log("[SYNC] ==========================================");
     console.log(`[SYNC] Row copies expected  : ${sum("expected")}`);
     console.log(`[SYNC] Already synced       : ${sum("synced")}`);
@@ -412,13 +454,19 @@ async function main() {
         console.log(`[SYNC] Updated in place     : ${sum("updated")}`);
     }
     console.log(
-        `[SYNC] Vaults fully in sync : ${reports.length - failed.length}/${reports.length}` +
+        `[SYNC] Vaults fully in sync : ${checked.length - failed.length}/${checked.length}` +
             (APPLY ? " (re-read from each eVault after writing)" : ""),
     );
     for (const r of failed) {
         console.log(
             `[SYNC]   ${r.ename}: ${r.error ?? `${r.stillUnsynced.length} rows unsynced: ${r.stillUnsynced.slice(0, 5).join(", ")}${r.stillUnsynced.length > 5 ? ", …" : ""}`}`,
         );
+    }
+    if (skipped.length) {
+        console.log(
+            `[SYNC] Skipped, no eVault   : ${skipped.length} eNames (${skipped.reduce((s, r) => s + r.expected, 0)} row copies), nothing to sync to`,
+        );
+        for (const r of skipped) console.log(`[SYNC]   ${r.ename}: ${r.skipped}`);
     }
     console.log("[SYNC] ==========================================");
 
