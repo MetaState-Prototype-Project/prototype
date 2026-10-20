@@ -158,7 +158,8 @@ export async function listPlatforms(): Promise<MarketplacePlatform[]> {
       id: data.platformName,
       name: data.displayName || data.platformName,
       description: data.description || "",
-      category: data.category || "Other",
+      category:
+        (typeof data.category === "string" && data.category.trim()) || "Other",
       logoUrl: data.logoUrl || null,
       url: data.url || "",
       ename,

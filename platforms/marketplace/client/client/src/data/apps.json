@@ -9,22 +9,6 @@
     "playStoreUrl": "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet"
   },
   {
-    "id": "blabsy",
-    "name": "Blabsy",
-    "description": "Micro blogging first style application for sharing thoughts across the W3DS ecosystem.",
-    "category": "Social",
-    "logoUrl": "/blabsy.svg",
-    "url": "https://blabsy.w3ds.metastate.foundation"
-  },
-  {
-    "id": "pictique",
-    "name": "Pictique",
-    "description": "Photo sharing first style application for sharing moments across the W3DS ecosystem.",
-    "category": "Social",
-    "logoUrl": "/pictique.svg",
-    "url": "https://pictique.w3ds.metastate.foundation"
-  },
-  {
     "id": "evoting",
     "name": "eVoting",
     "description": "Secure, transparent, and verifiable electronic voting platform with cryptographic guarantees.",
