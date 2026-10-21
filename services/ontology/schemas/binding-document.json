@@ -19,7 +19,8 @@
         "personal_parameters",
         "security_question",
         "deployment_key",
-        "software_version"
+        "software_version",
+        "consent"
       ],
       "description": "The type of binding document"
     },
@@ -129,9 +130,89 @@
       "then": {
         "properties": { "data": { "$ref": "#/definitions/SoftwareVersionData" } }
       }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "consent" } },
+        "required": ["type"]
+      },
+      "then": {
+        "properties": { "data": { "$ref": "#/definitions/ConsentData" } }
+      }
     }
   ],
   "definitions": {
+    "ConsentData": {
+      "description": "A person's consent to one specific proposal in a SignatureRequest, kept as a BindingDocument in their own vault. The platform that created the request creates the document (its own signature is the owner signature); the subject consents by adding their signature as the counterparty, which for this type must be the subject. Both signatures cover the BindingDocument's canonical form, so the consent names exactly this request, this slot and this proposal. Declining is deleting the document.",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "consent",
+          "description": "Discriminant for consent data."
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What the subject agrees to, in words, shown by their wallet before they sign, e.g. \"Become head of Test Org (requested by @Sarah)\"."
+        },
+        "requestOwnerEName": {
+          "type": "string",
+          "pattern": "^@[^\\s]+$",
+          "description": "eName of the vault holding the SignatureRequest."
+        },
+        "requestId": {
+          "type": "string",
+          "description": "MetaEnvelope id of the SignatureRequest."
+        },
+        "slotId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The request slot this consent fills."
+        },
+        "requesterEName": {
+          "type": "string",
+          "pattern": "^@[^\\s]+$",
+          "description": "eName of the person who asked for the change."
+        },
+        "proposal": {
+          "type": "object",
+          "description": "The proposal consented to, copied from the request, so the consent cannot be reused for a different change.",
+          "properties": {
+            "ontology": {
+              "type": "string",
+              "format": "uuid",
+              "description": "schemaId of the proposed record."
+            },
+            "recordId": {
+              "type": "string",
+              "description": "MetaEnvelope id the proposed record will be written under."
+            },
+            "recordSha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "description": "Hex SHA-256 of the proposed record's canonical JSON, as in the request."
+            }
+          },
+          "required": [
+            "ontology",
+            "recordId",
+            "recordSha256"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "statement",
+        "requestOwnerEName",
+        "requestId",
+        "slotId",
+        "requesterEName",
+        "proposal"
+      ],
+      "additionalProperties": false
+    },
     "IdDocumentData": {
       "type": "object",
       "properties": {

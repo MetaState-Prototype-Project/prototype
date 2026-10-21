@@ -24,6 +24,7 @@ import type {
     BindingDocumentSignature,
     BindingDocumentSocialConnectionData,
     BindingDocumentSoftwareVersionData,
+    BindingDocumentConsentData,
     BindingDocumentType,
 } from "../core/types/binding-document";
 
@@ -219,6 +220,44 @@ function validateBindingDocumentData(
                 releaseTag: d.releaseTag.trim(),
                 commitSha: d.commitSha.toLowerCase(),
             } as BindingDocumentSoftwareVersionData;
+        }
+        case "consent": {
+            const p = d.proposal as Record<string, unknown> | undefined;
+            const isEName = (v: unknown) =>
+                typeof v === "string" && v.startsWith("@") && v.length > 1;
+            if (
+                d.kind !== "consent" ||
+                typeof d.statement !== "string" ||
+                !d.statement.trim() ||
+                !isEName(d.requestOwnerEName) ||
+                typeof d.requestId !== "string" ||
+                !d.requestId ||
+                typeof d.slotId !== "string" ||
+                !d.slotId ||
+                !isEName(d.requesterEName) ||
+                !p ||
+                typeof p !== "object" ||
+                typeof p.ontology !== "string" ||
+                typeof p.recordId !== "string" ||
+                !p.recordId ||
+                typeof p.recordSha256 !== "string" ||
+                !/^[0-9a-f]{64}$/.test(p.recordSha256)
+            ) {
+                throw new ValidationError("consent data is invalid");
+            }
+            return {
+                kind: "consent",
+                statement: d.statement,
+                requestOwnerEName: d.requestOwnerEName as string,
+                requestId: d.requestId,
+                slotId: d.slotId,
+                requesterEName: d.requesterEName as string,
+                proposal: {
+                    ontology: p.ontology,
+                    recordId: p.recordId,
+                    recordSha256: p.recordSha256,
+                },
+            } as BindingDocumentConsentData;
         }
         default: {
             const _exhaustive: never = type;
@@ -527,8 +566,11 @@ export class BindingDocumentService {
             );
         }
 
-        // For social_connection documents the counterparty must be the subject
-        if (bindingDocument.type === "social_connection") {
+        // For social_connection and consent documents the counterparty must be the subject
+        if (
+            bindingDocument.type === "social_connection" ||
+            bindingDocument.type === "consent"
+        ) {
             if (input.signature.signer !== bindingDocument.subject) {
                 throw new Error(
                     `Signer "${input.signature.signer}" is not the expected counterparty "${bindingDocument.subject}"`,
