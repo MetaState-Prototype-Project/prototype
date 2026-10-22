@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/33333333-3333-4333-8333-333333333333",
+  "schemaId": "33333333-3333-4333-8333-333333333333",
+  "title": "SoilSamplingEvent",
+  "domain": "agriculture",
+  "description": "Soil sampling and receipt dates, sampling depth and protocol.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Application record ID stored in the payload; distinct from the containing MetaEnvelope ID."
+    },
+    "bundle_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "soil_sample_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "sampling_datetime": {
+      "type": "string"
+    },
+    "receipt_datetime": {
+      "type": "string"
+    },
+    "depth_from_cm": {
+      "type": "number"
+    },
+    "depth_to_cm": {
+      "type": "number"
+    },
+    "sampling_method": {
+      "type": "string"
+    },
+    "sampling_protocol": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "soil_sample_id"
+  ],
+  "additionalProperties": false
+}
