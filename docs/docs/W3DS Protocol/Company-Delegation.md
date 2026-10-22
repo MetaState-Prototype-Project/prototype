@@ -48,6 +48,7 @@ All of these live in the **company's own eVault**, are public (`acl: ["*"]`) so 
 - Only a **sitting director** may change the board.
 - A board only counts if the Company record's **very first version** already carries one, signed by one of its own directors. A Company record that started without directors can never acquire a board, so an existing company cannot be claimed by whoever adds directors first.
 - The company's eVault `/whois` reports `type: "company"` with this record as its manifest. Verifiers start there.
+- The record is also the company's **legal identity**: legal name and form, registration number and jurisdiction, registered address, founding date, IBAN and statutes. Every field is covered by the director's signature in `authorization`, so changing any of them takes a director's signature: nobody else can, for instance, swap the account payers see. Details people edit day to day (a display name, branding, a visiting address) belong in a record the community's admins can write without a board signature.
 
 ### Role
 

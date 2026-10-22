@@ -205,6 +205,7 @@ export class GraphQLServer {
                             "security_question",
                             "deployment_key",
                             "software_version",
+                            "consent",
                         ] as const;
                         type ValidType =
                             (typeof VALID_BINDING_DOCUMENT_TYPES)[number];
@@ -954,6 +955,7 @@ export class GraphQLServer {
                             "security_question",
                             "deployment_key",
                             "software_version",
+                            "consent",
                         ] as const;
                         type ValidType =
                             (typeof VALID_BINDING_DOCUMENT_TYPES)[number];

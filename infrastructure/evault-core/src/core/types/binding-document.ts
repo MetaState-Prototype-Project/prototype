@@ -6,7 +6,8 @@ export type BindingDocumentType =
     | "personal_parameters"
     | "security_question"
     | "deployment_key"
-    | "software_version";
+    | "software_version"
+    | "consent";
 
 export interface BindingDocumentSignature {
     signer: string;
@@ -79,6 +80,18 @@ export interface BindingDocumentSecurityQuestionData {
     answerHash: string;
 }
 
+/** A person's consent to one proposal in a SignatureRequest. Created by the
+ *  requesting platform; the subject consents by counter-signing. */
+export interface BindingDocumentConsentData {
+    kind: "consent";
+    statement: string;
+    requestOwnerEName: string;
+    requestId: string;
+    slotId: string;
+    requesterEName: string;
+    proposal: { ontology: string; recordId: string; recordSha256: string };
+}
+
 export type BindingDocumentData =
     | BindingDocumentIdDocumentData
     | BindingDocumentPhotographData
@@ -87,7 +100,8 @@ export type BindingDocumentData =
     | BindingDocumentPersonalParametersData
     | BindingDocumentSecurityQuestionData
     | BindingDocumentDeploymentKeyData
-    | BindingDocumentSoftwareVersionData;
+    | BindingDocumentSoftwareVersionData
+    | BindingDocumentConsentData;
 
 export interface BindingDocument {
     subject: string;
