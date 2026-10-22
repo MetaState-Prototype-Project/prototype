@@ -12,8 +12,9 @@ import { User } from "../database/entities/User";
 import { adapter } from "../web3adapter";
 
 // Checks that every eCurrency ledger row is in the eVault of each party to it
-// (sender and receiver, the same rule the live subscriber uses) and, with
-// --apply, writes whatever is missing and re-checks it.
+// (sender and receiver, the same rule the live subscriber uses; a mint, burn
+// or "Account initialized" has none, so it goes to its holder's vault) and,
+// with --apply, writes whatever is missing and re-checks it.
 //
 // The live sync is fire-and-forget: a row is pushed 3s after insert and again
 // after its hash is saved, failures are only logged, and a restart inside that
@@ -581,7 +582,7 @@ async function main() {
         await AppDataSource.getRepository(Ledger).find({ order: { createdAt: "ASC" } })
     ).filter((row) => row.createdAt <= cutoff);
 
-    // Parties per row, exactly as the subscriber resolves them.
+    // Parties per row, as the subscriber resolves them (plus holders of one-sided rows).
     const byVault = new Map<string, Ledger[]>();
     let noParties = 0;
     const unnamed = new Set<string>();
@@ -596,7 +597,13 @@ async function main() {
             if (ename) parties.add(ename);
             else unnamed.add(`${type}:${id}`);
         }
-        if (parties.size === 0) noParties++;
+        // Mints, burns and "Account initialized" have no parties: the live sync
+        // never wrote them anywhere, so they go to the holder's own vault.
+        if (parties.size === 0) {
+            const holder = enameOf.get(`${row.accountType}:${row.accountId}`);
+            if (holder) parties.add(holder);
+            else noParties++;
+        }
         for (const ename of parties) {
             if (ONLY && ename !== ONLY) continue;
             byVault.set(ename, [...(byVault.get(ename) ?? []), row]);
@@ -643,7 +650,7 @@ async function main() {
 
     console.log(
         `[SYNC] ${rows.length} ledger rows, ${accountCount} accounts, ${vaultNames.size} eVaults to check` +
-            (noParties ? `, ${noParties} rows with no parties (not synced by design, e.g. "Account initialized")` : "") +
+            (noParties ? `, ${noParties} rows with no parties and a holder with no eName (cannot be synced)` : "") +
             (unnamed.size ? `, ${unnamed.size} accounts with no eName (cannot be synced)` : ""),
     );
 
