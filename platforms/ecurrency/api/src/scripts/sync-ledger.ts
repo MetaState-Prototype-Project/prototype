@@ -22,6 +22,10 @@ import { adapter } from "../web3adapter";
 // actually returns over GraphQL (not the mapping DB, which can claim a sync
 // that never landed).
 //
+// Each currency's own record must exist too (in its creator's eVault, as the
+// adapter writes it), or the ledger entries point at an internal id nothing
+// else can resolve. A copy that carries the wrong currency id is outdated.
+//
 // It also syncs each holder's Account records (one per holder and currency,
 // the shape scripts/backfill-accounts.ts writes). The live adapter never
 // writes or updates these, so they go missing for new holders and their
@@ -41,6 +45,7 @@ import { adapter } from "../web3adapter";
 
 const LEDGER_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440006";
 const ACCOUNT_ONTOLOGY = "6fda64db-fd14-4fa2-bd38-77d2e5e6136d";
+const CURRENCY_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440008";
 const REGISTRY_URL =
     process.env.PUBLIC_REGISTRY_URL ?? "https://registry.w3ds.metastate.foundation";
 // The platform the live adapter certifies as (see web3adapter/watchers/subscriber.ts).
@@ -216,11 +221,14 @@ async function update(ename: string, id: string, ontology: string, payload: obje
 
 // ─── Expected state ──────────────────────────────────────────────────────────
 
+/** eCurrency currency id → its record's global id, filled once currencies are synced. */
+const currencyGlobalIds = new Map<string, string>();
+const expectedCurrencyId = (row: Ledger) => currencyGlobalIds.get(row.currencyId) ?? row.currencyId;
+
 /** The payload the live adapter writes for a row (ledger.mapping.json). */
-async function expectedPayload(row: Ledger): Promise<Record<string, unknown>> {
-    const currencyGlobalId = await adapter.mappingDb.getGlobalId(row.currencyId);
+function expectedPayload(row: Ledger): Record<string, unknown> {
     return {
-        currencyId: currencyGlobalId ?? row.currencyId,
+        currencyId: expectedCurrencyId(row),
         accountId: row.accountId,
         accountType: row.accountType,
         amount: row.amount,
@@ -260,17 +268,107 @@ function isCopyOf(record: Record<string, unknown>, row: Ledger): boolean {
     );
 }
 
-/** Complete: carries the row's hash (rows from before hashing have none to carry). */
+/**
+ * Complete: carries the row's hash (rows from before hashing have none to
+ * carry) and points at the currency's record, not eCurrency's internal id.
+ */
 const isComplete = (record: Record<string, unknown>, row: Ledger) =>
-    !row.hash || record.hash === row.hash;
+    (!row.hash || record.hash === row.hash) && record.currencyId === expectedCurrencyId(row);
 
 type Status = "synced" | "outdated" | "missing";
 
+/** Synced only when every copy is complete: apps may read a stale duplicate. */
 function classify(records: VaultRecord[], row: Ledger) {
     const copies = records.filter((r) => isCopyOf(r.parsed, row));
-    const complete = copies.find((r) => isComplete(r.parsed, row));
-    const status: Status = complete ? "synced" : copies.length ? "outdated" : "missing";
-    return { status, copies, best: complete ?? copies[0] ?? null };
+    const stale = copies.filter((r) => !isComplete(r.parsed, row));
+    const status: Status = !copies.length ? "missing" : stale.length ? "outdated" : "synced";
+    const best = copies.find((r) => isComplete(r.parsed, row)) ?? copies[0] ?? null;
+    return { status, copies, stale, best };
+}
+
+// ─── Currencies ──────────────────────────────────────────────────────────────
+
+/** The payload the live adapter writes for a currency (currency.mapping.json). */
+const currencyPayload = (c: Currency) => ({
+    name: c.name,
+    description: c.description,
+    ename: c.ename,
+    groupId: c.groupId,
+    allowNegative: c.allowNegative,
+    maxNegativeBalance: c.maxNegativeBalance,
+    allowNegativeGroupOnly: c.allowNegativeGroupOnly,
+    createdBy: c.createdBy,
+    createdAt: c.createdAt.toISOString(),
+    updatedAt: c.updatedAt.toISOString(),
+});
+
+interface CurrencyReport {
+    synced: number;
+    missing: number;
+    created: number;
+    /** Mapped, but the record is not in the creator's eVault (may be in another admin's). */
+    elsewhere: string[];
+    failed: string[];
+}
+
+/**
+ * Every currency's record in its creator's eVault. Missing ones are written
+ * (with --apply) and mapped, so ledger entries can carry the record's id.
+ */
+async function syncCurrencies(
+    currencies: Currency[],
+    enameOf: Map<string, string | null>,
+): Promise<CurrencyReport> {
+    const report: CurrencyReport = { synced: 0, missing: 0, created: 0, elsewhere: [], failed: [] };
+    for (const c of currencies) {
+        const label = `${c.name} (${c.ename})`;
+        const owner = enameOf.get(`user:${c.createdBy}`);
+        const mapped = await adapter.mappingDb.getGlobalId(c.id);
+        if (!owner) {
+            if (mapped) currencyGlobalIds.set(c.id, mapped);
+            report.failed.push(`${label}: creator has no eName`);
+            continue;
+        }
+        try {
+            const find = (records: VaultRecord[]) =>
+                records.find(
+                    (r) =>
+                        r.id === mapped ||
+                        (typeof r.parsed.ename === "string" &&
+                            normalizeEname(r.parsed.ename) === normalizeEname(c.ename)),
+                );
+            const found = find(await list(owner, CURRENCY_ONTOLOGY));
+            if (found) {
+                report.synced++;
+                currencyGlobalIds.set(c.id, found.id);
+                if (APPLY && found.id !== mapped) await rememberId(c.id, found.id);
+                continue;
+            }
+            if (mapped) {
+                currencyGlobalIds.set(c.id, mapped);
+                report.elsewhere.push(`${label}: mapped to ${mapped}, not in ${owner}`);
+                continue;
+            }
+            report.missing++;
+            if (!APPLY) {
+                report.failed.push(`${label}: no record in any eVault`);
+                continue;
+            }
+            const id = await store(owner, CURRENCY_ONTOLOGY, currencyPayload(c));
+            if (!find(await list(owner, CURRENCY_ONTOLOGY))) {
+                report.failed.push(`${label}: written to ${owner} but not there on re-read`);
+                continue;
+            }
+            await rememberId(c.id, id);
+            currencyGlobalIds.set(c.id, id);
+            report.created++;
+            console.log(`[SYNC] currency ${label}: created ${id} in ${owner}`);
+        } catch (error) {
+            if (mapped) currencyGlobalIds.set(c.id, mapped);
+            report.failed.push(`${label}: ${(error as Error).message}`);
+        }
+    }
+    return report;
 }
 
 // ─── Accounts ────────────────────────────────────────────────────────────────
@@ -364,23 +462,23 @@ async function syncVault(
     };
     try {
         const records = rows.length ? await list(ename, LEDGER_ONTOLOGY) : [];
-        const work: { row: Ledger; status: Status; target: string | null }[] = [];
+        const work: { row: Ledger; stale: string[] }[] = [];
         for (const row of rows) {
-            const { status, copies, best } = classify(records, row);
+            const { status, copies, stale, best } = classify(records, row);
             report[status]++;
             if (copies.length > 1) report.duplicates += copies.length - 1;
-            if (status !== "synced") work.push({ row, status, target: best?.id ?? null });
-            else if (APPLY && best) await remember(row, ename, best.id);
+            if (status !== "synced") work.push({ row, stale: stale.map((r) => r.id) });
+            if (APPLY && best && status !== "missing") await remember(row, ename, best.id);
         }
 
         if (APPLY) {
-            for (const { row, status, target } of work) {
-                const payload = await expectedPayload(row);
+            for (const { row, stale } of work) {
+                const payload = expectedPayload(row);
                 try {
-                    if (status === "outdated" && target) {
-                        await update(ename, target, LEDGER_ONTOLOGY, payload);
-                        await remember(row, ename, target);
-                        report.updated++;
+                    if (stale.length) {
+                        // Every stale copy, duplicates included, so none is left behind.
+                        for (const id of stale) await update(ename, id, LEDGER_ONTOLOGY, payload);
+                        report.updated += stale.length;
                     } else {
                         const id = await store(ename, LEDGER_ONTOLOGY, payload);
                         await remember(row, ename, id);
@@ -448,8 +546,10 @@ async function syncAccounts(
 }
 
 /** Point the live adapter's mapping at the copy that is really in the vault. */
-async function remember(row: Ledger, ename: string, globalId: string): Promise<void> {
-    const localId = `${row.id}::${ename}`;
+const remember = (row: Ledger, ename: string, globalId: string) =>
+    rememberId(`${row.id}::${ename}`, globalId);
+
+async function rememberId(localId: string, globalId: string): Promise<void> {
     const current = await adapter.mappingDb.getGlobalId(localId);
     if (current === globalId) return;
     try {
@@ -503,11 +603,17 @@ async function main() {
         }
     }
 
-    // One Account per holder and currency, with the balance of its latest row.
-    // Every row counts here, including ones with no parties ("Account initialized").
-    const currencies = new Map(
-        (await AppDataSource.getRepository(Currency).find()).map((c) => [c.id, c]),
+    const currencyList = await AppDataSource.getRepository(Currency).find();
+    const currencies = new Map(currencyList.map((c) => [c.id, c]));
+    const currencyReport = await syncCurrencies(currencyList, enameOf);
+    console.log(
+        `[SYNC] ${currencyList.length} currencies: ${currencyReport.synced} synced, ${currencyReport.missing} missing` +
+            (APPLY ? `, ${currencyReport.created} created` : ""),
     );
+
+    // One Account per holder and currency. Its balance is the sum of the
+    // chain, which wins over any row's stored balance should they disagree.
+    // Every row counts here, including ones with no parties ("Account initialized").
     const accountsByVault = new Map<string, Map<string, ExpectedAccount>>();
     for (const row of rows) {
         const ename = enameOf.get(`${row.accountType}:${row.accountId}`);
@@ -518,7 +624,7 @@ async function main() {
         accountsByVault.set(ename, accounts);
         const key = `${row.accountType}:${row.accountId}|${normalizeEname(currency.ename)}`;
         const existing = accounts.get(key);
-        // Rows are in createdAt order, so the last one seen holds the balance.
+        const balance = Math.round(((existing?.payload.balance ?? 0) + Number(row.amount)) * 100) / 100;
         accounts.set(key, {
             key,
             payload: {
@@ -527,7 +633,7 @@ async function main() {
                 accountType: row.accountType,
                 currencyEname: normalizeEname(currency.ename),
                 currencyName: currency.name,
-                balance: Number(row.balance),
+                balance,
                 createdAt: existing?.payload.createdAt ?? row.createdAt.toISOString(),
             },
         });
@@ -596,10 +702,14 @@ async function main() {
         (r) => r.error || r.stillUnsynced.length || r.accounts.stillUnsynced.length,
     );
     console.log("[SYNC] ==========================================");
+    console.log(`[SYNC] Currencies           : ${currencyReport.synced} synced, ${currencyReport.missing} missing` +
+        (APPLY ? `, ${currencyReport.created} created` : ""));
+    for (const line of currencyReport.failed) console.log(`[SYNC]   ✗ ${line}`);
+    for (const line of currencyReport.elsewhere) console.log(`[SYNC]   ? ${line}`);
     console.log(`[SYNC] Row copies expected  : ${sum("expected")}`);
     console.log(`[SYNC] Already synced       : ${sum("synced")}`);
     console.log(`[SYNC] Missing              : ${sum("missing")}`);
-    console.log(`[SYNC] Outdated (no hash)   : ${sum("outdated")}`);
+    console.log(`[SYNC] Outdated             : ${sum("outdated")} (no hash, or the wrong currency id)`);
     console.log(`[SYNC] Duplicate copies     : ${sum("duplicates")} (reported, never deleted)`);
     if (APPLY) {
         console.log(`[SYNC] Created              : ${sum("created")}`);
@@ -639,7 +749,7 @@ async function main() {
     console.log("[SYNC] ==========================================");
 
     await AppDataSource.destroy();
-    return failed.length === 0;
+    return failed.length === 0 && currencyReport.failed.length === 0;
 }
 
 main()
