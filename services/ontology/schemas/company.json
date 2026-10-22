@@ -55,7 +55,8 @@
       "type": "string"
     },
     "address": {
-      "type": "string"
+      "type": "string",
+      "description": "Registered address: the legal seat, as registered in the jurisdiction. A visiting address is a different fact and does not belong here."
     },
     "registrationNumber": {
       "type": "string",
@@ -64,6 +65,25 @@
     "jurisdiction": {
       "type": "string",
       "description": "Jurisdiction of registration, e.g. an ISO 3166 code"
+    },
+    "legalForm": {
+      "type": "string",
+      "description": "Legal form in its jurisdiction, as registered, e.g. \"BV\", \"stichting\", \"vereniging\", \"GmbH\", \"LLC\"."
+    },
+    "foundingDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the organisation was legally founded (YYYY-MM-DD)."
+    },
+    "iban": {
+      "type": "string",
+      "pattern": "^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$",
+      "description": "IBAN of the account payments to the organisation go to, without spaces. It is part of the signed record, so only a director can change it, and nobody can swap the account a payer sees without a director's signature."
+    },
+    "statutesFileUri": {
+      "type": "string",
+      "pattern": "^w3ds://file\\?id=@[^\\s/]+/[^\\s]+$",
+      "description": "The organisation's statutes (articles of association), as a w3ds://file URI."
     },
     "createdAt": {
       "type": "string",
