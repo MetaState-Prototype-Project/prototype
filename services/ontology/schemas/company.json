@@ -1,9 +1,9 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "schemaId": "0f9a3cb8-4a9f-4b5f-a1fa-3a4c2eb1f402",
-  "title": "Company",
+  "title": "Organization",
   "domain": "work",
-  "description": "A company's profile. The earliest Company record naming its own eVault is that eVault's manifest.",
+  "description": "An organisation's legal identity and board: a company, foundation, association or cooperative. The earliest record naming its own eVault is that eVault's manifest. Titled \"Company\" until 2026-10; the schemaId is unchanged.",
   "type": "object",
   "properties": {
     "id": {
