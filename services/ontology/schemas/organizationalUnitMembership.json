@@ -1,0 +1,106 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "schemaId": "ee75b09f-64e1-4ac9-ab8a-eac88a7e42f2",
+    "title": "OrganizationalUnitMembership",
+    "domain": "work",
+    "description": "Places one person in one OrganizationalUnit of an Organization. Lives in the organisation's eVault. There is one record per person per organisation: moving someone changes `unitId` on that record, so a person is never in two units or briefly in none. Taking someone out of every unit deletes the record; a person without a record is in no unit. Grants no authority.",
+    "type": "object",
+    "properties": {
+        "organizationEName": {
+            "type": "string",
+            "pattern": "^@[^\\s]+$",
+            "description": "eName of the organisation's eVault. Must be the eName of the vault the record lives in."
+        },
+        "memberEName": {
+            "type": "string",
+            "pattern": "^@[^\\s]+$",
+            "description": "The person placed in the unit"
+        },
+        "unitId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "MetaEnvelope id of an OrganizationalUnit in the same vault"
+        },
+        "jobTitle": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "The person's title inside the unit, e.g. 'Senior engineer', 'Volunteer coordinator'. A label only: it grants nothing."
+        },
+        "contractType": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60,
+            "description": "How the person works for the organisation, in the organisation's own words: 'Employee', 'Contractor', 'Volunteer', 'Intern', 'Elected member'. Free text, because the legal categories differ between countries. Optional: leave it out if the organisation doesn't want it shown."
+        },
+        "since": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the person joined their current unit; reset on every move"
+        },
+        "createdBy": {
+            "type": "string",
+            "pattern": "^@[^\\s]+$",
+            "description": "Who first placed the person"
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the placement was first recorded"
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When this version of the record was written"
+        },
+        "authorization": {
+            "type": "object",
+            "description": "Proof that the organisation authorised this change: the wallet signature (`w3ds-grant/v1`, over this record's canonical form) of someone holding the organisation's authority over its structure at `signedAt`. That is one of its directors (the `directors` of the vault's Company record, which every Organization has), or a person with a live Delegation in the same vault whose scopes include `ontology:ee75b09f-64e1-4ac9-ab8a-eac88a7e42f2` (named by `delegationId`). A record without such a signature is not part of the organisation's structure, whichever platform wrote it. Readers check this; the eVault does not.",
+            "properties": {
+                "signerEName": {
+                    "type": "string",
+                    "pattern": "^@[^\\s]+$",
+                    "description": "eName of the director or delegate who signed this version"
+                },
+                "signedPayload": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The exact canonical string that was signed"
+                },
+                "signature": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The signer's wallet signature over signedPayload"
+                },
+                "signedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "When it was signed; the signer's authority is judged at this time"
+                },
+                "delegationId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Present when the signer acts under a Delegation rather than as a director: MetaEnvelope id of that Delegation, in the same vault, with the scope `ontology:ee75b09f-64e1-4ac9-ab8a-eac88a7e42f2`"
+                }
+            },
+            "required": [
+                "signerEName",
+                "signedPayload",
+                "signature",
+                "signedAt"
+            ],
+            "additionalProperties": false
+        }
+    },
+    "required": [
+        "organizationEName",
+        "memberEName",
+        "unitId",
+        "since",
+        "createdBy",
+        "createdAt",
+        "updatedAt",
+        "authorization"
+    ],
+    "additionalProperties": false
+}
