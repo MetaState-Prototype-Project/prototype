@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/11111111-1111-4111-8111-111111111111",
+  "schemaId": "11111111-1111-4111-8111-111111111111",
+  "title": "SoilLabReport",
+  "domain": "agriculture",
+  "description": "Laboratory report provenance and reference to the original source file.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Application record ID stored in the payload; distinct from the containing MetaEnvelope ID."
+    },
+    "bundle_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "owner_eid": {
+      "type": "string"
+    },
+    "vault_id": {
+      "type": "string"
+    },
+    "source_system": {
+      "type": "string"
+    },
+    "source_format": {
+      "type": "string",
+      "enum": [
+        "xml",
+        "json"
+      ]
+    },
+    "source_report_id": {
+      "type": "string"
+    },
+    "issue_datetime": {
+      "type": "string"
+    },
+    "modification_datetime": {
+      "type": "string"
+    },
+    "status_code": {
+      "type": "string"
+    },
+    "is_copy": {
+      "type": "boolean"
+    },
+    "sender_lab_id": {
+      "type": "string"
+    },
+    "recipient_id": {
+      "type": "string"
+    },
+    "original_file_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "imported_at": {
+      "type": "string"
+    },
+    "raw_import_hash": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "owner_eid",
+    "vault_id",
+    "source_system",
+    "source_format",
+    "source_report_id",
+    "is_copy",
+    "original_file_id",
+    "imported_at",
+    "raw_import_hash"
+  ],
+  "additionalProperties": false
+}

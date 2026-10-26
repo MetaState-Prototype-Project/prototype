@@ -1,0 +1,118 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "schemaId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "title": "SoilImportBundle",
+  "domain": "agriculture",
+  "description": "Manifest linking the entities produced by one soil report import without duplicating their data.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Application record ID stored in the payload; distinct from the containing MetaEnvelope ID."
+    },
+    "owner_eid": {
+      "type": "string"
+    },
+    "vault_id": {
+      "type": "string"
+    },
+    "source_system": {
+      "type": "string"
+    },
+    "source_format": {
+      "type": "string",
+      "enum": [
+        "xml",
+        "json"
+      ]
+    },
+    "source_report_id": {
+      "type": "string"
+    },
+    "source_file_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "lab_report_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "soil_sample_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "sampling_event_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "sampled_object_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "party_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "method_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "observation_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "interpretation_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "recommendation_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "imported_at": {
+      "type": "string"
+    },
+    "raw_import_hash": {
+      "type": "string"
+    },
+    "schema_version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "owner_eid",
+    "vault_id",
+    "source_system",
+    "source_format",
+    "source_report_id",
+    "source_file_id",
+    "lab_report_id",
+    "soil_sample_id",
+    "party_ids",
+    "method_ids",
+    "observation_ids",
+    "interpretation_ids",
+    "recommendation_ids",
+    "imported_at",
+    "raw_import_hash",
+    "schema_version"
+  ],
+  "additionalProperties": false
+}
