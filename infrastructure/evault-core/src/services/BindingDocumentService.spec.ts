@@ -173,6 +173,62 @@ describe("BindingDocumentService (integration)", () => {
             }
         });
 
+        const consentData = {
+            kind: "consent" as const,
+            statement: "Become head of Test Org (requested by @sarah)",
+            requestOwnerEName: "@org",
+            requestId: "request-1",
+            slotId: "subject",
+            requesterEName: "@sarah",
+            proposal: { ontology: "0b2f15d8-c3f9-4dba-b959-5cfa11272dae", recordId: "record-1", recordSha256: "a".repeat(64) },
+        };
+
+        it("should create a binding document with consent type", async () => {
+            const result = await bindingDocumentService.createBindingDocument(
+                {
+                    subject: "test-user-123",
+                    type: "consent",
+                    data: consentData,
+                    ownerSignature: {
+                        signer: TEST_ENAME,
+                        signature: computeBindingDocumentHash({ subject: "@test-user-123", type: "consent", data: consentData }),
+                        timestamp: new Date().toISOString(),
+                    },
+                },
+                TEST_ENAME,
+            );
+
+            expect(result.bindingDocument.type).toBe("consent");
+            expect(result.bindingDocument.data).toEqual(consentData);
+        });
+
+        it("should reject consent data that doesn't name its request and proposal", async () => {
+            const broken = [
+                { ...consentData, statement: " " },
+                { ...consentData, requestOwnerEName: "org" },
+                { ...consentData, slotId: "" },
+                { ...consentData, proposal: { ...consentData.proposal, recordSha256: "not-a-hash" } },
+                { ...consentData, proposal: undefined },
+            ];
+            for (const data of broken as any[]) {
+                await expect(
+                    bindingDocumentService.createBindingDocument(
+                        {
+                            subject: "test-user-123",
+                            type: "consent",
+                            data,
+                            ownerSignature: {
+                                signer: TEST_ENAME,
+                                signature: computeBindingDocumentHash({ subject: "@test-user-123", type: "consent", data }),
+                                timestamp: new Date().toISOString(),
+                            },
+                        },
+                        TEST_ENAME,
+                    ),
+                ).rejects.toThrow("consent data is invalid");
+            }
+        });
+
         it("should create a binding document with self type", async () => {
             const data = { kind: "self" as const, name: "Bob Jones" };
             const result = await bindingDocumentService.createBindingDocument(
@@ -511,6 +567,42 @@ describe("BindingDocumentService (integration)", () => {
             ).rejects.toThrow(
                 `Signer "@counterparty" has already signed this binding document`,
             );
+        });
+
+        it("should only let the subject counter-sign a consent", async () => {
+            const subject = "@test-user-consent";
+            const data = {
+                kind: "consent" as const,
+                statement: "Become head of Test Org (requested by @sarah)",
+                requestOwnerEName: "@org",
+                requestId: "request-2",
+                slotId: "subject",
+                requesterEName: "@sarah",
+                proposal: { ontology: "0b2f15d8-c3f9-4dba-b959-5cfa11272dae", recordId: "record-2", recordSha256: "b".repeat(64) },
+            };
+            const docHash = computeBindingDocumentHash({ subject, type: "consent", data });
+            const created = await bindingDocumentService.createBindingDocument(
+                {
+                    subject,
+                    type: "consent",
+                    data,
+                    ownerSignature: { signer: TEST_ENAME, signature: docHash, timestamp: new Date().toISOString() },
+                },
+                TEST_ENAME,
+            );
+
+            await expect(
+                bindingDocumentService.addCounterpartySignature(
+                    { metaEnvelopeId: created.id, signature: { signer: "@stranger", signature: docHash, timestamp: new Date().toISOString() } },
+                    TEST_ENAME,
+                ),
+            ).rejects.toThrow(`Signer "@stranger" is not the expected counterparty "${subject}"`);
+
+            const updated = await bindingDocumentService.addCounterpartySignature(
+                { metaEnvelopeId: created.id, signature: { signer: subject, signature: docHash, timestamp: new Date().toISOString() } },
+                TEST_ENAME,
+            );
+            expect(updated.signatures.map((x) => x.signer)).toEqual([TEST_ENAME, subject]);
         });
 
         it("should throw error when binding document not found", async () => {

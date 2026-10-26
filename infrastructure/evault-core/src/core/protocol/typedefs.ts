@@ -269,6 +269,7 @@ export const typeDefs = /* GraphQL */ `
         security_question
         deployment_key
         software_version
+        consent
     }
 
     type BindingDocumentSignature {
