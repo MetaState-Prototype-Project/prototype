@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "7e5ee339-5f80-42b6-b5e6-da0274147ca6",
+  "title": "LanguagePreference",
+  "type": "object",
+  "description": "How a person wants TEXT presented to them, stored on THEIR OWN vault (ACL = self), ONE envelope per person: the interface language, the language to translate other people's writing into, and whether to translate automatically. The three are independent — a reader may want a Russian interface and English translations. Any platform that shows text can read it to open in the right language instead of asking again on every device. ABSENCE IS NOT A VALUE: no envelope, or an absent field, means the person has never chosen, so a reader keeps its own default and must not treat it as 'off'. A value a reader cannot act on (a language it has no interface for) is ignored, never replaced by a default. If duplicates exist, the one with the latest updatedAt wins; writers update that one in place.",
+  "properties": {
+    "id": { "type": "string", "description": "Body id" },
+    "uiLang": { "type": "string", "description": "Interface language, as an ISO 639-1 / BCP-47 tag (e.g. \"en\", \"ru\", \"nl\"). A platform without that language leaves its interface as it is." },
+    "readingLang": { "type": "string", "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$", "description": "Language to render OTHER people's messages and posts in, as an ISO 639-1 / BCP-47 tag. Not limited to interface languages." },
+    "autoTranslate": { "type": "boolean", "description": "Translate incoming text into readingLang without being asked. Absent = never chosen, not false." },
+    "updatedAt": { "type": ["integer", "string"], "description": "When the preference last changed: milliseconds since the Unix epoch (what Meshenger writes); an ISO 8601 date-time is accepted by readers too." }
+  },
+  "required": ["id", "updatedAt"],
+  "additionalProperties": true
+}
