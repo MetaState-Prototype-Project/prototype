@@ -3,7 +3,7 @@
   "schemaId": "a8bfb7cf-3200-4b25-9ea9-ee41100f212e",
   "title": "GroupManifest",
   "domain": "governance",
-  "description": "A group of people with a vault of its own — a community, an association, a club, a team. The group's identity and its members: who belongs (`members`), who manages it (`admins`), who owns it (`owner`; a self-governed group names its own eName). Lives in the group's own vault. Optional fields carry what a community platform shows and manages about it: its address, branding, kinds of membership and of absence, and per-member facts. A group that is also a legal entity has its legal identity and board on an Organization record, which points here (groupManifestEnvelopeId) and to which `organizationEName` points back.",
+  "description": "A group of people with a vault of its own — a community, an association, a club, a team. The group's identity and its members: who belongs (`members`), who manages it (`admins`), who created it (`owner`: the eName of the person who created the group). Lives in the group's own vault. Optional fields carry what a community platform shows and manages about it: its address, branding, kinds of membership and of absence, and per-member facts. A group that is also a legal entity has its legal identity and board on an Organization record, which points here (groupManifestEnvelopeId) and to which `organizationEName` points back.",
   "type": "object",
   "properties": {
     "eName": {
