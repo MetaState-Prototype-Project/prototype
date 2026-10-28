@@ -65,6 +65,10 @@
       "format": "date-time",
       "description": "Event end time (ISO 8601)"
     },
+    "timezone": {
+      "type": "string",
+      "description": "IANA time zone name the event's wall-clock time was meant in, e.g. \"Europe/Amsterdam\". Not derivable from the offset in `start`/`end`: an offset is the CONSEQUENCE of a zone at one instant, so +02:00 is both Europe/Amsterdam and Africa/Johannesburg, and Amsterdam's own offset differs across a DST boundary. Needed to re-render an event in the zone it was scheduled in, and to place a recurrence correctly once the clocks change."
+    },
     "isAllDay": {
       "type": "boolean"
     },
