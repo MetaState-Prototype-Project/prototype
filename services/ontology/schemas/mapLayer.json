@@ -1,0 +1,93 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/7d5a2c1e-6b3f-4c8a-9e21-0a1b2c3d4e61",
+  "schemaId": "7d5a2c1e-6b3f-4c8a-9e21-0a1b2c3d4e61",
+  "title": "MapLayer",
+  "domain": "geo",
+  "description": "A universal georeferenced map layer that can be raster (e.g. a GeoTIFF: Soil Organic Matter, NDVI, elevation) OR vector (points, lines, polygons, or many features). Carries the layer type, acquisition time, CRS, bounds, per-layer statistics and optional rendering style, and references the underlying file blob (fileRef → a File/MediaAsset) — vector layers may instead inline small GeoJSON in `features`. Kept generic (not field-specific): the subject it describes is linked via `subjectRef`/`subjectExternalId`. The `dataType` discriminator drives which fields are required.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "recordedAt": { "type": "string", "format": "date-time" },
+    "supersedes": { "type": "string", "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$" },
+    "deleted": { "type": "boolean" },
+    "name": { "type": "string", "minLength": 1 },
+    "dataType": { "description": "Raster grid or vector features.", "type": "string", "enum": ["raster", "vector"] },
+    "geometryType": {
+      "description": "For vector layers: the geometry kind (or 'collection' for mixed / many features).",
+      "type": "string",
+      "enum": ["point", "line", "polygon", "multipoint", "multiline", "multipolygon", "collection"]
+    },
+    "layerType": {
+      "description": "What the layer represents, e.g. { name: 'Soil Organic Matter', dataType: 'raster' }.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "minLength": 1 },
+        "dataType": { "type": "string", "enum": ["raster", "vector"] }
+      },
+      "required": ["name"],
+      "additionalProperties": true
+    },
+    "subjectRef": {
+      "description": "w3ds:// reference to what this layer describes (a LogicalField, parcel, region, asset, …). Generic on purpose.",
+      "type": "string", "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "subjectExternalId": { "description": "The producing service's own subject id, when there is no w3ds subject ref.", "type": "string" },
+    "acquiredAt": { "type": "string", "format": "date-time" },
+    "acquiredAtEnd": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+    "fileRef": {
+      "description": "w3ds:// reference to the layer's file blob — a GeoTIFF/COG for raster, or GeoJSON/GeoPackage/FlatGeobuf for large vector.",
+      "type": "string", "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "features": {
+      "description": "Inline GeoJSON for small vector layers (a Geometry, Feature, or FeatureCollection). Large vector data should use fileRef instead.",
+      "type": "object"
+    },
+    "featureCount": { "type": "integer", "minimum": 0 },
+    "previewRef": {
+      "description": "Optional w3ds:// reference to a rendered preview (e.g. a coloured PNG).",
+      "type": "string", "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "format": { "description": "File format of fileRef.", "type": "string", "examples": ["geotiff", "cog", "png", "geojson", "geopackage", "flatgeobuf"] },
+    "crs": { "description": "Coordinate reference system, e.g. EPSG:28992.", "type": "string" },
+    "bbox": {
+      "description": "Bounds in the layer CRS: [minX, minY, maxX, maxY].",
+      "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4
+    },
+    "bbox4326": {
+      "description": "Convenience WGS84 bounds [west, south, east, north] for map overlay.",
+      "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4
+    },
+    "nodata": { "description": "Raster nodata sentinel value.", "type": "number" },
+    "unit": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+    "statistics": {
+      "description": "Per-layer summary (raster pixel stats or vector attribute stats).",
+      "type": "object",
+      "properties": {
+        "count": { "type": "number" }, "min": { "type": "number" }, "max": { "type": "number" },
+        "mean": { "type": "number" }, "median": { "type": "number" }, "std": { "type": "number" },
+        "variance": { "type": "number" }, "LCL_95": { "type": "number" }, "UCL_95": { "type": "number" }
+      },
+      "additionalProperties": true
+    },
+    "style": {
+      "description": "Optional rendering hints — raster: { ramp, min, max }; vector: { stroke, fill, weight, radius }.",
+      "type": "object", "additionalProperties": true
+    },
+    "source": { "description": "The producing service (e.g. Bioscope).", "type": "string" },
+    "integrity": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+  },
+  "required": ["name", "dataType", "layerType", "acquiredAt"],
+  "allOf": [
+    {
+      "if": { "properties": { "dataType": { "const": "raster" } } },
+      "then": { "required": ["fileRef", "crs"] }
+    },
+    {
+      "if": { "properties": { "dataType": { "const": "vector" } } },
+      "then": { "anyOf": [{ "required": ["features"] }, { "required": ["fileRef"] }] }
+    }
+  ],
+  "additionalProperties": true
+}
