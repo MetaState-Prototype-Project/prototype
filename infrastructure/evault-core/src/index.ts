@@ -134,6 +134,17 @@ const initializeEVault = async (
         console.warn("Failed to create id indexes:", error);
     }
 
+    // Create ontology index so group membership doesn't scan every MetaEnvelope
+    // when authorizing a group grant.
+    try {
+        const { createMetaEnvelopeOntologyIndex } = await import(
+            "./core/db/migrations/add-metaenvelope-ontology-index"
+        );
+        await createMetaEnvelopeOntologyIndex(driver);
+    } catch (error) {
+        console.warn("Failed to create MetaEnvelope ontology index:", error);
+    }
+
     // Migrate publicKey (string) to publicKeys (array)
     try {
         const { migratePublicKeyToArray } = await import(

@@ -1,10 +1,11 @@
 import type { Driver } from "neo4j-driver";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
     setupTestNeo4j,
     teardownTestNeo4j,
 } from "../../test-utils/neo4j-setup";
 import { DbService } from "../db/db.service";
+import { createMetaEnvelopeOntologyIndex } from "../db/migrations/add-metaenvelope-ontology-index";
 import { GroupMembershipService } from "./group-membership.service";
 
 const GROUP_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440003";
@@ -21,6 +22,7 @@ describe("GroupMembershipService", () => {
         driver = setup.driver;
         db = new DbService(driver);
         groups = new GroupMembershipService(db);
+        await createMetaEnvelopeOntologyIndex(driver);
     }, 120000);
 
     afterAll(async () => {
@@ -209,5 +211,53 @@ describe("GroupMembershipService", () => {
 
             expect(await groups.membersOf(notAGroup)).toEqual([]);
         });
+    });
+
+    describe("query plan", () => {
+        it("finds group records through the ontology index, not a label scan", async () => {
+            const group = "@group-plan";
+            await storeGroup(group, {
+                ename: group,
+                name: "Plan",
+                members: ["@olivia"],
+            });
+
+            const session = driver.session();
+            try {
+                // Unrelated records, each with envelopes as real ones have, so
+                // the planner sees the shape it does in production.
+                await session.run(
+                    `UNWIND range(1, 5000) AS i
+                     CREATE (m:MetaEnvelope {
+                        id: 'filler-' + i,
+                        ontology: 'filler-ontology',
+                        eName: '@filler-' + (i % 100)
+                     })
+                     CREATE (m)-[:LINKS_TO]->(:Envelope { ontology: 'ename', value: '@filler-' + (i % 100) })
+                     CREATE (m)-[:LINKS_TO]->(:Envelope { ontology: 'name', value: 'filler' })`,
+                );
+                await session.run("CALL db.awaitIndexes(60)");
+
+                const runQuery = vi.spyOn(db, "runQuery");
+                expect(await groups.membersOf(group)).toEqual(["@olivia"]);
+                const [query, params] = runQuery.mock.calls[0];
+                runQuery.mockRestore();
+
+                const explain = await session.run(`EXPLAIN ${query}`, params);
+                const operators: string[] = [];
+                const walk = (plan: any) => {
+                    operators.push(plan.operatorType);
+                    (plan.children ?? []).forEach(walk);
+                };
+                walk(explain.summary.plan);
+
+                expect(operators.join(" ")).toMatch(/NodeIndexSeek/);
+                expect(operators.join(" ")).not.toMatch(
+                    /NodeByLabelScan|AllNodesScan/,
+                );
+            } finally {
+                await session.close();
+            }
+        }, 60000);
     });
 });
