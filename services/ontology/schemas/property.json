@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "69e1d7f3-327f-4c2e-811a-293861af8fe0",
+  "title": "Property",
+  "domain": "property",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The stable identifier for the property record."
+    },
+    "ownerEname": {
+      "type": "string",
+      "description": "The W3DS eName of the person or group that owns this property record."
+    },
+    "name": {
+      "type": "string",
+      "description": "A human-readable name for the property."
+    },
+    "location": {
+      "type": "string",
+      "description": "The location label for the property, which may be less specific than its postal address."
+    },
+    "timezone": {
+      "type": "string",
+      "description": "The IANA time zone used for the property’s operational dates."
+    },
+    "currencyCode": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "The ISO 4217 currency code used for the property’s operating records."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the property record was created."
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the property record was last changed."
+    },
+    "isArchived": {
+      "type": "boolean",
+      "description": "Whether the property has been archived from active operations."
+    }
+  },
+  "required": [
+    "id",
+    "ownerEname",
+    "name",
+    "location",
+    "timezone",
+    "currencyCode",
+    "createdAt",
+    "updatedAt"
+  ],
+  "additionalProperties": false
+}
