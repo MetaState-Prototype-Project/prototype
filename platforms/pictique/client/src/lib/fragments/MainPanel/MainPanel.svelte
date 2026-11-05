@@ -11,9 +11,9 @@
 	let { children, RightPanel }: IMainPanelProps = $props();
 </script>
 
-<div class="flex flex-col md:h-dvh md:flex-row">
+<div class="flex h-full flex-col md:h-dvh md:flex-row">
 	<section
-		class="hide-scrollbar min-w-0 flex-1 overflow-y-auto px-4 pb-8 md:h-dvh md:px-8 md:pt-8"
+		class="hide-scrollbar min-w-0 flex-1 overflow-y-auto px-4 pb-24 md:h-dvh md:px-8 md:pt-8 md:pb-8"
 	>
 		<div class="flex flex-col">
 			<Header />
