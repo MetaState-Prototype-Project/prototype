@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/22222222-2222-4222-8222-222222222222",
+  "schemaId": "22222222-2222-4222-8222-222222222222",
+  "title": "SoilSample",
+  "domain": "agriculture",
+  "description": "Soil sample identity, source identifiers, soil context and optional crop-field link.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Application record ID stored in the payload; distinct from the containing MetaEnvelope ID."
+    },
+    "bundle_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "owner_eid": {
+      "type": "string"
+    },
+    "vault_id": {
+      "type": "string"
+    },
+    "lab_report_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "source_intake_id": {
+      "type": "string"
+    },
+    "source_serial_id": {
+      "type": "string"
+    },
+    "source_sender_assigned_id": {
+      "type": "string"
+    },
+    "material_type": {
+      "type": "string"
+    },
+    "sample_type_code": {
+      "type": "string"
+    },
+    "sample_type_label": {
+      "type": "string"
+    },
+    "field_label": {
+      "type": "string"
+    },
+    "soil_type_code": {
+      "type": "string"
+    },
+    "soil_type_label": {
+      "type": "string"
+    },
+    "field_w3id": {
+      "type": "string",
+      "description": "MetaEnvelope ID of the linked crop field in the owner eVault, not an external provider ID. Omit this property when unlinked."
+    },
+    "producer_party_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "customer_party_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "sampled_object_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    }
+  },
+  "required": [
+    "id",
+    "owner_eid",
+    "vault_id",
+    "lab_report_id"
+  ],
+  "additionalProperties": false
+}

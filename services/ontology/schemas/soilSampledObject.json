@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/44444444-4444-4444-8444-444444444444",
+  "schemaId": "44444444-4444-4444-8444-444444444444",
+  "title": "SoilSampledObject",
+  "domain": "agriculture",
+  "description": "The location or parcel from which a soil sample was collected.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Application record ID stored in the payload; distinct from the containing MetaEnvelope ID."
+    },
+    "bundle_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "soil_sample_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "name": {
+      "type": "string"
+    },
+    "field_w3id": {
+      "type": "string",
+      "description": "MetaEnvelope ID of the linked crop field in the owner eVault, not an external provider ID. Omit this property when unlinked."
+    },
+    "parcel_id": {
+      "type": "string"
+    },
+    "geometry": {
+      "type": "string"
+    },
+    "address": {
+      "type": "string"
+    },
+    "postcode": {
+      "type": "string"
+    },
+    "city": {
+      "type": "string"
+    },
+    "country": {
+      "type": "string"
+    },
+    "previous_crop": {
+      "type": "string"
+    },
+    "boundary_geometry": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "soil_sample_id"
+  ],
+  "additionalProperties": false
+}
