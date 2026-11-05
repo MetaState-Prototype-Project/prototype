@@ -66,6 +66,10 @@
       "type": "string",
       "description": "Jurisdiction of registration, e.g. an ISO 3166 code"
     },
+    "taxNumber": {
+      "type": "string",
+      "description": "The organisation's tax identification number in its jurisdiction, where that is a different number from registrationNumber — e.g. the Dutch RSIN, which the Chamber of Commerce issues alongside the KvK number and the tax authority uses."
+    },
     "legalForm": {
       "type": "string",
       "description": "Legal form in its jurisdiction, as registered, e.g. \"BV\", \"stichting\", \"vereniging\", \"GmbH\", \"LLC\"."
