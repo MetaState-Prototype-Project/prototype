@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "660d6086-f9bd-4f9a-a07c-a3f5c220abf7",
+  "title": "FreightPackage",
+  "domain": "mobility",
+  "type": "object",
+  "description": "A physical package or consignment to be transported, as a passive object: it has an identity that persists across requests, containers and legs, but no authority or ledger of its own. Closest schema.org type: Product used as ParcelDelivery.itemShipped. Requests and contracts point to it by envelope URI.",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Application-level identifier of the package"
+    },
+    "ownerEName": {
+      "type": "string",
+      "description": "eName of the party that owns or sends the package",
+      "pattern": "^@[^\\s]+$"
+    },
+    "localLabel": {
+      "type": "string",
+      "description": "Human-readable label used by the owner, e.g. 'P-001'. Not a cross-system identifier."
+    },
+    "name": {
+      "type": "string",
+      "description": "Short name of the goods, e.g. 'Precision laboratory instrument' (schema.org: name)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Longer description of the goods"
+    },
+    "weightKg": {
+      "type": "number",
+      "description": "Gross weight in kilograms (schema.org: weight)",
+      "minimum": 0
+    },
+    "declaredValue": {
+      "type": "number",
+      "description": "Declared value of the goods, e.g. for insurance",
+      "minimum": 0
+    },
+    "declaredValueCurrency": {
+      "type": "string",
+      "description": "ISO 4217 currency code, e.g. 'EUR' (schema.org: priceCurrency)",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "createdAt": {
+      "type": "string",
+      "description": "When the record was created",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "description": "When the record was last updated",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "id",
+    "ownerEName",
+    "name",
+    "createdAt"
+  ],
+  "additionalProperties": false
+}

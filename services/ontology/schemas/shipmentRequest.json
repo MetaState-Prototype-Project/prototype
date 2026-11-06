@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "ef9bc65e-1325-4065-b5b8-eb63d00801e4",
+  "title": "ShipmentRequest",
+  "domain": "mobility",
+  "type": "object",
+  "description": "A sender's request to have one or more FreightPackages transported, with handling and delivery requirements, written to the sender's eVault. Carriers answer it with TransportOffers. A clarification creates a new ShipmentRequest that `refines` the earlier one; the earlier request is not changed. Closest schema.org types: Demand, with ParcelDelivery properties for addresses and items. The clarification conversation itself uses the existing Message schema.",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Application-level identifier of the request"
+    },
+    "authorId": {
+      "type": "string",
+      "description": "eName of the sender who made the request",
+      "pattern": "^@[^\\s]+$"
+    },
+    "localLabel": {
+      "type": "string",
+      "description": "Human-readable label used by the sender, e.g. 'SR-417'"
+    },
+    "itemShipped": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^w3ds://envelope\\?id=@[^\\s/]+/[^\\s]+$"
+      },
+      "description": "FreightPackages to transport, as w3ds://envelope?id=@<ename>/<metaEnvelopeId> (schema.org: itemShipped)"
+    },
+    "originAddress": {
+      "type": "string",
+      "description": "Pickup address or location (schema.org: originAddress)"
+    },
+    "deliveryAddress": {
+      "type": "string",
+      "description": "Delivery address or location (schema.org: deliveryAddress)"
+    },
+    "recipientEName": {
+      "type": "string",
+      "description": "eName of the receiver, if known",
+      "pattern": "^@[^\\s]+$"
+    },
+    "recipientName": {
+      "type": "string",
+      "description": "Receiver's name as given by the sender"
+    },
+    "humidityMinPercent": {
+      "type": "number",
+      "description": "Lowest permitted relative humidity, percent",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "humidityMaxPercent": {
+      "type": "number",
+      "description": "Highest permitted relative humidity, percent",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "maxShockG": {
+      "type": "number",
+      "description": "Highest permitted shock, in G",
+      "minimum": 0
+    },
+    "shockLimitScope": {
+      "type": "string",
+      "enum": [
+        "transport",
+        "transport_and_handling"
+      ],
+      "description": "Whether maxShockG applies during transport only, or also during warehouse and port handling"
+    },
+    "preferredDeliveryDays": {
+      "type": "integer",
+      "description": "Preferred delivery time, in days from pickup",
+      "minimum": 1
+    },
+    "latestDeliveryDays": {
+      "type": "integer",
+      "description": "Latest acceptable delivery time, in days from pickup",
+      "minimum": 1
+    },
+    "refines": {
+      "type": "string",
+      "description": "The earlier ShipmentRequest this one replaces after clarification, as w3ds://envelope?id=@<ename>/<metaEnvelopeId>",
+      "pattern": "^w3ds://envelope\\?id=@[^\\s/]+/[^\\s]+$"
+    },
+    "createdAt": {
+      "type": "string",
+      "description": "When the record was created",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "description": "When the record was last updated",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "id",
+    "authorId",
+    "itemShipped",
+    "originAddress",
+    "deliveryAddress",
+    "createdAt"
+  ],
+  "additionalProperties": false
+}

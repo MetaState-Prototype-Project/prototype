@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "9282c53c-5d80-4f7a-b243-ce5c68db1888",
+  "title": "TransportOffer",
+  "domain": "mobility",
+  "type": "object",
+  "description": "A carrier's commercial offer to transport goods, written to the carrier's eVault, either in answer to a ShipmentRequest or published generally. The offer belongs to the carrier; discovery services only find it. Closest schema.org type: Offer. A sender accepts an offer with a Relation (subject: the ShipmentRequest, predicate 'acceptedOffer', object: this offer). Ratings of the carrier use the existing Reference schema.",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Application-level identifier of the offer"
+    },
+    "authorId": {
+      "type": "string",
+      "description": "eName of whoever issued the offer on the carrier's behalf (a person or the carrier's platform)",
+      "pattern": "^@[^\\s]+$"
+    },
+    "offeredBy": {
+      "type": "string",
+      "description": "eName of the carrier organisation that is bound by the offer (schema.org: offeredBy)",
+      "pattern": "^@[^\\s]+$"
+    },
+    "localLabel": {
+      "type": "string",
+      "description": "Human-readable label used by the carrier"
+    },
+    "inResponseTo": {
+      "type": "string",
+      "description": "The ShipmentRequest this offer answers, as w3ds://envelope?id=@<ename>/<metaEnvelopeId>. Absent for a generally published offer.",
+      "pattern": "^w3ds://envelope\\?id=@[^\\s/]+/[^\\s]+$"
+    },
+    "price": {
+      "type": "number",
+      "description": "Offered price (schema.org: price)",
+      "minimum": 0
+    },
+    "priceCurrency": {
+      "type": "string",
+      "description": "ISO 4217 currency code, e.g. 'EUR' (schema.org: priceCurrency)",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "priceType": {
+      "type": "string",
+      "enum": [
+        "fixed",
+        "estimate"
+      ],
+      "description": "'fixed': the customer price does not change when execution costs change; 'estimate': it may"
+    },
+    "serviceScope": {
+      "type": "string",
+      "enum": [
+        "door_to_door",
+        "door_to_port",
+        "port_to_door",
+        "port_to_port"
+      ],
+      "description": "Part of the journey the carrier is responsible for"
+    },
+    "preferredDeliveryDays": {
+      "type": "integer",
+      "description": "Offered preferred delivery time, in days from pickup",
+      "minimum": 1
+    },
+    "latestDeliveryDays": {
+      "type": "integer",
+      "description": "Offered latest delivery time, in days from pickup",
+      "minimum": 1
+    },
+    "validThrough": {
+      "type": "string",
+      "description": "Until when the offer can be accepted (schema.org: validThrough)",
+      "format": "date-time"
+    },
+    "terms": {
+      "type": "string",
+      "description": "Short summary of commercial terms, or a w3ds://file URI of the full terms"
+    },
+    "createdAt": {
+      "type": "string",
+      "description": "When the record was created",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "description": "When the record was last updated",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "id",
+    "authorId",
+    "offeredBy",
+    "price",
+    "priceCurrency",
+    "priceType",
+    "createdAt"
+  ],
+  "additionalProperties": false
+}
