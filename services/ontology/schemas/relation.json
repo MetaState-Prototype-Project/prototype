@@ -3,21 +3,86 @@
   "schemaId": "f9ff8527-f3af-4733-b8df-fa0c97ba03ff",
   "title": "Relation",
   "type": "object",
-  "description": "A reified triple: `subject —predicate→ object`, authored by a person and stored on THEIR vault. One ontology for every lightweight edge between envelopes — a reaction (predicate 'react', value '👍'), a pin (predicate 'pin', value 'me'|'all'), a mention notification, a response to an activity (predicate 'respond') — instead of one bespoke ontology per edge kind. `object` is a w3ds envelope URI so the edge survives relocation. Distinct from the registered `Reference` ontology (c20e9437-…), which is a review/score OF a target; a Relation is a statement BETWEEN two envelopes. A cross-vault copy uses the reference mixin (isReference + canonicalOwnerEName + canonicalRelationId): the source-of-truth edge stays on the author's vault.",
+  "description": "A reified triple: `subject —predicate→ object`, authored by a person OR by a software agent (prov:SoftwareAgent) and stored on the AUTHOR's vault. When the author is a machine, the provenance of the claim belongs with it — see `model`, `confidence` and `derivedFrom`; a machine-made statement that cannot say how it was made is indistinguishable from a person's. One ontology for every lightweight edge between envelopes — a reaction (predicate 'react', value '👍'), a pin (predicate 'pin', value 'me'|'all'), a mention notification, a response to an activity (predicate 'respond') — instead of one bespoke ontology per edge kind. `object` is a w3ds envelope URI so the edge survives relocation. Distinct from the registered `Reference` ontology (c20e9437-…), which is a review/score OF a target; a Relation is a statement BETWEEN two envelopes. A cross-vault copy uses the reference mixin (isReference + canonicalOwnerEName + canonicalRelationId): the source-of-truth edge stays on the author's vault. EVERY RELATION IS AN EVENT, and the current state is a FOLD over the events in time — not the assumption that one envelope is the present. A reader that treats a single relation as current state is right only by accident: the same subject may assert, withdraw and re-assert, and three assertions at three moments are three facts. Where a platform expresses a withdrawal by DELETING the envelope, absence is the fold's result and nothing more need be read; where it expresses it with a further relation, the later one wins. `prov:atTime` is what makes the fold possible: order by when the facts HAPPENED, not by when they were written. The prefix `prov:` is http://www.w3.org/ns/prov# (PROV-O, W3C Recommendation 2013-04-30); a reified triple is exactly the \"influence node\" that specification says to hang qualifying detail on, so its vocabulary is used here rather than inventing names for the same ideas.",
   "properties": {
-    "id": { "type": "string", "description": "Body id (mirrors the metaEnvelope id on the canonical)" },
-    "subject": { "type": "string", "description": "Who/what the statement is about — an eName or a w3ds envelope URI" },
-    "predicate": { "type": "string", "description": "The edge kind: 'react', 'pin', 'respond', 'mention', …" },
-    "object": { "type": "string", "description": "Target envelope, as `w3ds://envelope?id=@vault/<metaEnvelopeId>`" },
-    "value": { "type": "string", "description": "Predicate-specific payload: the emoji for 'react', 'me'|'all' for 'pin'" },
-    "authorId": { "type": "string", "description": "@-prefixed eName of whoever asserted the relation" },
-    "createdAt": { "type": "string", "format": "date-time" },
-    "isReference": { "type": "boolean", "description": "True on a cross-vault copy pointing at the canonical" },
-    "canonicalOwnerEName": { "type": "string", "description": "Reference mixin: whose vault holds the canonical" },
-    "canonicalRelationId": { "type": "string", "description": "Reference mixin: metaEnvelope id of the canonical" },
-    "sharedBy": { "type": "string", "description": "Reference mixin: who fanned the copy out" },
-    "sharedAt": { "type": "string", "format": "date-time" }
+    "id": {
+      "type": "string",
+      "description": "Body id (mirrors the metaEnvelope id on the canonical)"
+    },
+    "subject": {
+      "type": "string",
+      "description": "Who/what the statement is about — an eName or a w3ds envelope URI"
+    },
+    "predicate": {
+      "type": "string",
+      "description": "The edge kind: 'react', 'pin', 'respond', 'mention', …"
+    },
+    "object": {
+      "type": "string",
+      "description": "Target envelope, as `w3ds://envelope?id=@vault/<metaEnvelopeId>`"
+    },
+    "value": {
+      "type": "string",
+      "description": "Predicate-specific payload: the emoji for 'react', 'me'|'all' for 'pin'"
+    },
+    "authorId": {
+      "type": "string",
+      "description": "@-prefixed eName of whoever asserted the relation"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the envelope was WRITTEN. Not when the fact happened — see `prov:atTime`."
+    },
+    "prov:atTime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the asserted fact HAPPENED, as against `createdAt`, which is when the envelope was written. The two differ whenever a relation is recorded after the event it describes — a reaction written to the vault seconds after the tap, an edge imported from elsewhere, a machine reading a recording made yesterday. A reader placing relations on a timeline MUST prefer this and fall back to `createdAt` only when it is absent. Whoever writes it should say in their platform's self-description which clock it is, because \"when it happened\" is only meaningful if the reader knows whose watch was used."
+    },
+    "model": {
+      "type": "string",
+      "description": "Machine-authored relations: which model produced the claim — the one that actually answered, not the one usually asked, since a failover names the wrong one otherwise."
+    },
+    "promptVersion": {
+      "type": "string",
+      "description": "Machine-authored relations: which wording produced it, so a platform can tell whether a change to its prompt improved anything."
+    },
+    "confidence": {
+      "type": "number",
+      "description": "Machine-authored relations: 0–1, how sure the author is. Absent means unstated, which is NOT the same as certain."
+    },
+    "derivedFrom": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Machine-authored relations: the envelopes or files the claim was read from, as w3ds URIs. A claim whose source cannot be named cannot be checked."
+    },
+    "isReference": {
+      "type": "boolean",
+      "description": "True on a cross-vault copy pointing at the canonical"
+    },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "description": "Reference mixin: whose vault holds the canonical"
+    },
+    "canonicalRelationId": {
+      "type": "string",
+      "description": "Reference mixin: metaEnvelope id of the canonical"
+    },
+    "sharedBy": {
+      "type": "string",
+      "description": "Reference mixin: who fanned the copy out"
+    },
+    "sharedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
   },
-  "required": ["id", "predicate", "authorId"],
+  "required": [
+    "id",
+    "predicate",
+    "authorId"
+  ],
   "additionalProperties": true
 }
