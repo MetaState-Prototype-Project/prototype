@@ -8,6 +8,10 @@
  * `platformName` field. AaaS fans those writes out and exposes them at
  * `GET /api/packets?ontology=...`, which is what we page through here.
  *
+ * Drafts, archived and inactive profiles are filtered out here — the
+ * catalogue only shows what is live. PPA review is independent of marketplace
+ * visibility, so a published platform remains listed while in submission.
+ *
  * The AaaS API key is a secret, so this only ever runs server-side.
  *
  * Env:
@@ -119,28 +123,43 @@ export async function listPlatforms(): Promise<MarketplacePlatform[]> {
   let profileCount = 0;
   let skippedNoPlatformName = 0;
   let skippedArchived = 0;
+  let skippedDraft = 0;
   for (const p of packets) {
     const data = p.data;
     // Isolate platform profiles from ordinary user profiles sharing the
-    // ontology; skip archived/inactive platforms.
+    // ontology.
     if (!data || typeof data.platformName !== "string" || !data.platformName) {
       skippedNoPlatformName++;
-      continue;
-    }
-    if (data.isArchived === true || data.isActive === false) {
-      skippedArchived++;
       continue;
     }
 
     const ename = (p.w3id ?? (data.ename as string | undefined)) || "";
     if (!ename) continue;
 
+    // Excluded platforms are deleted rather than skipped: a profile that was
+    // listed earlier and later withdrawn, archived or made inactive
+    // must drop out of the catalogue, and the older packet has already been
+    // written into the map.
+    if (data.isArchived === true || data.isActive === false) {
+      skippedArchived++;
+      byEname.delete(ename);
+      continue;
+    }
+    // Marketplace visibility is controlled by the authors independently of
+    // the platform's PPA review state.
+    if (data.isDraft === true) {
+      skippedDraft++;
+      byEname.delete(ename);
+      continue;
+    }
+
     profileCount++;
     byEname.set(ename, {
       id: data.platformName,
       name: data.displayName || data.platformName,
       description: data.description || "",
-      category: data.category || "Other",
+      category:
+        (typeof data.category === "string" && data.category.trim()) || "Other",
       logoUrl: data.logoUrl || null,
       url: data.url || "",
       ename,
@@ -150,7 +169,8 @@ export async function listPlatforms(): Promise<MarketplacePlatform[]> {
   const platforms = Array.from(byEname.values());
   console.log(
     `[awareness] platform profiles=${profileCount} (deduped=${platforms.length}), ` +
-      `skipped: non-platform=${skippedNoPlatformName}, archived/inactive=${skippedArchived}`,
+      `skipped: non-platform=${skippedNoPlatformName}, archived/inactive=${skippedArchived}, ` +
+      `draft=${skippedDraft}`,
   );
   console.log(
     `[awareness] platforms: ${platforms.map((p) => p.id).join(", ") || "(none)"}`,

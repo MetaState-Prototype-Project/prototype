@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/i18n";
 import { BottomSheet, ButtonAction } from "$lib/ui";
 
 interface CameraPermissionDialogProps {
@@ -16,8 +17,8 @@ let {
     onOpenSettings,
     onGoBack,
     onOpenChange,
-    title = "Camera Access Required",
-    description = "To continue, please grant camera permission in your device settings.",
+    title = m.camera_permission_title(),
+    description = m.camera_permission_description(),
     dismissible = false,
 }: CameraPermissionDialogProps = $props();
 
@@ -74,7 +75,7 @@ function handleOpenChange(value: boolean) {
                 callback={onOpenSettings}
                 class="w-full"
             >
-                Open Settings
+                {m.common_open_settings()}
             </ButtonAction>
 
             {#if onGoBack}
@@ -83,7 +84,7 @@ function handleOpenChange(value: boolean) {
                     callback={onGoBack}
                     class="w-full"
                 >
-                    Go Back
+                    {m.common_go_back()}
                 </ButtonAction>
             {:else}
                 <!-- Spacer to maintain consistent bottom spacing -->

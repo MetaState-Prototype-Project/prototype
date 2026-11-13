@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/i18n";
 import { BottomSheet, PlatformAppCard } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { untrack } from "svelte";
@@ -6,6 +7,9 @@ import { untrack } from "svelte";
 interface ILoggedInDrawerProps {
     isOpen: boolean;
     platform: string | null | undefined;
+    /** Branding the platform passed in its auth link, if any. */
+    displayName?: string | null;
+    logoUrl?: string | null;
     hostname: string | null | undefined;
     redirect: string | null | undefined;
     onConfirm: () => void;
@@ -15,11 +19,16 @@ interface ILoggedInDrawerProps {
 const {
     isOpen,
     platform,
+    displayName = null,
+    logoUrl = null,
     hostname,
     redirect,
     onConfirm,
     onOpenChange,
 }: ILoggedInDrawerProps = $props();
+
+// Prefer the name the platform chose for itself over the raw `platform`.
+const shownName = $derived(displayName ?? platform);
 
 let internalOpen = $state(untrack(() => isOpen));
 let lastReportedOpen = $state(untrack(() => internalOpen));
@@ -55,22 +64,27 @@ $effect(() => {
                         id="loggedin-title"
                         class="text-2xl font-bold text-black-900 text-center leading-tight"
                     >
-                        You're logged in!
+                        {m.loggedin_title()}
                     </h4>
                     <p class="text-sm leading-relaxed text-black-500 text-center">
-                        You're now connected to {platform ?? "the platform"}
+                        {m.loggedin_connected_to({
+                            platform: shownName ?? m.loggedin_platform_fallback(),
+                        })}
                     </p>
                 </div>
 
                 <PlatformAppCard
                     {hostname}
                     platformName={platform ?? hostname}
+                    {displayName}
+                    {logoUrl}
                 />
 
-                {#if redirect && platform}
+                {#if redirect && shownName}
                     <p class="text-sm text-black-500 text-center px-4">
-                        You may return to <strong>{platform}</strong> and continue
-                        there
+                        {m.loggedin_return_prefix()}
+                        <strong>{shownName}</strong>
+                        {m.loggedin_return_suffix()}
                     </p>
                 {/if}
             </div>
@@ -81,7 +95,7 @@ $effect(() => {
                     class="w-full"
                     callback={onConfirm}
                 >
-                    Ok
+                    {m.common_ok()}
                 </Button.Action>
             </div>
         </div>

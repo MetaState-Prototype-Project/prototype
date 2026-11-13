@@ -1,6 +1,7 @@
 <script lang="ts">
+import { m } from "$lib/i18n";
 import * as Button from "$lib/ui/Button";
-import { cn } from "$lib/utils";
+import { cn, identityFieldLabel, identityFieldValue } from "$lib/utils";
 import {
     CheckmarkBadge02Icon,
     Copy01Icon,
@@ -87,7 +88,7 @@ const baseClasses = $derived(
                     class="bg-white text-black flex items-center leading-0 justify-center rounded-full h-7 px-5 text-xs font-medium"
                 >
                     {#if userData}
-                        {userData.isFake ? "DEMO ID" : "VERIFIED ID"}
+                        {userData.isFake ? m.identity_demo_id() : m.identity_verified_id()}
                     {/if}
                 </p>
                 {#if viewBtn}
@@ -100,13 +101,15 @@ const baseClasses = $derived(
                 {/if}
             {:else if variant === "eVault"}
                 <h3 class="text-black-300 text-3xl font-semibold mb-1 z-[1]">
-                    {state.progressWidth} Used
+                    {m.evault_storage_percent_used({
+                        percent: state.progressWidth,
+                    })}
                 </h3>
             {/if}
         </div>
         <div>
             {#if variant === "eName"}
-                <p class="text-gray font-normal">Your eName</p>
+                <p class="text-gray font-normal">{m.identity_your_ename()}</p>
                 <div class="flex items-center justify-between w-full">
                     <p class="text-white w-full font-medium">{userId}</p>
                 </div>
@@ -115,8 +118,12 @@ const baseClasses = $derived(
                     {#if userData}
                         {#each Object.entries(userData).filter(([f, v]) => f !== "isFake") as [fieldName, value]}
                             <div class="flex justify-between">
-                                <p class="text-gray capitalize">{fieldName}</p>
-                                <p class=" font-medium text-white">{value}</p>
+                                <p class="text-gray capitalize">
+                                    {identityFieldLabel(fieldName)}
+                                </p>
+                                <p class=" font-medium text-white">
+                                    {value == null ? "" : identityFieldValue(String(value), fieldName)}
+                                </p>
                             </div>
                         {/each}
                     {/if}
@@ -124,8 +131,12 @@ const baseClasses = $derived(
             {:else if variant === "eVault"}
                 <div>
                     <div class="flex justify-between mb-1">
-                        <p class="z-[1]">{usedStorage}GB Used</p>
-                        <p class="z-[1]">{totalStorage}GB total storage</p>
+                        <p class="z-[1]">
+                            {m.evault_storage_used_gb({ used: usedStorage })}
+                        </p>
+                        <p class="z-[1]">
+                            {m.evault_storage_total_gb({ total: totalStorage })}
+                        </p>
                     </div>
                     <div
                         class="relative w-full h-3 rounded-full overflow-hidden bg-primary-400"

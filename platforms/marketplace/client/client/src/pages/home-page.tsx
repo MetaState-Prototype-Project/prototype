@@ -19,8 +19,6 @@ type App = {
   playStoreUrl?: string;
 };
 
-const BASE_CATEGORIES = ["Identity", "Social", "Governance", "Wellness", "Finance", "Storage", "Productivity"];
-
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Apps");
@@ -34,22 +32,42 @@ export default function HomePage() {
   const staticIds = new Set(staticApps.map((a) => a.id.toLowerCase()));
   const staticNames = new Set(staticApps.map((a) => a.name.toLowerCase()));
 
-  // Static entries win on collision (they carry richer logos/URLs/descriptions).
-  const dynamicApps = (platformsData?.platforms ?? []).filter(
+  const livePlatforms = platformsData?.platforms ?? [];
+  const liveByKey = new Map<string, App>();
+  for (const p of livePlatforms) {
+    liveByKey.set(p.id.toLowerCase(), p);
+    liveByKey.set(p.name.toLowerCase(), p);
+  }
+
+  // Static entries win on collision (they carry richer logos/URLs/descriptions),
+  // except for the category, which the live platform declares for itself.
+  const mergedStatic = staticApps.map((a) => {
+    const live = liveByKey.get(a.id.toLowerCase()) ?? liveByKey.get(a.name.toLowerCase());
+    return live?.category ? { ...a, category: live.category } : a;
+  });
+  const dynamicApps = livePlatforms.filter(
     (p) => !staticIds.has(p.id.toLowerCase()) && !staticNames.has(p.name.toLowerCase()),
   );
-  const apps: App[] = [...staticApps, ...dynamicApps];
+  const apps: App[] = [...mergedStatic, ...dynamicApps];
 
-  const categories = [
-    "All Apps",
-    ...Array.from(new Set([...BASE_CATEGORIES, ...apps.map((a) => a.category)])),
-  ];
+  // Categories are whatever the listed platforms declare, deduped
+  // case-insensitively (first spelling wins), with "Other" pushed last.
+  const categoryLabels = new Map<string, string>();
+  for (const app of apps) {
+    const label = app.category?.trim();
+    if (label && !categoryLabels.has(label.toLowerCase())) {
+      categoryLabels.set(label.toLowerCase(), label);
+    }
+  }
+  const other = categoryLabels.get("other");
+  categoryLabels.delete("other");
+  const categories = ["All Apps", ...Array.from(categoryLabels.values()), ...(other ? [other] : [])];
 
   const filteredApps = apps.filter(app => {
     const matchesSearch = app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          app.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === "All Apps" ||
-                           app.category.toLowerCase() === selectedCategory.toLowerCase();
+                           app.category?.trim().toLowerCase() === selectedCategory.toLowerCase();
     return matchesSearch && matchesCategory;
   });
 

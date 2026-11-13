@@ -1,6 +1,7 @@
 <script lang="ts">
 import { AppNav } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
+import { m } from "$lib/i18n";
 import {
     type PhotoMark,
     addPhotoLocal,
@@ -81,7 +82,7 @@ onMount(() => {
             retries++;
         }
         if (!gs) {
-            errorMessage = "Couldn't load your wallet state.";
+            errorMessage = m.personal_error_wallet_state();
             loading = false;
             return;
         }
@@ -90,7 +91,7 @@ onMount(() => {
         try {
             const vault = await gs.vaultController.vault;
             if (!vault?.uri || !vault?.ename) {
-                errorMessage = "No eVault available.";
+                errorMessage = m.personal_error_no_evault();
                 loading = false;
                 return;
             }
@@ -212,7 +213,7 @@ onMount(() => {
             void photosPromise;
         } catch (err) {
             console.error("[personal] load failed", err);
-            errorMessage = "Couldn't load personal binding documents.";
+            errorMessage = m.personal_error_load();
             loading = false;
         }
     })();
@@ -225,7 +226,7 @@ async function signOwner(
     data: Record<string, unknown>,
 ): Promise<{ signer: string; signature: string; timestamp: string }> {
     if (!globalState || !ename) {
-        throw new Error("Wallet not ready");
+        throw new Error(m.personal_error_not_ready());
     }
     const canonical = getCanonicalBindingDocString({
         subject: ename,
@@ -306,7 +307,7 @@ async function handlePhotoSave(data: {
         }
     } catch (err) {
         console.error("[personal] photo save failed", err);
-        errorMessage = "Couldn't save photo. Try again.";
+        errorMessage = m.personal_error_photo_save();
     } finally {
         saving = false;
     }
@@ -323,7 +324,7 @@ async function handlePhotoDelete(photo: PhotoMark) {
         void deleteCachedPhoto(photo.metaEnvelopeId);
     } catch (err) {
         console.error("[personal] photo delete failed", err);
-        errorMessage = "Couldn't delete photo. Try again.";
+        errorMessage = m.personal_error_photo_delete();
     } finally {
         saving = false;
     }
@@ -354,7 +355,7 @@ async function handleParametersSave(text: string) {
         }
     } catch (err) {
         console.error("[personal] parameters save failed", err);
-        errorMessage = "Couldn't save parameters. Try again.";
+        errorMessage = m.personal_error_parameters_save();
     } finally {
         saving = false;
     }
@@ -402,7 +403,7 @@ async function handleKnowledgeSave(data: {
         }
     } catch (err) {
         console.error("[personal] knowledge save failed", err);
-        errorMessage = "Couldn't save security question. Try again.";
+        errorMessage = m.personal_error_knowledge_save();
     } finally {
         saving = false;
     }
@@ -431,7 +432,7 @@ async function handleKnowledgeSave(data: {
             {#if completed}
                 <span
                     class="shrink-0 w-7 h-7 rounded-full bg-success-500 text-white text-base font-bold flex items-center justify-center"
-                    aria-label="Completed"
+                    aria-label={m.personal_completed_aria()}
                 >
                     ✓
                 </span>
@@ -464,11 +465,11 @@ async function handleKnowledgeSave(data: {
                             class="w-10 h-10 rounded-lg object-cover shrink-0"
                         />
                         <p class="flex-1 min-w-0 text-black-900 font-medium truncate">
-                            {photo.description || "Photo mark"}
+                            {photo.description || m.personal_photo_mark_fallback()}
                         </p>
                         <button
                             type="button"
-                            aria-label="Delete photo"
+                            aria-label={m.personal_delete_photo_aria()}
                             class="text-black-500 active:opacity-60 disabled:opacity-40"
                             disabled={saving}
                             onclick={() => handlePhotoDelete(photo)}
@@ -477,7 +478,7 @@ async function handleKnowledgeSave(data: {
                         </button>
                         <button
                             type="button"
-                            aria-label="Edit photo"
+                            aria-label={m.personal_edit_photo_aria()}
                             class="text-black-500 active:opacity-60 disabled:opacity-40"
                             disabled={saving}
                             onclick={() => openPhotoSheet(photo)}
@@ -508,7 +509,7 @@ async function handleKnowledgeSave(data: {
             {/if}
         </ul>
     {/if}
-    {@render addButton("Add photo", () => openPhotoSheet(null))}
+    {@render addButton(m.personal_add_photo(), () => openPhotoSheet(null))}
 {/snippet}
 
 {#snippet filledRow(text: string, ariaLabel: string, onclick: () => void)}
@@ -534,7 +535,7 @@ async function handleKnowledgeSave(data: {
 
 {#snippet parametersBody()}
     {#if parametersFilled && binding.parameters}
-        {@render filledRow(binding.parameters.text, "Edit parameters", () => {
+        {@render filledRow(binding.parameters.text, m.personal_edit_parameters_aria(), () => {
             parametersSheetOpen = true;
         })}
     {:else if loading}
@@ -543,7 +544,7 @@ async function handleKnowledgeSave(data: {
             <div class="h-4 bg-gray-200 animate-pulse rounded w-1/2"></div>
         </div>
     {:else}
-        {@render addButton("Add description", () => {
+        {@render addButton(m.personal_add_description(), () => {
             parametersSheetOpen = true;
         })}
     {/if}
@@ -551,19 +552,22 @@ async function handleKnowledgeSave(data: {
 
 {#snippet knowledgeBody()}
     {#if knowledgeFilled && binding.knowledge}
-        {@render filledRow(binding.knowledge.question, "Edit knowledge", () => {
+        {@render filledRow(binding.knowledge.question, m.personal_edit_knowledge_aria(), () => {
             knowledgeSheetOpen = true;
         })}
     {:else if loading}
         <div class="mt-3 h-4 bg-gray-200 animate-pulse rounded w-2/3" aria-hidden="true"></div>
     {:else}
-        {@render addButton("Add question", () => {
+        {@render addButton(m.personal_add_question(), () => {
             knowledgeSheetOpen = true;
         })}
     {/if}
 {/snippet}
 
-<AppNav title="Personal" subtitle="{achieved} of 3 marks achieved" />
+<AppNav
+    title={m.personal_title()}
+    subtitle={m.personal_marks_achieved({ count: achieved })}
+/>
 
 {#if errorMessage}
     <p class="text-danger mt-6">{errorMessage}</p>
@@ -571,26 +575,30 @@ async function handleKnowledgeSave(data: {
 
 {#if !loading && achieved === 0}
     <p class="text-black-500 text-lg mt-6 leading-snug">
-        Add unique personal artifacts that only you own or know
+        {m.personal_intro()}
     </p>
 {/if}
 
 <div class="flex flex-col gap-3 mt-6 pb-8">
     {@render markCard(
-        photosFilled ? "Personal photos" : "Distinctive photos",
-        "Unique traits: face, tattoos, moles, scars",
+        photosFilled
+            ? m.personal_photos_filled_title()
+            : m.personal_photos_empty_title(),
+        m.personal_photos_subtitle(),
         photosFilled,
         photosBody,
     )}
     {@render markCard(
-        "Personal parameters",
-        "Personal details: date and place of birth, height, eye colour, and other identifying traits",
+        m.personal_parameters_title(),
+        m.personal_parameters_subtitle(),
         parametersFilled,
         parametersBody,
     )}
     {@render markCard(
-        knowledgeFilled ? "Personal knowledge" : "Unique knowledge",
-        "Set a question that only you know the answer to",
+        knowledgeFilled
+            ? m.personal_knowledge_filled_title()
+            : m.personal_knowledge_empty_title(),
+        m.personal_knowledge_subtitle(),
         knowledgeFilled,
         knowledgeBody,
     )}

@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "eb69c8ad-fec0-4b74-8727-3acd17f34f1b",
+  "title": "ChatPreference",
+  "type": "object",
+  "description": "One person's per-chat viewing preferences — mute, archive, pin — stored on THEIR OWN vault (ACL = self), NOT on the chat: whether I muted a conversation is my data, not the group's, and it must follow me across devices and across W3DS messengers. Keyed by `chatId` (the CANONICAL chat id); at most one envelope per (owner, chatId). Absent fields mean 'no preference', not 'off'.",
+  "properties": {
+    "id": { "type": "string", "description": "Body id" },
+    "chatId": { "type": "string", "description": "Canonical Chat metaEnvelope id the preference applies to" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "muted": { "type": "boolean", "description": "Suppress notifications from this chat (an @-mention may still pierce)" },
+    "archived": { "type": "boolean", "description": "Hide from the main list; never deletes anything" },
+    "pinned": { "type": "boolean", "description": "Float the chat to the top of the owner's list" },
+    "pinnedAt": { "type": "string", "format": "date-time", "description": "When pinned — orders multiple pinned chats" }
+  },
+  "required": ["id", "chatId", "updatedAt"],
+  "additionalProperties": true
+}

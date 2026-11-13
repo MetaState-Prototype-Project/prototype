@@ -2,6 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "schemaId": "15d24c04-a4f3-4e45-a00e-0123926fbc87",
   "title": "AccessGrant",
+  "domain": "governance",
   "type": "object",
   "properties": {
     "isReference": {

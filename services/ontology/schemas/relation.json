@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "f9ff8527-f3af-4733-b8df-fa0c97ba03ff",
+  "title": "Relation",
+  "type": "object",
+  "description": "A reified triple: `subject —predicate→ object`, authored by a person and stored on THEIR vault. One ontology for every lightweight edge between envelopes — a reaction (predicate 'react', value '👍'), a pin (predicate 'pin', value 'me'|'all'), a mention notification, a response to an activity (predicate 'respond') — instead of one bespoke ontology per edge kind. `object` is a w3ds envelope URI so the edge survives relocation. Distinct from the registered `Reference` ontology (c20e9437-…), which is a review/score OF a target; a Relation is a statement BETWEEN two envelopes. A cross-vault copy uses the reference mixin (isReference + canonicalOwnerEName + canonicalRelationId): the source-of-truth edge stays on the author's vault.",
+  "properties": {
+    "id": { "type": "string", "description": "Body id (mirrors the metaEnvelope id on the canonical)" },
+    "subject": { "type": "string", "description": "Who/what the statement is about — an eName or a w3ds envelope URI" },
+    "predicate": { "type": "string", "description": "The edge kind: 'react', 'pin', 'respond', 'mention', …" },
+    "object": { "type": "string", "description": "Target envelope, as `w3ds://envelope?id=@vault/<metaEnvelopeId>`" },
+    "value": { "type": "string", "description": "Predicate-specific payload: the emoji for 'react', 'me'|'all' for 'pin'" },
+    "authorId": { "type": "string", "description": "@-prefixed eName of whoever asserted the relation" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "isReference": { "type": "boolean", "description": "True on a cross-vault copy pointing at the canonical" },
+    "canonicalOwnerEName": { "type": "string", "description": "Reference mixin: whose vault holds the canonical" },
+    "canonicalRelationId": { "type": "string", "description": "Reference mixin: metaEnvelope id of the canonical" },
+    "sharedBy": { "type": "string", "description": "Reference mixin: who fanned the copy out" },
+    "sharedAt": { "type": "string", "format": "date-time" }
+  },
+  "required": ["id", "predicate", "authorId"],
+  "additionalProperties": true
+}

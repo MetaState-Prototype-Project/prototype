@@ -1,6 +1,6 @@
 # eVault — data store + GraphQL
 
-The eVault is the personal data store for a single W3ID. One eVault per tenant, Neo4j-backed, GraphQL at `/graphql`, HTTP endpoints for identity/log/file resolution. Source: `docs/docs/Infrastructure/eVault.md`.
+The eVault is the personal data store for a single W3ID. One eVault per tenant, Neo4j-backed, GraphQL at `/graphql`, HTTP endpoints for identity/log/file resolution. Source: [eVault](https://docs.w3ds.metastate.foundation/docs/Infrastructure/eVault).
 
 ## Data model
 
@@ -21,7 +21,7 @@ Missing this header returns 400 or "access denied" — it is the #1 integration 
 
 ## GraphQL — idiomatic API
 
-All shown below verified against `docs/docs/Infrastructure/eVault.md`. Endpoint: `POST {evaultUrl}/graphql`.
+All shown below verified against [eVault](https://docs.w3ds.metastate.foundation/docs/Infrastructure/eVault). Endpoint: `POST {evaultUrl}/graphql`.
 
 ### Query one
 
@@ -44,7 +44,7 @@ query {
 query {
   metaEnvelopes(
     filter: {
-      ontologyId: "550e8400-e29b-41d4-a716-446655440001"
+      ontologyId: "<the SocialMediaPost schemaId>"
       search: { term: "hello", caseSensitive: false, mode: CONTAINS }
     }
     first: 10
@@ -64,7 +64,7 @@ Filter fields: `ontologyId`, `search.term`, `search.caseSensitive`, `search.fiel
 ```graphql
 mutation {
   createMetaEnvelope(input: {
-    ontology: "550e8400-e29b-41d4-a716-446655440001"
+    ontology: "<the SocialMediaPost schemaId>"
     payload: {
       content: "Hello, world!"
       mediaUrls: []
@@ -88,7 +88,7 @@ mutation {
   updateMetaEnvelope(
     id: "global-id-123"
     input: {
-      ontology: "550e8400-e29b-41d4-a716-446655440001"
+      ontology: "<the SocialMediaPost schemaId>"
       payload: { content: "Updated content", mediaUrls: [] }
       acl: ["*"]
     }
@@ -107,6 +107,39 @@ mutation {
     deletedId
     success
     errors { message code }
+  }
+}
+```
+
+Removal prunes: the record leaves every read, but its data and version history are kept.
+
+### Version history
+
+Updates never overwrite a recorded state. Every create, update and remove appends an immutable version with the full payload after that write (`parsed: null` for a remove). Newest first:
+
+```graphql
+query {
+  metaEnvelopeHistory(id: "global-id-123", first: 20) {
+    edges { node { version operation ontology parsed requestingPlatform author restoredFromVersion createdAt } }
+    pageInfo { hasNextPage endCursor }
+    totalCount
+  }
+}
+```
+
+`author` is the user the writing platform said it acted for (`X-ON-BEHALF-OF`, or a wallet-signed token). Send `X-ON-BEHALF-OF: @<user ename>` on writes made for a user so history can say who.
+
+### Rollback
+
+Restores an earlier version as a new version. History only grows, and the rollback can itself be rolled back. The payload is replaced exactly (fields that version lacked are pruned), the current ACL is kept, and a removed record is brought back. Requires UPDATE. A version that records a removal cannot be restored (`VERSION_IS_DELETE`).
+
+```graphql
+mutation {
+  rollbackMetaEnvelope(id: "global-id-123", version: 2) {
+    metaEnvelope { id parsed }
+    version
+    restoredFromVersion
+    errors { field message code }
   }
 }
 ```
@@ -147,7 +180,7 @@ mutation UploadFile($input: UploadFileInput!) {
 }
 ```
 
-`UploadFileInput`: `filename` (string), `contentType` (string, MIME), `content` (base64 or `data:` URI), `acl` (array). Decoded size must be ≤ 50 MB. Requires `X-ENAME` and object storage configured on the eVault. Detail on the `w3ds://file` scheme → [protocols.md](protocols.md).
+`UploadFileInput`: `filename` (string), `contentType` (string, MIME), `content` (base64 or `data:` URI), `acl` (array). Decoded size must be ≤ 250 MB. Requires `X-ENAME` and object storage configured on the eVault. Detail on the `w3ds://file` scheme → [protocols.md](protocols.md).
 
 ### Binding documents
 
@@ -195,7 +228,7 @@ mutation {
 }
 ```
 
-Binding documents are stored as MetaEnvelopes with ontology `b1d0a8c3-4e5f-6789-0abc-def012345678`. The MetaEnvelope ID is the binding document ID. See [identity.md](identity.md) for the type-specific data shapes.
+Binding documents are stored as MetaEnvelopes with the `Binding Document` ontology (resolve its `schemaId` — see [registry.md § Resolving an ontology](registry.md#resolving-an-ontology)). The MetaEnvelope ID is the binding document ID. See [identity.md](identity.md) for the type-specific data shapes.
 
 ## GraphQL — legacy names (still valid)
 
@@ -225,11 +258,21 @@ Returns:
 {
   "w3id": "@user-a.w3id",
   "evaultId": "@evault-identifier",
-  "keyBindingCertificates": ["eyJhbGciOiJFUzI1NiIs...", "..."]
+  "keyBindingCertificates": ["eyJhbGciOiJFUzI1NiIs...", "..."],
+  "type": "user",
+  "manifest": { "id": "@a1b2c3d4-...", "ontology": "550e8400-e29b-41d4-a716-446655440000", "parsed": { "ename": "@user-a.w3id", "username": "alice" } }
 }
 ```
 
 Certificates are ES256 JWTs signed by the Registry. Payload: `{ ename, publicKey, exp, iat }`. Valid 1 hour. Verify signature verification recipe in [protocols.md](protocols.md).
+
+`type` and `manifest` (either may be `null`):
+
+- `company`: a Company record names the vault. Manifest: that Company record.
+- `group`: keyless vault with a Chat or GroupManifest naming it. Manifest: GroupManifest (`…440003` records with `members` + `owner`, else legacy `a8bfb7cf-…`), built once from the Chat if missing.
+- `user`: everything else. Manifest: UserProfile.
+- Manifest = earliest such record whose `ename`/`eName` is the vault, pinned on first `/whois`, re-resolved only if deleted.
+- Public via `/whois` regardless of ACL; GraphQL still enforces the ACL.
 
 ### GET /logs
 
@@ -252,7 +295,7 @@ Response:
       "operation": "create",             // create | update | delete | update_envelope_value
       "platform": "https://platform.example.com",
       "timestamp": "2025-02-04T12:00:00.000Z",
-      "ontology": "550e8400-e29b-41d4-a716-446655440001"
+      "ontology": "<the SocialMediaPost schemaId>"
     }
   ],
   "nextCursor": "2025-02-04T12:00:00.000Z|log-entry-id",
@@ -272,20 +315,53 @@ Wallet endpoint for key sync. Body: `{ publicKey }`. Headers: `X-ENAME` (require
 
 ## Access control
 
-ACLs are string arrays on each MetaEnvelope:
+Two models. `_acl` is current; the `acl` string array predates it and still works.
+
+### `_acl` (granular)
+
+An optional input field on `createMetaEnvelope`, `storeMetaEnvelope`, `bulkCreateMetaEnvelopes`, `updateMetaEnvelope`, `updateMetaEnvelopeById`, and `uploadFile`. Stored on the MetaEnvelope node as the `aclBlock` JSON property, so it travels with the record.
+
+```
+_acl: {
+  v: 1,
+  grants:  [ { ename: "@<uuid>", perms: 1 } ],   // u8 bitmask
+  denials: { enames: ["@<uuid>"], conditions: [] },
+  default_perms: 1,                              // unnamed parties that pass a group
+  require: [ [ { ontology: "@<uuid>", path: "$.score", op: ">=", value: 60 } ] ]
+}
+```
+
+Perms bitmask: `0x01` READ, `0x02` CREATE, `0x04` UPDATE, `0x08` DELETE. `0x0F` full, `0x03` read + add-only. Bits 4-7 reserved, must be 0 — a write that sets them is rejected. `0x00` counts as no grant.
+
+Readable back: `MetaEnvelope._acl` is exposed to anyone permitted to read the record, and always reports the policy in force — a record with only a legacy array reports the block that array maps to. The legacy `acl` array itself is never returned.
+
+Decision order, fixed: (1) denials — by eName or a **failing** condition — always win; (2) the single most specific grant (user > platform > group, no union across specificity) decides on its own; (3) otherwise a passing `require` group admits at `default_perms`. `require` is an OR of groups, each an AND of conditions; an empty group always passes.
+
+Never guess these: a missing/multi-valued/non-numeric condition path **fails**, never passes. A named party never falls through from step 2 to step 3.
+
+### Legacy `acl` array
 
 - `["*"]` — anyone can read; only the eVault owner can write.
 - `["@user-a.w3id"]` — user A can read AND write.
-- `["@user-a.w3id", "@user-b.w3id"]` — both can read and write.
 
-Prototype limitation: no read-only-without-write except for `["*"]`. Fine-grained perms are on the roadmap.
+All-or-nothing: no read-only-without-write except `["*"]`. Where a record has `_acl`, the array is ignored entirely; where it does not, the array behaves exactly as before.
 
 Access enforcement flow:
 
 1. Extract W3ID from `X-ENAME` header or Bearer token.
-2. Check requester's W3ID is in the ACL.
-3. Strip the ACL field from the response (security).
+2. If the record carries `_acl`, decide by it, against the permission the operation needs. Otherwise check the requester's W3ID against the legacy array.
+3. Strip the legacy `acl` array from the response; `_acl` is returned.
 4. Grant or deny.
+
+A valid platform Bearer token satisfies the legacy path but does **not** bypass an `_acl` policy.
+
+**`X-ON-BEHALF-OF`** — optional header naming the user eName a platform is acting for. That user becomes the party (at user specificity) with the platform recorded alongside it; without it the platform is the party. It is the platform's assertion, not a proof, so it can reach what the user was granted — but it cannot escape a denial, since denials match the carrying platform too. Only `@`-prefixed eNames are accepted as parties; a JWT `kid` is not.
+
+**Groups.** A grant or denial may name a group eName; it resolves to member eNames at decision time. The group record is found in the group's own vault or by its `ename` field, and participants are read from `members`, `memberIds`, `participants`, `participantIds`, `admins`, `owner` (unioned — admins and owner count). Each entry is **either an eName or a profile record's id**; an id resolves via that record's `ename` field, else the vault it lives in. Never assume one form.
+
+Undeterminable membership is not "not a member": a grant needs proof and is withheld, a denial stands until non-membership is shown. With no resolver configured, groups match nobody at all.
+
+Not yet wired: no condition evaluator is connected, so any `require` group containing conditions fails closed. Write policies using `grants`, `denials.enames`, group enames, and empty-group `require`. Full model: [Access Control](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Access-Control).
 
 Special cases:
 
@@ -295,28 +371,31 @@ Special cases:
 
 ## Webhook delivery (Awareness Protocol)
 
-After a `createMetaEnvelope` (or legacy `storeMetaEnvelope`), eVault:
+After a create, update, delete, file upload, or binding-document mutation:
 
-1. Persists to Neo4j.
-2. Waits **3 seconds** (create only — `updateMetaEnvelope` fires immediately).
-3. `GET /platforms` on the Registry → list of platform base URLs.
-4. Filters out the requesting platform (identified from the Bearer token's `platform` claim, URL-normalized).
-5. `POST /api/webhook` on every remaining platform in parallel. 5s timeout per call. No retries. Fire-and-forget.
+1. eVault atomically persists the data and a uniquely identified awareness outbox event in Neo4j.
+2. Its dispatcher retries `POST /ingest` until AaaS durably acknowledges the event.
+3. AaaS atomically records the immutable event and matching delivery rows, excluding the requesting platform by normalized origin.
+4. Lease-based AaaS workers send `POST /api/webhook`. Non-2xx responses and timeouts retry with backoff for 24 hours, then dead-letter.
 
 Payload:
 
 ```json
 {
+  "eventId": "7fd6c06c-80ae-4137-9d62-c15af53f92cf",
   "id": "a1b2c3d4-...",
   "w3id": "@user-a.w3id",
-  "schemaId": "550e8400-e29b-41d4-a716-446655440001",
+  "schemaId": "<the SocialMediaPost schemaId>",
   "data": {
     "content": "Hello, world!",
     "mediaUrls": [],
     "authorId": "@e4d909c2-...",
     "createdAt": "2025-01-24T10:00:00Z"
   },
-  "evaultPublicKey": "z..."
+  "evaultPublicKey": "z...",
+  "operation": "update",
+  "streamVersion": 4,
+  "occurredAt": "2026-09-15T03:00:00.000Z"
 }
 ```
 
@@ -336,7 +415,7 @@ The Provisioner supports multiple W3IDs sharing infrastructure, but each eVault 
 
 ## References in the docs
 
-- Full spec: `docs/docs/Infrastructure/eVault.md`
-- Data model + ontology field semantics: `docs/docs/Infrastructure/Ontology.md`
-- Webhook packet + delivery mechanics: `docs/docs/W3DS Protocol/Awareness-Protocol.md`
-- Key binding certificate detail: `docs/docs/Infrastructure/eVault-Key-Delegation.md`
+- Full spec: [eVault](https://docs.w3ds.metastate.foundation/docs/Infrastructure/eVault)
+- Data model + ontology field semantics: [Ontology](https://docs.w3ds.metastate.foundation/docs/Infrastructure/Ontology)
+- Webhook packet + delivery mechanics: [Awareness Protocol](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Awareness-Protocol)
+- Key binding certificate detail: [eVault Key Delegation](https://docs.w3ds.metastate.foundation/docs/Infrastructure/eVault-Key-Delegation)

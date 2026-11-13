@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "8c2c245e-8714-41da-8407-14ab5ce8ea38",
+  "title": "EnvelopeAuditEvent",
+  "description": "One recorded step in the life of a signing envelope, written to the vault of whoever performed it.\n\nIMPORTANT — what this is and is not. Any platform holding a developer key can write an envelope to any vault by naming its owner in X-ENAME; there is no place in the request for the owner's consent. An unsigned event is therefore FORGEABLE: a 'signed' or 'opened' event can be fabricated on the vault of someone who never opened the application. Unsigned events are an operational journal, not evidence.\n\nFor the actions a person may genuinely need to prove — above all 'declined', which is a statement someone may have to defend — the actor signs the event with their eID key and fills signedPayload and signature. Only those events carry evidentiary weight, on exactly the same footing as EIDSignature: the private key lives in the wallet and the platform key cannot forge it. This is deliberately carried no IP address or user agent: those are personal data and would be written into someone else's vault.",
+  "type": "object",
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "envelopeId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the envelope initiator. Required for the same reason as on EIDSignature: an event found on a vault must be tied back to the canonical envelope without our database."
+    },
+    "actorEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of whoever performed the action. Equals the vault this event is written to."
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "created",
+        "sent",
+        "access_granted",
+        "opened",
+        "fields_filled",
+        "signed",
+        "declined",
+        "completed",
+        "revoked",
+        "expired",
+        "downloaded"
+      ]
+    },
+    "subjectEName": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "eName the action was directed at, where that differs from the actor. For example the invitee on access_granted."
+    },
+    "detail": {
+      "type": "string",
+      "description": "Short human-readable note. Must not contain document contents."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "signedPayload": {
+      "type": "string",
+      "description": "The exact string signed by the actor, composed as `${action}|${envelopeId}|${actorEName}|${occurredAt}`. Present only on signed events. Absent means this event is unproven and must not be presented as evidence."
+    },
+    "signature": {
+      "type": "string",
+      "description": "The actor's eID signature over signedPayload. Its presence is what turns this record from a journal entry into something provable."
+    },
+    "isAttested": {
+      "type": "boolean",
+      "description": "True when signedPayload and signature are present and verified. Explicit rather than inferred, so a reader cannot mistake a missing signature for an unchecked one."
+    }
+  },
+  "required": [
+    "eventId",
+    "envelopeId",
+    "canonicalOwnerEName",
+    "actorEName",
+    "action",
+    "occurredAt",
+    "createdAt"
+  ],
+  "dependencies": {
+    "signature": [
+      "signedPayload"
+    ],
+    "signedPayload": [
+      "signature"
+    ]
+  }
+}

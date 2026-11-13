@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { config } from "../config";
-import { IngestService } from "../services/IngestService";
+import { EventIdConflictError, IngestService } from "../services/IngestService";
 import type { AwarenessPayload } from "../types";
 
 /**
@@ -29,10 +29,13 @@ export function ingestRouter(): Router {
         try {
             const result = await service.ingest(body);
             console.log(
-                `[ingest] id=${body.id} schemaId=${body.schemaId} w3id=${body.w3id ?? "<none>"} queued=${result.deliveriesQueued}`,
+                `[ingest] eventId=${result.eventId} id=${body.id} schemaId=${body.schemaId} w3id=${body.w3id ?? "<none>"} duplicate=${result.duplicate} queued=${result.deliveriesQueued}`,
             );
             return res.json({ ok: true, ...result });
         } catch (err) {
+            if (err instanceof EventIdConflictError) {
+                return res.status(409).json({ error: err.message });
+            }
             console.error("[ingest] failed:", err);
             return res.status(500).json({ error: "ingest failed" });
         }

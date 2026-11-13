@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "5a27dd19-8c2a-4b55-9be5-c7fae8e74530",
+  "title": "TravelStoryPreferences",
+  "domain": "travel",
+  "type": "object",
+  "description": "A person's taste profile for travel STORIES specifically: content languages, topics, depth and narration style, learned affinity to content providers. One envelope per person, updated in place. Deliberately narrow: general travel preferences (hotels, transport) do not belong here, and a person's free-form notes about plans and wishes belong in PersonalNote records, never in this envelope. The profile language of the person lives in User.inLanguage; contentLanguages here is the (possibly different) priority list for story content",
+  "properties": {
+    "id": { "type": "string", "format": "uuid", "description": "Unique identifier; one envelope per person" },
+    "ownerEName": { "type": "string", "description": "@-prefixed eName of the person these preferences belong to" },
+    "contentLanguages": { "type": "array", "items": { "type": "string" }, "description": "Languages the person accepts story content in, priority order, BCP-47. Distinct from User.inLanguage (profile/interface language)" },
+    "interests": { "type": "array", "items": { "type": "string" }, "description": "Story topics the person enjoys, e.g. 'architecture', 'food', 'street-art', 'history'" },
+    "avoidTopics": { "type": "array", "items": { "type": "string" }, "description": "Story topics the person prefers to skip" },
+    "storyDepth": { "type": "string", "enum": ["short", "medium", "deep"], "description": "Preferred story length/detail level" },
+    "narrationStyle": { "type": "string", "description": "Free-form description of preferred narration style, e.g. 'ironic, no pathos'" },
+    "providerAffinity": {
+      "type": "array",
+      "description": "Learned per-person reputation of tmatic content providers",
+      "items": {
+        "type": "object",
+        "properties": {
+          "spaceId": { "type": "string", "format": "uuid", "description": "tmatic space (content provider) UUID" },
+          "score": { "type": "number", "minimum": -1, "maximum": 1, "description": "Affinity from -1 (avoid) to 1 (prefer)" }
+        },
+        "required": ["spaceId", "score"],
+        "additionalProperties": false
+      }
+    },
+    "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp, ISO 8601" },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp, ISO 8601" }
+  },
+  "required": ["id", "ownerEName", "createdAt"],
+  "additionalProperties": false
+}

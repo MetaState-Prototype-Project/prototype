@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import type { MigrationInterface, QueryRunner } from "typeorm";
 
 /**
  * Dedupe deliveries by payload content, not packet id alone. Adds a
@@ -14,7 +14,7 @@ export class AddDeliveryContentHash1780404367748 implements MigrationInterface {
         // Add nullable first, then backfill: a straight `ADD ... NOT NULL`
         // fails on any table that already has delivery rows.
         await queryRunner.query(
-            `ALTER TABLE "deliveries" ADD "contentHash" character varying`,
+            `ALTER TABLE "deliveries" ADD COLUMN IF NOT EXISTS "contentHash" character varying`,
         );
         // Backfill legacy rows with a single constant. This preserves the old
         // one-delivery-per-(subscription, packet) semantics for rows that
@@ -26,10 +26,13 @@ export class AddDeliveryContentHash1780404367748 implements MigrationInterface {
             `ALTER TABLE "deliveries" ALTER COLUMN "contentHash" SET NOT NULL`,
         );
         await queryRunner.query(
-            `ALTER TABLE "deliveries" DROP CONSTRAINT "uq_delivery_subscription_packet"`,
+            `ALTER TABLE "deliveries" DROP CONSTRAINT IF EXISTS "uq_delivery_subscription_packet"`,
         );
         await queryRunner.query(
-            `ALTER TABLE "deliveries" ADD CONSTRAINT "uq_delivery_subscription_packet_content" UNIQUE ("subscriptionId", "packetId", "contentHash")`,
+            `DO $$ BEGIN
+                ALTER TABLE "deliveries" ADD CONSTRAINT "uq_delivery_subscription_packet_content" UNIQUE ("subscriptionId", "packetId", "contentHash");
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$`,
         );
     }
 

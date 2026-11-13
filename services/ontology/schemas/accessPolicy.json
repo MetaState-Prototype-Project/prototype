@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "c7a41f6d-95b8-4e2a-9c33-8f0d1b6e4a72",
+  "title": "Access Policy",
+  "domain": "governance",
+  "type": "object",
+  "description": "The terms an eVault owner sets for platforms that want to reach their data. Certification says what a platform was found to be; this says what the owner will deal with. It is a signed statement rather than a stored setting, so it travels with the owner and can be checked by anyone — the eVault enforcing it, a platform deciding whether it is worth asking, or the owner auditing what they agreed to. The newest statement for a subject is the one in force. It can only narrow what a certificate grants, never widen it: a platform certified for social data cannot reach finance data because an owner permitted finance.",
+  "properties": {
+    "subject": {
+      "type": "string",
+      "pattern": "^@[^\\s]+$",
+      "description": "eName of the vault owner these terms bind. The signature must be theirs: a policy signed by anyone else is someone setting terms on a vault that is not theirs."
+    },
+    "minimumLevel": {
+      "type": "string",
+      "enum": ["L0", "L1", "L2", "L3", "L4", "L5"],
+      "description": "The weakest certification level the owner will deal with. A platform certified below this is refused whatever domains its certificate names."
+    },
+    "reputationEngine": {
+      "type": "string",
+      "description": "eName or URL of the reputation service whose scores the owner accepts. Empty when the owner does not weigh reputation, in which case no score is consulted and none can refuse a platform."
+    },
+    "minimumReputation": {
+      "type": ["number", "null"],
+      "description": "Score that engine must report for the platform, on the engine's own scale. Null when the owner sets no threshold."
+    },
+    "allowedDomains": {
+      "type": ["array", "null"],
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+      "description": "Domains the owner permits. Null means whatever the certificate grants, which is the ordinary case; a list narrows that further."
+    },
+    "deniedDomains": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+      "description": "Domains refused outright, overriding both the certificate and the allow list."
+    },
+    "payload": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What was signed: the prefix `w3ds:access-policy:v1:` followed by the base64url SHA-256 of the canonical statement."
+    },
+    "signature": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The owner's wallet signature over `payload`."
+    },
+    "issuedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nonce": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Makes each statement distinct, so re-signing the same terms produces a new record rather than a duplicate."
+    }
+  },
+  "required": [
+    "subject",
+    "minimumLevel",
+    "reputationEngine",
+    "minimumReputation",
+    "allowedDomains",
+    "deniedDomains",
+    "payload",
+    "signature",
+    "issuedAt",
+    "nonce"
+  ],
+  "additionalProperties": false
+}

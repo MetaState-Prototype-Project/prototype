@@ -3,6 +3,7 @@ import { goto } from "$app/navigation";
 import { keyboardInset } from "$lib/actions/keyboardInset";
 import type { GlobalState } from "$lib/global";
 import { runtime } from "$lib/global/runtime.svelte";
+import { m } from "$lib/i18n";
 import { BottomSheet, ButtonAction, PinDots } from "$lib/ui";
 import { CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
@@ -26,10 +27,10 @@ const canSubmit = $derived(stepPin.length === 4);
 
 const stepTitle = $derived(
     step === "current"
-        ? "Enter your current PIN"
+        ? m.pin_step_current()
         : step === "new"
-          ? "Enter your new PIN"
-          : "Confirm your new PIN",
+          ? m.pin_step_new()
+          : m.pin_step_repeat(),
 );
 
 async function advance() {
@@ -42,21 +43,21 @@ async function advance() {
             const ok =
                 await globalState.securityController.verifyPin(currentPin);
             if (!ok) {
-                error = "That's not your current PIN. Try again.";
+                error = m.pin_error_wrong_current();
                 currentPin = "";
                 return;
             }
             step = "new";
         } catch (err) {
             console.error("Failed to verify current PIN:", err);
-            error = "Couldn't verify your current PIN. Try again.";
+            error = m.pin_error_verify_failed();
             currentPin = "";
         } finally {
             submitting = false;
         }
     } else if (step === "new") {
         if (newPin === currentPin) {
-            error = "Your new PIN must be different from your current PIN.";
+            error = m.pin_error_must_differ();
             newPin = "";
             return;
         }
@@ -69,7 +70,7 @@ async function advance() {
 async function submit() {
     if (!globalState) return;
     if (repeatPin !== newPin) {
-        error = "PIN codes don't match. Try again.";
+        error = m.pin_error_mismatch();
         repeatPin = "";
         return;
     }
@@ -84,8 +85,7 @@ async function submit() {
     } catch (err) {
         console.error("Failed to update PIN:", err);
         // Most failures here are wrong-current-PIN — bounce back to step 1.
-        error =
-            "Couldn't update your PIN. Check your current PIN and try again.";
+        error = m.pin_error_update_failed();
         step = "current";
         currentPin = "";
         newPin = "";
@@ -114,7 +114,7 @@ $effect(() => {
 });
 
 $effect(() => {
-    runtime.header.title = "Change PIN";
+    runtime.header.title = m.pin_change_title();
     // Step-aware back: walk back through internal steps before leaving the page.
     runtime.header.onback = () => {
         error = null;
@@ -172,7 +172,7 @@ onMount(() => {
             callback={advance}
             blockingClick={step !== "new"}
         >
-            {step === "repeat" ? "Change PIN" : "Next"}
+            {step === "repeat" ? m.pin_change_title() : m.common_next()}
         </ButtonAction>
     </footer>
 </main>
@@ -203,16 +203,16 @@ onMount(() => {
             />
         </div>
         <div class="max-w-xs">
-            <h4 class="text-xl font-bold mb-2">PIN code changed</h4>
+            <h4 class="text-xl font-bold mb-2">{m.pin_success_title()}</h4>
             <p class="text-black-700 text-sm">
-                Your new PIN is now active. Use it the next time you sign in.
+                {m.pin_success_body()}
             </p>
         </div>
         <ButtonAction
             class="w-full uppercase tracking-wide"
             callback={handleClose}
         >
-            Done
+            {m.common_done()}
         </ButtonAction>
     </div>
 </BottomSheet>

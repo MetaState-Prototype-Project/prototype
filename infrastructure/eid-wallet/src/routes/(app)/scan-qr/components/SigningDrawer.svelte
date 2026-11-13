@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/i18n";
 import { BottomSheet, PlatformAppCard } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
@@ -67,21 +68,21 @@ const hasPollDetails = $derived(
 const title = $derived(
     showSigningSuccess
         ? isBlindVotingRequest
-            ? "Blind vote submitted!"
+            ? m.signing_blind_vote_submitted()
             : signingData?.pollId
-              ? "Vote signed!"
-              : "Message signed!"
+              ? m.signing_vote_signed()
+              : m.signing_message_signed()
         : isBlindVotingRequest
-          ? "You have scanned a blind vote QR code"
+          ? m.signing_scanned_blind_vote()
           : signingData?.pollId
-            ? "You have scanned a vote signing QR code"
-            : "You have scanned a message signing QR code",
+            ? m.signing_scanned_vote()
+            : m.signing_scanned_message(),
 );
 
 const subtitle = $derived(
     showSigningSuccess
-        ? "Your request was processed successfully."
-        : "Please review and confirm the request from the following App.",
+        ? m.signing_success_subtitle()
+        : m.signing_review_subtitle(),
 );
 </script>
 
@@ -102,7 +103,7 @@ const subtitle = $derived(
                         type="button"
                         onclick={onDecline}
                         disabled={loading}
-                        aria-label="Close"
+                        aria-label={m.common_close()}
                         class="w-9 h-9 rounded-full bg-gray-100 text-black-700 flex items-center justify-center active:opacity-80 disabled:opacity-40"
                     >
                         <HugeiconsIcon
@@ -148,7 +149,7 @@ const subtitle = $derived(
                                             <div
                                                 class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                             >
-                                                Poll ID
+                                                {m.vote_poll_id_label()}
                                             </div>
                                             <div
                                                 class="text-sm text-black-700 font-medium break-all mt-1 block"
@@ -165,7 +166,7 @@ const subtitle = $derived(
                                             <div
                                                 class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                             >
-                                                Poll Title
+                                                {m.signing_poll_title_label()}
                                             </div>
                                             <div
                                                 class="text-sm text-black-700 font-medium mt-1 block"
@@ -183,7 +184,7 @@ const subtitle = $derived(
                                             <div
                                                 class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                             >
-                                                Message
+                                                {m.signing_message_label()}
                                             </div>
                                             <div
                                                 class="text-sm text-black-700 font-medium break-all mt-1 block"
@@ -197,7 +198,7 @@ const subtitle = $derived(
                                             <div
                                                 class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                             >
-                                                Session Id
+                                                {m.signing_session_id_label()}
                                             </div>
                                             <div
                                                 class="text-sm text-black-700 font-medium break-all mt-1 block"
@@ -225,7 +226,7 @@ const subtitle = $derived(
                             <legend
                                 class="text-xs font-semibold text-black-500 uppercase mb-2 ml-1"
                             >
-                                Select Option
+                                {m.signing_select_option()}
                             </legend>
                             {#each signingData?.pollDetails?.options || [] as option, index}
                                 <label
@@ -264,7 +265,7 @@ const subtitle = $derived(
                     <Button.Action
                         variant="solid"
                         class="w-full"
-                        callback={onSuccessOkay}>Okay</Button.Action
+                        callback={onSuccessOkay}>{m.common_okay()}</Button.Action
                     >
                 {:else if isBlindVotingRequest && hasPollDetails}
                     <Button.Action
@@ -275,8 +276,8 @@ const subtitle = $derived(
                             isSubmittingBlindVote}
                     >
                         {isSubmittingBlindVote
-                            ? "Submitting..."
-                            : "Submit Blind Vote"}
+                            ? m.signing_submitting()
+                            : m.signing_submit_blind_vote()}
                     </Button.Action>
                 {:else}
                     <div class="flex justify-center gap-3 items-center w-full">
@@ -284,13 +285,13 @@ const subtitle = $derived(
                             <Button.Action
                                 variant="solid"
                                 class="w-full"
-                                callback={onDecline}>Okay</Button.Action
+                                callback={onDecline}>{m.common_okay()}</Button.Action
                             >
                         {:else}
                             <Button.Action
                                 variant="soft"
                                 class="w-full"
-                                callback={onDecline}>Decline</Button.Action
+                                callback={onDecline}>{m.common_decline()}</Button.Action
                             >
                             <Button.Action
                                 variant="solid"
@@ -299,10 +300,10 @@ const subtitle = $derived(
                                 disabled={loading}
                             >
                                 {loading
-                                    ? "Signing..."
+                                    ? m.signing_signing()
                                     : signingData?.pollId
-                                      ? "Sign Vote"
-                                      : "Sign"}
+                                      ? m.signing_sign_vote()
+                                      : m.signing_sign()}
                             </Button.Action>
                         {/if}
                     </div>

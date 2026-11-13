@@ -1,6 +1,6 @@
 # W3DS protocols
 
-Four wire-level protocols to know: `w3ds://auth`, `w3ds://sign`, the Awareness Protocol (webhooks), and `w3ds://file` URIs. Plus signature verification, which is shared by auth and sign. Source: `docs/docs/W3DS Protocol/*.md`.
+Four wire-level protocols to know: `w3ds://auth`, `w3ds://sign`, the Awareness Protocol (webhooks), and `w3ds://file` URIs. Plus signature verification, which is shared by auth and sign. Source: the [W3DS Protocol](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Authentication) section of the docs.
 
 ## w3ds://auth (authentication)
 
@@ -38,7 +38,7 @@ Request body:
 ```json
 {
   "w3id": "@user-a.w3id",
-  "session": "550e8400-e29b-41d4-a716-446655440000",
+  "session": "<the sessionId from the offer>",
   "signature": "xK3vJZQ2...==",
   "appVersion": "0.4.0"
 }
@@ -74,7 +74,7 @@ Temporary field (will be sunset). Present because some early wallets signed diff
 - Expire in ≤ 5 minutes.
 - Return generic errors; never leak "user not found" vs "signature invalid".
 
-Detail: `docs/docs/W3DS Protocol/Authentication.md`.
+Detail: [Authentication](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Authentication).
 
 ## w3ds://sign (arbitrary signatures)
 
@@ -107,43 +107,47 @@ w3ds://sign?session={sessionId}&data={base64Data}&redirect_uri={encodedCallback}
 
 5. Platform validates, verifies signature with `verifySignature(...)` using `message` as the `payload`, then processes the action and marks the session `completed` (or `security_violation`).
 
-Detail: `docs/docs/W3DS Protocol/Signing.md`.
+Detail: [Signing](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Signing).
 
 ## Awareness Protocol (webhooks)
 
-Prototype-level fanout from eVault-core to every registered platform after a write. Fire-and-forget. Source: `docs/docs/W3DS Protocol/Awareness-Protocol.md`.
+Durable at-least-once change delivery from eVault through AaaS to matching platform subscriptions. Source: [Awareness Protocol](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Awareness-Protocol).
 
 ### When it fires
 
-- After `createMetaEnvelope` (legacy `storeMetaEnvelope`): **3-second delay**, then fanout. The delay gives eVault time to reliably identify the requesting platform (from the Bearer token's `platform` claim) so it can exclude that platform from the fanout list. Without the delay you get "webhook ping-pong."
-- After `updateMetaEnvelope` (legacy `updateMetaEnvelopeById`): **immediate** fanout.
+- Create, update, delete, file upload, and binding-document mutations atomically create outbox events.
+- The requesting platform comes from the Bearer token's `platform` claim and is excluded by normalized origin to prevent webhook ping-pong.
 
 ### Delivery mechanics
 
-1. eVault `GET /platforms` on the Registry → list of platform base URLs.
-2. Filter out the requesting platform (normalized URL compare).
-3. `POST {platformUrl}/api/webhook` on each remaining platform in parallel.
-4. 5-second timeout per call.
-5. `Promise.allSettled` — one failure does not affect others.
-6. No retries. Failures are logged but do not block the mutation.
+1. eVault commits user data and `AwarenessOutbox` event in one Neo4j transaction.
+2. An expiring-lease dispatcher retries AaaS `/ingest` until acknowledged, including across restarts.
+3. AaaS commits the immutable event and matching Postgres delivery rows in one transaction.
+4. Expiring-lease workers deliver independent streams concurrently with a 5-second request timeout.
+5. Non-2xx/timeouts retry with jittered backoff for 24 hours, then dead-letter for admin replay.
+6. Events are ordered per subscription and MetaEnvelope. There is no global cross-stream order.
 
 ### Packet format
 
 ```json
 {
+  "eventId":  "7fd6c06c-80ae-4137-9d62-c15af53f92cf",
   "id":        "a1b2c3d4-...",
   "w3id":      "@e4d909c2-...",
-  "schemaId":  "550e8400-e29b-41d4-a716-446655440001",
+  "schemaId":  "<the SocialMediaPost schemaId, resolved from the Ontology service>",
   "data": {
     "content":   "Hello, world!",
     "mediaUrls": [],
     "authorId":  "@e4d909c2-...",
     "createdAt": "2025-01-24T10:00:00Z"
-  }
+  },
+  "operation": "update",
+  "streamVersion": 4,
+  "occurredAt": "2026-09-15T03:00:00.000Z"
 }
 ```
 
-Every platform receives every packet (broadcast). It is the platform's responsibility to inspect `schemaId` and drop packets it doesn't consume. A future revision will support ontology subscriptions and by-reference delivery.
+Registry-managed compatibility subscriptions receive every packet. Other consumers can filter subscriptions by ontology and eVault. Receivers must inspect `schemaId` and return 200 for packets they do not consume.
 
 ### Platform contract
 
@@ -151,23 +155,23 @@ Every platform participating in W3DS MUST implement `POST /api/webhook` and:
 
 1. Find the mapping whose `schemaId` matches the packet's `schemaId`.
 2. `adapter.fromGlobal({ data: body.data, mapping })` → local-shaped data.
-3. Look up existing local ID for `body.id`; if found, update; otherwise create and persist the `(globalId, localId)` mapping.
-4. Return 200.
+3. Deduplicate the event by `body.eventId`.
+4. Look up existing local ID for `body.id`; if found, apply the update/delete, otherwise create and persist the `(globalId, localId)` mapping.
+5. Return 200, including for duplicate events and unknown ontologies.
 
-**Idempotency required**: the same `body.id` may arrive more than once (network retries, misbehaving eVault). Never create a second local entity for the same global ID.
+**Idempotency required**: the same `body.eventId` may arrive more than once. Never apply one event twice. Do not suppress all repeats of `body.id`: legitimate create/update/delete events for one MetaEnvelope share that id.
 
 Full webhook controller code in [platform.md § Webhook controller](platform.md#webhook-controller).
 
-### Limitations to know
+### Semantics to know
 
-- No retries. No ordering. No at-least-once guarantee.
-- Recipient set = whatever `GET /platforms` returns. That is a prototype shortcut.
-
-For production, use Awareness-as-a-Service.
+- At-least-once delivery can duplicate events; dedupe with `eventId`.
+- Ordering is local to a subscription/MetaEnvelope stream, not global.
+- Automatic subscriber retries stop after 24 hours and require dead-letter replay.
 
 ### Awareness-as-a-Service (AaaS)
 
-Production-grade replacement layer. Source: `docs/docs/Services/Awareness-as-a-Service.md`. Key differences vs raw Awareness Protocol:
+The production delivery layer for the Awareness Protocol. Source: [Awareness as a Service (AaaS)](https://docs.w3ds.metastate.foundation/docs/Services/Awareness-as-a-Service). Key capabilities:
 
 - `POST /ingest` accepts packets from eVault-core.
 - `GET /api/packets` — poll query with filters (ontology, eVault, time).
@@ -180,7 +184,7 @@ Undifferentiated fanout → targeted delivery; no history → queryable; ungover
 
 ## Signature formats
 
-Source: `docs/docs/W3DS Protocol/Signature-Formats.md`.
+Source: [Signature Formats](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Signature-Formats).
 
 ### The algorithm
 
@@ -242,7 +246,7 @@ import { verifySignature } from "signature-validator";
 const result = await verifySignature({
   eName:           "@user.w3id",
   signature:       "z3K7vJZQ2F3k5L8mN9pQrS7tUvW1xY3zA5bC7dE9fG1hIjKlMnOpQrStUvWxYz",
-  payload:         "550e8400-e29b-41d4-a716-446655440000",
+  payload:         "<the sessionId that was signed>",
   registryBaseUrl: "https://registry.w3ds.metastate.foundation",
 });
 
@@ -251,7 +255,7 @@ const result = await verifySignature({
 
 ## File URIs (`w3ds://file`)
 
-Standard URI scheme for referencing blobs. Source: `docs/docs/W3DS Protocol/File-URIs.md`.
+Standard URI scheme for referencing blobs. Source: [File URIs](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/File-URIs).
 
 ### Format
 
@@ -273,8 +277,12 @@ Files uploaded via the eVault `uploadFile` mutation:
 ```
 
 3. The `w3ds://file` URI is built from the owner ename and the File Meta Envelope ID.
+4. An awareness packet is dispatched with `schemaId: "w3ds-file-v1"` and
+   `operation: "create"`, carrying the stored payload as `data`. Subscribe to
+   that ontology to observe uploads; do not mirror the blob as a `File` record
+   just to make it visible in AaaS.
 
-Max size 50 MB decoded. `uploadFile` API signature in [evault.md § File upload](evault.md#file-upload).
+Max size 250 MB decoded. `uploadFile` API signature in [evault.md § File upload](evault.md#file-upload).
 
 ### Dereferencing
 
@@ -307,7 +315,7 @@ Two distinct schemas. Conflating them is a common source of bugs.
 
 | | `w3ds-file-v1` | `File` ontology |
 |---|---|---|
-| Identifier | `w3ds-file-v1` (string literal) | `a1b2c3d4-e5f6-7890-abcd-ef1234567890` (UUID) |
+| Identifier | `w3ds-file-v1` — a **protocol string literal**, never looked up | A UUID `schemaId`, resolved from `GET /schemas` by title `File` |
 | Created by | `uploadFile` mutation | Platform apps (file-manager, esigner) via Web3 Adapter mapping |
 | Layer | Storage / transport — describes a blob | Application domain — a file record in a platform DB |
 | Payload keys | `filename`, `contentType`, `size`, `blobKey`, `publicUrl`, `uploadedAt` | `id`, `name`, `displayName`, `description`, `mimeType`, `size`, `md5Hash`, `data`, `url`, `ownerId`, `folderId`, `createdAt`, `updatedAt` |
@@ -322,9 +330,9 @@ The Web3 Adapter's `__file(...)` mapping directive automatically calls `uploadFi
 
 ## References in the docs
 
-- Authentication: `docs/docs/W3DS Protocol/Authentication.md`
-- Signing: `docs/docs/W3DS Protocol/Signing.md`
-- Signature formats: `docs/docs/W3DS Protocol/Signature-Formats.md`
-- Awareness Protocol: `docs/docs/W3DS Protocol/Awareness-Protocol.md`
-- File URIs: `docs/docs/W3DS Protocol/File-URIs.md`
-- Awareness-as-a-Service: `docs/docs/Services/Awareness-as-a-Service.md`
+- Authentication: [Authentication](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Authentication)
+- Signing: [Signing](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Signing)
+- Signature formats: [Signature Formats](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Signature-Formats)
+- Awareness Protocol: [Awareness Protocol](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/Awareness-Protocol)
+- File URIs: [File URIs](https://docs.w3ds.metastate.foundation/docs/W3DS%20Protocol/File-URIs)
+- Awareness-as-a-Service: [Awareness as a Service (AaaS)](https://docs.w3ds.metastate.foundation/docs/Services/Awareness-as-a-Service)

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { VaultAccessGuard, VaultContext } from "./vault-access-guard";
+import { GroupMembershipService, Permission } from "../acl";
 import { DbService } from "../db/db.service";
 import { setupTestNeo4j, teardownTestNeo4j } from "../../test-utils/neo4j-setup";
 import { Driver } from "neo4j-driver";
@@ -52,6 +53,56 @@ describe("VaultAccessGuard", () => {
             data: {
                 keys: [{ ...testJWK, d: undefined }], // Public key only
             },
+        });
+        mockedAxios.post.mockResolvedValue({ data: { managed: false, allowed: true } });
+        process.env.REGISTRY_SHARED_SECRET = "registry-secret";
+    });
+
+    describe("managed PlatformProfile writes", () => {
+        const profileInput = {
+            ontology: "550e8400-e29b-41d4-a716-446655440000",
+            payload: { platformName: "example" },
+            acl: ["*"],
+        };
+
+        it("rejects a revoked legacy token before the resolver runs", async () => {
+            mockedAxios.post.mockResolvedValue({
+                data: { managed: true, allowed: false, reason: "The legacy platform token was revoked during migration" },
+            });
+            const resolver = vi.fn(async () => ({ id: "profile" }));
+            const wrapped = guard.middleware(resolver);
+            const context = createMockContext({
+                eName: "@platform",
+                request: { headers: new Headers({ authorization: "Bearer legacy-token" }) } as any,
+            });
+
+            await expect(wrapped(null, { id: "profile-1", input: profileInput }, context)).rejects.toThrow("revoked during migration");
+            expect(resolver).not.toHaveBeenCalled();
+        });
+
+        it("allows the active manager token at the original envelope", async () => {
+            mockedAxios.post.mockResolvedValue({ data: { managed: true, allowed: true } });
+            const resolver = vi.fn(async () => ({ id: "profile" }));
+            const wrapped = guard.middleware(resolver);
+            const managerToken = await createValidToken({
+                platform: "manager-a",
+                kind: "platform-manager",
+                managedEname: "@platform",
+                manager: "manager-a",
+            });
+            const context = createMockContext({
+                eName: "@platform",
+                request: { headers: new Headers({ authorization: `Bearer ${managerToken}` }) } as any,
+            });
+            mockedAxios.get.mockResolvedValue({ data: { keys: [{ ...testJWK, d: undefined }] } });
+
+            await wrapped(null, { id: "profile-1", input: profileInput }, context);
+            expect(mockedAxios.post).toHaveBeenCalledWith(
+                "http://localhost:4322/platforms/management/authorize-profile-write",
+                expect.objectContaining({ ename: "@platform", envelopeId: "profile-1", token: managerToken }),
+                expect.anything(),
+            );
+            expect(resolver).toHaveBeenCalledOnce();
         });
     });
 
@@ -886,5 +937,548 @@ describe("VaultAccessGuard", () => {
             expect(mockResolver).not.toHaveBeenCalled();
         });
     });
-});
+describe("granular _acl policies", () => {
+        const PLATFORM = "@platform-granular";
+        const OTHER_PLATFORM = "@platform-other";
+        const USER = "@user-granular";
 
+        /** Stores a record carrying an explicit policy and returns its id. */
+        const storeWithPolicy = async (eName: string, _acl: any) => {
+            const result = await dbService.storeMetaEnvelope(
+                { ontology: "Test", payload: { field: "value" }, acl: ["*"], _acl },
+                ["*"],
+                eName,
+            );
+            return result.metaEnvelope.id;
+        };
+
+        const contextFor = async (
+            eName: string,
+            claims: any,
+            currentUser: string | null = null,
+        ) => {
+            const token = await createValidToken(claims);
+            return createMockContext({
+                eName,
+                currentUser,
+                request: {
+                    headers: new Headers({ authorization: `Bearer ${token}` }),
+                } as any,
+            });
+        };
+
+        it("closes the platform-token bypass a policy is meant to close", async () => {
+            const eName = "@vault-granular-1";
+            // The legacy array says "*", but the explicit policy names nobody.
+            const id = await storeWithPolicy(eName, {
+                v: 1,
+                grants: [],
+                denials: { enames: [], conditions: [] },
+                default_perms: 0x00,
+                require: [],
+            });
+
+            const context = await contextFor(eName, { platform: PLATFORM });
+            const resolver = vi.fn(async () => ({ id }));
+            const wrapped = guard.middleware(resolver);
+
+            await expect(wrapped(null, { id }, context)).rejects.toThrow("Access denied");
+            expect(resolver).not.toHaveBeenCalled();
+        });
+
+        it("allows the action a grant carries and refuses one it does not", async () => {
+            const eName = "@vault-granular-2";
+            const id = await storeWithPolicy(eName, {
+                v: 1,
+                grants: [{ ename: PLATFORM, perms: 0x01 }],
+                denials: { enames: [], conditions: [] },
+                default_perms: 0x00,
+                require: [],
+            });
+
+            const context = await contextFor(eName, { platform: PLATFORM });
+            const resolver = vi.fn(async () => ({ id }));
+
+            await expect(
+                guard.middleware(resolver, Permission.READ)(null, { id }, context),
+            ).resolves.toBeDefined();
+
+            await expect(
+                guard.middleware(resolver, Permission.DELETE)(null, { id }, context),
+            ).rejects.toThrow("Access denied");
+        });
+
+        it("lets a denial override a grant to the same party", async () => {
+            const eName = "@vault-granular-3";
+            const id = await storeWithPolicy(eName, {
+                v: 1,
+                grants: [{ ename: PLATFORM, perms: 0x0f }],
+                denials: { enames: [PLATFORM], conditions: [] },
+                default_perms: 0x0f,
+                require: [[]],
+            });
+
+            const context = await contextFor(eName, { platform: PLATFORM });
+            const resolver = vi.fn(async () => ({ id }));
+
+            await expect(
+                guard.middleware(resolver)(null, { id }, context),
+            ).rejects.toThrow("Access denied");
+        });
+
+        it("admits an unnamed platform through default_perms when a group passes", async () => {
+            const eName = "@vault-granular-4";
+            // An empty group is an AND over zero conditions, so it always passes.
+            const id = await storeWithPolicy(eName, {
+                v: 1,
+                grants: [],
+                denials: { enames: [], conditions: [] },
+                default_perms: 0x01,
+                require: [[]],
+            });
+
+            const context = await contextFor(eName, { platform: OTHER_PLATFORM });
+            const resolver = vi.fn(async () => ({ id }));
+
+            await expect(
+                guard.middleware(resolver, Permission.READ)(null, { id }, context),
+            ).resolves.toBeDefined();
+            await expect(
+                guard.middleware(resolver, Permission.UPDATE)(null, { id }, context),
+            ).rejects.toThrow("Access denied");
+        });
+
+        it("prefers a user grant over the platform grant carrying the request", async () => {
+            const eName = "@vault-granular-5";
+            const id = await storeWithPolicy(eName, {
+                v: 1,
+                grants: [
+                    { ename: PLATFORM, perms: 0x0f },
+                    { ename: USER, perms: 0x01 },
+                ],
+                denials: { enames: [], conditions: [] },
+                default_perms: 0x00,
+                require: [],
+            });
+
+            const context = await contextFor(eName, { platform: PLATFORM }, USER);
+            const resolver = vi.fn(async () => ({ id }));
+
+            await expect(
+                guard.middleware(resolver, Permission.READ)(null, { id }, context),
+            ).resolves.toBeDefined();
+            // The broader platform grant must not be unioned into the user's.
+            await expect(
+                guard.middleware(resolver, Permission.DELETE)(null, { id }, context),
+            ).rejects.toThrow("Access denied");
+        });
+
+        it("fails closed on a require group whose conditions have no evaluator", async () => {
+            const eName = "@vault-granular-6";
+            const id = await storeWithPolicy(eName, {
+                v: 1,
+                grants: [],
+                denials: { enames: [], conditions: [] },
+                default_perms: 0x0f,
+                require: [[{ ontology: "@erep", path: "$.score", op: ">=", value: 60 }]],
+            });
+
+            const context = await contextFor(eName, { platform: OTHER_PLATFORM });
+            const resolver = vi.fn(async () => ({ id }));
+
+            await expect(
+                guard.middleware(resolver)(null, { id }, context),
+            ).rejects.toThrow("Access denied");
+        });
+
+        it("leaves a record with no policy on its original behaviour", async () => {
+            const eName = "@vault-granular-7";
+            // No _acl: a valid platform token is still sufficient, as before.
+            const result = await dbService.storeMetaEnvelope(
+                { ontology: "Test", payload: { field: "value" }, acl: ["*"] },
+                ["*"],
+                eName,
+            );
+            const id = result.metaEnvelope.id;
+
+            const context = await contextFor(eName, { platform: OTHER_PLATFORM });
+            const resolver = vi.fn(async () => ({ id }));
+
+            await expect(
+                guard.middleware(resolver, Permission.DELETE)(null, { id }, context),
+            ).resolves.toBeDefined();
+        });
+
+        it("returns the policy but never the legacy array", async () => {
+            const eName = "@vault-granular-8";
+            const id = await storeWithPolicy(eName, {
+                v: 1,
+                grants: [{ ename: PLATFORM, perms: 0x0f }],
+                denials: { enames: [], conditions: [] },
+                default_perms: 0x00,
+                require: [],
+            });
+
+            const context = await contextFor(eName, { platform: PLATFORM });
+            const stored = await dbService.findMetaEnvelopeById(id, eName);
+            expect(stored?._acl).toBeDefined();
+
+            const resolver = vi.fn(async () => stored);
+            const returned: any = await guard.middleware(resolver)(null, { id }, context);
+            expect(returned).not.toHaveProperty("acl");
+            expect(returned._acl.grants).toEqual([
+                { ename: PLATFORM, perms: 0x0f },
+            ]);
+        });
+
+        it("reports a legacy record as the policy it is actually enforced as", async () => {
+            const eName = "@vault-granular-9";
+            const result = await dbService.storeMetaEnvelope(
+                { ontology: "Test", payload: { field: "value" }, acl: ["*"] },
+                ["*"],
+                eName,
+            );
+            const id = result.metaEnvelope.id;
+
+            const context = await contextFor(eName, { platform: PLATFORM });
+            const stored = await dbService.findMetaEnvelopeById(id, eName);
+            const resolver = vi.fn(async () => stored);
+            const returned: any = await guard.middleware(resolver)(null, { id }, context);
+
+            // ["*"] is everyone, everything -- expressed as an always-passing group.
+            expect(returned).not.toHaveProperty("acl");
+            expect(returned._acl.default_perms).toBe(0x0f);
+            expect(returned._acl.require).toEqual([[]]);
+        });
+    });
+
+    describe("delegated identity (X-ON-BEHALF-OF)", () => {
+        const PLATFORM = "@platform-delegating";
+        const USER = "@user-delegated";
+
+        const storeWithPolicy = async (eName: string, _acl: any) => {
+            const result = await dbService.storeMetaEnvelope(
+                { ontology: "Test", payload: { field: "value" }, acl: ["*"], _acl },
+                ["*"],
+                eName,
+            );
+            return result.metaEnvelope.id;
+        };
+
+        const contextFor = async (
+            eName: string,
+            claims: any,
+            extra: Partial<VaultContext> = {},
+        ) => {
+            const token = await createValidToken(claims);
+            return createMockContext({
+                eName,
+                request: {
+                    headers: new Headers({ authorization: `Bearer ${token}` }),
+                } as any,
+                ...extra,
+            });
+        };
+
+        it("takes the asserted user as the party, outranking the platform grant", async () => {
+            const eName = "@vault-delegated-1";
+            const id = await storeWithPolicy(eName, {
+                v: 1,
+                grants: [
+                    { ename: PLATFORM, perms: 0x01 },
+                    { ename: USER, perms: 0x0f },
+                ],
+                denials: { enames: [], conditions: [] },
+                default_perms: 0x00,
+                require: [],
+            });
+
+            const context = await contextFor(eName, { platform: PLATFORM }, {
+                onBehalfOf: USER,
+            });
+            const resolver = vi.fn(async () => ({ id }));
+
+            // The user grant is more specific, so it decides -- even though the
+            // platform carrying the request holds only READ.
+            await expect(
+                guard.middleware(resolver, Permission.DELETE)(null, { id }, context),
+            ).resolves.toBeDefined();
+        });
+
+        it("falls back to the platform when no user is asserted", async () => {
+            const eName = "@vault-delegated-2";
+            const id = await storeWithPolicy(eName, {
+                v: 1,
+                grants: [
+                    { ename: PLATFORM, perms: 0x01 },
+                    { ename: USER, perms: 0x0f },
+                ],
+                denials: { enames: [], conditions: [] },
+                default_perms: 0x00,
+                require: [],
+            });
+
+            const context = await contextFor(eName, { platform: PLATFORM });
+            const resolver = vi.fn(async () => ({ id }));
+
+            await expect(
+                guard.middleware(resolver, Permission.DELETE)(null, { id }, context),
+            ).rejects.toThrow("Access denied");
+        });
+
+        it("cannot be used to escape a denial on the carrying platform", async () => {
+            const eName = "@vault-delegated-3";
+            const id = await storeWithPolicy(eName, {
+                v: 1,
+                grants: [{ ename: USER, perms: 0x0f }],
+                denials: { enames: [PLATFORM], conditions: [] },
+                default_perms: 0x00,
+                require: [],
+            });
+
+            const context = await contextFor(eName, { platform: PLATFORM }, {
+                onBehalfOf: USER,
+            });
+            const resolver = vi.fn(async () => ({ id }));
+
+            await expect(
+                guard.middleware(resolver)(null, { id }, context),
+            ).rejects.toThrow("Access denied");
+        });
+
+        it("ignores a currentUser that is a signing-key id rather than a party", async () => {
+            const eName = "@vault-delegated-4";
+            // A Registry platform token's JWT kid is "entropy-key-1", which the
+            // context surfaces as currentUser. It must not authorize anything.
+            const id = await storeWithPolicy(eName, {
+                v: 1,
+                grants: [{ ename: "entropy-key-1", perms: 0x0f }],
+                denials: { enames: [], conditions: [] },
+                default_perms: 0x00,
+                require: [],
+            });
+
+            const context = await contextFor(eName, { platform: PLATFORM }, {
+                currentUser: "entropy-key-1",
+            });
+            const resolver = vi.fn(async () => ({ id }));
+
+            await expect(
+                guard.middleware(resolver)(null, { id }, context),
+            ).rejects.toThrow("Access denied");
+        });
+
+        it("ignores an asserted identity that is not an eName", async () => {
+            const eName = "@vault-delegated-5";
+            const id = await storeWithPolicy(eName, {
+                v: 1,
+                grants: [{ ename: "not-an-ename", perms: 0x0f }],
+                denials: { enames: [], conditions: [] },
+                default_perms: 0x00,
+                require: [],
+            });
+
+            const context = await contextFor(eName, { platform: PLATFORM }, {
+                onBehalfOf: "not-an-ename",
+            });
+            const resolver = vi.fn(async () => ({ id }));
+
+            await expect(
+                guard.middleware(resolver)(null, { id }, context),
+            ).rejects.toThrow("Access denied");
+        });
+    });
+describe("group grants and denials end to end", () => {
+        const GROUP = "@group-guarded";
+        const PLATFORM = "@platform-grouped";
+        const MEMBER = "@user-in-group";
+        const OUTSIDER = "@user-outside-group";
+        const GROUP_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440003";
+        const USER_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440000";
+
+        let grouped: VaultAccessGuard;
+
+        beforeAll(() => {
+            grouped = new VaultAccessGuard(
+                dbService,
+                undefined,
+                new GroupMembershipService(dbService),
+            );
+        });
+
+        const storeWithPolicy = async (eName: string, _acl: any) => {
+            const result = await dbService.storeMetaEnvelope(
+                { ontology: "Test", payload: { field: "value" }, acl: ["*"], _acl },
+                ["*"],
+                eName,
+            );
+            return result.metaEnvelope.id;
+        };
+
+        const contextFor = async (eName: string, onBehalfOf: string) => {
+            const token = await createValidToken({ platform: PLATFORM });
+            return createMockContext({
+                eName,
+                onBehalfOf,
+                request: {
+                    headers: new Headers({ authorization: `Bearer ${token}` }),
+                } as any,
+            });
+        };
+
+        it("admits a member through a group grant, by eName and by profile id", async () => {
+            // One member is listed by eName, the other by their profile record's
+            // id -- both forms occur in real group records.
+            const profile = await dbService.storeMetaEnvelope(
+                { ontology: USER_ONTOLOGY, payload: { ename: OUTSIDER }, acl: ["*"] },
+                ["*"],
+                "@profile-vault",
+            );
+            await dbService.storeMetaEnvelope(
+                {
+                    ontology: GROUP_ONTOLOGY,
+                    payload: {
+                        ename: GROUP,
+                        name: "Guarded",
+                        members: [MEMBER],
+                        participantIds: [profile.metaEnvelope.id],
+                    },
+                    acl: ["*"],
+                },
+                ["*"],
+                GROUP,
+            );
+
+            const eName = "@vault-group-1";
+            const id = await storeWithPolicy(eName, {
+                v: 1,
+                grants: [{ ename: GROUP, perms: 0x01 }],
+                denials: { enames: [], conditions: [] },
+                default_perms: 0x00,
+                require: [],
+            });
+
+            for (const member of [MEMBER, OUTSIDER]) {
+                const context = await contextFor(eName, member);
+                await expect(
+                    grouped.middleware(vi.fn(async () => ({ id })), Permission.READ)(
+                        null,
+                        { id },
+                        context,
+                    ),
+                ).resolves.toBeDefined();
+            }
+        });
+
+        it("refuses someone who is not in the granted group", async () => {
+            const eName = "@vault-group-2";
+            const id = await storeWithPolicy(eName, {
+                v: 1,
+                grants: [{ ename: GROUP, perms: 0x0f }],
+                denials: { enames: [], conditions: [] },
+                default_perms: 0x00,
+                require: [],
+            });
+
+            const context = await contextFor(eName, "@nobody-in-particular");
+            await expect(
+                grouped.middleware(vi.fn(async () => ({ id })))(null, { id }, context),
+            ).rejects.toThrow("Access denied");
+        });
+
+        it("denies a member of a denied group despite a direct grant", async () => {
+            const eName = "@vault-group-3";
+            const id = await storeWithPolicy(eName, {
+                v: 1,
+                grants: [{ ename: MEMBER, perms: 0x0f }],
+                denials: { enames: [GROUP], conditions: [] },
+                default_perms: 0x00,
+                require: [],
+            });
+
+            const context = await contextFor(eName, MEMBER);
+            await expect(
+                grouped.middleware(vi.fn(async () => ({ id })))(null, { id }, context),
+            ).rejects.toThrow("Access denied");
+        });
+
+        it("leaves a group denial inert when no resolver is configured", async () => {
+            // The guard without a resolver cannot resolve groups at all, which
+            // is the feature switched off rather than a failed lookup.
+            const eName = "@vault-group-4";
+            const id = await storeWithPolicy(eName, {
+                v: 1,
+                grants: [{ ename: MEMBER, perms: 0x0f }],
+                denials: { enames: [GROUP], conditions: [] },
+                default_perms: 0x00,
+                require: [],
+            });
+
+            const context = await contextFor(eName, MEMBER);
+            await expect(
+                guard.middleware(vi.fn(async () => ({ id })))(null, { id }, context),
+            ).resolves.toBeDefined();
+        });
+    });
+
+    describe("history of a pruned record", () => {
+        const PLATFORM = "@platform-history";
+        const OTHER_PLATFORM = "@platform-history-other";
+
+        const storeAndPrune = async (eName: string, _acl: any) => {
+            const result = await dbService.storeMetaEnvelope(
+                { ontology: "Test", payload: { field: "value" }, acl: ["*"], _acl },
+                ["*"],
+                eName,
+            );
+            await dbService.deleteMetaEnvelope(result.metaEnvelope.id, eName);
+            return result.metaEnvelope.id;
+        };
+
+        const contextFor = async (eName: string, platform: string) => {
+            const token = await createValidToken({ platform });
+            return createMockContext({
+                eName,
+                request: {
+                    headers: new Headers({ authorization: `Bearer ${token}` }),
+                } as any,
+            });
+        };
+
+        const policy = {
+            v: 1,
+            grants: [{ ename: PLATFORM, perms: 0x01 }],
+            denials: { enames: [OTHER_PLATFORM], conditions: [] },
+            default_perms: 0x00,
+            require: [],
+        };
+
+        it("admits a party the pruned record's last policy allowed", async () => {
+            const eName = "@vault-history-1";
+            const id = await storeAndPrune(eName, policy);
+
+            const context = await contextFor(eName, PLATFORM);
+            const resolver = vi.fn(async () => ({ edges: [] }));
+            await expect(
+                guard.middleware(resolver, Permission.READ, {
+                    includePruned: true,
+                })(null, { id }, context),
+            ).resolves.toBeDefined();
+            expect(resolver).toHaveBeenCalled();
+        });
+
+        it("denies a party the pruned record's last policy denied", async () => {
+            const eName = "@vault-history-2";
+            const id = await storeAndPrune(eName, policy);
+
+            const context = await contextFor(eName, OTHER_PLATFORM);
+            const resolver = vi.fn(async () => ({ edges: [] }));
+            await expect(
+                guard.middleware(resolver, Permission.READ, {
+                    includePruned: true,
+                })(null, { id }, context),
+            ).rejects.toThrow("Access denied");
+            expect(resolver).not.toHaveBeenCalled();
+        });
+    });
+});

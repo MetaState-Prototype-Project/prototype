@@ -2,19 +2,40 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "schemaId": "0f9a3cb8-4a9f-4b5f-a1fa-3a4c2eb1f405",
   "title": "TaskReference",
+  "domain": "productivity",
   "type": "object",
   "properties": {
-    "isReference": { "const": true },
-    "canonicalTaskId": { "type": "string", "description": "Logical ID of the canonical task" },
-    "canonicalOwnerEName": { "type": "string", "description": "eName of the eVault holding the canonical task" },
-    "canonicalEnvelopeId": { "type": "string", "description": "MetaEnvelope ID of the current canonical task" },
+    "isReference": {
+      "const": true
+    },
+    "canonicalTaskId": {
+      "type": "string",
+      "description": "Logical ID of the canonical task"
+    },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "description": "eName of the eVault holding the canonical task"
+    },
+    "canonicalEnvelopeId": {
+      "type": "string",
+      "description": "MetaEnvelope ID of the current canonical task"
+    },
     "referenceType": {
       "type": "string",
-      "enum": ["canonical-relocation"],
+      "enum": [
+        "canonical-relocation"
+      ],
       "description": "Present when a former canonical Task envelope redirects to a relocated canonical envelope"
     },
-    "relocatedAt": { "type": "string", "format": "date-time" }
+    "relocatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
   },
-  "required": ["isReference", "canonicalTaskId", "canonicalOwnerEName"],
+  "required": [
+    "isReference",
+    "canonicalTaskId",
+    "canonicalOwnerEName"
+  ],
   "additionalProperties": false
 }

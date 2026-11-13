@@ -78,9 +78,11 @@ export class WebhookController {
             console.log("Available mappings:", Object.keys(this.adapter.mapping));
 
             if (!mapping) {
-                console.error("No mapping found for schemaId:", schemaId);
-                await this.webhookProcessingService.markWebhookFailed(req.body, "No mapping found");
-                throw new Error("No mapping found");
+                console.log(
+                    `[webhook] skipping unknown schema ${schemaId} for ${globalId}`
+                );
+                await this.webhookProcessingService.markWebhookCompleted(req.body);
+                return res.status(200).send();
             }
 
             // Check if this globalId is already locked (being processed)

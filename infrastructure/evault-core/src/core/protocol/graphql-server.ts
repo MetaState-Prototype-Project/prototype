@@ -1,11 +1,23 @@
 import { Server } from "http";
-import axios from "axios";
+import {
+    aclBlockFromInput,
+    GroupMembershipService,
+    Permission,
+    resolveAclBlock,
+} from "../acl";
 import type { GraphQLSchema } from "graphql";
 import { createSchema, createYoga } from "graphql-yoga";
 import { getJWTHeader } from "w3id";
-import { BindingDocumentService, BINDING_DOCUMENT_ONTOLOGY } from "../../services/BindingDocumentService";
+import {
+    BindingDocumentService,
+    BINDING_DOCUMENT_ONTOLOGY,
+} from "../../services/BindingDocumentService";
 import { hashAnswer } from "../utils/security-answer";
-import type { DbService } from "../db/db.service";
+import {
+    type AwarenessWriteContext,
+    type DbService,
+    MetaEnvelopeRollbackError,
+} from "../db/db.service";
 import {
     computeEnvelopeHash,
     computeEnvelopeHashForDelete,
@@ -14,7 +26,11 @@ import { exampleQueries } from "./examples/examples";
 import { StorageService } from "../../services/StorageService";
 import { buildFileUri, FILE_SCHEMA_ID } from "../utils/w3ds-uri";
 import { typeDefs } from "./typedefs";
-import { VaultAccessGuard, type VaultContext } from "./vault-access-guard";
+import {
+    isEName,
+    VaultAccessGuard,
+    type VaultContext,
+} from "./vault-access-guard";
 import { MessageNotificationService } from "../../services/MessageNotificationService";
 import { SecurityQuestionService } from "../../services/SecurityQuestionService";
 import { DeviceToken } from "../../entities/DeviceToken";
@@ -33,7 +49,8 @@ export class GraphQLServer {
     private evaultPublicKey: string | null;
     private evaultW3ID: string | null;
     private evaultInstance: any; // Reference to the eVault instance
-    private messageNotificationService: MessageNotificationService | null = null;
+    private messageNotificationService: MessageNotificationService | null =
+        null;
     private securityQuestionService: SecurityQuestionService | null = null;
 
     constructor(
@@ -43,7 +60,11 @@ export class GraphQLServer {
         evaultInstance?: any,
     ) {
         this.db = db;
-        this.accessGuard = new VaultAccessGuard(db);
+        this.accessGuard = new VaultAccessGuard(
+            db,
+            undefined,
+            new GroupMembershipService(db),
+        );
         this.bindingDocumentService = new BindingDocumentService(db);
         this.evaultPublicKey =
             evaultPublicKey || process.env.EVAULT_PUBLIC_KEY || null;
@@ -77,61 +98,28 @@ export class GraphQLServer {
         return this.securityQuestionService;
     }
 
+    /** Metadata persisted with the mutation's transactional outbox event. */
+    private awarenessContext(
+        context: VaultContext,
+        skipAwareness = false,
+    ): AwarenessWriteContext {
+        return {
+            evaultPublicKey: this.evaultPublicKey,
+            requestingPlatform: context.tokenPayload?.platform ?? null,
+            author: this.authorOf(context),
+            skipAwareness,
+        };
+    }
+
     /**
-     * Forwards an awareness packet to Awareness as a Service (AaaS).
-     *
-     * AaaS has replaced eVault's built-in webhook fanout: instead of querying
-     * the registry and POSTing to every platform here, we make a single POST
-     * to AaaS, which owns subscription matching, retry/dead-letter delivery and
-     * the catch-all fanout that preserves the previous behaviour.
-     *
-     * @param webhookPayload - The awareness packet { id, w3id, evaultPublicKey,
-     *                         data, schemaId }
-     * @param requestingPlatform - The platform that triggered the change, if
-     *                         known. AaaS uses it to skip delivering the packet
-     *                         back to its origin (prevents webhook ping-pong).
+     * The party a write is recorded against: the user a platform declared it
+     * acts for, else the token's own subject when that is an eName. This is
+     * what the caller asserted, recorded for history, not proof of identity.
      */
-    private async notifyAwareness(
-        webhookPayload: any,
-        requestingPlatform: string | null = null,
-    ): Promise<void> {
-        // One log line per dispatch — this remains the source of truth for
-        // "what eVault claims it sent"; correlate against AaaS ingest logs.
-        try {
-            const payloadJson = JSON.stringify(webhookPayload);
-            console.log(
-                `[webhook] id=${webhookPayload?.id} schemaId=${webhookPayload?.schemaId} w3id=${webhookPayload?.w3id} payload=${payloadJson}`,
-            );
-        } catch {
-            console.log(
-                `[webhook] id=${webhookPayload?.id} schemaId=${webhookPayload?.schemaId} payload=<unserializable>`,
-            );
-        }
-
-        if (!process.env.AWARENESS_SERVICE_URL) {
-            console.log("[webhook] AWARENESS_SERVICE_URL not set, skipping");
-            return;
-        }
-
-        try {
-            await axios.post(
-                new URL(
-                    "/ingest",
-                    process.env.AWARENESS_SERVICE_URL,
-                ).toString(),
-                { ...webhookPayload, requestingPlatform },
-                {
-                    headers: {
-                        "Content-Type": "application/json",
-                        "x-ingest-secret":
-                            process.env.AWARENESS_INGEST_SECRET ?? "",
-                    },
-                    timeout: 5000,
-                },
-            );
-        } catch (error) {
-            console.log("Awareness ingest delivery failed");
-        }
+    private authorOf(context: VaultContext): string | null {
+        if (isEName(context.onBehalfOf)) return context.onBehalfOf;
+        if (isEName(context.currentUser)) return context.currentUser;
+        return null;
     }
 
     /**
@@ -152,6 +140,14 @@ export class GraphQLServer {
             // Field resolver for Envelope.fieldKey (alias for ontology)
             Envelope: {
                 fieldKey: (parent: any) => parent.ontology,
+            },
+
+            MetaEnvelope: {
+                // Always answer with the policy actually enforced, so a record
+                // carrying only a legacy array reads back the same shape as one
+                // carrying an explicit block.
+                _acl: (parent: any) =>
+                    resolveAclBlock({ _acl: parent?._acl, acl: parent?.acl }),
             },
 
             Query: {
@@ -207,6 +203,9 @@ export class GraphQLServer {
                             "self",
                             "personal_parameters",
                             "security_question",
+                            "deployment_key",
+                            "software_version",
+                            "consent",
                         ] as const;
                         type ValidType =
                             (typeof VALID_BINDING_DOCUMENT_TYPES)[number];
@@ -268,6 +267,26 @@ export class GraphQLServer {
                             },
                         );
                     },
+                ),
+
+                // Every recorded version of a MetaEnvelope, including pruned ones
+                metaEnvelopeHistory: this.accessGuard.middleware(
+                    (
+                        _: any,
+                        args: { id: string; first?: number; after?: string },
+                        context: VaultContext,
+                    ) => {
+                        if (!context.eName) {
+                            throw new Error("X-ENAME header is required");
+                        }
+                        return this.db.getMetaEnvelopeVersions(
+                            args.id,
+                            context.eName,
+                            { first: args.first, after: args.after },
+                        );
+                    },
+                    Permission.READ,
+                    { includePruned: true },
                 ),
 
                 // ============================================================
@@ -339,6 +358,7 @@ export class GraphQLServer {
                                 ontology: string;
                                 payload: any;
                                 acl: string[];
+                                _acl?: unknown;
                             };
                         },
                         context: VaultContext,
@@ -361,9 +381,11 @@ export class GraphQLServer {
                                     ontology: input.ontology,
                                     payload: input.payload,
                                     acl: input.acl,
+                                    _acl: aclBlockFromInput(input._acl),
                                 },
                                 input.acl,
                                 context.eName,
+                                this.awarenessContext(context),
                             );
 
                             // Build parsed from actual written envelopes, not input
@@ -381,25 +403,18 @@ export class GraphQLServer {
                                 parsed: parsedFromEnvelopes,
                             };
 
-                            // Forward the awareness packet for create operation
-                            const webhookPayload = {
-                                id: result.metaEnvelope.id,
-                                w3id: context.eName,
-                                evaultPublicKey: this.evaultPublicKey,
-                                data: input.payload,
-                                schemaId: input.ontology,
-                            };
-
-                            // Fire-and-forget ingest to AaaS
-                            this.notifyAwareness(
-                                webhookPayload,
-                                context.tokenPayload?.platform || null,
-                            );
-
                             // Send push notifications for new messages
-                            console.log(`[NOTIF] createMetaEnvelope ontology: "${input.ontology}"`);
-                            if (MessageNotificationService.isMessageSchema(input.ontology)) {
-                                console.log(`[NOTIF] Message schema detected, triggering notification for envelope ${result.metaEnvelope.id}`);
+                            console.log(
+                                `[NOTIF] createMetaEnvelope ontology: "${input.ontology}"`,
+                            );
+                            if (
+                                MessageNotificationService.isMessageSchema(
+                                    input.ontology,
+                                )
+                            ) {
+                                console.log(
+                                    `[NOTIF] Message schema detected, triggering notification for envelope ${result.metaEnvelope.id}`,
+                                );
                                 this.getMessageNotificationService()
                                     .notifyParticipants({
                                         messageGlobalId: result.metaEnvelope.id,
@@ -408,7 +423,10 @@ export class GraphQLServer {
                                         acl: input.acl,
                                     })
                                     .catch((err) =>
-                                        console.error("Message notification failed:", err),
+                                        console.error(
+                                            "Message notification failed:",
+                                            err,
+                                        ),
                                     );
                             }
 
@@ -422,6 +440,7 @@ export class GraphQLServer {
                             });
                             this.db
                                 .appendEnvelopeOperationLog({
+                                    author: this.authorOf(context),
                                     eName: context.eName,
                                     metaEnvelopeId: result.metaEnvelope.id,
                                     envelopeHash,
@@ -460,6 +479,7 @@ export class GraphQLServer {
                             };
                         }
                     },
+                    Permission.CREATE,
                 ),
 
                 // Update an existing MetaEnvelope with structured payload
@@ -475,6 +495,7 @@ export class GraphQLServer {
                                 ontology: string;
                                 payload: any;
                                 acl: string[];
+                                _acl?: unknown;
                             };
                         },
                         context: VaultContext,
@@ -498,9 +519,11 @@ export class GraphQLServer {
                                     ontology: input.ontology,
                                     payload: input.payload,
                                     acl: input.acl,
+                                    _acl: aclBlockFromInput(input._acl),
                                 },
                                 input.acl,
                                 context.eName,
+                                this.awarenessContext(context),
                             );
 
                             // Build parsed from actual written envelopes, not input
@@ -518,28 +541,6 @@ export class GraphQLServer {
                                 parsed: parsedFromEnvelopes,
                             };
 
-                            // Deliver webhooks for update operation.
-                            // Use the FULL post-write state, not input.payload —
-                            // input.payload is the partial diff the caller sent,
-                            // and receivers overwrite their local row with
-                            // whatever the webhook carries. Sending the diff
-                            // would make the receiver lose every untouched
-                            // field (e.g. a read-receipt update would wipe
-                            // participantIds on the receiver side).
-                            const webhookPayload = {
-                                id,
-                                w3id: context.eName,
-                                evaultPublicKey: this.evaultPublicKey,
-                                data: result.mergedPayload ?? input.payload,
-                                schemaId: input.ontology,
-                            };
-
-                            // Fire-and-forget ingest to AaaS
-                            this.notifyAwareness(
-                                webhookPayload,
-                                context.tokenPayload?.platform || null,
-                            );
-
                             // Log envelope operation best-effort
                             const platform =
                                 context.tokenPayload?.platform ?? null;
@@ -550,6 +551,7 @@ export class GraphQLServer {
                             });
                             this.db
                                 .appendEnvelopeOperationLog({
+                                    author: this.authorOf(context),
                                     eName: context.eName,
                                     metaEnvelopeId: id,
                                     envelopeHash,
@@ -588,6 +590,100 @@ export class GraphQLServer {
                             };
                         }
                     },
+                    Permission.UPDATE,
+                ),
+
+                // Restore an earlier version as a new version. A pruned record
+                // is decided by the policy it last carried, like its history.
+                rollbackMetaEnvelope: this.accessGuard.middleware(
+                    async (
+                        _: any,
+                        { id, version }: { id: string; version: number },
+                        context: VaultContext,
+                    ) => {
+                        if (!context.eName) {
+                            return {
+                                metaEnvelope: null,
+                                errors: [
+                                    {
+                                        message: "X-ENAME header is required",
+                                        code: "MISSING_ENAME",
+                                    },
+                                ],
+                            };
+                        }
+
+                        try {
+                            const result = await this.db.rollbackMetaEnvelope(
+                                id,
+                                context.eName,
+                                version,
+                                this.awarenessContext(context),
+                            );
+
+                            const envelopeHash = computeEnvelopeHash({
+                                id,
+                                ontology: result.metaEnvelope.ontology,
+                                payload: result.metaEnvelope.parsed,
+                            });
+                            this.db
+                                .appendEnvelopeOperationLog({
+                                    author: this.authorOf(context),
+                                    eName: context.eName,
+                                    metaEnvelopeId: id,
+                                    envelopeHash,
+                                    operation: result.operation,
+                                    platform:
+                                        context.tokenPayload?.platform ?? null,
+                                    timestamp: new Date().toISOString(),
+                                    ontology: result.metaEnvelope.ontology,
+                                })
+                                .catch((err) =>
+                                    console.error(
+                                        "appendEnvelopeOperationLog (rollback) failed:",
+                                        err,
+                                    ),
+                                );
+
+                            return {
+                                metaEnvelope: result.metaEnvelope,
+                                version: result.version,
+                                restoredFromVersion: result.restoredFromVersion,
+                                errors: [],
+                            };
+                        } catch (error) {
+                            if (error instanceof MetaEnvelopeRollbackError) {
+                                return {
+                                    metaEnvelope: null,
+                                    errors: [
+                                        {
+                                            field: "version",
+                                            message: error.message,
+                                            code: error.code,
+                                        },
+                                    ],
+                                };
+                            }
+                            console.error(
+                                "Error in rollbackMetaEnvelope:",
+                                error,
+                            );
+                            return {
+                                metaEnvelope: null,
+                                errors: [
+                                    {
+                                        message:
+                                            error instanceof Error
+                                                ? error.message
+                                                : "Failed to roll back MetaEnvelope",
+                                        code: "ROLLBACK_FAILED",
+                                    },
+                                ],
+                            };
+                        }
+                    },
+                    Permission.UPDATE,
+                    { includePruned: true },
                 ),
 
                 // Delete a MetaEnvelope with structured result
@@ -628,7 +724,11 @@ export class GraphQLServer {
                                 };
                             }
 
-                            await this.db.deleteMetaEnvelope(id, context.eName);
+                            await this.db.deleteMetaEnvelope(
+                                id,
+                                context.eName,
+                                this.awarenessContext(context),
+                            );
 
                             // Log after delete succeeds, best-effort
                             const platform =
@@ -637,6 +737,7 @@ export class GraphQLServer {
                                 computeEnvelopeHashForDelete(id);
                             this.db
                                 .appendEnvelopeOperationLog({
+                                    author: this.authorOf(context),
                                     eName: context.eName,
                                     metaEnvelopeId: id,
                                     envelopeHash,
@@ -677,6 +778,7 @@ export class GraphQLServer {
                             };
                         }
                     },
+                    Permission.DELETE,
                 ),
 
                 // Bulk create MetaEnvelopes (optimized for migrations)
@@ -692,6 +794,7 @@ export class GraphQLServer {
                                 ontology: string;
                                 payload: any;
                                 acl: string[];
+                                _acl?: unknown;
                             }>;
                             skipWebhooks?: boolean;
                         },
@@ -715,7 +818,7 @@ export class GraphQLServer {
                         const isEmoverMigration =
                             skipWebhooks &&
                             context.tokenPayload?.platform ===
-                            process.env.EMOVER_API_URL;
+                                process.env.EMOVER_API_URL;
 
                         // Only allow webhook skipping for authorized migration platforms
                         const shouldSkipWebhooks = isEmoverMigration;
@@ -736,10 +839,15 @@ export class GraphQLServer {
                                             ontology: input.ontology,
                                             payload: input.payload,
                                             acl: input.acl,
+                                            _acl: aclBlockFromInput(input._acl),
                                         },
                                         input.acl,
                                         context.eName,
                                         input.id, // Preserve ID if provided
+                                        this.awarenessContext(
+                                            context,
+                                            shouldSkipWebhooks,
+                                        ),
                                     );
 
                                 results.push({
@@ -747,25 +855,6 @@ export class GraphQLServer {
                                     success: true,
                                 });
                                 successCount++;
-
-                                // Forward awareness packet if not skipping
-                                if (!shouldSkipWebhooks) {
-                                    const webhookPayload = {
-                                        id: result.metaEnvelope.id,
-                                        w3id: context.eName,
-                                        evaultPublicKey: this.evaultPublicKey,
-                                        data: input.payload,
-                                        schemaId: input.ontology,
-                                    };
-
-                                    // Fire-and-forget ingest to AaaS
-                                    this.notifyAwareness(
-                                        webhookPayload,
-                                        context.tokenPayload?.platform || null,
-                                    ).catch((err) => {
-                                        console.error(`[WEBHOOK] AaaS ingest failed for bulk-create envelope ${result.metaEnvelope.id}:`, err);
-                                    });
-                                }
 
                                 // Log envelope operation best-effort
                                 const platform =
@@ -777,6 +866,7 @@ export class GraphQLServer {
                                 });
                                 this.db
                                     .appendEnvelopeOperationLog({
+                                        author: this.authorOf(context),
                                         eName: context.eName,
                                         metaEnvelopeId: result.metaEnvelope.id,
                                         envelopeHash,
@@ -815,6 +905,7 @@ export class GraphQLServer {
                             errors: [],
                         };
                     },
+                    Permission.CREATE,
                 ),
 
                 // ============================================================
@@ -835,6 +926,8 @@ export class GraphQLServer {
                                     signer: string;
                                     signature: string;
                                     timestamp: string;
+                                    scope?: "document" | "bundle";
+                                    signedPayload?: string;
                                 };
                             };
                         },
@@ -860,6 +953,9 @@ export class GraphQLServer {
                             "self",
                             "personal_parameters",
                             "security_question",
+                            "deployment_key",
+                            "software_version",
+                            "consent",
                         ] as const;
                         type ValidType =
                             (typeof VALID_BINDING_DOCUMENT_TYPES)[number];
@@ -890,6 +986,7 @@ export class GraphQLServer {
                                         ownerSignature: input.ownerSignature,
                                     },
                                     context.eName,
+                                    this.awarenessContext(context),
                                 );
 
                             const metaEnvelopeId = result.id;
@@ -897,21 +994,24 @@ export class GraphQLServer {
                                 context.tokenPayload?.platform ?? null;
                             const envelopeHash = computeEnvelopeHash({
                                 id: metaEnvelopeId,
-                                ontology:
-                                    BINDING_DOCUMENT_ONTOLOGY,
-                                payload: result.bindingDocument as unknown as Record<string, unknown>,
+                                ontology: BINDING_DOCUMENT_ONTOLOGY,
+                                payload:
+                                    result.bindingDocument as unknown as Record<
+                                        string,
+                                        unknown
+                                    >,
                             });
 
                             this.db
                                 .appendEnvelopeOperationLog({
+                                    author: this.authorOf(context),
                                     eName: context.eName,
                                     metaEnvelopeId,
                                     envelopeHash,
                                     operation: "create",
                                     platform,
                                     timestamp: new Date().toISOString(),
-                                    ontology:
-                                        BINDING_DOCUMENT_ONTOLOGY,
+                                    ontology: BINDING_DOCUMENT_ONTOLOGY,
                                 })
                                 .catch((err) =>
                                     console.error(
@@ -919,19 +1019,6 @@ export class GraphQLServer {
                                         err,
                                     ),
                                 );
-
-                            const webhookPayload = {
-                                id: metaEnvelopeId,
-                                w3id: context.eName,
-                                evaultPublicKey: this.evaultPublicKey,
-                                data: result.bindingDocument,
-                                schemaId:
-                                    BINDING_DOCUMENT_ONTOLOGY,
-                            };
-                            this.notifyAwareness(
-                                webhookPayload,
-                                context.tokenPayload?.platform || null,
-                            );
 
                             return {
                                 bindingDocument: result.bindingDocument,
@@ -958,6 +1045,7 @@ export class GraphQLServer {
                             };
                         }
                     },
+                    Permission.CREATE,
                 ),
 
                 createBindingDocumentSignature: this.accessGuard.middleware(
@@ -972,6 +1060,8 @@ export class GraphQLServer {
                                     signer: string;
                                     signature: string;
                                     timestamp: string;
+                                    scope?: "document" | "bundle";
+                                    signedPayload?: string;
                                 };
                             };
                         },
@@ -997,27 +1087,30 @@ export class GraphQLServer {
                                         signature: input.signature,
                                     },
                                     context.eName,
+                                    this.awarenessContext(context),
                                 );
 
                             const platform =
                                 context.tokenPayload?.platform ?? null;
                             const envelopeHash = computeEnvelopeHash({
                                 id: input.bindingDocumentId,
-                                ontology:
-                                    BINDING_DOCUMENT_ONTOLOGY,
-                                payload: result as unknown as Record<string, unknown>,
+                                ontology: BINDING_DOCUMENT_ONTOLOGY,
+                                payload: result as unknown as Record<
+                                    string,
+                                    unknown
+                                >,
                             });
 
                             this.db
                                 .appendEnvelopeOperationLog({
+                                    author: this.authorOf(context),
                                     eName: context.eName,
                                     metaEnvelopeId: input.bindingDocumentId,
                                     envelopeHash,
                                     operation: "update",
                                     platform,
                                     timestamp: new Date().toISOString(),
-                                    ontology:
-                                        BINDING_DOCUMENT_ONTOLOGY,
+                                    ontology: BINDING_DOCUMENT_ONTOLOGY,
                                 })
                                 .catch((err) =>
                                     console.error(
@@ -1025,19 +1118,6 @@ export class GraphQLServer {
                                         err,
                                     ),
                                 );
-
-                            const webhookPayload = {
-                                id: input.bindingDocumentId,
-                                w3id: context.eName,
-                                evaultPublicKey: this.evaultPublicKey,
-                                data: result,
-                                schemaId:
-                                    BINDING_DOCUMENT_ONTOLOGY,
-                            };
-                            this.notifyAwareness(
-                                webhookPayload,
-                                context.tokenPayload?.platform || null,
-                            );
 
                             return {
                                 bindingDocument: result,
@@ -1062,6 +1142,7 @@ export class GraphQLServer {
                             };
                         }
                     },
+                    Permission.UPDATE,
                 ),
 
                 hashSecurityAnswer: this.accessGuard.middleware(
@@ -1130,9 +1211,8 @@ export class GraphQLServer {
                         }
 
                         try {
-                            const result = await this
-                                .getSecurityQuestionService()
-                                .validate(
+                            const result =
+                                await this.getSecurityQuestionService().validate(
                                     context.eName,
                                     input.metaEnvelopeId,
                                     input.candidate,
@@ -1184,6 +1264,7 @@ export class GraphQLServer {
                                 ontology: string;
                                 payload: any;
                                 acl: string[];
+                                _acl?: unknown;
                             };
                         },
                         context: VaultContext,
@@ -1196,9 +1277,11 @@ export class GraphQLServer {
                                 ontology: input.ontology,
                                 payload: input.payload,
                                 acl: input.acl,
+                                _acl: aclBlockFromInput(input._acl),
                             },
                             input.acl,
                             context.eName,
+                            this.awarenessContext(context),
                         );
 
                         // Add parsed field to metaEnvelope for GraphQL response
@@ -1207,27 +1290,18 @@ export class GraphQLServer {
                             parsed: input.payload,
                         };
 
-                        // Forward the awareness packet for create operation.
-                        // The requesting platform is passed so AaaS can skip
-                        // delivering the packet back to its origin — the same
-                        // ping-pong guard the old fanout enforced here.
-                        const webhookPayload = {
-                            id: result.metaEnvelope.id,
-                            w3id: context.eName,
-                            evaultPublicKey: this.evaultPublicKey,
-                            data: input.payload,
-                            schemaId: input.ontology,
-                        };
-
-                        this.notifyAwareness(
-                            webhookPayload,
-                            context.tokenPayload?.platform || null,
-                        );
-
                         // Send push notifications for new messages
-                        console.log(`[NOTIF] storeMetaEnvelope ontology: "${input.ontology}"`);
-                        if (MessageNotificationService.isMessageSchema(input.ontology)) {
-                            console.log(`[NOTIF] Message schema detected in storeMetaEnvelope, triggering notification for envelope ${result.metaEnvelope.id}`);
+                        console.log(
+                            `[NOTIF] storeMetaEnvelope ontology: "${input.ontology}"`,
+                        );
+                        if (
+                            MessageNotificationService.isMessageSchema(
+                                input.ontology,
+                            )
+                        ) {
+                            console.log(
+                                `[NOTIF] Message schema detected in storeMetaEnvelope, triggering notification for envelope ${result.metaEnvelope.id}`,
+                            );
                             this.getMessageNotificationService()
                                 .notifyParticipants({
                                     messageGlobalId: result.metaEnvelope.id,
@@ -1236,7 +1310,10 @@ export class GraphQLServer {
                                     acl: input.acl,
                                 })
                                 .catch((err) =>
-                                    console.error("[NOTIF] Message notification failed:", err),
+                                    console.error(
+                                        "[NOTIF] Message notification failed:",
+                                        err,
+                                    ),
                                 );
                         }
 
@@ -1250,6 +1327,7 @@ export class GraphQLServer {
                         });
                         this.db
                             .appendEnvelopeOperationLog({
+                                author: this.authorOf(context),
                                 eName: context.eName,
                                 metaEnvelopeId,
                                 envelopeHash,
@@ -1270,6 +1348,7 @@ export class GraphQLServer {
                             metaEnvelope: metaEnvelopeWithParsed,
                         };
                     },
+                    Permission.CREATE,
                 ),
                 // Upload a file to object storage and create a File meta-envelope
                 uploadFile: this.accessGuard.middleware(
@@ -1283,6 +1362,7 @@ export class GraphQLServer {
                                 contentType: string;
                                 content: string;
                                 acl: string[];
+                                _acl?: unknown;
                             };
                         },
                         context: VaultContext,
@@ -1330,7 +1410,8 @@ export class GraphQLServer {
                                 errors: [
                                     {
                                         field: "content",
-                                        message: "File content is empty or not valid base64",
+                                        message:
+                                            "File content is empty or not valid base64",
                                         code: "INVALID_CONTENT",
                                     },
                                 ],
@@ -1341,7 +1422,9 @@ export class GraphQLServer {
 
                         const MAX_FILE_BYTES = 250 * 1024 * 1024; // 250 MB
                         if (buffer.length > MAX_FILE_BYTES) {
-                            const maxMb = Math.round(MAX_FILE_BYTES / (1024 * 1024));
+                            const maxMb = Math.round(
+                                MAX_FILE_BYTES / (1024 * 1024),
+                            );
                             return {
                                 errors: [
                                     {
@@ -1386,10 +1469,37 @@ export class GraphQLServer {
                                     ontology: FILE_SCHEMA_ID,
                                     payload,
                                     acl: input.acl,
+                                    _acl: aclBlockFromInput(input._acl),
                                 },
                                 input.acl,
                                 context.eName,
+                                this.awarenessContext(context),
                             );
+
+                            // Log envelope operation best-effort (do not fail mutation)
+                            const envelopeHash = computeEnvelopeHash({
+                                id: result.metaEnvelope.id,
+                                ontology: FILE_SCHEMA_ID,
+                                payload,
+                            });
+                            this.db
+                                .appendEnvelopeOperationLog({
+                                    author: this.authorOf(context),
+                                    eName: context.eName,
+                                    metaEnvelopeId: result.metaEnvelope.id,
+                                    envelopeHash,
+                                    operation: "create",
+                                    platform:
+                                        context.tokenPayload?.platform ?? null,
+                                    timestamp: new Date().toISOString(),
+                                    ontology: FILE_SCHEMA_ID,
+                                })
+                                .catch((err) =>
+                                    console.error(
+                                        "appendEnvelopeOperationLog (uploadFile) failed:",
+                                        err,
+                                    ),
+                                );
 
                             return {
                                 uri: buildFileUri(
@@ -1427,6 +1537,7 @@ export class GraphQLServer {
                             };
                         }
                     },
+                    Permission.CREATE,
                 ),
                 updateMetaEnvelopeById: this.accessGuard.middleware(
                     async (
@@ -1440,6 +1551,7 @@ export class GraphQLServer {
                                 ontology: string;
                                 payload: any;
                                 acl: string[];
+                                _acl?: unknown;
                             };
                         },
                         context: VaultContext,
@@ -1454,28 +1566,11 @@ export class GraphQLServer {
                                     ontology: input.ontology,
                                     payload: input.payload,
                                     acl: input.acl,
+                                    _acl: aclBlockFromInput(input._acl),
                                 },
                                 input.acl,
                                 context.eName,
-                            );
-
-                            // Deliver webhooks with the FULL post-write state.
-                            // See the long comment on the new updateMetaEnvelope
-                            // resolver above — sending input.payload (the
-                            // partial diff) would make receivers clobber their
-                            // own untouched fields.
-                            const webhookPayload = {
-                                id: id,
-                                w3id: context.eName,
-                                evaultPublicKey: this.evaultPublicKey,
-                                data: result.mergedPayload ?? input.payload,
-                                schemaId: input.ontology,
-                            };
-
-                            // Fire-and-forget ingest to AaaS
-                            this.notifyAwareness(
-                                webhookPayload,
-                                context.tokenPayload?.platform || null,
+                                this.awarenessContext(context),
                             );
 
                             // Log envelope operation best-effort (do not fail mutation)
@@ -1488,6 +1583,7 @@ export class GraphQLServer {
                             });
                             this.db
                                 .appendEnvelopeOperationLog({
+                                    author: this.authorOf(context),
                                     eName: context.eName,
                                     metaEnvelopeId: id,
                                     envelopeHash,
@@ -1512,6 +1608,7 @@ export class GraphQLServer {
                             throw error;
                         }
                     },
+                    Permission.UPDATE,
                 ),
                 deleteMetaEnvelope: this.accessGuard.middleware(
                     async (
@@ -1526,12 +1623,17 @@ export class GraphQLServer {
                             id,
                             context.eName,
                         );
-                        await this.db.deleteMetaEnvelope(id, context.eName);
+                        await this.db.deleteMetaEnvelope(
+                            id,
+                            context.eName,
+                            this.awarenessContext(context),
+                        );
                         // Log after delete succeeds, best-effort
                         const platform = context.tokenPayload?.platform ?? null;
                         const envelopeHash = computeEnvelopeHashForDelete(id);
                         this.db
                             .appendEnvelopeOperationLog({
+                                author: this.authorOf(context),
                                 eName: context.eName,
                                 metaEnvelopeId: id,
                                 envelopeHash,
@@ -1548,6 +1650,7 @@ export class GraphQLServer {
                             );
                         return true;
                     },
+                    Permission.DELETE,
                 ),
                 updateEnvelopeValue: this.accessGuard.middleware(
                     async (
@@ -1570,6 +1673,7 @@ export class GraphQLServer {
                             envelopeId,
                             newValue,
                             context.eName,
+                            this.awarenessContext(context),
                         );
                         if (metaInfo) {
                             const platform =
@@ -1581,6 +1685,7 @@ export class GraphQLServer {
                             });
                             this.db
                                 .appendEnvelopeOperationLog({
+                                    author: this.authorOf(context),
                                     eName: context.eName,
                                     metaEnvelopeId: metaInfo.metaEnvelopeId,
                                     envelopeHash,
@@ -1598,6 +1703,7 @@ export class GraphQLServer {
                         }
                         return true;
                     },
+                    Permission.UPDATE,
                 ),
             },
         };
@@ -1620,6 +1726,10 @@ export class GraphQLServer {
                     request.headers.get("x-ename") ??
                     request.headers.get("X-ENAME") ??
                     null;
+                const onBehalfOf =
+                    request.headers.get("x-on-behalf-of") ??
+                    request.headers.get("X-ON-BEHALF-OF") ??
+                    null;
 
                 if (token) {
                     try {
@@ -1627,12 +1737,14 @@ export class GraphQLServer {
                         return {
                             currentUser: id ?? null,
                             eName: eName,
+                            onBehalfOf,
                         };
                     } catch (error) {
                         // Invalid JWT token - ignore and continue without currentUser
                         return {
                             currentUser: null,
                             eName: eName,
+                            onBehalfOf,
                         };
                     }
                 }
@@ -1640,6 +1752,7 @@ export class GraphQLServer {
                 return {
                     currentUser: null,
                     eName: eName,
+                    onBehalfOf,
                 };
             },
         });

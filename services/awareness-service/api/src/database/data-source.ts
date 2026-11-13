@@ -9,6 +9,8 @@ import { DeadLetter } from "./entities/DeadLetter";
 import { Delivery } from "./entities/Delivery";
 import { Packet } from "./entities/Packet";
 import { Subscription } from "./entities/Subscription";
+import { AwarenessEvent } from "./entities/AwarenessEvent";
+import { WorkerHeartbeat } from "./entities/WorkerHeartbeat";
 
 export const AppDataSource = new DataSource({
     type: "postgres",
@@ -23,8 +25,12 @@ export const AppDataSource = new DataSource({
         Subscription,
         Delivery,
         DeadLetter,
+        AwarenessEvent,
+        WorkerHeartbeat,
     ],
     migrations: [path.join(__dirname, "migrations", "*.{ts,js}")],
+    // Lets a migration opt out of its transaction (CREATE INDEX CONCURRENTLY).
+    migrationsTransactionMode: "each",
     ssl: config.dbCaCert
         ? { rejectUnauthorized: false, ca: config.dbCaCert }
         : false,
@@ -33,5 +39,8 @@ export const AppDataSource = new DataSource({
         min: 2,
         idleTimeoutMillis: 30000,
         connectionTimeoutMillis: 5000,
+        statement_timeout: config.dbStatementTimeoutMs,
+        query_timeout: config.dbQueryTimeoutMs,
+        lock_timeout: config.dbLockTimeoutMs,
     },
 });

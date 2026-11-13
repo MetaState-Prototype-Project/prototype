@@ -1,0 +1,8 @@
+{
+    "label": "GitW3",
+    "position": 1.5,
+    "link": {
+        "type": "generated-index",
+        "description": "Sign in, create or port a W3DS platform, publish releases, apply for PPA, and register deployments with GitW3."
+    }
+}

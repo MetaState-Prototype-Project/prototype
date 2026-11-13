@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/bef1033f-ecbd-4ffd-a36a-e30fe521f2ef",
+  "schemaId": "bef1033f-ecbd-4ffd-a36a-e30fe521f2ef",
+  "title": "ObservationAttributes",
+  "domain": "agriculture",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "recordedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "supersedes": {
+      "type": "string",
+      "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "deleted": {
+      "type": "boolean"
+    },
+    "observationRef": {
+      "type": "string",
+      "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "attributes": {
+      "type": "object",
+      "properties": {
+        "crop": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sowingDate": {
+          "type": "string",
+          "format": "date"
+        },
+        "weeds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "priceEur": {
+          "type": "number"
+        },
+        "comment": {
+          "type": "string"
+        },
+        "device": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "accessLevel": {
+      "type": "string",
+      "enum": [
+        "private",
+        "public",
+        "selective"
+      ]
+    },
+    "allowedEnames": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^@?[^\\s/@][^\\s/]*$"
+      },
+      "maxItems": 200
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "recordedAt",
+    "observationRef",
+    "accessLevel"
+  ],
+  "additionalProperties": false
+}

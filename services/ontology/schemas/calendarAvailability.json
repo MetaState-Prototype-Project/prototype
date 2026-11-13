@@ -2,6 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "schemaId": "a92c3675-dbc8-44f6-b24e-520eeadb8864",
   "title": "CalendarAvailability",
+  "domain": "productivity",
   "type": "object",
   "properties": {
     "availabilityId": {

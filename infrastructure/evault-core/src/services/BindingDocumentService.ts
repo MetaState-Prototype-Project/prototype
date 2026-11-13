@@ -1,8 +1,12 @@
 import axios from "axios";
+import { createHash } from "node:crypto";
 import nacl from "tweetnacl";
 import { verifySignature } from "signature-validator";
-import type { DbService } from "../core/db/db.service";
-import type { FindMetaEnvelopesPaginatedOptions, MetaEnvelopeConnection } from "../core/db/types";
+import type { AwarenessWriteContext, DbService } from "../core/db/db.service";
+import type {
+    FindMetaEnvelopesPaginatedOptions,
+    MetaEnvelopeConnection,
+} from "../core/db/types";
 import {
     computeBindingDocumentHash,
     getCanonicalBindingDocumentBytes,
@@ -11,6 +15,7 @@ import {
 import type {
     BindingDocument,
     BindingDocumentData,
+    BindingDocumentDeploymentKeyData,
     BindingDocumentIdDocumentData,
     BindingDocumentPersonalParametersData,
     BindingDocumentPhotographData,
@@ -18,6 +23,8 @@ import type {
     BindingDocumentSelfData,
     BindingDocumentSignature,
     BindingDocumentSocialConnectionData,
+    BindingDocumentSoftwareVersionData,
+    BindingDocumentConsentData,
     BindingDocumentType,
 } from "../core/types/binding-document";
 
@@ -46,10 +53,14 @@ function validateBindingDocumentData(
                 typeof d.name !== "string"
             ) {
                 throw new ValidationError(
-                    'id_document data must have string fields: vendor, reference, name',
+                    "id_document data must have string fields: vendor, reference, name",
                 );
             }
-            return { vendor: d.vendor, reference: d.reference, name: d.name } as BindingDocumentIdDocumentData;
+            return {
+                vendor: d.vendor,
+                reference: d.reference,
+                name: d.name,
+            } as BindingDocumentIdDocumentData;
         }
         case "photograph": {
             if (typeof d.photoBlob !== "string") {
@@ -59,37 +70,46 @@ function validateBindingDocumentData(
             }
             // description is optional and back-compat: older photos may not
             // have it. Validate the type only when present.
-            if (d.description !== undefined && typeof d.description !== "string") {
+            if (
+                d.description !== undefined &&
+                typeof d.description !== "string"
+            ) {
                 throw new ValidationError(
                     "photograph data field 'description' must be a string when provided",
                 );
             }
-            const out: BindingDocumentPhotographData = { photoBlob: d.photoBlob };
-            if (typeof d.description === "string") out.description = d.description;
+            const out: BindingDocumentPhotographData = {
+                photoBlob: d.photoBlob,
+            };
+            if (typeof d.description === "string")
+                out.description = d.description;
             return out;
         }
         case "social_connection": {
             if (typeof d.name !== "string") {
                 throw new ValidationError(
-                    'social_connection data must have string field: name',
+                    "social_connection data must have string field: name",
                 );
             }
-            const denseParties = Array.isArray(d.parties) ? Array.from(d.parties) : null;
+            const denseParties = Array.isArray(d.parties)
+                ? Array.from(d.parties)
+                : null;
             if (
                 !denseParties ||
                 denseParties.length !== 2 ||
                 !denseParties.every(
-                    (p: unknown) => typeof p === "string" && (p as string).startsWith("@"),
+                    (p: unknown) =>
+                        typeof p === "string" && (p as string).startsWith("@"),
                 ) ||
                 denseParties[0] === denseParties[1]
             ) {
                 throw new ValidationError(
-                    'social_connection data must have parties: array of 2 distinct eNames prefixed with @',
+                    "social_connection data must have parties: array of 2 distinct eNames prefixed with @",
                 );
             }
             if (typeof d.relation_description !== "string") {
                 throw new ValidationError(
-                    'social_connection data must have string field: relation_description',
+                    "social_connection data must have string field: relation_description",
                 );
             }
             return {
@@ -119,7 +139,10 @@ function validateBindingDocumentData(
             } as BindingDocumentPersonalParametersData;
         }
         case "security_question": {
-            if (typeof d.question !== "string" || d.question.trim().length === 0) {
+            if (
+                typeof d.question !== "string" ||
+                d.question.trim().length === 0
+            ) {
                 throw new ValidationError(
                     "security_question data must have non-empty string field: question",
                 );
@@ -146,9 +169,101 @@ function validateBindingDocumentData(
                 answerHash: trimmedAnswerHash,
             } as BindingDocumentSecurityQuestionData;
         }
+        case "deployment_key": {
+            if (
+                d.kind !== "deployment_key" ||
+                typeof d.deploymentName !== "string" ||
+                !d.deploymentName.trim() ||
+                typeof d.environment !== "string" ||
+                !d.environment.trim() ||
+                typeof d.deployerEname !== "string" ||
+                !d.deployerEname.startsWith("@") ||
+                typeof d.platformEname !== "string" ||
+                !d.platformEname.startsWith("@") ||
+                typeof d.publicKey !== "string" ||
+                !d.publicKey.startsWith("z") ||
+                d.algorithm !== "ECDSA_P256"
+            ) {
+                throw new ValidationError("deployment_key data is invalid");
+            }
+            return {
+                kind: "deployment_key",
+                deploymentName: d.deploymentName.trim(),
+                environment: d.environment.trim(),
+                deployerEname: d.deployerEname,
+                platformEname: d.platformEname,
+                publicKey: d.publicKey,
+                algorithm: "ECDSA_P256",
+            } as BindingDocumentDeploymentKeyData;
+        }
+        case "software_version": {
+            if (
+                d.kind !== "software_version" ||
+                typeof d.platformEname !== "string" ||
+                !d.platformEname.startsWith("@") ||
+                typeof d.versionEname !== "string" ||
+                !d.versionEname.startsWith("@") ||
+                typeof d.version !== "string" ||
+                !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(d.version) ||
+                typeof d.releaseTag !== "string" ||
+                !d.releaseTag.trim() ||
+                typeof d.commitSha !== "string" ||
+                !/^[0-9a-f]{40,64}$/i.test(d.commitSha)
+            ) {
+                throw new ValidationError("software_version data is invalid");
+            }
+            return {
+                kind: "software_version",
+                platformEname: d.platformEname,
+                versionEname: d.versionEname,
+                version: d.version,
+                releaseTag: d.releaseTag.trim(),
+                commitSha: d.commitSha.toLowerCase(),
+            } as BindingDocumentSoftwareVersionData;
+        }
+        case "consent": {
+            const p = d.proposal as Record<string, unknown> | undefined;
+            const isEName = (v: unknown) =>
+                typeof v === "string" && v.startsWith("@") && v.length > 1;
+            if (
+                d.kind !== "consent" ||
+                typeof d.statement !== "string" ||
+                !d.statement.trim() ||
+                !isEName(d.requestOwnerEName) ||
+                typeof d.requestId !== "string" ||
+                !d.requestId ||
+                typeof d.slotId !== "string" ||
+                !d.slotId ||
+                !isEName(d.requesterEName) ||
+                !p ||
+                typeof p !== "object" ||
+                typeof p.ontology !== "string" ||
+                typeof p.recordId !== "string" ||
+                !p.recordId ||
+                typeof p.recordSha256 !== "string" ||
+                !/^[0-9a-f]{64}$/.test(p.recordSha256)
+            ) {
+                throw new ValidationError("consent data is invalid");
+            }
+            return {
+                kind: "consent",
+                statement: d.statement,
+                requestOwnerEName: d.requestOwnerEName as string,
+                requestId: d.requestId,
+                slotId: d.slotId,
+                requesterEName: d.requesterEName as string,
+                proposal: {
+                    ontology: p.ontology,
+                    recordId: p.recordId,
+                    recordSha256: p.recordSha256,
+                },
+            } as BindingDocumentConsentData;
+        }
         default: {
             const _exhaustive: never = type;
-            throw new ValidationError(`Unknown binding document type: ${_exhaustive}`);
+            throw new ValidationError(
+                `Unknown binding document type: ${_exhaustive}`,
+            );
         }
     }
 }
@@ -168,18 +283,20 @@ export interface AddCounterpartySignatureInput {
 export class BindingDocumentService {
     private registryUrl: string;
 
-    constructor(private db: DbService, registryUrl?: string) {
+    constructor(
+        private db: DbService,
+        registryUrl?: string,
+    ) {
         this.registryUrl = registryUrl || process.env.PUBLIC_REGISTRY_URL || "";
     }
 
-    private async verifyUserSignature(
+    private async verifyUserPayload(
         signer: string,
         signature: string,
-        doc: { subject: string; type: BindingDocumentType; data: BindingDocumentData },
+        payload: string,
     ): Promise<boolean> {
         if (!this.registryUrl) return false;
         try {
-            const payload = getCanonicalBindingDocumentString(doc);
             const result = await verifySignature({
                 eName: signer,
                 signature,
@@ -187,6 +304,69 @@ export class BindingDocumentService {
                 registryBaseUrl: this.registryUrl,
             });
             return result.valid;
+        } catch {
+            return false;
+        }
+    }
+
+    private async verifyUserSignature(
+        signer: string,
+        signature: string,
+        doc: {
+            subject: string;
+            type: BindingDocumentType;
+            data: BindingDocumentData;
+        },
+    ): Promise<boolean> {
+        return this.verifyUserPayload(
+            signer,
+            signature,
+            getCanonicalBindingDocumentString(doc),
+        );
+    }
+
+    private async verifyBundleSignature(
+        signature: BindingDocumentSignature,
+        doc: {
+            subject: string;
+            type: BindingDocumentType;
+            data: BindingDocumentData;
+        },
+    ): Promise<boolean> {
+        if (signature.scope !== "bundle" || !signature.signedPayload)
+            return false;
+        try {
+            const bundle = JSON.parse(signature.signedPayload) as {
+                type?: unknown;
+                version?: unknown;
+                documents?: unknown;
+            };
+            if (
+                bundle.type !== "deployment_attestation_bundle" ||
+                bundle.version !== 1 ||
+                !Array.isArray(bundle.documents) ||
+                bundle.documents.length !== 2
+            )
+                return false;
+            const expectedHash = computeBindingDocumentHash(doc);
+            const member = bundle.documents.some((item) => {
+                if (!item || typeof item !== "object") return false;
+                const entry = item as Record<string, unknown>;
+                return (
+                    entry.hash === expectedHash &&
+                    entry.subject === doc.subject &&
+                    entry.type === doc.type
+                );
+            });
+            if (!member) return false;
+            const digest = createHash("sha256")
+                .update(signature.signedPayload, "utf8")
+                .digest("base64url");
+            return this.verifyUserPayload(
+                signature.signer,
+                signature.signature,
+                `gitw3:deployment:v1:${digest}`,
+            );
         } catch {
             return false;
         }
@@ -204,7 +384,9 @@ export class BindingDocumentService {
         return Uint8Array.from(Buffer.from(padded, "base64"));
     }
 
-    private parseProvisionerSigner(signer: string): { jwksUrl: string; kid: string } | null {
+    private parseProvisionerSigner(
+        signer: string,
+    ): { jwksUrl: string; kid: string } | null {
         try {
             const url = new URL(signer);
             if (!url.pathname.endsWith("/.well-known/jwks.json")) return null;
@@ -257,10 +439,14 @@ export class BindingDocumentService {
     async createBindingDocument(
         input: CreateBindingDocumentInput,
         eName: string,
+        awareness?: AwarenessWriteContext,
     ): Promise<{ id: string; bindingDocument: BindingDocument }> {
         const normalizedSubject = this.normalizeSubject(input.subject);
 
-        const validatedData = validateBindingDocumentData(input.type, input.data);
+        const validatedData = validateBindingDocumentData(
+            input.type,
+            input.data,
+        );
 
         const docToVerify = {
             subject: normalizedSubject,
@@ -268,8 +454,14 @@ export class BindingDocumentService {
             data: validatedData,
         };
         const expectedHash = computeBindingDocumentHash(docToVerify);
-        const hasLegacyHashSignature = input.ownerSignature.signature === expectedHash;
-        const isProvisionerSigner = /^https?:\/\//.test(input.ownerSignature.signer);
+        const hasLegacyHashSignature =
+            input.ownerSignature.signature === expectedHash;
+        const isProvisionerSigner = /^https?:\/\//.test(
+            input.ownerSignature.signer,
+        );
+        const isDeploymentDocument =
+            input.type === "deployment_key" ||
+            input.type === "software_version";
 
         const hasValidUserSignature =
             !hasLegacyHashSignature &&
@@ -279,9 +471,31 @@ export class BindingDocumentService {
                 input.ownerSignature.signature,
                 docToVerify,
             ));
+        const hasValidBundleSignature =
+            isDeploymentDocument &&
+            (await this.verifyBundleSignature(
+                input.ownerSignature,
+                docToVerify,
+            ));
 
-        if (!hasLegacyHashSignature && !isProvisionerSigner && !hasValidUserSignature) {
+        if (
+            (isDeploymentDocument && !hasValidBundleSignature) ||
+            (!isDeploymentDocument &&
+                !hasLegacyHashSignature &&
+                !isProvisionerSigner &&
+                !hasValidUserSignature)
+        ) {
             throw new ValidationError("Invalid owner signature");
+        }
+        if (
+            input.type === "deployment_key" &&
+            input.ownerSignature.signer !==
+                (validatedData as BindingDocumentDeploymentKeyData)
+                    .deployerEname
+        ) {
+            throw new ValidationError(
+                "deployment_key must be signed by its deployer",
+            );
         }
 
         const bindingDocument: BindingDocument = {
@@ -291,14 +505,19 @@ export class BindingDocumentService {
             signatures: [input.ownerSignature],
         };
 
+        const isPublicDeploymentDocument =
+            input.type === "deployment_key" ||
+            input.type === "software_version";
+        const acl = isPublicDeploymentDocument ? ["*"] : [normalizedSubject];
         const result = await this.db.storeMetaEnvelope(
             {
                 ontology: BINDING_DOCUMENT_ONTOLOGY,
                 payload: bindingDocument,
-                acl: [normalizedSubject],
+                acl,
             },
             [normalizedSubject],
             eName,
+            awareness,
         );
 
         return {
@@ -310,6 +529,7 @@ export class BindingDocumentService {
     async addCounterpartySignature(
         input: AddCounterpartySignatureInput,
         eName: string,
+        awareness?: AwarenessWriteContext,
     ): Promise<BindingDocument> {
         const metaEnvelope = await this.db.findMetaEnvelopeById(
             input.metaEnvelopeId,
@@ -346,8 +566,11 @@ export class BindingDocumentService {
             );
         }
 
-        // For social_connection documents the counterparty must be the subject
-        if (bindingDocument.type === "social_connection") {
+        // For social_connection and consent documents the counterparty must be the subject
+        if (
+            bindingDocument.type === "social_connection" ||
+            bindingDocument.type === "consent"
+        ) {
             if (input.signature.signer !== bindingDocument.subject) {
                 throw new Error(
                     `Signer "${input.signature.signer}" is not the expected counterparty "${bindingDocument.subject}"`,
@@ -379,6 +602,7 @@ export class BindingDocumentService {
             },
             [bindingDocument.subject],
             eName,
+            awareness,
         );
 
         return updatedBindingDocument;

@@ -3,7 +3,8 @@ import {
     type StartedNeo4jContainer,
 } from "@testcontainers/neo4j";
 import neo4j, { type Driver } from "neo4j-driver";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { DbService } from "../core/db/db.service";
 import { computeEnvelopeHash } from "../core/db/envelope-hash";
 import { computeBindingDocumentHash } from "../core/utils/binding-document-hash";
@@ -172,6 +173,62 @@ describe("BindingDocumentService (integration)", () => {
             }
         });
 
+        const consentData = {
+            kind: "consent" as const,
+            statement: "Become head of Test Org (requested by @sarah)",
+            requestOwnerEName: "@org",
+            requestId: "request-1",
+            slotId: "subject",
+            requesterEName: "@sarah",
+            proposal: { ontology: "0b2f15d8-c3f9-4dba-b959-5cfa11272dae", recordId: "record-1", recordSha256: "a".repeat(64) },
+        };
+
+        it("should create a binding document with consent type", async () => {
+            const result = await bindingDocumentService.createBindingDocument(
+                {
+                    subject: "test-user-123",
+                    type: "consent",
+                    data: consentData,
+                    ownerSignature: {
+                        signer: TEST_ENAME,
+                        signature: computeBindingDocumentHash({ subject: "@test-user-123", type: "consent", data: consentData }),
+                        timestamp: new Date().toISOString(),
+                    },
+                },
+                TEST_ENAME,
+            );
+
+            expect(result.bindingDocument.type).toBe("consent");
+            expect(result.bindingDocument.data).toEqual(consentData);
+        });
+
+        it("should reject consent data that doesn't name its request and proposal", async () => {
+            const broken = [
+                { ...consentData, statement: " " },
+                { ...consentData, requestOwnerEName: "org" },
+                { ...consentData, slotId: "" },
+                { ...consentData, proposal: { ...consentData.proposal, recordSha256: "not-a-hash" } },
+                { ...consentData, proposal: undefined },
+            ];
+            for (const data of broken as any[]) {
+                await expect(
+                    bindingDocumentService.createBindingDocument(
+                        {
+                            subject: "test-user-123",
+                            type: "consent",
+                            data,
+                            ownerSignature: {
+                                signer: TEST_ENAME,
+                                signature: computeBindingDocumentHash({ subject: "@test-user-123", type: "consent", data }),
+                                timestamp: new Date().toISOString(),
+                            },
+                        },
+                        TEST_ENAME,
+                    ),
+                ).rejects.toThrow("consent data is invalid");
+            }
+        });
+
         it("should create a binding document with self type", async () => {
             const data = { kind: "self" as const, name: "Bob Jones" };
             const result = await bindingDocumentService.createBindingDocument(
@@ -231,6 +288,97 @@ describe("BindingDocumentService (integration)", () => {
             );
 
             expect(result.bindingDocument.subject).toBe("@already-prefixed");
+        });
+
+        it("stores a deployer-signed deployment bundle as public documents", async () => {
+            const deploymentSubject = "@11111111-1111-5111-8111-111111111111";
+            const versionSubject = "@22222222-2222-5222-8222-222222222222";
+            const deployer = "@33333333-3333-5333-8333-333333333333";
+            const deploymentData = {
+                kind: "deployment_key" as const,
+                deploymentName: "Singapore production",
+                environment: "production",
+                deployerEname: deployer,
+                platformEname: TEST_ENAME,
+                publicKey: "zDeploymentPublicKey",
+                algorithm: "ECDSA_P256" as const,
+            };
+            const versionData = {
+                kind: "software_version" as const,
+                platformEname: TEST_ENAME,
+                versionEname: versionSubject,
+                version: "1.2.3",
+                releaseTag: "v1.2.3",
+                commitSha: "a".repeat(40),
+            };
+            const signedPayload = JSON.stringify({
+                type: "deployment_attestation_bundle",
+                version: 1,
+                documents: [
+                    {
+                        subject: deploymentSubject,
+                        type: "deployment_key",
+                        hash: computeBindingDocumentHash({ subject: deploymentSubject, type: "deployment_key", data: deploymentData }),
+                    },
+                    {
+                        subject: versionSubject,
+                        type: "software_version",
+                        hash: computeBindingDocumentHash({ subject: versionSubject, type: "software_version", data: versionData }),
+                    },
+                ],
+            });
+            const verify = vi.spyOn(bindingDocumentService as any, "verifyUserPayload").mockResolvedValue(true);
+            const ownerSignature = {
+                signer: deployer,
+                signature: "wallet-signature",
+                timestamp: new Date().toISOString(),
+                scope: "bundle" as const,
+                signedPayload,
+            };
+
+            const deployment = await bindingDocumentService.createBindingDocument({
+                subject: deploymentSubject,
+                type: "deployment_key",
+                data: deploymentData,
+                ownerSignature,
+            }, deploymentSubject);
+            const version = await bindingDocumentService.createBindingDocument({
+                subject: versionSubject,
+                type: "software_version",
+                data: versionData,
+                ownerSignature,
+            }, deploymentSubject);
+
+            expect(deployment.bindingDocument.signatures[0].signedPayload).toBe(signedPayload);
+            expect(version.bindingDocument.signatures[0].scope).toBe("bundle");
+            expect(verify).toHaveBeenCalledWith(
+                deployer,
+                "wallet-signature",
+                `gitw3:deployment:v1:${createHash("sha256").update(signedPayload).digest("base64url")}`,
+            );
+            verify.mockRestore();
+        });
+
+        it("rejects unsigned deployment documents", async () => {
+            const data = {
+                kind: "deployment_key" as const,
+                deploymentName: "Production",
+                environment: "production",
+                deployerEname: TEST_ENAME,
+                platformEname: "@platform",
+                publicKey: "zDeploymentPublicKey",
+                algorithm: "ECDSA_P256" as const,
+            };
+            await expect(bindingDocumentService.createBindingDocument({
+                subject: "@deployment",
+                type: "deployment_key",
+                data,
+                ownerSignature: {
+                    signer: TEST_ENAME,
+                    signature: computeBindingDocumentHash({ subject: "@deployment", type: "deployment_key", data }),
+                    timestamp: new Date().toISOString(),
+                },
+            }, "@deployment")).rejects.toThrow("Invalid owner signature");
         });
 
         it("should persist envelope operation logs via dbService after creating a binding document", async () => {
@@ -419,6 +567,42 @@ describe("BindingDocumentService (integration)", () => {
             ).rejects.toThrow(
                 `Signer "@counterparty" has already signed this binding document`,
             );
+        });
+
+        it("should only let the subject counter-sign a consent", async () => {
+            const subject = "@test-user-consent";
+            const data = {
+                kind: "consent" as const,
+                statement: "Become head of Test Org (requested by @sarah)",
+                requestOwnerEName: "@org",
+                requestId: "request-2",
+                slotId: "subject",
+                requesterEName: "@sarah",
+                proposal: { ontology: "0b2f15d8-c3f9-4dba-b959-5cfa11272dae", recordId: "record-2", recordSha256: "b".repeat(64) },
+            };
+            const docHash = computeBindingDocumentHash({ subject, type: "consent", data });
+            const created = await bindingDocumentService.createBindingDocument(
+                {
+                    subject,
+                    type: "consent",
+                    data,
+                    ownerSignature: { signer: TEST_ENAME, signature: docHash, timestamp: new Date().toISOString() },
+                },
+                TEST_ENAME,
+            );
+
+            await expect(
+                bindingDocumentService.addCounterpartySignature(
+                    { metaEnvelopeId: created.id, signature: { signer: "@stranger", signature: docHash, timestamp: new Date().toISOString() } },
+                    TEST_ENAME,
+                ),
+            ).rejects.toThrow(`Signer "@stranger" is not the expected counterparty "${subject}"`);
+
+            const updated = await bindingDocumentService.addCounterpartySignature(
+                { metaEnvelopeId: created.id, signature: { signer: subject, signature: docHash, timestamp: new Date().toISOString() } },
+                TEST_ENAME,
+            );
+            expect(updated.signatures.map((x) => x.signer)).toEqual([TEST_ENAME, subject]);
         });
 
         it("should throw error when binding document not found", async () => {

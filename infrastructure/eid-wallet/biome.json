@@ -1,7 +1,11 @@
 {
     "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
     "extends": ["../../biome.json"],
+    "files": {
+        "ignore": ["src/lib/paraglide/**"]
+    },
     "organizeImports": {
-        "include": ["src/**/*.ts", "src/**/*.svelte"]
+        "include": ["src/**/*.ts", "src/**/*.svelte"],
+        "ignore": ["src/lib/paraglide/**"]
     }
 }

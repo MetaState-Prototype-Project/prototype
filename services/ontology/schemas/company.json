@@ -1,15 +1,139 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "schemaId": "0f9a3cb8-4a9f-4b5f-a1fa-3a4c2eb1f402",
-  "title": "Company",
+  "title": "Organization",
+  "domain": "work",
+  "description": "An organisation's legal identity and board: a company, foundation, association or cooperative. The earliest record naming its own eVault is that eVault's manifest. Titled \"Company\" until 2026-10; the schemaId is unchanged.",
   "type": "object",
   "properties": {
-    "id": { "type": "string", "description": "Application-level company identifier" },
-    "eName": { "type": "string", "description": "eName of the company eVault" },
-    "groupManifestEnvelopeId": { "type": "string", "description": "MetaEnvelope ID of the canonical GroupManifest" },
-    "createdAt": { "type": "string", "format": "date-time" },
-    "updatedAt": { "type": "string", "format": "date-time" }
+    "id": {
+      "type": "string",
+      "description": "Application-level company identifier"
+    },
+    "eName": {
+      "type": "string",
+      "description": "eName of the company eVault"
+    },
+    "groupManifestEnvelopeId": {
+      "type": "string",
+      "description": "MetaEnvelope ID of the canonical GroupManifest"
+    },
+    "directors": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^@[^\\s]+$"
+      },
+      "description": "eNames of the directors. Any one director may create roles and grant delegations; only an existing director may change this list. The creator is the first director."
+    },
+    "legalName": {
+      "type": "string",
+      "description": "Registered legal name"
+    },
+    "displayName": {
+      "type": "string",
+      "description": "Name shown to people"
+    },
+    "description": {
+      "type": "string"
+    },
+    "logo": {
+      "type": "string",
+      "description": "Logo URL or w3ds://file URI"
+    },
+    "website": {
+      "type": "string",
+      "format": "uri"
+    },
+    "email": {
+      "type": "string",
+      "format": "email"
+    },
+    "telephone": {
+      "type": "string"
+    },
+    "address": {
+      "type": "string",
+      "description": "Registered address: the legal seat, as registered in the jurisdiction. A visiting address is a different fact and does not belong here."
+    },
+    "registrationNumber": {
+      "type": "string",
+      "description": "Company registration number in its jurisdiction"
+    },
+    "jurisdiction": {
+      "type": "string",
+      "description": "Jurisdiction of registration, e.g. an ISO 3166 code"
+    },
+    "legalForm": {
+      "type": "string",
+      "description": "Legal form in its jurisdiction, as registered, e.g. \"BV\", \"stichting\", \"vereniging\", \"GmbH\", \"LLC\"."
+    },
+    "foundingDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the organisation was legally founded (YYYY-MM-DD)."
+    },
+    "iban": {
+      "type": "string",
+      "pattern": "^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$",
+      "description": "IBAN of the account payments to the organisation go to, without spaces. It is part of the signed record, so only a director can change it, and nobody can swap the account a payer sees without a director's signature."
+    },
+    "statutesFileUri": {
+      "type": "string",
+      "pattern": "^w3ds://file\\?id=@[^\\s/]+/[^\\s]+$",
+      "description": "The organisation's statutes (articles of association), as a w3ds://file URI."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "authorization": {
+      "type": "object",
+      "description": "The wallet signature, over this record's canonical form (`w3ds-grant/v1`), of the director who set or last changed `directors`: the creator for the first version, then an existing director. The eVault verifies it before accepting the write.",
+      "properties": {
+        "signerEName": {
+          "type": "string",
+          "pattern": "^@[^\\s]+$"
+        },
+        "signedPayload": {
+          "type": "string",
+          "description": "The exact canonical string that was signed",
+          "minLength": 1
+        },
+        "signature": {
+          "type": "string",
+          "minLength": 1
+        },
+        "signedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "signerEName",
+        "signedPayload",
+        "signature",
+        "signedAt"
+      ],
+      "additionalProperties": false
+    }
   },
-  "required": ["id", "eName", "groupManifestEnvelopeId", "createdAt", "updatedAt"],
-  "additionalProperties": false
+  "required": [
+    "id",
+    "eName",
+    "createdAt",
+    "updatedAt"
+  ],
+  "additionalProperties": false,
+  "dependencies": {
+    "directors": [
+      "authorization"
+    ]
+  }
 }

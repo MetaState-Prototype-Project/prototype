@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/63d0e376-2522-4799-b82d-990267965dd9",
+  "schemaId": "63d0e376-2522-4799-b82d-990267965dd9",
+  "title": "FieldAccessGrant",
+  "domain": "agriculture",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "recordedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "supersedes": {
+      "type": "string",
+      "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "deleted": {
+      "type": "boolean"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "isReference": {
+      "type": "boolean"
+    },
+    "ownerEname": {
+      "type": "string",
+      "pattern": "^@?[^\\s/@][^\\s/]*$"
+    },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "pattern": "^@?[^\\s/@][^\\s/]*$"
+    },
+    "logicalFieldRef": {
+      "type": "string",
+      "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "granteeEname": {
+      "type": "string",
+      "pattern": "^@?[^\\s/@][^\\s/]*$"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "viewer",
+        "contributor",
+        "manager"
+      ]
+    },
+    "grantedBy": {
+      "type": "string",
+      "pattern": "^@?[^\\s/@][^\\s/]*$"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "canonicalEnvelopeId": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "recordedAt",
+    "id",
+    "isReference",
+    "ownerEname",
+    "canonicalOwnerEName",
+    "logicalFieldRef",
+    "granteeEname",
+    "role",
+    "grantedBy",
+    "createdAt",
+    "updatedAt"
+  ],
+  "additionalProperties": false
+}

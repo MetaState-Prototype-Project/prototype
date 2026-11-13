@@ -4,7 +4,6 @@ import {
     Entity,
     Index,
     PrimaryGeneratedColumn,
-    Unique,
 } from "typeorm";
 
 export type DeliveryStatus =
@@ -15,17 +14,31 @@ export type DeliveryStatus =
     | "dead";
 
 /**
- * A queued webhook delivery of one packet to one subscription. The unique
- * (subscriptionId, packetId, contentHash) constraint dedupes by content: a
- * retried POST of the same payload is idempotent, while re-ingesting an updated
- * envelope (new contentHash) queues a fresh delivery.
+ * A queued webhook delivery of one immutable event to one subscription.
  */
 @Entity("deliveries")
-@Unique("uq_delivery_subscription_packet_content", [
-    "subscriptionId",
-    "packetId",
-    "contentHash",
-])
+@Index("uq_delivery_subscription_event", ["subscriptionId", "eventId"], {
+    unique: true,
+})
+// Serves the consumer dashboard's newest-first delivery list.
+@Index("idx_deliveries_subscription_created", ["subscriptionId", "createdAt"])
+@Index(
+    "idx_deliveries_active_stream_order",
+    ["subscriptionId", "packetId", "createdAt", "id"],
+    { where: `"status" IN ('pending', 'failed', 'delivering')` },
+)
+@Index("idx_deliveries_claim_due", ["nextAttemptAt", "createdAt", "id"], {
+    where: `"status" IN ('pending', 'failed')`,
+})
+@Index(
+    "idx_deliveries_expired_lease",
+    ["leaseExpiresAt", "createdAt", "id"],
+    { where: `"status" = 'delivering'` },
+)
+// Serves queue-age health without scanning delivered/dead history.
+@Index("idx_deliveries_active_created", ["createdAt", "id"], {
+    where: `"status" IN ('pending', 'failed', 'delivering')`,
+})
 export class Delivery {
     @PrimaryGeneratedColumn("uuid")
     id!: string;
@@ -37,9 +50,19 @@ export class Delivery {
     @Column({ type: "varchar" })
     packetId!: string;
 
-    /** SHA-256 of the packet payload at ingest; dedupes deliveries by content. */
+    /** Immutable source event id. Legacy rows are backfilled during migration. */
+    @Index("idx_deliveries_event")
+    @Column({ type: "varchar" })
+    eventId!: string;
+
+    /** SHA-256 audit fingerprint of the exact payload at ingest. */
     @Column({ type: "varchar" })
     contentHash!: string;
+
+    /** Immutable event snapshot; prevents later packet upserts changing this delivery. */
+    @Column({ type: "jsonb", nullable: true })
+    // `any` avoids TypeORM DeepPartial rejecting arbitrary JSON object values.
+    payload!: any;
 
     @Column({ type: "varchar", default: "pending" })
     status!: DeliveryStatus;
@@ -62,4 +85,27 @@ export class Delivery {
 
     @Column({ type: "timestamptz", nullable: true })
     deliveredAt!: Date | null;
+
+    /**
+     * Set at ingest and reset by admin replay. The automatic retry window is
+     * `deliveryRetryWindowMs` from the later of this and `firstAttemptAt`, so
+     * time spent waiting in the queue never consumes the retry budget.
+     */
+    @Column({ type: "timestamptz", default: () => "now()" })
+    retryStartedAt!: Date;
+
+    /** When a worker first claimed this delivery; null until then. */
+    @Column({ type: "timestamptz", nullable: true })
+    firstAttemptAt!: Date | null;
+
+    /** Token-fenced lease; stale workers cannot complete a reclaimed row. */
+    @Column({ type: "varchar", nullable: true })
+    leaseOwner!: string | null;
+
+    @Column({ type: "uuid", nullable: true })
+    leaseToken!: string | null;
+
+    @Index("idx_deliveries_lease_expires")
+    @Column({ type: "timestamptz", nullable: true })
+    leaseExpiresAt!: Date | null;
 }

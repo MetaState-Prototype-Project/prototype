@@ -59,6 +59,11 @@ sudo nomad agent -dev -network-interface=eth0 -log-level=DEBUG -bind=0.0.0.0
 
 ## Project Setup
 
+Managed PlatformProfile enforcement requires `PUBLIC_REGISTRY_URL` (or `REGISTRY_URL`) and the same
+`REGISTRY_SHARED_SECRET` configured on Registry. eVault asks Registry to authorize writes only for the
+PlatformProfile ontology. Once an eName is managed, Registry outages fail those profile writes closed;
+other ontologies keep their existing behavior.
+
 1. Install dependencies:
 
 ```bash

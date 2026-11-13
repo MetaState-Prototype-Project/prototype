@@ -12,7 +12,7 @@ export const openApiDocument = {
     openapi: "3.1.0",
     info: {
         title: "Awareness as a Service API",
-        version: "1.0.0",
+        version: "1.1.0",
         description:
             "Consume MetaEnvelope awareness packets: poll the packet history " +
             "by ontology, eVault and time range, and register webhook " +
@@ -47,6 +47,10 @@ export const openApiDocument = {
                 type: "object",
                 description: "A stored awareness packet.",
                 properties: {
+                    eventId: {
+                        type: "string",
+                        description: "Stable idempotency key for this event",
+                    },
                     id: { type: "string", description: "MetaEnvelope id" },
                     ontology: { type: "string" },
                     evaultPublicKey: { type: "string", nullable: true },
@@ -55,8 +59,17 @@ export const openApiDocument = {
                         nullable: true,
                         description: "Owner's W3ID (eName)",
                     },
-                    data: { type: "object", nullable: true, additionalProperties: true },
-                    operation: { type: "string", enum: ["create", "update", "delete"] },
+                    data: {
+                        type: "object",
+                        nullable: true,
+                        additionalProperties: true,
+                    },
+                    operation: {
+                        type: "string",
+                        enum: ["create", "update", "delete"],
+                    },
+                    streamVersion: { type: "integer", nullable: true },
+                    occurredAt: { type: "string", format: "date-time" },
                     receivedAt: { type: "string", format: "date-time" },
                 },
             },
@@ -90,7 +103,10 @@ export const openApiDocument = {
                         description:
                             "Defaults to `<consumer.webhookBaseUrl>/api/webhook`",
                     },
-                    ontologyFilter: { type: "array", items: { type: "string" } },
+                    ontologyFilter: {
+                        type: "array",
+                        items: { type: "string" },
+                    },
                     evaultFilter: { type: "array", items: { type: "string" } },
                     secret: {
                         type: "string",
@@ -105,6 +121,10 @@ export const openApiDocument = {
                     id: { type: "string", format: "uuid" },
                     subscriptionId: { type: "string", format: "uuid" },
                     packetId: { type: "string" },
+                    eventId: {
+                        type: "string",
+                        description: "Stable source event id",
+                    },
                     status: {
                         type: "string",
                         enum: [
@@ -119,7 +139,11 @@ export const openApiDocument = {
                     nextAttemptAt: { type: "string", format: "date-time" },
                     lastError: { type: "string", nullable: true },
                     lastResponseStatus: { type: "integer", nullable: true },
-                    deliveredAt: { type: "string", format: "date-time", nullable: true },
+                    deliveredAt: {
+                        type: "string",
+                        format: "date-time",
+                        nullable: true,
+                    },
                 },
             },
             Consumer: {
@@ -141,7 +165,11 @@ export const openApiDocument = {
         "/health": {
             get: {
                 tags: ["System"],
-                summary: "Liveness check",
+                summary: "Liveness and in-process delivery-worker progress",
+                description:
+                    "No database access. 503 when the delivery worker has not " +
+                    "completed a tick within the progress window or has failed " +
+                    "repeatedly.",
                 responses: {
                     "200": {
                         description: "Service is up",
@@ -152,12 +180,36 @@ export const openApiDocument = {
                                     properties: {
                                         status: { type: "string" },
                                         service: { type: "string" },
+                                        delivery: { type: "object" },
                                     },
                                 },
                             },
                         },
                     },
+                    "503": {
+                        description:
+                            "Delivery worker is not making progress (status degraded)",
+                    },
                 },
+            },
+        },
+        "/ready": {
+            get: {
+                tags: ["System"],
+                summary: "Database, migration and delivery-worker readiness",
+                responses: {
+                    "200": { description: "Service is ready" },
+                    "503": {
+                        description: "A dependency or worker is unhealthy",
+                    },
+                },
+            },
+        },
+        "/metrics": {
+            get: {
+                tags: ["System"],
+                summary: "Prometheus queue and worker metrics",
+                responses: { "200": { description: "Prometheus text format" } },
             },
         },
         "/api/packets": {
@@ -213,7 +265,9 @@ export const openApiDocument = {
                                     properties: {
                                         packets: {
                                             type: "array",
-                                            items: { $ref: "#/components/schemas/Packet" },
+                                            items: {
+                                                $ref: "#/components/schemas/Packet",
+                                            },
                                         },
                                         count: {
                                             type: "integer",
@@ -234,7 +288,10 @@ export const openApiDocument = {
                                                 "ceil(total / pageSize)",
                                         },
                                         hasMore: { type: "boolean" },
-                                        nextCursor: { type: "string", nullable: true },
+                                        nextCursor: {
+                                            type: "string",
+                                            nullable: true,
+                                        },
                                     },
                                 },
                             },
@@ -250,7 +307,8 @@ export const openApiDocument = {
             get: {
                 tags: ["Query"],
                 summary: "Get a single awareness packet (MetaEnvelope) by ID",
-                description: "Fetch one awareness packet by its MetaEnvelope id.",
+                description:
+                    "Fetch one awareness packet by its MetaEnvelope id.",
                 security: [{ consumerAuth: [] }],
                 parameters: [
                     {
@@ -318,7 +376,9 @@ export const openApiDocument = {
                     required: true,
                     content: {
                         "application/json": {
-                            schema: { $ref: "#/components/schemas/SubscriptionInput" },
+                            schema: {
+                                $ref: "#/components/schemas/SubscriptionInput",
+                            },
                         },
                     },
                 },
@@ -361,10 +421,14 @@ export const openApiDocument = {
                         "application/json": {
                             schema: {
                                 allOf: [
-                                    { $ref: "#/components/schemas/SubscriptionInput" },
+                                    {
+                                        $ref: "#/components/schemas/SubscriptionInput",
+                                    },
                                     {
                                         type: "object",
-                                        properties: { active: { type: "boolean" } },
+                                        properties: {
+                                            active: { type: "boolean" },
+                                        },
                                     },
                                 ],
                             },
@@ -419,7 +483,9 @@ export const openApiDocument = {
                         description: "Consumer profile",
                         content: {
                             "application/json": {
-                                schema: { $ref: "#/components/schemas/Consumer" },
+                                schema: {
+                                    $ref: "#/components/schemas/Consumer",
+                                },
                             },
                         },
                     },
@@ -446,8 +512,12 @@ export const openApiDocument = {
                                                 type: "object",
                                                 properties: {
                                                     id: { type: "string" },
-                                                    keyPrefix: { type: "string" },
-                                                    revoked: { type: "boolean" },
+                                                    keyPrefix: {
+                                                        type: "string",
+                                                    },
+                                                    revoked: {
+                                                        type: "boolean",
+                                                    },
                                                 },
                                             },
                                         },
@@ -477,7 +547,8 @@ export const openApiDocument = {
                                         keyPrefix: { type: "string" },
                                         apiKey: {
                                             type: "string",
-                                            description: "Plaintext, shown once",
+                                            description:
+                                                "Plaintext, shown once",
                                         },
                                     },
                                 },
@@ -520,7 +591,8 @@ export const openApiDocument = {
                 ],
                 responses: {
                     "200": {
-                        description: "Recent deliveries across your subscriptions",
+                        description:
+                            "Recent deliveries across your subscriptions",
                         content: {
                             "application/json": {
                                 schema: {
@@ -528,7 +600,9 @@ export const openApiDocument = {
                                     properties: {
                                         deliveries: {
                                             type: "array",
-                                            items: { $ref: "#/components/schemas/Delivery" },
+                                            items: {
+                                                $ref: "#/components/schemas/Delivery",
+                                            },
                                         },
                                     },
                                 },

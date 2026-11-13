@@ -1,18 +1,17 @@
 <script lang="ts">
 import type { GlobalState } from "$lib/global";
+import { m } from "$lib/i18n";
 import { BottomSheet, ButtonAction } from "$lib/ui";
 import {
     type BindingDocParsed,
-    addCounterpartySignature,
-    deleteSocialBindingDoc,
+    type PendingSocialRequest,
+    acceptSocialBinding,
+    declineSocialBinding,
     fetchNameFromVault,
-    fetchUnsignedSocialDocs,
-    getCanonicalBindingDocString,
-    pruneBoundSignerDocs,
-    pruneDuplicateUnsignedDocs,
+    findPendingSocialRequest,
     resolveVaultUri,
 } from "$lib/utils";
-import { onDestroy } from "svelte";
+import { onDestroy, untrack } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
 import QrCode from "svelte-qrcode";
 
@@ -20,12 +19,27 @@ interface ISocialBindingDrawerProps {
     isOpen: boolean;
     globalState: GlobalState | undefined;
     onbound?: () => void;
+    /**
+     * When set at open time, the drawer shows the consent prompt for this
+     * request instead of the invite QR. Read once, when isOpen flips to true.
+     */
+    request?: PendingSocialRequest | null;
+    /** The request was closed unanswered and is still pending. */
+    ondismiss?: (docId: string) => void;
+    /**
+     * Requests closed unanswered this session. The QR poll skips them too, so
+     * reopening the sheet does not re-prompt for one the user just closed.
+     */
+    dismissedIds?: ReadonlySet<string>;
 }
 
 let {
     isOpen = $bindable(false),
     globalState,
     onbound,
+    request = null,
+    ondismiss,
+    dismissedIds,
 }: ISocialBindingDrawerProps = $props();
 
 type Phase =
@@ -42,6 +56,9 @@ let pendingDocId = $state<string | null>(null);
 let pendingDocParsed = $state<BindingDocParsed | null>(null);
 let signerEname = $state<string | null>(null);
 let signerName = $state<string | null>(null);
+// Opened on an incoming request rather than on the invite QR, so there is no
+// QR to fall back to once the request is answered.
+let openedFromRequest = $state(false);
 
 let pollInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -70,140 +87,119 @@ async function poll() {
             : `@${vault.ename}`;
         const gqlUrl = new URL("/graphql", vault.uri).toString();
 
-        const unsigned = await fetchUnsignedSocialDocs(gqlUrl, callerEname);
-        if (unsigned.length === 0) return;
-
-        const doc = unsigned[0];
-        const parsed = doc.node.parsed;
-        if (!parsed) return;
-        const signer = parsed.signatures[0]?.signer ?? null;
-        if (!signer) return;
+        const pending = await findPendingSocialRequest(
+            gqlUrl,
+            callerEname,
+            dismissedIds,
+        );
+        if (!pending) return;
 
         stopPolling();
-        signerEname = signer;
-        pendingDocId = doc.node.id;
-        pendingDocParsed = parsed;
-
-        try {
-            const signerVaultUri = await resolveVaultUri(signer);
-            signerName = await fetchNameFromVault(
-                signerVaultUri,
-                signer,
-                signer,
-            );
-        } catch {
-            signerName = signer;
-        }
+        signerEname = pending.signerEname;
+        pendingDocId = pending.docId;
+        pendingDocParsed = pending.parsed;
         phase = "awaiting-consent";
+        await resolveSignerName(pending.signerEname, pending.docId);
     } catch (err) {
         console.error("[SocialBindingDrawer] poll error:", err);
     }
 }
 
+// Two lookups overlap when one request replaces another, and the older one can
+// land last. Only the request still on screen gets its name.
+async function resolveSignerName(signer: string, docId: string) {
+    let name = signer;
+    try {
+        const signerVaultUri = await resolveVaultUri(signer);
+        name = await fetchNameFromVault(signerVaultUri, signer, signer);
+    } catch {
+        // Fall back to the eName.
+    }
+    if (pendingDocId === docId) signerName = name;
+}
+
 async function confirm() {
-    if (!globalState || !pendingDocId || !pendingDocParsed) return;
+    const gs = globalState;
+    if (!gs || !pendingDocId || !pendingDocParsed) return;
     phase = "counter-signing";
     errorMessage = null;
 
     try {
-        const vault = await globalState.vaultController.vault;
+        const vault = await gs.vaultController.vault;
         if (!vault?.ename || !vault?.uri) {
-            throw new Error("No active vault found.");
+            throw new Error(m.social_drawer_no_vault());
         }
         const callerEname = vault.ename.startsWith("@")
             ? vault.ename
             : `@${vault.ename}`;
         const gqlUrl = new URL("/graphql", vault.uri).toString();
 
-        // Idempotency: if the doc somehow already carries our signature
-        // (e.g. a stale poll result re-surfaced after we just signed it),
-        // treat as already-done and don't re-POST.
-        const existingSigs = Array.isArray(pendingDocParsed.signatures)
-            ? pendingDocParsed.signatures
-            : [];
-        const alreadySignedByUs = existingSigs.some(
-            (s) => s.signer === callerEname,
+        await acceptSocialBinding(
+            gqlUrl,
+            callerEname,
+            pendingDocId,
+            pendingDocParsed,
+            (payload) => gs.keyService.sign(payload),
         );
-
-        const signerEname = existingSigs[0]?.signer ?? null;
-
-        if (!alreadySignedByUs) {
-            const canonical = getCanonicalBindingDocString({
-                subject: pendingDocParsed.subject,
-                type: pendingDocParsed.type,
-                data: pendingDocParsed.data,
-            });
-            const sig = await globalState.keyService.sign(canonical);
-            await addCounterpartySignature(
-                gqlUrl,
-                callerEname,
-                callerEname,
-                pendingDocId,
-                sig,
-            );
-        }
-
-        // After accepting, remove any duplicate envelopes left over from
-        // repeat scans of the same QR by the same counterparty — otherwise
-        // the polling loop will show them on the next drawer open and
-        // re-prompt the user to "accept" what they just accepted.
-        if (signerEname) {
-            try {
-                await pruneDuplicateUnsignedDocs(
-                    gqlUrl,
-                    callerEname,
-                    pendingDocId,
-                    signerEname,
-                );
-            } catch (err) {
-                console.warn(
-                    "[SocialBindingDrawer] duplicate prune failed:",
-                    err,
-                );
-            }
-        }
 
         phase = "success";
         onbound?.();
     } catch (err) {
         console.error("[SocialBindingDrawer] counter-sign error:", err);
         errorMessage =
-            err instanceof Error ? err.message : "Something went wrong.";
+            err instanceof Error
+                ? err.message
+                : m.social_drawer_error_generic();
         phase = "error";
     }
 }
 
 async function decline() {
     const docId = pendingDocId;
+    const declinedDoc = pendingDocParsed;
+
+    if (docId && globalState) {
+        try {
+            const vault = await globalState.vaultController.vault;
+            if (!vault?.ename || !vault?.uri) {
+                throw new Error(m.social_drawer_no_vault());
+            }
+            const callerEname = vault.ename.startsWith("@")
+                ? vault.ename
+                : `@${vault.ename}`;
+            const gqlUrl = new URL("/graphql", vault.uri).toString();
+            await declineSocialBinding(gqlUrl, callerEname, docId, declinedDoc);
+
+            // The declined request was counted as a (pending) binding on the
+            // home screen; now that it's gone, tell the parent to re-fetch so
+            // the count drops immediately (e.g. 10 → 9) instead of staying
+            // stale until the next manual refresh.
+            onbound?.();
+        } catch (err) {
+            // The document is still in the vault, so keep the request on
+            // screen with a retry rather than closing as if it were declined.
+            console.error(
+                "[SocialBindingDrawer] failed to delete declined doc:",
+                err,
+            );
+            errorMessage =
+                err instanceof Error
+                    ? err.message
+                    : m.social_drawer_error_generic();
+            phase = "error";
+            return;
+        }
+    }
+
     pendingDocId = null;
     pendingDocParsed = null;
     signerEname = null;
     signerName = null;
 
-    if (docId && globalState) {
-        try {
-            const vault = await globalState.vaultController.vault;
-            if (vault?.ename && vault?.uri) {
-                const callerEname = vault.ename.startsWith("@")
-                    ? vault.ename
-                    : `@${vault.ename}`;
-                const gqlUrl = new URL("/graphql", vault.uri).toString();
-                await deleteSocialBindingDoc(gqlUrl, callerEname, docId);
-
-                // The declined request was counted as a (pending) binding on
-                // the home screen; now that it's gone, tell the parent to
-                // re-fetch so the count drops immediately (e.g. 10 → 9)
-                // instead of staying stale until the next manual refresh.
-                onbound?.();
-            }
-        } catch (err) {
-            console.error(
-                "[SocialBindingDrawer] failed to delete declined doc:",
-                err,
-            );
-        }
+    if (openedFromRequest) {
+        isOpen = false;
+        return;
     }
-
     phase = "qr";
     startPolling();
 }
@@ -214,42 +210,57 @@ function close() {
 
 function retryFromError() {
     errorMessage = null;
+    if (pendingDocId && pendingDocParsed) {
+        phase = "awaiting-consent";
+        return;
+    }
     phase = "qr";
     startPolling();
 }
 
-// Drive the drawer lifecycle from isOpen.
+// Drive the drawer lifecycle from isOpen. `request` is read inside untrack so
+// the parent clearing it can't restart the drawer mid-flow.
 $effect(() => {
-    if (isOpen) {
-        void initFromVault();
-    } else {
+    const open = isOpen;
+    untrack(() => {
+        if (open) {
+            void initFromVault();
+            return;
+        }
         stopPolling();
+        // Closing on a request leaves it pending rather than declining it;
+        // tell the parent so its poll doesn't prompt for the same one again.
+        // The error phase counts: a decline or accept that keeps failing would
+        // otherwise reopen the prompt on every close, with no way out.
+        if (
+            pendingDocId &&
+            (phase === "awaiting-consent" || phase === "error")
+        ) {
+            ondismiss?.(pendingDocId);
+        }
         reset();
-    }
+    });
 });
 
 async function initFromVault() {
     if (!globalState) return;
+
+    const incoming = request;
+    if (incoming) {
+        openedFromRequest = true;
+        pendingDocId = incoming.docId;
+        pendingDocParsed = incoming.parsed;
+        signerEname = incoming.signerEname;
+        phase = "awaiting-consent";
+        await resolveSignerName(incoming.signerEname, incoming.docId);
+        return;
+    }
+
     const vault = await globalState.vaultController.vault;
     if (!vault?.ename) return;
     const ename = vault.ename.startsWith("@") ? vault.ename : `@${vault.ename}`;
     qrValue = `w3ds://social_binding?ename=${encodeURIComponent(ename)}`;
     phase = "qr";
-
-    // One-time cleanup: drop leftover unsigned envelopes from contacts the user
-    // is already bound to, so the poll below never re-prompts for them. Runs
-    // fire-and-forget — the QR shows immediately and the filter in
-    // fetchUnsignedSocialDocs still guards the poll until this lands.
-    if (vault.uri) {
-        const gqlUrl = new URL("/graphql", vault.uri).toString();
-        void pruneBoundSignerDocs(gqlUrl, ename).catch((err) =>
-            console.warn(
-                "[SocialBindingDrawer] bound-signer prune failed:",
-                err,
-            ),
-        );
-    }
-
     startPolling();
 }
 
@@ -261,6 +272,7 @@ function reset() {
     pendingDocParsed = null;
     signerEname = null;
     signerName = null;
+    openedFromRequest = false;
 }
 
 onDestroy(stopPolling);
@@ -270,20 +282,19 @@ onDestroy(stopPolling);
     {#if phase === "qr"}
         <div class="flex items-start justify-between gap-3">
             <h3 class="text-2xl font-bold text-black-900 leading-tight">
-                Your QR-Code
+                {m.social_drawer_qr_title()}
             </h3>
             <button
                 type="button"
                 onclick={close}
-                aria-label="Close"
+                aria-label={m.common_close()}
                 class="w-9 h-9 rounded-full bg-black-50 flex items-center justify-center text-black-700 active:opacity-70 shrink-0"
             >
                 <span aria-hidden="true" class="text-xl leading-none">×</span>
             </button>
         </div>
         <p class="text-black-500 leading-snug">
-            Show this code to the person you want to bind with. They scan it
-            from their wallet to confirm the connection.
+            {m.social_drawer_qr_body()}
         </p>
         <div
             class="bg-white rounded-2xl p-6 flex items-center justify-center shadow-card aspect-square w-full"
@@ -299,17 +310,17 @@ onDestroy(stopPolling);
             class="w-full uppercase tracking-wide"
             callback={close}
         >
-            Close
+            {m.common_close()}
         </ButtonAction>
     {:else if phase === "awaiting-consent"}
         <div class="flex items-start justify-between gap-3">
             <h3 class="text-2xl font-bold text-black-900 leading-tight">
-                Social Connection Request
+                {m.social_drawer_request_title()}
             </h3>
             <button
                 type="button"
-                onclick={decline}
-                aria-label="Close"
+                onclick={close}
+                aria-label={m.common_close()}
                 class="w-9 h-9 rounded-full bg-black-50 flex items-center justify-center text-black-700 active:opacity-70 shrink-0"
             >
                 <span aria-hidden="true" class="text-xl leading-none">×</span>
@@ -317,10 +328,9 @@ onDestroy(stopPolling);
         </div>
         <p class="text-black-500 leading-snug">
             <strong class="text-black-900 font-semibold"
-                >{signerName ?? signerEname ?? "Someone"}</strong
+                >{signerName ?? signerEname ?? m.social_drawer_someone()}</strong
             >
-            wants to establish a social connection with you. Accept to confirm the
-            binding.
+            {m.social_drawer_request_body()}
         </p>
 
         {#if typeof pendingDocParsed?.data?.relation_description === "string" && pendingDocParsed.data.relation_description.trim().length > 0}
@@ -328,7 +338,7 @@ onDestroy(stopPolling);
                 class="bg-card-alternative rounded-2xl px-4 py-3 mt-1"
             >
                 <p class="text-xs uppercase tracking-wide text-black-500 mb-1">
-                    They said
+                    {m.social_drawer_they_said()}
                 </p>
                 <p class="text-black-900 leading-snug">
                     {pendingDocParsed.data.relation_description}
@@ -338,67 +348,68 @@ onDestroy(stopPolling);
 
         <div class="flex gap-3 mt-2">
             <ButtonAction variant="soft" class="flex-1" callback={decline}>
-                Decline
+                {m.common_decline()}
             </ButtonAction>
             <ButtonAction variant="solid" class="flex-1" callback={confirm}>
-                Accept
+                {m.common_accept()}
             </ButtonAction>
         </div>
     {:else if phase === "counter-signing"}
         <div class="flex flex-col items-center justify-center gap-4 py-10">
             <Shadow size={36} color="rgb(142, 82, 255)" />
             <p class="text-black-700 text-center">
-                Completing mutual binding…
+                {m.social_drawer_counter_signing()}
             </p>
         </div>
     {:else if phase === "success"}
         <div class="flex items-start justify-between gap-3">
             <h3 class="text-2xl font-bold text-black-900 leading-tight">
-                Binding Complete!
+                {m.social_drawer_success_title()}
             </h3>
             <button
                 type="button"
                 onclick={close}
-                aria-label="Close"
+                aria-label={m.common_close()}
                 class="w-9 h-9 rounded-full bg-black-50 flex items-center justify-center text-black-700 active:opacity-70 shrink-0"
             >
                 <span aria-hidden="true" class="text-xl leading-none">×</span>
             </button>
         </div>
         <p class="text-black-500 leading-snug">
-            {signerName ?? "Your contact"} has signed your identity binding.
-            Both eVaults now hold a mutually-signed social connection document.
+            {m.social_drawer_success_body({
+                name: signerName ?? m.social_drawer_your_contact(),
+            })}
         </p>
         <ButtonAction
             variant="solid"
             class="w-full uppercase tracking-wide"
             callback={close}
         >
-            Done
+            {m.common_done()}
         </ButtonAction>
     {:else if phase === "error"}
         <div class="flex items-start justify-between gap-3">
             <h3 class="text-2xl font-bold text-black-900 leading-tight">
-                Something went wrong
+                {m.social_drawer_error_title()}
             </h3>
             <button
                 type="button"
                 onclick={close}
-                aria-label="Close"
+                aria-label={m.common_close()}
                 class="w-9 h-9 rounded-full bg-black-50 flex items-center justify-center text-black-700 active:opacity-70 shrink-0"
             >
                 <span aria-hidden="true" class="text-xl leading-none">×</span>
             </button>
         </div>
         <p class="text-danger leading-snug">
-            {errorMessage ?? "Failed to complete the binding."}
+            {errorMessage ?? m.social_drawer_error_fallback()}
         </p>
         <div class="flex gap-3 mt-2">
             <ButtonAction variant="soft" class="flex-1" callback={close}>
-                Close
+                {m.common_close()}
             </ButtonAction>
             <ButtonAction variant="solid" class="flex-1" callback={retryFromError}>
-                Try again
+                {m.common_retry()}
             </ButtonAction>
         </div>
     {/if}

@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "55606983-2744-4d77-9200-b609029a4b3d",
+  "title": "DraftMessage",
+  "type": "object",
+  "description": "An unsent composer draft, on the AUTHOR's own vault (ACL = self), so a message started on one device can be finished on another. At most one draft per (owner, chatId); an empty `text` means the draft is cleared. Reply/edit context is REPLACED wholesale on every write, never merged — otherwise stale context outlives the draft that carried it. A consumer must never let a synced draft overwrite text the person is typing right now: an empty local composer adopts the draft, a non-empty one wins.",
+  "properties": {
+    "id": { "type": "string", "description": "Body id" },
+    "chatId": { "type": "string", "description": "Canonical Chat id the draft belongs to" },
+    "authorEName": { "type": "string", "description": "@-prefixed owner of the draft" },
+    "text": { "type": "string", "description": "The draft text; empty = cleared" },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "Newest wins across devices" },
+    "deviceId": { "type": "string", "description": "Which device last wrote it — lets a device skip echoes of its own writes" },
+    "replyToId": { "type": "string", "description": "Message being replied to, if the draft is a reply" },
+    "editingId": { "type": "string", "description": "Message being edited, if the draft is an edit" }
+  },
+  "required": ["id", "chatId", "authorEName", "text", "updatedAt"],
+  "additionalProperties": true
+}

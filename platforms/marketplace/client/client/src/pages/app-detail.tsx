@@ -11,14 +11,6 @@ const appDetails: Record<string, { fullDescription: string; screenshots: string[
     fullDescription: "eID for W3DS is a comprehensive digital identity solution that puts you in control of your personal information. Built on the W3DS framework, it provides secure authentication, verifiable credentials, and seamless integration across the MetaState ecosystem.\n\nWith advanced cryptographic protocols and user-centric design, eID for W3DS ensures your identity remains sovereign and under your control at all times.",
     screenshots: []
   },
-  "blabsy": {
-    fullDescription: "Blabsy is a decentralized micro-blogging platform where you own your content and control your data. Share your thoughts, engage with communities, and build your network while maintaining full sovereignty over your digital presence.\n\nExperience social media reimagined with privacy-first principles and community-driven governance.",
-    screenshots: []
-  },
-  "pictique": {
-    fullDescription: "Pictique revolutionizes photo sharing with privacy-first principles. Share your moments with complete control over who sees what, when, and for how long. All while maintaining ownership of your precious memories.\n\nBuilt on the W3DS framework, Pictique ensures your photos are stored securely and shared on your terms.",
-    screenshots: []
-  },
   "evoting": {
     fullDescription: "eVoting brings democracy to the digital age with end-to-end verifiable elections. Using advanced cryptographic techniques, every vote is counted accurately while maintaining voter privacy. Perfect for organizations, communities, and governance bodies.\n\nTransparent, secure, and verifiable - democracy as it should be.",
     screenshots: []

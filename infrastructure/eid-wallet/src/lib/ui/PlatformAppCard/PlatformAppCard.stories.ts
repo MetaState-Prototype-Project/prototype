@@ -75,3 +75,29 @@ export const UnreachableHost = {
         platformName: "Broken",
     },
 };
+
+export const Branded = {
+    name: "0. Branding from the auth link (name + logo)",
+    args: {
+        // An app behind the W3DS OIDC connector: the hostname is the
+        // connector's, while `name` and `logo` from the w3ds://auth link say
+        // which application the user is signing in to.
+        hostname: "oidc.w3ds.metastate.foundation",
+        platformName: "Acme Corp SSO",
+        displayName: "Acme Corp SSO",
+        logoUrl: "https://oidc.w3ds.metastate.foundation/logo.png",
+    },
+};
+
+export const BrandedBrokenLogo = {
+    name: "0b. Branding with an unreachable logo",
+    args: {
+        // The logo fails to load, so the card falls back to the hostname's
+        // icons while keeping the explicit name.
+        hostname: "oidc.w3ds.metastate.foundation",
+        platformName: "Acme Corp SSO",
+        displayName: "Acme Corp SSO",
+        logoUrl:
+            "https://this-domain-definitely-does-not-exist-12345.invalid/logo.png",
+    },
+};

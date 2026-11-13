@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/i18n";
 import { QRIcon } from "$lib/ui/icons";
 import { Copy01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
@@ -26,28 +27,28 @@ async function copyEName() {
     if (!ename) return;
     try {
         await navigator.clipboard.writeText(ename);
-        ontoast?.("eName copied to clipboard!");
+        ontoast?.(m.main_ename_copied());
     } catch (error) {
         console.error("Failed to copy eName:", error);
-        ontoast?.("Failed to copy eName");
+        ontoast?.(m.main_ename_copy_failed());
     }
 }
 </script>
 
 <section class="bg-white rounded-2xl p-4 shadow-card">
     <div class="flex items-center justify-between gap-3 mb-3">
-        <h3 class="text-lg font-medium text-black-900">Your eName</h3>
+        <h3 class="text-lg font-medium text-black-900">{m.main_ename_title()}</h3>
         {#if verified}
             <span
                 class="bg-success-200 text-success-900 text-chip font-bold uppercase tracking-wide px-3 py-1 rounded-full"
             >
-                Verified ID
+                {m.main_ename_verified()}
             </span>
         {:else}
             <span
                 class="bg-black-50 text-black-700 text-pill font-bold uppercase tracking-wide px-3 py-1 rounded-full"
             >
-                Unverified ID
+                {m.main_ename_unverified()}
             </span>
         {/if}
     </div>
@@ -55,10 +56,10 @@ async function copyEName() {
         <p
             class="text-black-700 opacity-50 font-medium text-balance wrap-break-word flex-1 min-w-0 leading-snug"
         >
-            {ename ?? "Loading..."}<button
+            {ename ?? m.common_loading()}<button
                 type="button"
                 onclick={copyEName}
-                aria-label="Copy eName"
+                aria-label={m.copyable_copy_aria()}
                 class="inline-flex align-middle active:opacity-60 ml-1.5"
             >
                 <HugeiconsIcon icon={Copy01Icon} size={16} strokeWidth={3} />
@@ -67,7 +68,7 @@ async function copyEName() {
         <button
             type="button"
             onclick={onshareqr}
-            aria-label="Show QR code"
+            aria-label={m.main_ename_show_qr_aria()}
             class="text-black-300 active:opacity-60 shrink-0"
         >
             <QRIcon size={20} />

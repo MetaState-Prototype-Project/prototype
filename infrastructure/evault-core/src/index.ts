@@ -3,17 +3,24 @@ import path from "path";
 import cors from "cors";
 import dotenv from "dotenv";
 import express, { type Request, type Response } from "express";
+import type { Server as HttpServer } from "node:http";
 import { AppDataSource } from "./config/database";
 import { NotificationController } from "./controllers/NotificationController";
 import { ProvisioningController } from "./controllers/ProvisioningController";
 import { VerificationController } from "./controllers/VerificationController";
 import { LegacyVerificationController } from "./controllers/LegacyVerificationController";
+import { RateLimitAdminController } from "./controllers/RateLimitAdminController";
 import { RecoveryController } from "./controllers/RecoveryController";
 import { ProvisioningService } from "./services/ProvisioningService";
 import { VerificationService } from "./services/VerificationService";
 import { createHmacSignature } from "./utils/hmac";
 
-import { checkGlobalRateLimit } from "./core/http/global-rate-limiter";
+import {
+    GlobalRateLimiter,
+    createRateLimitHook,
+    parseTrustProxy,
+} from "./core/http/global-rate-limiter";
+import { RateLimitConfigService } from "./services/RateLimitConfigService";
 import fastifyCors from "@fastify/cors";
 import fastify, {
     type FastifyInstance,
@@ -29,6 +36,7 @@ import { connectWithRetry } from "./core/db/retry-neo4j";
 import { registerHttpRoutes } from "./core/http/server";
 import { GraphQLServer } from "./core/protocol/graphql-server";
 import { LogService } from "./core/w3id/log-service";
+import { AwarenessOutboxDispatcher } from "./core/awareness/awareness-outbox-dispatcher";
 
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
@@ -41,7 +49,13 @@ expressApp.use(
     cors({
         origin: "*",
         methods: ["GET", "POST", "OPTIONS", "PATCH"],
-        allowedHeaders: ["Content-Type", "Authorization", "X-ENAME", "x-shared-secret"],
+        allowedHeaders: [
+            "Content-Type",
+            "Authorization",
+            "X-ENAME",
+            "X-ON-BEHALF-OF",
+            "x-shared-secret",
+        ],
         credentials: true,
     }),
 );
@@ -74,6 +88,10 @@ let graphqlServer: GraphQLServer;
 let logService: LogService;
 let driver: Driver;
 let provisioningService: ProvisioningService | undefined;
+let awarenessOutboxDispatcher: AwarenessOutboxDispatcher | undefined;
+let expressServer: HttpServer | undefined;
+let rateLimitConfig: RateLimitConfigService | undefined;
+let rateLimiter: GlobalRateLimiter | undefined;
 
 // Initialize eVault Core
 const initializeEVault = async (
@@ -105,16 +123,6 @@ const initializeEVault = async (
         console.warn("Failed to create eName index:", error);
     }
 
-    // Create User index for public key lookups
-    try {
-        const { createUserIndex } = await import(
-            "./core/db/migrations/add-user-index"
-        );
-        await createUserIndex(driver);
-    } catch (error) {
-        console.warn("Failed to create User index:", error);
-    }
-
     // Create id indexes on Envelope and MetaEnvelope so per-field point
     // lookups inside updateMetaEnvelopeById don't scan the whole label.
     try {
@@ -124,6 +132,17 @@ const initializeEVault = async (
         await createIdIndexes(driver);
     } catch (error) {
         console.warn("Failed to create id indexes:", error);
+    }
+
+    // Create ontology index so group membership doesn't scan every MetaEnvelope
+    // when authorizing a group grant.
+    try {
+        const { createMetaEnvelopeOntologyIndex } = await import(
+            "./core/db/migrations/add-metaenvelope-ontology-index"
+        );
+        await createMetaEnvelopeOntologyIndex(driver);
+    } catch (error) {
+        console.warn("Failed to create MetaEnvelope ontology index:", error);
     }
 
     // Migrate publicKey (string) to publicKeys (array)
@@ -136,6 +155,17 @@ const initializeEVault = async (
         console.warn("Failed to migrate publicKey to publicKeys array:", error);
     }
 
+    // Make User.eName unique (also serves public key lookups). Runs after the
+    // publicKey migration so duplicates are merged as arrays.
+    try {
+        const { createUserENameConstraint } = await import(
+            "./core/db/migrations/add-user-ename-constraint"
+        );
+        await createUserENameConstraint(driver);
+    } catch (error) {
+        console.warn("Failed to create User eName constraint:", error);
+    }
+
     // Create EnvelopeOperationLog indexes for /logs endpoint
     try {
         const { createEnvelopeOperationLogIndexes } = await import(
@@ -144,6 +174,24 @@ const initializeEVault = async (
         await createEnvelopeOperationLogIndexes(driver);
     } catch (error) {
         console.warn("Failed to create EnvelopeOperationLog indexes:", error);
+    }
+
+    try {
+        const { createAwarenessOutboxIndexes } = await import(
+            "./core/db/migrations/add-awareness-outbox-indexes"
+        );
+        await createAwarenessOutboxIndexes(driver);
+    } catch (error) {
+        console.warn("Failed to create awareness outbox indexes:", error);
+    }
+
+    try {
+        const { createMetaEnvelopeVersionIndexes } = await import(
+            "./core/db/migrations/add-metaenvelope-version-indexes"
+        );
+        await createMetaEnvelopeVersionIndexes(driver);
+    } catch (error) {
+        console.warn("Failed to create MetaEnvelope version indexes:", error);
     }
 
     // One-time backfill: create operation logs for existing metaenvelopes (platform inferred from ontology)
@@ -157,6 +205,8 @@ const initializeEVault = async (
     }
 
     const dbService = new DbService(driver);
+    awarenessOutboxDispatcher = new AwarenessOutboxDispatcher(driver);
+    awarenessOutboxDispatcher.start();
     const protectedZoneService = new ProtectedZoneService(driver);
     logService = new LogService(driver);
     const publicKey = process.env.EVAULT_PUBLIC_KEY || null;
@@ -182,38 +232,29 @@ const initializeEVault = async (
         // base64-encoded size of the largest allowed file (250MB binary ≈ 343MB
         // base64 + JSON overhead). Keep in sync with MAX_FILE_BYTES in graphql-server.ts.
         bodyLimit: 350 * 1024 * 1024,
+        // Off unless a proxy is declared, so a client cannot choose the IP it
+        // is rate limited as by sending X-Forwarded-For.
+        trustProxy: parseTrustProxy(process.env.EVAULT_TRUST_PROXY),
     });
 
     // Register CORS plugin with relaxed settings
     await fastifyServer.register(fastifyCors, {
         origin: true, // Allow all origins
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization", "X-ENAME", "x-shared-secret"],
+        allowedHeaders: [
+            "Content-Type",
+            "Authorization",
+            "X-ENAME",
+            "X-ON-BEHALF-OF",
+            "x-shared-secret",
+        ],
         credentials: true,
     });
 
-    // Global rate limiting by platform token identity (IP fallback)
-    fastifyServer.addHook("onRequest", async (request, reply) => {
-        const authHeader = request.headers.authorization;
-        const token = authHeader?.startsWith("Bearer ")
-            ? authHeader.substring(7)
-            : null;
-        const ip = request.ip;
-        const { allowed, retryAfterSeconds } = checkGlobalRateLimit(token, ip);
-        if (!allowed) {
-            // In an async onRequest hook, Fastify only short-circuits the
-            // handler chain if you return the reply object. Without the
-            // return, the 429 is queued but the downstream handler (GraphQL)
-            // still runs — turning the rate limiter into a silent counter.
-            return reply
-                .code(429)
-                .header("Retry-After", String(retryAfterSeconds))
-                .send({
-                    error: "Too Many Requests",
-                    retryAfterSeconds,
-                });
-        }
-    });
+    // Rate limiting per IP, then per verified platform, under admin-set rules
+    if (rateLimiter) {
+        fastifyServer.addHook("onRequest", createRateLimitHook(rateLimiter));
+    }
 
     // Register HTTP routes with provisioning service if available
     await registerHttpRoutes(
@@ -264,7 +305,9 @@ const initializeEVault = async (
 // Provisioner JWKs — must be on Express (provisioner URL port) for signer URL resolution
 expressApp.get("/.well-known/jwks.json", (_req: Request, res: Response) => {
     try {
-        const { getProvisionerJwk } = require("./core/utils/provisioner-signer");
+        const {
+            getProvisionerJwk,
+        } = require("./core/utils/provisioner-signer");
         res.json({ keys: [getProvisionerJwk()] });
     } catch {
         res.json({ keys: [] });
@@ -274,6 +317,95 @@ expressApp.get("/.well-known/jwks.json", (_req: Request, res: Response) => {
 // Health check endpoint
 expressApp.get("/health", (req: Request, res: Response) => {
     res.json({ status: "ok" });
+});
+
+expressApp.get("/ready", async (_req: Request, res: Response) => {
+    try {
+        await driver.getServerInfo();
+        const dispatcher = awarenessOutboxDispatcher?.health();
+        const dispatcherReady = Boolean(
+            dispatcher?.configured && dispatcher.running,
+        );
+        const session = driver.session();
+        try {
+            const result = await session.run(`
+                MATCH (a:AwarenessOutbox)
+                WHERE a.status IN ['pending', 'failed', 'delivering']
+                RETURN count(a) AS queued,
+                       coalesce(max(timestamp() - a.createdAt), 0) AS oldestAgeMs
+            `);
+            const record = result.records[0];
+            return res.status(dispatcherReady ? 200 : 503).json({
+                status: dispatcherReady ? "ready" : "not-ready",
+                neo4j: "ok",
+                awarenessDispatcher: dispatcher ?? {
+                    configured: false,
+                    running: false,
+                },
+                awarenessOutbox: {
+                    queued: record.get("queued").toNumber(),
+                    oldestAgeMs: record.get("oldestAgeMs").toNumber(),
+                },
+            });
+        } finally {
+            await session.close();
+        }
+    } catch (error) {
+        return res.status(503).json({
+            status: "not-ready",
+            neo4j: "unavailable",
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+});
+
+expressApp.get("/metrics", async (_req: Request, res: Response) => {
+    try {
+        const dispatcher = awarenessOutboxDispatcher?.health();
+        const lastCycleAgeSeconds = dispatcher?.lastCycleAt
+            ? Math.max(
+                  0,
+                  (Date.now() - dispatcher.lastCycleAt.getTime()) / 1000,
+              )
+            : -1;
+        const session = driver.session();
+        try {
+            const result = await session.run(`
+                MATCH (a:AwarenessOutbox)
+                RETURN count(CASE WHEN a.status IN ['pending', 'failed', 'delivering'] THEN 1 END) AS queued,
+                       count(CASE WHEN a.status = 'failed' THEN 1 END) AS failed,
+                       coalesce(max(CASE WHEN a.status IN ['pending', 'failed', 'delivering'] THEN timestamp() - a.createdAt ELSE 0 END), 0) AS oldestAgeMs
+            `);
+            const record = result.records[0];
+            return res
+                .type("text/plain; version=0.0.4")
+                .send(
+                    [
+                        "# TYPE evault_awareness_outbox_events gauge",
+                        `evault_awareness_outbox_events{status=\"active\"} ${record.get("queued").toNumber()}`,
+                        `evault_awareness_outbox_events{status=\"failed\"} ${record.get("failed").toNumber()}`,
+                        "# TYPE evault_awareness_outbox_oldest_seconds gauge",
+                        `evault_awareness_outbox_oldest_seconds ${record.get("oldestAgeMs").toNumber() / 1000}`,
+                        "# TYPE evault_awareness_dispatcher_running gauge",
+                        `evault_awareness_dispatcher_running ${dispatcher?.running ? 1 : 0}`,
+                        "# TYPE evault_awareness_dispatcher_configured gauge",
+                        `evault_awareness_dispatcher_configured ${dispatcher?.configured ? 1 : 0}`,
+                        "# TYPE evault_awareness_dispatcher_last_cycle_age_seconds gauge",
+                        `evault_awareness_dispatcher_last_cycle_age_seconds ${lastCycleAgeSeconds}`,
+                        "",
+                    ].join("\n"),
+                );
+        } finally {
+            await session.close();
+        }
+    } catch (error) {
+        return res
+            .status(503)
+            .type("text/plain")
+            .send(
+                `# metrics unavailable: ${error instanceof Error ? error.message : String(error)}\n`,
+            );
+    }
 });
 
 // Start the server
@@ -312,11 +444,23 @@ const start = async () => {
         provisioningController.registerRoutes(expressApp);
         recoveryController.registerRoutes(expressApp);
 
+        const { RateLimitRule } = await import("./entities/RateLimitRule");
+        rateLimitConfig = new RateLimitConfigService(
+            AppDataSource.getRepository(RateLimitRule),
+        );
+        await rateLimitConfig.start();
+        const config = rateLimitConfig;
+        rateLimiter = new GlobalRateLimiter(() => config.snapshot);
+        rateLimiter.start();
+        new RateLimitAdminController(config, rateLimiter).registerRoutes(
+            expressApp,
+        );
+
         // Start eVault Core (Fastify + GraphQL) with provisioning service first
         await initializeEVault(provisioningService);
 
         // Start Express server for provisioning (after Fastify is ready)
-        expressApp.listen(expressPort, () => {
+        expressServer = expressApp.listen(expressPort, () => {
             console.log(
                 `Express server (Provisioning API) running on port ${expressPort}`,
             );
@@ -328,3 +472,21 @@ const start = async () => {
 };
 
 start();
+
+async function shutdown(signal: string): Promise<void> {
+    console.log(`${signal} received, shutting down eVault`);
+    await awarenessOutboxDispatcher?.stop();
+    rateLimitConfig?.stop();
+    rateLimiter?.stop();
+    await fastifyServer?.close();
+    if (expressServer) {
+        await new Promise<void>((resolve) =>
+            expressServer!.close(() => resolve()),
+        );
+    }
+    await driver?.close();
+    if (AppDataSource.isInitialized) await AppDataSource.destroy();
+}
+
+process.once("SIGTERM", () => void shutdown("SIGTERM"));
+process.once("SIGINT", () => void shutdown("SIGINT"));

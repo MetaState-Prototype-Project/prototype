@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "52662185-59c1-44e5-8519-685796c70a96",
+  "title": "StoryProvenance",
+  "domain": "travel",
+  "type": "object",
+  "description": "How one TravelStory version came to be: who it was made for, where it was requested, which models produced it, and what it was translated or derived from. Lives next to the story on the content owner's vault. Language versions of one story are reconstructed through provenance: each translation's provenance points at the original version via originalStoryRef. Fields here record the immutable creation event; mutable facts stay in their own ontologies and are referenced",
+  "properties": {
+    "id": { "type": "string", "format": "uuid", "description": "Unique identifier of this provenance record" },
+    "storyRef": { "type": "string", "description": "w3ds://envelope?id=@<ename>/<metaEnvelopeId> reference to the TravelStory version this record describes" },
+    "requestedForEName": { "type": "string", "description": "@-prefixed eName of the person the story was originally created for" },
+    "requestRef": { "type": "string", "description": "w3ds://envelope reference to the StoryRequest that triggered creation (lives on the requester's vault)" },
+    "requestLocation": {
+      "type": "object",
+      "description": "Where the requester was at creation time, WGS84. An immutable event fact recorded at creation",
+      "properties": {
+        "lat": { "type": "number", "description": "Latitude" },
+        "lon": { "type": "number", "description": "Longitude" }
+      },
+      "required": ["lat", "lon"],
+      "additionalProperties": false
+    },
+    "textModel": { "type": "string", "description": "Model that wrote the text, e.g. 'claude-fable-5'" },
+    "voiceModel": { "type": "string", "description": "TTS model and voice, e.g. 'eleven_v3/<voiceId>'" },
+    "promptVersion": { "type": "string", "description": "Version tag of the prompt template used" },
+    "sourceTmaticStoryId": { "type": "string", "format": "uuid", "description": "tmatic.travel story UUID this version was translated or derived from, when the source is the tmatic library" },
+    "originalStoryRef": { "type": "string", "description": "w3ds://envelope reference to the TravelStory version this one was translated from, when the source is another FWM story version" },
+    "extractionRefs": { "type": "array", "items": { "type": "string" }, "description": "w3ds://envelope references to FileExtraction records used to identify the subject (e.g. vision reading of the user's photo)" },
+    "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp, ISO 8601" }
+  },
+  "required": ["id", "storyRef", "createdAt"],
+  "additionalProperties": false
+}

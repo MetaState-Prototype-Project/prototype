@@ -1,3 +1,5 @@
+import type { AclBlock } from "../acl";
+
 /**
  * Represents a meta-envelope that contains multiple envelopes of data.
  */
@@ -6,6 +8,12 @@ export type MetaEnvelope<T extends Record<string, any> = Record<string, any>> =
         ontology: string;
         payload: T;
         acl: string[];
+        /**
+         * The granular access policy. When present it is authoritative and the
+         * legacy `acl` array is ignored; when absent the array is interpreted
+         * through `fromLegacyAcl`.
+         */
+        _acl?: AclBlock;
     };
 
 /**
@@ -29,6 +37,8 @@ export type MetaEnvelopeResult<
     id: string;
     ontology: string;
     acl: string[];
+    /** The granular access policy, when the record carries one. */
+    _acl?: AclBlock;
     envelopes: Envelope<T[keyof T]>[];
     parsed: T;
     // eName is stored internally but never returned in API responses
@@ -50,6 +60,7 @@ export type StoreMetaEnvelopeResult<
         id: string;
         ontology: string;
         acl: string[];
+        _acl?: AclBlock;
     };
     envelopes: Envelope<T[keyof T]>[];
     mergedPayload?: Record<string, any>;
@@ -86,6 +97,8 @@ export type EnvelopeOperationLogEntry = {
     envelopeHash: string;
     operation: EnvelopeOperationType;
     platform: string | null;
+    /** The user the writing platform said it acted for, when it named one. */
+    author?: string | null;
     timestamp: string;
     ontology?: string;
 };
@@ -99,6 +112,7 @@ export type AppendEnvelopeOperationLogParams = {
     envelopeHash: string;
     operation: EnvelopeOperationType;
     platform: string | null;
+    author?: string | null;
     timestamp: string;
     ontology?: string;
 };
@@ -167,6 +181,31 @@ export type MetaEnvelopeConnection<T extends Record<string, any> = Record<string
 };
 
 /**
+ * One recorded state of a MetaEnvelope. Versions are immutable: every write
+ * appends one, and a delete appends a tombstone (`parsed` null) rather than
+ * removing anything.
+ */
+export type MetaEnvelopeVersion<T extends Record<string, any> = Record<string, any>> = {
+    metaEnvelopeId: string;
+    version: number;
+    operation: "create" | "update" | "delete";
+    ontology: string;
+    parsed: T | null;
+    requestingPlatform: string | null;
+    /** The user the writing platform said it acted for, when it named one. */
+    author: string | null;
+    /** Set when this version was written by rolling back to an earlier one. */
+    restoredFromVersion: number | null;
+    createdAt: string;
+};
+
+export type MetaEnvelopeVersionConnection<T extends Record<string, any> = Record<string, any>> = {
+    edges: { cursor: string; node: MetaEnvelopeVersion<T> }[];
+    pageInfo: PageInfo;
+    totalCount: number;
+};
+
+/**
  * Options for paginated MetaEnvelope queries.
  */
 export type FindMetaEnvelopesPaginatedOptions = {
@@ -175,4 +214,15 @@ export type FindMetaEnvelopesPaginatedOptions = {
     after?: string;
     last?: number;
     before?: string;
+};
+
+/** What kind of subject an eVault belongs to. */
+export type VaultType = "user" | "group" | "company";
+
+/** An eVault's type and pinned manifest, kept on its per-eName node. */
+export type VaultConfig = {
+    vaultType: VaultType | null;
+    manifestId: string | null;
+    /** Epoch ms when the manifest was pinned. */
+    manifestPinnedAt: number | null;
 };

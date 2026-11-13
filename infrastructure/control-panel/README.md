@@ -19,6 +19,13 @@ A SvelteKit-based control panel for monitoring and managing various services and
 - **Static admin allowlist**: Access is granted only if the authenticated eName exists in `config/admin-enames.json`
 - **No local DB**: Admin authorization is file-based and reloaded from disk when changed
 
+### Rate Limits
+
+- **Per-platform and per-IP limits**: `/rate-limits` sets the eVault API's requests-per-minute limits per platform and per IP or CIDR range, and the defaults for everyone else
+- **Block and exempt**: An IP, range or platform can be blocked or exempted
+- **Live usage**: Shows the callers closest to their limit in the current window
+- **Setup**: Set `RATE_LIMIT_ADMIN_SECRET` to the same value for the control panel and evault-core; `PUBLIC_PROVISIONER_URL` must point at evault-core's provisioning port
+
 ## Prerequisites
 
 ### Kubernetes Access

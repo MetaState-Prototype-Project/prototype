@@ -97,7 +97,12 @@ export class WebhookController {
             const mapping = Object.values(adapter.mapping).find(
                 (m) => m.schemaId === schemaId,
             );
-            if (!mapping) throw new Error();
+            if (!mapping) {
+                console.log(
+                    `[webhook] skipping unknown schema ${schemaId} for ${id}`,
+                );
+                return res.status(200).send();
+            }
             const tableName = mapping.tableName + "s";
 
             // For chats, skip the lock check and use timestamp comparison instead

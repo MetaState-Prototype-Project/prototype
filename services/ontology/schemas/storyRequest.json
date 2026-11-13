@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "d40d3da4-0999-444a-b23a-9f964a96c964",
+  "title": "StoryRequest",
+  "domain": "travel",
+  "type": "object",
+  "description": "The context of one story request: a person pressed geo/camera/microphone (or accepted a suggestion) at a place and moment. Lives on the requester's vault. Referenced by StoryListen (what context a story was played in) and by StoryProvenance (what context a story was created in) — the context is written once here, never copied. Machine readings of the request's inputs (photo vision, voice transcript) are FileExtraction records, referenced via extractionRefs",
+  "properties": {
+    "id": { "type": "string", "format": "uuid", "description": "Unique identifier of this request" },
+    "requesterEName": { "type": "string", "description": "@-prefixed eName of the person who made the request" },
+    "entryMode": { "type": "string", "enum": ["geo", "camera", "voice", "suggestion"], "description": "How the request was initiated: geo button, camera shot, voice query, or an accepted in-app suggestion" },
+    "location": {
+      "type": "object",
+      "description": "Where the requester was, WGS84",
+      "properties": {
+        "lat": { "type": "number", "description": "Latitude" },
+        "lon": { "type": "number", "description": "Longitude" }
+      },
+      "required": ["lat", "lon"],
+      "additionalProperties": false
+    },
+    "modality": { "type": "string", "enum": ["walking", "cycling", "driving", "boat"], "description": "Detected movement mode at request time" },
+    "queryText": { "type": "string", "description": "The voice query as text, when entryMode=voice and no FileExtraction transcript record was kept; when one was, reference it via extractionRefs instead of copying" },
+    "photoFileRef": { "type": "string", "description": "w3ds://file URI of the photo taken, when entryMode=camera" },
+    "extractionRefs": { "type": "array", "items": { "type": "string" }, "description": "w3ds://envelope references to FileExtraction records made from this request's inputs (vision reading of the photo, transcript of the voice query)" },
+    "requestedAt": { "type": "string", "format": "date-time", "description": "Request timestamp, ISO 8601" }
+  },
+  "required": ["id", "requesterEName", "entryMode", "requestedAt"],
+  "additionalProperties": false
+}

@@ -1,6 +1,6 @@
 # Local dev + debugging
 
-One command spins up the full W3DS core stack. Most sync bugs come from a service that isn't running or a missing env var — always verify the stack is healthy before hunting deeper. Source: `docs/docs/Post Platform Guide/local-dev-quick-start.md`, `dev-sandbox.md`.
+One command spins up the full W3DS core stack. Most sync bugs come from a service that isn't running or a missing env var — always verify the stack is healthy before hunting deeper. Source: [Local Dev Quick Start](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/local-dev-quick-start) and [Using the Dev Sandbox](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/dev-sandbox).
 
 ## Prerequisites
 
@@ -84,7 +84,7 @@ Open **http://localhost:8080** for the Dev Sandbox.
 
 ## Dev Sandbox — the wallet substitute
 
-Source: `docs/docs/Post Platform Guide/dev-sandbox.md`.
+Source: [Using the Dev Sandbox](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/dev-sandbox).
 
 The Dev Sandbox is a minimal browser app that uses `wallet-sdk` with a Web Crypto adapter. It lets you:
 
@@ -123,10 +123,11 @@ Same pattern for `w3ds://sign` — paste the URI, click Perform, watch your call
 
 Check in order:
 
-1. Is your platform registered? Query `GET http://localhost:4321/list` and confirm your platform's URL is in the response.
-2. If the write is a **create** (not update), remember there is a **3-second delay** before fanout. Wait, then re-check.
-3. Is your `/api/webhook` endpoint publicly reachable from eVault-core? (In local dev, `localhost` works. In containers, use the service name or host.docker.internal.)
-4. Does the packet's `schemaId` match a mapping in your Web3 Adapter? If not, your controller correctly drops it — that's expected.
+1. Does eVault `GET /ready` report an active/configured awareness dispatcher? Check `evault_awareness_outbox_*` metrics for a source backlog.
+2. Does AaaS `GET /ready` report current migrations and a fresh worker heartbeat? Check `aaas_oldest_pending_seconds` and `aaas_expired_leases`.
+3. Is your platform registered and does AaaS have an active catch-all or matching granular subscription?
+4. Is your `/api/webhook` endpoint reachable from the AaaS worker? (In containers, use the service name or `host.docker.internal`.)
+5. Does the packet's `schemaId` match a mapping in your Web3 Adapter? Unknown ontologies should be acknowledged with 200.
 
 ### Duplicate entities on sync
 
@@ -222,6 +223,6 @@ pnpm docker:core:down
 
 ## References in the docs
 
-- Local dev quick start: `docs/docs/Post Platform Guide/local-dev-quick-start.md`
-- Dev Sandbox: `docs/docs/Post Platform Guide/dev-sandbox.md`
+- Local dev quick start: [Local Dev Quick Start](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/local-dev-quick-start)
+- Dev Sandbox: [Using the Dev Sandbox](https://docs.w3ds.metastate.foundation/docs/Post%20Platform%20Guide/dev-sandbox)
 - Full Docker setup + platforms: repo root `README.md`

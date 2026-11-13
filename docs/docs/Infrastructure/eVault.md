@@ -65,7 +65,8 @@ A **MetaEnvelope** is the top-level container for an entity (post, user, message
 
 - **id**: Unique identifier (W3ID). Note: Only IDs registered in the Registry are guaranteed to be globally unique.
 - **ontology**: Schema identifier (W3ID, e.g., "550e8400-e29b-41d4-a716-446655440001"). Schema W3IDs can be resolved to their schema definitions via the [Ontology](/docs/Infrastructure/Ontology) service. See [W3DS Basics](/docs/W3DS%20Basics/getting-started) for more information on ontology schemas.
-- **acl**: Access Control List (who can access this data)
+- **acl**: Legacy access control list (who can access this data)
+- **_acl**: The granular access policy — grants, denials, and ontology conditions. Takes precedence over `acl` when present. See [Access Control](/docs/W3DS%20Protocol/Access-Control).
 - **envelopes**: Array of individual Envelope nodes
 
 ### Envelopes
@@ -83,8 +84,17 @@ Each field in a MetaEnvelope becomes a separate **Envelope** node in Neo4j:
 In Neo4j, the structure looks like:
 
 ```cypher
-(MetaEnvelope {id, ontology, acl}) -[:LINKS_TO]-> (Envelope {id, value, valueType})
+(MetaEnvelope {id, ontology, acl, aclBlock}) -[:LINKS_TO]-> (Envelope {id, value, valueType})
 ```
+
+This graph always holds the current state. History is kept alongside it, never linked into it:
+
+```cypher
+(MetaEnvelopeHistory {metaEnvelopeId, eName, latestVersion})
+(MetaEnvelopeVersion {metaEnvelopeId, eName, version, operation, ontology, acl, aclBlock, payloadJson, fieldsJson, requestingPlatform, author, restoredFromVersion, createdAt})
+```
+
+A removed record is relabelled `PrunedMetaEnvelope`, and its Envelopes `PrunedEnvelope`, so no read returns it while its data is kept.
 
 This flat graph structure allows:
 - Efficient field-level updates
@@ -187,6 +197,41 @@ query {
 - `first` / `after`: Forward pagination
 - `last` / `before`: Backward pagination
 
+#### metaEnvelopeHistory
+
+Retrieve every recorded version of a MetaEnvelope, newest first. Each create, update and remove appends an immutable version holding the full payload as it stood after that write; nothing is overwritten. History stays readable after `removeMetaEnvelope`, guarded by the access policy the record last carried.
+
+**Query**:
+```graphql
+query {
+  metaEnvelopeHistory(id: "global-id-123", first: 20) {
+    edges {
+      cursor
+      node {
+        version
+        operation
+        ontology
+        parsed
+        requestingPlatform
+        author
+        restoredFromVersion
+        createdAt
+      }
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    totalCount
+  }
+}
+```
+
+- `operation` is `create`, `update` or `delete`. A `delete` version has `parsed: null`.
+- `requestingPlatform` is the platform that made the write. `author` is the user it said it acted for, taken from `X-ON-BEHALF-OF` or from a wallet-signed token. It is the caller's assertion, recorded for history, not proof of identity.
+- `restoredFromVersion` is set on a version written by `rollbackMetaEnvelope`.
+- Records written before versioning existed get a baseline `create` version from their state at their first later write. Its platform and author are unknown.
+
 ### Mutations
 
 #### createMetaEnvelope
@@ -256,9 +301,33 @@ mutation {
 }
 ```
 
+#### rollbackMetaEnvelope
+
+Restore a MetaEnvelope to the state it had at an earlier version. Nothing is rewritten: the restore is written as a new version on top of the history, so the version number keeps increasing and the rollback can itself be rolled back.
+
+- The payload is replaced exactly. Unlike `updateMetaEnvelope`, which patches, fields the earlier version did not have are pruned.
+- The record keeps the access policy it has now, so restoring old data never restores old access.
+- Rolling back a removed record brings it back. Access to it is decided by the policy it last carried.
+- A version that records a removal cannot be restored. Use `removeMetaEnvelope` instead.
+- Requires UPDATE permission.
+
+**Mutation**:
+```graphql
+mutation {
+  rollbackMetaEnvelope(id: "global-id-123", version: 2) {
+    metaEnvelope { id parsed }
+    version
+    restoredFromVersion
+    errors { field message code }
+  }
+}
+```
+
+Error codes: `VERSION_NOT_FOUND`, `VERSION_IS_DELETE`, `INVALID_VERSION`, `ROLLBACK_FAILED`.
+
 #### removeMetaEnvelope
 
-Delete a MetaEnvelope and all its Envelopes. Returns a structured payload confirming deletion.
+Remove a MetaEnvelope. Removal prunes rather than destroys: the record and its Envelopes disappear from every read, but their data is kept and the record's version history remains available through `metaEnvelopeHistory`. Returns a structured payload confirming the removal.
 
 **Mutation**:
 ```graphql
@@ -518,7 +587,7 @@ The following queries and mutations are preserved for backward compatibility but
 
 ### /whois
 
-Get information about a W3ID, including key binding certificates.
+Get information about a W3ID: key binding certificates, the eVault type and its manifest.
 
 **Request**:
 ```http
@@ -535,13 +604,34 @@ X-ENAME: @user-a.w3id
     "keyBindingCertificates": [
         "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9...",
         "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9..."
-    ]
+    ],
+    "type": "user",
+    "manifest": {
+        "id": "@a1b2c3d4-...",
+        "ontology": "550e8400-e29b-41d4-a716-446655440000",
+        "parsed": { "ename": "@user-a.w3id", "username": "alice", "displayName": "Alice" }
+    }
 }
 ```
 
 - `w3id`: The W3ID (eName) from the request.
 - `evaultId`: The eVault instance identifier (when configured via `EVAULT_ID`). Matches the `evault` value registered with the Registry.
 - `keyBindingCertificates`: JWTs binding the eName to public keys.
+- `type`: `user`, `group` or `company`, or `null` when nothing is known yet.
+- `manifest`: The record describing who the eVault belongs to, or `null` if there is none yet. Always public via `/whois`, whatever its ACL; GraphQL reads still follow the ACL.
+
+#### eVault manifests
+
+The type is decided first, then the manifest is the **earliest** record of that type's ontology whose `ename` / `eName` field is the eVault's own eName:
+
+| Type | Detected when | Manifest ontology |
+|------|---------------|-------------------|
+| `company` | a Company record names the vault | Company (`0f9a3cb8-4a9f-4b5f-a1fa-3a4c2eb1f402`) |
+| `group` | the vault is keyless and a Chat or GroupManifest names it | GroupManifest (`550e8400-e29b-41d4-a716-446655440003`, shared with Chat: only records with `members` and `owner` count; legacy `a8bfb7cf-3200-4b25-9ea9-ee41100f212e` as fallback) |
+| `user` | otherwise, keyed or keyless | UserProfile (`550e8400-e29b-41d4-a716-446655440000`) |
+
+- Pinned lazily on the first `/whois`, stored on the eVault's Neo4j `User` node (`vaultType`, `manifestId`), and never changed afterwards. If the pinned record is deleted, the next `/whois` re-resolves it.
+- A group with only a Chat gets a GroupManifest built from it once (name, members, admins including `adminIds`; owner defaults to the group's eName).
 
 **Example**:
 ```bash
@@ -549,11 +639,11 @@ curl -X GET http://localhost:4000/whois \
   -H "X-ENAME: @user-a.w3id"
 ```
 
-**Use Case**: Platforms use this endpoint to retrieve public keys for signature verification and the eVault instance id for routing or auditing.
+**Use Case**: Platforms use this endpoint to retrieve public keys for signature verification and the eVault instance id for routing or auditing, and to learn who an eVault belongs to.
 
 ### /logs
 
-Get paginated envelope operation logs for an eName. Each log entry describes a create, update, delete, or update_envelope_value operation (metaEnvelope id, hash, operation type, platform, timestamp).
+Get paginated envelope operation logs for an eName. Each log entry describes a create, update, delete, or update_envelope_value operation (metaEnvelope id, hash, operation type, platform, author, timestamp). `author` is the user the writing platform said it acted for, or `null`..
 
 **Request**:
 ```http
@@ -578,6 +668,7 @@ Optional query parameters:
             "envelopeHash": "sha256-hex",
             "operation": "create",
             "platform": "https://platform.example.com",
+            "author": "@user-a.w3id",
             "timestamp": "2025-02-04T12:00:00.000Z",
             "ontology": "550e8400-e29b-41d4-a716-446655440001"
         }
@@ -603,26 +694,42 @@ curl -X GET "http://localhost:4000/logs?limit=20&cursor=2025-02-04T12:00:00.000Z
 
 ## Access Control
 
-eVault uses **Access Control Lists (ACLs)** to determine who can access data.
+A MetaEnvelope can carry access rules two ways. The granular `_acl` policy is the current model; the legacy `acl` array predates it and still works.
 
-### ACL Format
+### The `_acl` policy
 
-ACLs are arrays of W3IDs or special values:
+`_acl` holds grants (an eName plus a READ/CREATE/UPDATE/DELETE bitmask), denials, and Resource Link Ontology conditions. Decisions run in a fixed order — denials, then the most specific grant, then the ontology groups — and the most specific grant wins without unioning less specific ones.
+
+Full model, wire format, and current limits: [Access Control](/docs/W3DS%20Protocol/Access-Control).
+
+It is stored on the MetaEnvelope node as the `aclBlock` property (JSON), so the policy travels with the record when it syncs. No migration is needed to start using it: the property is optional, and a node without one is read through its legacy array exactly as before.
+
+:::caution Rolling back
+
+Once records begin carrying policies, treat the deployment as forward-only. Earlier builds do not read `aclBlock` and fall back to the `acl` array — which platforms write as `["*"]` — so a record an owner had locked down would become world-readable again on a rollback.
+
+:::
+
+### Legacy ACL format
+
+Arrays of W3IDs or special values:
 
 - `["*"]`: Public read access (anyone can read, but only the eVault owner can write)
 - `["@user-a.w3id"]`: Only User A can access (read and write)
 - `["@user-a.w3id", "@user-b.w3id"]`: User A and User B can access (read and write)
 
-**Prototype Limitation**: In the current prototype implementation, ACLs provide all-or-nothing access. There is no read-only access without write access (except for `["*"]` which provides read-only access for everyone). More granular permissions are planned for future versions.
+The array is all-or-nothing: there is no read-only-without-write except `["*"]`. That is what `_acl` replaces. A record with an `_acl` block ignores its array entirely; a record without one behaves exactly as it always has.
 
 ### Access Enforcement
 
-The Access Guard middleware enforces ACLs:
+The Access Guard middleware enforces access on every operation, with the permission the operation needs (read for queries, create/update/delete for the corresponding mutations):
 
 1. **Extract W3ID**: From `X-ENAME` header or [Bearer token](/docs/W3DS%20Protocol/Authentication)
-2. **Check ACL**: Verify the requesting W3ID is in the MetaEnvelope's ACL
-3. **Filter Results**: Remove ACL field from responses (security)
-4. **Allow/Deny**: Grant or deny access based on ACL
+2. **Check the policy**: If the record carries `_acl`, decide by it. Otherwise fall back to the legacy array.
+3. **Filter Results**: Remove the legacy `acl` array from responses; `_acl` is returned as the policy in force
+4. **Allow/Deny**
+
+A valid Registry-issued platform token satisfies the *legacy* path — but it does **not** bypass an `_acl` policy. A record carrying a policy is decided by that policy for every caller.
 
 ### Special Cases
 
@@ -632,20 +739,22 @@ The Access Guard middleware enforces ACLs:
 
 ## Webhook Delivery
 
-When data is stored or updated, eVault automatically sends webhooks to all registered platforms.
+When data is created, updated, or deleted, eVault atomically records an
+awareness outbox event beside the mutation. A restart-safe dispatcher sends it
+to AaaS, which owns subscription matching and webhook delivery.
 
 ### Webhook Process
 
-1. **Data Stored**: MetaEnvelope is stored in Neo4j
-2. **Wait 3 Seconds**: Delay prevents webhook ping-pong (same platform receiving its own webhook)
-3. **Get Active Platforms**: Query [Registry](/docs/Infrastructure/Registry) for list of active platforms
-4. **Filter Requesting Platform**: Exclude the platform that made the request
-5. **Send Webhooks**: POST to each platform's `/api/webhook` endpoint (see [Webhook Controller Guide](/docs/Post%20Platform%20Guide/webhook-controller))
+1. **Atomic capture**: The MetaEnvelope mutation and immutable outbox event commit in one Neo4j transaction.
+2. **Durable ingest**: The outbox dispatcher retries `POST AWARENESS_SERVICE_URL/ingest` until AaaS acknowledges persistence.
+3. **Match and filter**: AaaS matches subscriptions and excludes the requesting platform.
+4. **Send webhooks**: AaaS posts to each matching endpoint (see [Webhook Controller Guide](/docs/Post%20Platform%20Guide/webhook-controller)).
 
 ### Webhook Payload
 
 ```json
 {
+    "eventId": "7fd6c06c-80ae-4137-9d62-c15af53f92cf",
     "id": "global-id-123",
     "w3id": "@user-a.w3id",
     "schemaId": "550e8400-e29b-41d4-a716-446655440001",
@@ -655,16 +764,19 @@ When data is stored or updated, eVault automatically sends webhooks to all regis
         "authorId": "...",
         "createdAt": "2025-01-24T10:00:00Z"
     },
-    "evaultPublicKey": "z..."
+    "evaultPublicKey": "z...",
+    "operation": "update",
+    "streamVersion": 2,
+    "occurredAt": "2026-09-15T03:00:00.000Z"
 }
 ```
 
 ### Webhook Delivery Details
 
-- **Timeout**: 5 seconds per webhook
-- **Retry**: No automatic retries (fire-and-forget)
-- **Error Handling**: Logs failures but doesn't block the operation
-- **Ordering**: Webhooks are sent in parallel to all platforms - sending to platform A does not block sending to platform B. All webhook POST requests are initiated concurrently.
+- **Timeout**: 5 seconds per network attempt.
+- **Retry**: eVault-to-AaaS retries until acknowledged; AaaS-to-subscriber retries with backoff for 24 hours and then dead-letters.
+- **Idempotency**: Subscribers must deduplicate by `eventId` because delivery is at least once.
+- **Ordering**: Events are ordered per subscription and MetaEnvelope while unrelated streams are delivered concurrently.
 
 ## Key Binding Certificates
 
@@ -701,6 +813,68 @@ The provisioning layer supports shared tenancy (multiple W3IDs can be provisione
 - **W3ID Index**: Database index on W3ID for fast queries
 - **Isolation**: All queries filtered by W3ID
 - **No Cross-Tenant Access**: Users can only access their own data (unless ACL allows)
+
+## Rate Limiting
+
+The GraphQL and HTTP API (port 4000) is rate limited per minute, first per client IP and then per calling platform. Limits are managed from the control panel's **Rate Limits** page and apply immediately, without a restart.
+
+### How a request is decided
+
+1. A CORS preflight (`OPTIONS`) is always allowed and never counted.
+2. The most specific IP rule covering the client decides first: a **blocked** IP gets `403`, an **exempt** IP skips every limit.
+3. Otherwise the request counts against the IP's limit: its own rule, or the IP default.
+4. If the request carries a valid Registry token, it also counts against that platform's limit: its own rule, or the platform default. A **blocked** platform gets `403`; an **exempt** platform skips only this step.
+
+A request over a limit gets `429` with a `Retry-After` header:
+
+```json
+{ "error": "Too Many Requests", "retryAfterSeconds": 42, "scope": "platform" }
+```
+
+`scope` is `ip` or `platform`, naming the limit that was hit.
+
+### Rules
+
+| Applies to | Subject | Actions |
+| --- | --- | --- |
+| IP | A single address or a CIDR range, IPv4 or IPv6 | Set limit, block, exempt |
+| Platform | The `platform` value of its Registry token, matched exactly | Set limit, block, exempt |
+| Default | Every IP or platform without its own rule | Set limit |
+
+A limit on a range gives each address in it that limit; it is not one shared budget. Block and exempt rules are refused for ranges broader than `/8` (IPv4) or `/32` (IPv6).
+
+### What a platform rule can and cannot do
+
+The Registry signs a token for any platform name it is asked for, so a token proves it is genuine, not who sent it. The limiter verifies the signature and treats an invalid token as no platform at all, but the name itself is self-declared. Two consequences:
+
+- **The IP limit is the ceiling.** A platform limit or exemption never lets a caller exceed its IP limit. To give a platform more headroom, raise or exempt the IPs of its servers as well.
+- **A platform block is advisory.** A blocked caller can request a token under another name. Block its IPs to stop it. Likewise, anyone can send a token carrying another platform's name and use up that platform's budget, up to their own IP limit.
+
+### Configuration
+
+| Variable | Purpose |
+| --- | --- |
+| `RATE_LIMIT_PER_IP` | Default requests per minute per IP (500) until a default is set in the control panel |
+| `RATE_LIMIT_PER_PLATFORM` | Default requests per minute per platform (250) until a default is set in the control panel |
+| `RATE_LIMIT_ADMIN_SECRET` | Shared with the control panel to manage rules. The admin API is disabled while it is empty |
+| `EVAULT_TRUST_PROXY` | Leave empty when clients connect directly. Behind a reverse proxy, the proxies' addresses or CIDR ranges |
+
+Rules are stored in the `evault_rate_limit_rule` table, so run `pnpm --filter evault-core migration:run` when deploying. If the table or the database is unavailable, the limiter keeps the last rules it loaded, or the defaults above if it never loaded any; it never refuses all traffic.
+
+Behind a reverse proxy, set `EVAULT_TRUST_PROXY` to the proxies' addresses or every client is counted as the proxy's IP. A hop count (such as `1`) or `true` is also accepted, but both believe `X-Forwarded-For` from whoever connects: if the eVault port can be reached without going through the proxy, a client can choose the IP it is counted as and sidestep every IP limit and block.
+
+Counters are kept in memory by each eVault process. With several instances behind a load balancer each one counts separately, so the effective limit is the configured value times the number of instances, and the control panel shows the counters of the instance it reached. Rule changes reach every instance within 30 seconds.
+
+### Admin API
+
+The control panel manages rules through the provisioning port (3001), which is not rate limited, so no rule can lock an admin out. Every call needs the `x-shared-secret` header set to `RATE_LIMIT_ADMIN_SECRET`.
+
+| Route | Purpose |
+| --- | --- |
+| `GET /admin/rate-limits` | Defaults, rules and where they were loaded from |
+| `GET /admin/rate-limits/usage` | Live counters per platform and IP for the current window |
+| `PUT /admin/rate-limits/rules` | Create or replace the rule for a subject: `{ kind, subject, mode, limitPerMinute?, note? }` with `kind` `ip` or `platform`, `mode` `limit`, `blocked` or `exempt`, and subject `*` for a default |
+| `DELETE /admin/rate-limits/rules/:id` | Remove a rule |
 
 
 

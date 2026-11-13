@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "d38e0c5b-9d63-4a21-8e8b-1d6b63af64d2",
+  "title": "Deployment Profile",
+  "domain": "software",
+  "type": "object",
+  "properties": {
+    "deploymentEname": { "type": "string", "pattern": "^@[^\\s]+$" },
+    "deploymentName": { "type": "string", "minLength": 1 },
+    "environment": { "type": "string", "minLength": 1 },
+    "deployerEname": { "type": "string", "pattern": "^@[^\\s]+$" },
+    "platformEname": { "type": "string", "pattern": "^@[^\\s]+$" },
+    "versionEname": { "type": "string", "pattern": "^@[^\\s]+$" },
+    "version": { "type": "string" },
+    "releaseTag": { "type": "string" },
+    "commitSha": { "type": "string", "pattern": "^[0-9a-fA-F]{40,64}$" },
+    "publicKey": { "type": "string", "pattern": "^z.+$" },
+    "deploymentKeyDocumentId": { "type": "string" },
+    "softwareVersionDocumentId": { "type": "string" },
+    "createdAt": { "type": "string", "format": "date-time" }
+  },
+  "required": [
+    "deploymentEname",
+    "deploymentName",
+    "environment",
+    "deployerEname",
+    "platformEname",
+    "versionEname",
+    "version",
+    "releaseTag",
+    "commitSha",
+    "publicKey",
+    "deploymentKeyDocumentId",
+    "softwareVersionDocumentId",
+    "createdAt"
+  ],
+  "additionalProperties": false
+}

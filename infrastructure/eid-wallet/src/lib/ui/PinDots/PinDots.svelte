@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/i18n";
 import { onMount, tick } from "svelte";
 
 interface IPinDotsProps {
@@ -69,7 +70,7 @@ $effect(() => {
     class="flex gap-6 items-center cursor-text {classes}"
     class:pulse={isEmpty}
     onclick={focusInput}
-    aria-label="PIN input — 4 digits"
+    aria-label={m.pin_dots_aria()}
 >
     {#each Array(4) as _, i (i)}
         <div

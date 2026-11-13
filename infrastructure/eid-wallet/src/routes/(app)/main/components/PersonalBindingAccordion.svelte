@@ -5,6 +5,7 @@
     been filled in. Tapping ADD / EDIT routes to /personal.
 -->
 <script lang="ts">
+import { m } from "$lib/i18n";
 import { marksAchieved, personalBinding } from "$lib/stores/personalBinding";
 import { ArrowDown01Icon, ArrowUp01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
@@ -76,7 +77,7 @@ function handleAddClick(e: MouseEvent) {
         <div class="flex-1 min-w-0">
             <div class="flex items-center gap-1">
                 <p class="font-medium text-lg text-black-900 leading-tight">
-                    Personal
+                    {m.personal_title()}
                 </p>
                 {#if hasAny}
                     <HugeiconsIcon
@@ -87,7 +88,9 @@ function handleAddClick(e: MouseEvent) {
                 {/if}
             </div>
             <p class="text-black-700 opacity-50 leading-tight">
-                {hasAny ? `${achieved} of 3 marks achieved` : "Identity marks"}
+                {hasAny
+                    ? m.personal_marks_achieved({ count: achieved })
+                    : m.personal_empty_subtitle()}
             </p>
         </div>
         {#if !hasAny}
@@ -96,7 +99,7 @@ function handleAddClick(e: MouseEvent) {
                 onclick={handleAddClick}
                 class="bg-white text-black-700 text-pill font-bold uppercase tracking-wide px-4 py-1.5 rounded-full active:opacity-70 shrink-0 h-11"
             >
-                Add
+                {m.common_add()}
             </button>
         {/if}
     </div>
@@ -109,18 +112,19 @@ function handleAddClick(e: MouseEvent) {
             {#if binding.photos.length > 0}
                 <div>
                     <p class="text-xs text-black-700 leading-tight">
-                        Photo marks
+                        {m.personal_photo_marks()}
                     </p>
                     <p class="font-semibold text-black-900 leading-tight">
-                        {binding.photos.length}
-                        {binding.photos.length === 1 ? "file" : "files"} uploaded
+                        {m.personal_photo_files_uploaded({
+                            count: binding.photos.length,
+                        })}
                     </p>
                 </div>
             {/if}
             {#if binding.parameters && binding.parameters.text.trim().length > 0}
                 <div>
                     <p class="text-xs text-black-700 leading-tight">
-                        Biography marks
+                        {m.personal_biography_marks()}
                     </p>
                     <p class="font-semibold text-black-900 leading-snug">
                         {binding.parameters.text}
@@ -130,7 +134,7 @@ function handleAddClick(e: MouseEvent) {
             {#if binding.knowledge}
                 <div>
                     <p class="text-xs text-black-700 leading-tight">
-                        Security question
+                        {m.personal_security_question()}
                     </p>
                     <!-- Mask the answer like a password — the question itself
                          is not secret but the answer is. Showing **** keeps
@@ -145,7 +149,7 @@ function handleAddClick(e: MouseEvent) {
                 onclick={handleAddClick}
                 class="mt-1 w-full bg-white text-black-900 font-bold uppercase tracking-wide text-sm rounded-full py-3 active:opacity-70"
             >
-                Add / Edit
+                {m.personal_add_edit()}
             </button>
         </article>
     {/if}

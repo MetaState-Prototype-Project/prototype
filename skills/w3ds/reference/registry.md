@@ -1,6 +1,6 @@
 # Registry + Ontology
 
-The Registry is the discovery layer: it resolves W3IDs to service URLs, publishes JWKS, provides signed entropy for provisioning, and (temporarily) issues key-binding certificates. The Ontology service is the schema registry. Source: `docs/docs/Infrastructure/Registry.md`, `Ontology.md`.
+The Registry is the discovery layer: it resolves W3IDs to service URLs, publishes JWKS, provides signed entropy for provisioning, and (temporarily) issues key-binding certificates. The Ontology service is the schema registry. Source: [Registry](https://docs.w3ds.metastate.foundation/docs/Infrastructure/Registry) and [Ontology](https://docs.w3ds.metastate.foundation/docs/Infrastructure/Ontology).
 
 ## Registry
 
@@ -70,30 +70,35 @@ Flow: eVault stores a user's public key at provisioning time and internally requ
 
 Production URL: `https://ontology.w3ds.metastate.foundation`.
 
+**This service is the only correct source of a `schemaId`.** This skill deliberately contains no ontology UUIDs: they are not derivable, not sequential, and not stable enough to recall. A wrong `schemaId` fails silently — the write succeeds and every receiving platform drops the packet for having no matching mapping.
+
 ### GET /schemas
 
-Returns a list of every registered schema:
+Every registered schema:
 
 ```json
 [
-  { "id": "550e8400-e29b-41d4-a716-446655440000", "title": "User" },
-  { "id": "550e8400-e29b-41d4-a716-446655440001", "title": "SocialMediaPost" }
+  { "id": "<schemaId>", "title": "User", "domain": "identity" },
+  { "id": "<schemaId>", "title": "SocialMediaPost", "domain": "social" }
 ]
 ```
 
+- `id` — the `schemaId` to put in `mapping.json` and in eVault calls.
+- `title` — what to match on. Singular, PascalCase.
+- `domain` — the domain the schema belongs to, or `null`.
+
 ### GET /schemas/:id
 
-Returns the full JSON Schema (draft-07) for a schema W3ID. 404 if not found.
+The full JSON Schema (draft-07) for a schema W3ID. 404 if not found. Read this before writing a mapping — it is where the real property names live.
 
-Every schema must include: `schemaId` (W3ID), `title`, `type` (usually `"object"`), `properties`, `required`, `additionalProperties: false` (usually).
-
-Example:
+Every schema includes: `schemaId` (W3ID), `title`, `domain`, `type` (usually `"object"`), `properties`, `required`, `additionalProperties: false` (usually).
 
 ```json
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "schemaId": "550e8400-e29b-41d4-a716-446655440001",
+  "schemaId": "<schemaId>",
   "title": "SocialMediaPost",
+  "domain": "social",
   "type": "object",
   "properties": {
     "id":        { "type": "string", "format": "uri", "description": "W3ID" },
@@ -106,7 +111,17 @@ Example:
 }
 ```
 
-In eVault, a `SocialMediaPost` MetaEnvelope has `ontology: "550e8400-e29b-41d4-a716-446655440001"`; its Envelopes have `fieldKey` values matching the schema's property names (`content`, `authorId`, `createdAt`, ...).
+In eVault, a `SocialMediaPost` MetaEnvelope has `ontology: "<the SocialMediaPost schemaId>"`; its Envelopes have `fieldKey` values matching the schema's property names (`content`, `authorId`, `createdAt`, ...).
+
+### GET /domains
+
+The domain list every schema is tagged with — the same list a platform is granted access to, one domain at a time. Returns `{ schemaId, domains: [{ id, label, description }] }`. Read from the `Domain` schema's own enum, so it is versioned like any other type.
+
+### GET /domains/:id/schemas
+
+Every schema under one domain: `{ domain, schemas: [{ id, title }] }`. 404 if the domain does not exist.
+
+Use this when you know the subject area but not the type name — "what does W3DS already have for finance?" — before concluding nothing fits.
 
 ### Human viewer
 
@@ -115,31 +130,29 @@ In eVault, a `SocialMediaPost` MetaEnvelope has `ontology: "550e8400-e29b-41d4-a
 
 Use `/schemas` and `/schemas/:id` for programmatic access.
 
-## Canonical ontology W3IDs
+## Resolving an ontology
 
-Memorize this table. These IDs appear in mapping.json files, in Awareness Protocol packets (`schemaId`), and in every eVault call — guessing them is guaranteed to be wrong.
+The procedure, every time. Do not skip to memory.
 
-| Ontology | ID |
-|---|---|
-| **User** | `550e8400-e29b-41d4-a716-446655440000` |
-| **SocialMediaPost** | `550e8400-e29b-41d4-a716-446655440001` |
-| **Group** | `550e8400-e29b-41d4-a716-446655440003` |
-| **Ledger** (eCurrency) | `550e8400-e29b-41d4-a716-446655440006` |
-| **Currency** (eCurrency) | `550e8400-e29b-41d4-a716-446655440008` |
-| **Account** (eCurrency) | `6fda64db-fd14-4fa2-bd38-77d2e5e6136d` |
-| **Binding Document** | `b1d0a8c3-4e5f-6789-0abc-def012345678` |
-| **File** (application layer) | `a1b2c3d4-e5f6-7890-abcd-ef1234567890` |
-| **`w3ds-file-v1`** (storage layer) | `w3ds-file-v1` — **string literal, not a UUID** |
+1. `GET https://ontology.w3ds.metastate.foundation/schemas` and match on `title`.
+2. Narrow first with `GET /domains/:id/schemas` when you know the subject area but not the name.
+3. `GET /schemas/:id` on the match — confirm the property names before writing `localToUniversalMap`, because the mapping's global side must use them exactly.
+4. No match? Read the near misses in full. Extending one by PR beats creating a parallel type.
+5. Still nothing? [Propose a new ontology](https://docs.w3ds.metastate.foundation/docs/Infrastructure/Ontology#proposing-a-new-ontology) — full procedure in [w3ds-native.md](w3ds-native.md#proposing-a-new-ontology). Until that PR merges the type does not exist; do not ship a mapping against an unmerged `schemaId`.
 
-Never confuse the `File` ontology and `w3ds-file-v1`. Different layers, different field names. Detail in [protocols.md § File URIs](protocols.md#file-uris-w3dsfile).
+Cannot reach the service? Use an obvious placeholder plus `// TODO(w3ds): unverified — confirm against https://ontology.w3ds.metastate.foundation/schemas`, and say so in your response. Never substitute a plausible-looking UUID.
 
-If a user asks about an ontology not on this list, call `GET https://ontology.w3ds.metastate.foundation/schemas` to enumerate — do not guess.
+### The one identifier that is not a lookup
+
+`w3ds-file-v1` is a **protocol string literal**, not a registry entry and not a UUID. It is the low-level storage envelope created by `uploadFile` for blob dereferencing.
+
+Never confuse it with the `File` ontology, which is a higher-level platform record (file-manager / esigner style apps) with its own resolvable `schemaId`. Different layers, different field names. Detail in [protocols.md § File URIs](protocols.md#file-uris-w3dsfile).
 
 ## Provisioner (adjacent, not part of Registry)
 
 Production URL: `https://provisioner.w3ds.metastate.foundation`. Local dev port: **3001** (co-hosted by eVault-core).
 
-`POST /provision` creates a new eVault. Detail in [wallet.md](wallet.md#provisioning). Body:
+`POST /provision` creates a new eVault. Detail in [wallet.md](wallet.md#provisioning--onboarding-a-new-evault). Body:
 
 ```json
 {
@@ -154,7 +167,9 @@ Response: `{ w3id, uri }`.
 
 ## References in the docs
 
-- Registry endpoints + JWKS: `docs/docs/Infrastructure/Registry.md`
-- Ontology API + schema format: `docs/docs/Infrastructure/Ontology.md`
-- Provisioning flow: `docs/docs/Infrastructure/eID-Wallet.md`, `docs/docs/Infrastructure/wallet-sdk.md`
-- Production URLs: `docs/docs/W3DS Basics/Links.md`
+- Registry endpoints + JWKS: [Registry](https://docs.w3ds.metastate.foundation/docs/Infrastructure/Registry)
+- Ontology API + schema format: [Ontology](https://docs.w3ds.metastate.foundation/docs/Infrastructure/Ontology)
+- Provisioning flow: [eID Wallet](https://docs.w3ds.metastate.foundation/docs/Infrastructure/eID-Wallet), [wallet-sdk](https://docs.w3ds.metastate.foundation/docs/Infrastructure/wallet-sdk)
+- Production URLs: [Links](https://docs.w3ds.metastate.foundation/docs/W3DS%20Basics/Links)
+- Where data lives: [Data Ownership Rules](https://docs.w3ds.metastate.foundation/docs/W3DS%20Basics/Data-Ownership-Rules)
+- Proposing a new ontology: [Ontology](https://docs.w3ds.metastate.foundation/docs/Infrastructure/Ontology#proposing-a-new-ontology)

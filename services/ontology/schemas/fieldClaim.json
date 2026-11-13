@@ -1,0 +1,109 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/f577eb36-8230-494d-866b-45af25e83f16",
+  "schemaId": "f577eb36-8230-494d-866b-45af25e83f16",
+  "title": "FieldClaim",
+  "domain": "agriculture",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "recordedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "supersedes": {
+      "type": "string",
+      "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "deleted": {
+      "type": "boolean"
+    },
+    "logicalFieldRef": {
+      "type": "string",
+      "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "claimantRef": {
+      "type": "string",
+      "pattern": "^@?[^\\s/@][^\\s/]*$"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "owner",
+        "tenant",
+        "manager"
+      ]
+    },
+    "validFrom": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "string",
+          "format": "date-time"
+        }
+      ]
+    },
+    "validTo": {
+      "anyOf": [
+        {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "type": "string",
+              "format": "date-time"
+            }
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "assertedBy": {
+      "type": "string",
+      "pattern": "^@?[^\\s/@][^\\s/]*$"
+    },
+    "method": {
+      "type": "string",
+      "enum": [
+        "user-confirmed",
+        "source-provided",
+        "geometry-derived"
+      ]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "algorithm": {
+      "type": "string",
+      "minLength": 1
+    },
+    "algorithmVersion": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "recordedAt",
+    "logicalFieldRef",
+    "claimantRef",
+    "role",
+    "validFrom",
+    "validTo",
+    "assertedBy",
+    "method"
+  ],
+  "additionalProperties": false
+}

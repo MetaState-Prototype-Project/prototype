@@ -3,6 +3,7 @@ import * as dotenv from "dotenv";
 import { DataSource } from "typeorm";
 import { DeviceToken } from "../entities/DeviceToken";
 import { Notification } from "../entities/Notification";
+import { RateLimitRule } from "../entities/RateLimitRule";
 import { SecurityAnswerAttempt } from "../entities/SecurityAnswerAttempt";
 import { Verification } from "../entities/Verification";
 
@@ -16,7 +17,13 @@ export const AppDataSource = new DataSource({
         process.env.PROVISIONER_DATABASE_URL ||
         "postgresql://postgres:postgres@localhost:5432/registry",
     logging: process.env.NODE_ENV !== "production",
-    entities: [Verification, Notification, DeviceToken, SecurityAnswerAttempt],
+    entities: [
+        Verification,
+        Notification,
+        DeviceToken,
+        SecurityAnswerAttempt,
+        RateLimitRule,
+    ],
     migrations: [join(__dirname, "../migrations/*.{ts,js}")],
     migrationsTableName: "migrations",
     subscribers: [],

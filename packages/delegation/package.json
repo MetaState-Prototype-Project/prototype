@@ -1,0 +1,21 @@
+{
+    "name": "@metastate-foundation/delegation",
+    "version": "0.1.0",
+    "description": "Company signing delegation: scopes, signed payload formats and chain evaluation",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsc -p tsconfig.build.json",
+        "check-types": "tsc --noEmit",
+        "test": "vitest run",
+        "postinstall": "npm run build"
+    },
+    "devDependencies": {
+        "@types/node": "^20.11.24",
+        "typescript": "~5.6.2",
+        "vitest": "^3.2.4"
+    }
+}

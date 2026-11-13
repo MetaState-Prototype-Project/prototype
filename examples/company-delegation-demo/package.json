@@ -1,0 +1,24 @@
+{
+    "name": "company-delegation-demo",
+    "version": "0.1.0",
+    "private": true,
+    "description": "Demonstrator for company signing delegation on real eVaults with wallet-sdk wallets",
+    "type": "module",
+    "scripts": {
+        "dev": "tsx src/server.ts",
+        "smoke": "tsx src/smoke.ts",
+        "check-types": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@metastate-foundation/auth": "workspace:*",
+        "@metastate-foundation/delegation": "workspace:*",
+        "express": "^4.18.2",
+        "wallet-sdk": "workspace:*"
+    },
+    "devDependencies": {
+        "@types/express": "^4.17.21",
+        "@types/node": "^20.11.24",
+        "tsx": "^4.7.0",
+        "typescript": "~5.6.2"
+    }
+}

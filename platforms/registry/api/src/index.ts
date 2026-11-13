@@ -3,9 +3,11 @@ import cors from "@fastify/cors";
 import dotenv from "dotenv";
 import fastify from "fastify";
 import { AppDataSource } from "./config/database";
-import { generateEntropy, generatePlatformToken, generateKeyBindingCertificate, getJWK } from "./jwt";
+import { generateEntropy, generatePlatformToken, generateKeyBindingCertificate, getJWK, verifyPlatformToken } from "./jwt";
 import { UriResolutionService } from "./services/UriResolutionService";
 import { VaultService } from "./services/VaultService";
+import { SoftwareVersionService, SoftwareVersionConflictError, softwareVersionEName } from "./services/SoftwareVersionService";
+import { PlatformManagementService, PlatformManagementConflictError } from "./services/PlatformManagementService";
 
 import fs from "node:fs";
 
@@ -54,6 +56,8 @@ const initializeDatabase = async () => {
 
 // Initialize VaultService
 const vaultService = new VaultService(AppDataSource.getRepository("Vault"));
+const softwareVersionService = new SoftwareVersionService(AppDataSource.getRepository("SoftwareVersion"));
+const platformManagementService = new PlatformManagementService(AppDataSource.getRepository("PlatformManagement"));
 
 // Initialize UriResolutionService (simplified for multi-tenant architecture)
 const uriResolutionService = new UriResolutionService();
@@ -70,6 +74,18 @@ const checkSharedSecret = async (request: any, reply: any) => {
     const secret = authHeader.split(" ")[1];
     if (secret !== process.env.REGISTRY_SHARED_SECRET) {
         return reply.status(401).send({ error: "Invalid shared secret" });
+    }
+};
+
+const checkRegistryWriter = async (request: any, reply: any) => {
+    const authHeader = request.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+        return reply.status(401).send({ error: "Missing or invalid authorization header" });
+    }
+    const token = authHeader.slice("Bearer ".length);
+    if (token === process.env.REGISTRY_SHARED_SECRET) return;
+    if (!(await verifyPlatformToken(token))) {
+        return reply.status(401).send({ error: "Invalid Registry writer token" });
     }
 };
 
@@ -118,6 +134,51 @@ server.get("/entropy", async (request, reply) => {
     }
 });
 
+server.post(
+    "/records/software-versions/preview",
+    { preHandler: checkRegistryWriter },
+    async (request, reply) => {
+        try {
+            const { platformEname, version } = request.body as {
+                platformEname?: string;
+                version?: string;
+            };
+            if (!platformEname || !version) {
+                return reply.status(400).send({ error: "platformEname and version are required" });
+            }
+            return { kind: "software_version", ename: softwareVersionEName(platformEname, version.replace(/^v/, "")) };
+        } catch (error) {
+            return reply.status(400).send({ error: error instanceof Error ? error.message : "Invalid software version" });
+        }
+    },
+);
+
+server.post(
+    "/records/software-versions",
+    { preHandler: checkRegistryWriter },
+    async (request, reply) => {
+        try {
+            const input = request.body as {
+                platformEname?: string;
+                version?: string;
+                releaseTag?: string;
+                commitSha?: string;
+            };
+            if (!input.platformEname || !input.version || !input.releaseTag || !input.commitSha) {
+                return reply.status(400).send({ error: "platformEname, version, releaseTag, and commitSha are required" });
+            }
+            const record = await softwareVersionService.create(input as Required<typeof input>);
+            return reply.status(201).send({ kind: "software_version", ...record });
+        } catch (error) {
+            if (error instanceof SoftwareVersionConflictError) {
+                return reply.status(409).send({ error: error.message });
+            }
+            server.log.error(error);
+            return reply.status(400).send({ error: error instanceof Error ? error.message : "Failed to create software version" });
+        }
+    },
+);
+
 server.post("/platforms/certification", async (request, reply) => {
     try {
         const { platform } = request.body as { platform: string };
@@ -128,6 +189,61 @@ server.post("/platforms/certification", async (request, reply) => {
         reply.status(500).send({ error: "Failed to generate platform token" });
     }
 });
+
+server.post(
+    "/platforms/migrations/inspect-token",
+    { preHandler: checkSharedSecret },
+    async (request, reply) => {
+        try {
+            const { token } = request.body as { token?: string };
+            if (!token) return reply.status(400).send({ error: "token is required" });
+            return await platformManagementService.inspectLegacyToken(token);
+        } catch (error) {
+            return reply.status(401).send({ error: error instanceof Error ? error.message : "Invalid platform token" });
+        }
+    },
+);
+
+server.post(
+    "/platforms/migrations/activate",
+    { preHandler: checkSharedSecret },
+    async (request, reply) => {
+        try {
+            const input = request.body as { ename?: string; manager?: string; profileEnvelopeId?: string; legacyToken?: string };
+            if (!input.ename || !input.manager || !input.profileEnvelopeId || !input.legacyToken) {
+                return reply.status(400).send({ error: "ename, manager, profileEnvelopeId, and legacyToken are required" });
+            }
+            return await platformManagementService.transfer(input as Required<typeof input>);
+        } catch (error) {
+            if (error instanceof PlatformManagementConflictError) return reply.status(409).send({ error: error.message });
+            return reply.status(401).send({ error: error instanceof Error ? error.message : "Migration activation failed" });
+        }
+    },
+);
+
+server.post(
+    "/platforms/management/token",
+    { preHandler: checkSharedSecret },
+    async (request, reply) => {
+        try {
+            const { ename, manager } = request.body as { ename?: string; manager?: string };
+            if (!ename || !manager) return reply.status(400).send({ error: "ename and manager are required" });
+            return { token: await platformManagementService.managerToken(ename, manager) };
+        } catch (error) {
+            return reply.status(403).send({ error: error instanceof Error ? error.message : "Manager token denied" });
+        }
+    },
+);
+
+server.post(
+    "/platforms/management/authorize-profile-write",
+    { preHandler: checkSharedSecret },
+    async (request, reply) => {
+        const input = request.body as { ename?: string; ontology?: string; envelopeId?: string; token?: string };
+        if (!input.ename || !input.ontology) return reply.status(400).send({ error: "ename and ontology are required" });
+        return platformManagementService.authorizeProfileWrite(input as Required<Pick<typeof input, "ename" | "ontology">> & typeof input);
+    },
+);
 
 // Generate key binding certificate (JWT binding ename and publicKey)
 server.post(
@@ -230,13 +346,18 @@ server.get("/resolve", async (request, reply) => {
 
         const vault = await vaultService.findByEname(w3id);
         if (!vault) {
-            return reply.status(404).send({ error: "Service not found" });
+            const softwareVersion = await softwareVersionService.findByEname(w3id);
+            if (!softwareVersion) {
+                return reply.status(404).send({ error: "Service not found" });
+            }
+            return { kind: "software_version", ...softwareVersion };
         }
 
         // Resolve the URI with health check and Kubernetes fallback
         const resolvedUri = await uriResolutionService.resolveUri(vault.uri);
 
         return {
+            kind: "evault",
             ename: vault.ename,
             uri: resolvedUri,
             evault: vault.evault,

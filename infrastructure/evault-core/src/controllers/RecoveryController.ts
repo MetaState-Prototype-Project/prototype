@@ -4,6 +4,7 @@ import FormData from "form-data";
 import { validate as uuidValidate } from "uuid";
 import type { VerificationService } from "../services/VerificationService";
 import { signAsProvisioner } from "../core/utils/provisioner-signer";
+import { verificationLanguage } from "../utils/verificationLanguage";
 
 const diditClient = Axios.create({ baseURL: "https://verification.didit.me" });
 
@@ -225,11 +226,16 @@ export class RecoveryController {
             }
 
             try {
+                const language = verificationLanguage(req.body?.language);
                 const verification = await this.verificationService.create({});
 
                 const { data: diditSession } = await diditClient.post(
                     "/v3/session/",
-                    { workflow_id: workflowId, vendor_data: verification.id },
+                    {
+                        workflow_id: workflowId,
+                        vendor_data: verification.id,
+                        language,
+                    },
                     { headers: { "x-api-key": apiKey, "Content-Type": "application/json" } },
                 );
 
@@ -238,7 +244,7 @@ export class RecoveryController {
                 const verificationUrl: string =
                     diditSession.verification_url ??
                     diditSession.url ??
-                    `https://verify.didit.me/session/${sessionToken}`;
+                    `https://verify.didit.me/${language}/session/${sessionToken}`;
 
                 await this.verificationService.findByIdAndUpdate(verification.id, {
                     diditSessionId: sessionId,

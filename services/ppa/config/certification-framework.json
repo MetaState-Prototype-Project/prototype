@@ -1,0 +1,401 @@
+{
+  "$comment": "The PPA application certification matrix, transcribed from 'Post-Platforms Certification Framework — Application Certification Framework Concept v2'. The document calls its quantitative thresholds provisional policy parameters, so this file is versioned and every assessment records the version that judged it. Each dimension lists its distinct requirement texts; `level` is the highest certification level that requirement satisfies, so a repeated requirement collapses to one option. `source: derived` means the app answers the row itself, from the release proof, the actors’ binding documents or signed eReputation references.",
+  "frameworkVersion": "3",
+  "levels": [
+    {
+      "id": "L0",
+      "label": "W3DS-compatible experimental application"
+    },
+    {
+      "id": "L1",
+      "label": "Identified responsible person and basic functional review"
+    },
+    {
+      "id": "L2",
+      "label": "Source-code review and direct assessment"
+    },
+    {
+      "id": "L3",
+      "label": "Proven development history and reputation"
+    },
+    {
+      "id": "L4",
+      "label": "Established operational reputation and independent review"
+    },
+    {
+      "id": "L5",
+      "label": "High-assurance industrial application"
+    }
+  ],
+  "identityFloor": {
+    "L0": "IAL2",
+    "L1": "IAL3",
+    "L2": "IAL3",
+    "L3": "IAL4",
+    "L4": "IAL4",
+    "L5": "IAL4"
+  },
+  "dimensions": [
+    {
+      "id": "w3ds-compatibility",
+      "label": "W3DS compatibility",
+      "source": "derived",
+      "options": [
+        {
+          "level": -1,
+          "label": "Does not authenticate a user through W3DS or reach an eVault"
+        },
+        {
+          "level": 5,
+          "label": "Authenticates a user through W3DS and interacts with an eVault"
+        }
+      ]
+    },
+    {
+      "id": "functional-review",
+      "label": "Functional review",
+      "source": "reviewer",
+      "options": [
+        {
+          "level": 0,
+          "label": "Not run — nobody has launched it"
+        },
+        {
+          "level": 1,
+          "label": "Launched, and it broadly does what it claims"
+        },
+        {
+          "level": 3,
+          "label": "Main flows exercised against the stated functionality and the areas it asks for"
+        },
+        {
+          "level": 4,
+          "label": "Edge cases, failure handling and data flows exercised as well"
+        },
+        {
+          "level": 5,
+          "label": "Reviewed against a written specification, with the results recorded"
+        }
+      ]
+    },
+    {
+      "id": "identity-assurance",
+      "label": "Responsible actors — minimum identity assurance",
+      "source": "derived",
+      "options": [
+        {
+          "level": -1,
+          "label": "IAL1 — at least one responsible person is anonymous"
+        },
+        {
+          "level": 0,
+          "label": "IAL2 — every responsible person is vouched for by someone already identified"
+        },
+        {
+          "level": 2,
+          "label": "IAL3 — every responsible person is verified against a passport or equivalent eID"
+        },
+        {
+          "level": 5,
+          "label": "IAL4 — every responsible person is passport-verified and attested by three others who are"
+        }
+      ]
+    },
+    {
+      "id": "roles",
+      "label": "Developer / deployer roles",
+      "source": "reviewer",
+      "options": [
+        {
+          "level": 0,
+          "label": "One responsible person is recorded"
+        },
+        {
+          "level": 1,
+          "label": "Developer and deployer are the same person"
+        },
+        {
+          "level": 2,
+          "label": "They are different people, and each role is recorded"
+        },
+        {
+          "level": 4,
+          "label": "Every key actor is known and named"
+        },
+        {
+          "level": 5,
+          "label": "Every role from author to operator is named and attributable"
+        }
+      ]
+    },
+    {
+      "id": "development-method",
+      "label": "AI / development method",
+      "source": "reviewer",
+      "options": [
+        {
+          "level": 0,
+          "label": "Not asked — how the software was built is unrecorded"
+        },
+        {
+          "level": 1,
+          "label": "Declared — the team stated whether it was conventional, AI-assisted, vibe-coded or mixed"
+        },
+        {
+          "level": 2,
+          "label": "The declaration is recorded in this assessment, for this release"
+        },
+        {
+          "level": 4,
+          "label": "Traceable — which parts were AI-generated can be identified from the commit history"
+        },
+        {
+          "level": 5,
+          "label": "Auditable — AI involvement is documented per change and can be checked independently"
+        }
+      ]
+    },
+    {
+      "id": "source-available",
+      "label": "Source code available",
+      "source": "derived",
+      "options": [
+        {
+          "level": -1,
+          "label": "Source is not available to PPA"
+        },
+        {
+          "level": 5,
+          "label": "Source is available to PPA"
+        }
+      ]
+    },
+    {
+      "id": "code-review",
+      "label": "PPA code review",
+      "source": "reviewer",
+      "options": [
+        {
+          "level": 0,
+          "label": "Nobody has read the code"
+        },
+        {
+          "level": 1,
+          "label": "Automated scan only — tooling run to catch gross errors and obvious risks"
+        },
+        {
+          "level": 3,
+          "label": "Manually reviewed this release, looking for problems and inconsistencies"
+        },
+        {
+          "level": 4,
+          "label": "Manually reviewed the release, its dependencies, data handling and sensitive paths"
+        },
+        {
+          "level": 5,
+          "label": "Manually reviewed by two people independently, with findings tracked to resolution"
+        }
+      ]
+    },
+    {
+      "id": "interview",
+      "label": "Interview",
+      "source": "reviewer",
+      "options": [
+        {
+          "level": 1,
+          "label": "Nobody has been interviewed"
+        },
+        {
+          "level": 2,
+          "label": "Owner, lead developer and deployer/operator interviewed, where these are different people"
+        },
+        {
+          "level": 3,
+          "label": "Every key responsible actor interviewed"
+        },
+        {
+          "level": 4,
+          "label": "Key actors and the relevant technical leads interviewed"
+        },
+        {
+          "level": 5,
+          "label": "Every accountable lead interviewed, including security and key custody"
+        }
+      ]
+    },
+    {
+      "id": "provenance",
+      "label": "Development provenance / commits",
+      "source": "derived",
+      "options": [
+        {
+          "level": -1,
+          "label": "No commit history recorded"
+        },
+        {
+          "level": 1,
+          "label": "Commit history recorded from the start"
+        },
+        {
+          "level": 2,
+          "label": "The commit history has been looked at"
+        },
+        {
+          "level": 3,
+          "label": "Required and reviewed — contributions traced to named people"
+        },
+        {
+          "level": 4,
+          "label": "Extended review of who changed what, and when"
+        },
+        {
+          "level": 5,
+          "label": "Fully auditable — every change attributable to an identified contributor"
+        }
+      ]
+    },
+    {
+      "id": "actor-reputation",
+      "label": "Responsible actors — eReputation / professional references",
+      "source": "derived",
+      "options": [
+        {
+          "level": 1,
+          "label": "References recorded; no minimum met"
+        },
+        {
+          "level": 2,
+          "label": "Each responsible actor holds 1 or 2 signed references"
+        },
+        {
+          "level": 3,
+          "label": "Each responsible actor holds at least 3 signed professional references"
+        },
+        {
+          "level": 4,
+          "label": "At least 5, including 2 from recognised professionals"
+        },
+        {
+          "level": 5,
+          "label": "At least 10 from high-reputation professionals or organisations"
+        }
+      ]
+    },
+    {
+      "id": "track-record",
+      "label": "Application track record / authenticated eReputation",
+      "source": "derived",
+      "options": [
+        {
+          "level": 2,
+          "label": "No prior track record required at this level"
+        },
+        {
+          "level": 3,
+          "label": "A prior Level 2+ application with positive standing, and around 50 authenticated signals"
+        },
+        {
+          "level": 4,
+          "label": "Established reputation from previous applications, and around 1,000 authenticated signals"
+        },
+        {
+          "level": 5,
+          "label": "An extensive portfolio, and around 10,000 authenticated signals"
+        }
+      ]
+    },
+    {
+      "id": "independent-review",
+      "label": "Independent professional review",
+      "source": "derived",
+      "options": [
+        {
+          "level": 3,
+          "label": "No independent review"
+        },
+        {
+          "level": 4,
+          "label": "One signed review by a specialist independent of the applicant, stating what was reviewed and found"
+        },
+        {
+          "level": 5,
+          "label": "Several such reviews, from independent parties"
+        }
+      ]
+    },
+    {
+      "id": "external-certification",
+      "label": "External certification",
+      "source": "reviewer",
+      "options": [
+        {
+          "level": 0,
+          "label": "Not relevant — none claimed, and none needed here"
+        },
+        {
+          "level": 1,
+          "label": "Claimed but unverified — mentioned, not checked"
+        },
+        {
+          "level": 2,
+          "label": "A certificate from another body exists and has been looked at"
+        },
+        {
+          "level": 3,
+          "label": "Verified as genuine, and accepted in place of repeating that work"
+        },
+        {
+          "level": 5,
+          "label": "Verified, and the issuing body’s own standing weighed in the judgement"
+        }
+      ]
+    },
+    {
+      "id": "key-assurance",
+      "label": "Key / infrastructure assurance",
+      "source": "reviewer",
+      "options": [
+        {
+          "level": 0,
+          "label": "Nothing asked about hosting, secrets or key custody"
+        },
+        {
+          "level": 1,
+          "label": "The team described where it runs and who can administer it"
+        },
+        {
+          "level": 2,
+          "label": "Secrets and deployment keys kept apart from the source"
+        },
+        {
+          "level": 3,
+          "label": "Admin access, secret storage and change control checked where they matter"
+        },
+        {
+          "level": 4,
+          "label": "Access control, key custody, backup and change control all reviewed and sound"
+        },
+        {
+          "level": 5,
+          "label": "Signing and deployment keys held in hardware or an HSM"
+        }
+      ]
+    },
+    {
+      "id": "findings-recorded",
+      "label": "Findings and signed certificate in eVault",
+      "source": "derived",
+      "options": [
+        {
+          "level": 0,
+          "label": "Only a minimal statement is recorded"
+        },
+        {
+          "level": 5,
+          "label": "Full findings published with the certificate"
+        }
+      ]
+    }
+  ]
+}

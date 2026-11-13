@@ -1,127 +1,133 @@
 {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "schemaId": "550e8400-e29b-41d4-a716-446655440000",
-    "title": "User",
-    "type": "object",
-    "properties": {
-        "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "The unique identifier for the user"
-        },
-        "username": {
-            "type": "string",
-            "description": "The user's unique username/handle across the platform"
-        },
-        "displayName": {
-            "type": "string",
-            "description": "The user's display name or full name"
-        },
-        "givenName": {
-            "type": "string",
-            "description": "The user's given name"
-        },
-        "familyName": {
-            "type": "string",
-            "description": "The user's family name"
-        },
-        "email": {
-            "type": "string",
-            "format": "email",
-            "description": "The user's email address"
-        },
-        "telephone": {
-            "type": "string",
-            "description": "The user's telephone number"
-        },
-        "address": {
-            "type": "object",
-            "description": "The user's postal address",
-            "properties": {
-                "streetAddress": {
-                    "type": "string",
-                    "description": "The street address"
-                },
-                "postalCode": {
-                    "type": "string",
-                    "description": "The postal code"
-                },
-                "addressLocality": {
-                    "type": "string",
-                    "description": "The locality or city"
-                },
-                "addressCountry": {
-                    "type": "string",
-                    "description": "The country"
-                }
-            },
-            "additionalProperties": false
-        },
-        "inLanguage": {
-            "type": "string",
-            "description": "The language associated with the user profile"
-        },
-        "bio": {
-            "type": "string",
-            "description": "The user's biography or description"
-        },
-        "avatarUrl": {
-            "type": "string",
-            "format": "uri",
-            "description": "URL to the user's profile picture"
-        },
-        "bannerUrl": {
-            "type": "string",
-            "format": "uri",
-            "description": "URL to the user's profile banner/cover photo"
-        },
-        "website": {
-            "type": "string",
-            "format": "uri",
-            "description": "The user's personal website URL"
-        },
-        "location": {
-            "type": "string",
-            "description": "The user's physical location"
-        },
-        "isVerified": {
-            "type": "boolean",
-            "description": "Whether the user's account is verified"
-        },
-        "isPrivate": {
-            "type": "boolean",
-            "description": "Whether the user's account is private"
-        },
-        "followerCount": {
-            "type": "integer",
-            "minimum": 0,
-            "description": "Number of followers the user has"
-        },
-        "followingCount": {
-            "type": "integer",
-            "minimum": 0,
-            "description": "Number of users this user follows"
-        },
-        "postCount": {
-            "type": "integer",
-            "minimum": 0,
-            "description": "Number of posts created by the user"
-        },
-        "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When the user account was created"
-        },
-        "updatedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When the user profile was last updated"
-        },
-        "isArchived": {
-            "type": "boolean",
-            "description": "Whether the user account is archived"
-        }
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "550e8400-e29b-41d4-a716-446655440000",
+  "title": "User",
+  "domain": "identity",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The unique identifier for the user"
     },
-    "required": ["id", "username", "displayName", "createdAt"],
-    "additionalProperties": false
+    "username": {
+      "type": "string",
+      "description": "The user's unique username/handle across the platform"
+    },
+    "displayName": {
+      "type": "string",
+      "description": "The user's display name or full name"
+    },
+    "givenName": {
+      "type": "string",
+      "description": "The user's given name"
+    },
+    "familyName": {
+      "type": "string",
+      "description": "The user's family name"
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "The user's email address"
+    },
+    "telephone": {
+      "type": "string",
+      "description": "The user's telephone number"
+    },
+    "address": {
+      "type": "object",
+      "description": "The user's postal address",
+      "properties": {
+        "streetAddress": {
+          "type": "string",
+          "description": "The street address"
+        },
+        "postalCode": {
+          "type": "string",
+          "description": "The postal code"
+        },
+        "addressLocality": {
+          "type": "string",
+          "description": "The locality or city"
+        },
+        "addressCountry": {
+          "type": "string",
+          "description": "The country"
+        }
+      },
+      "additionalProperties": false
+    },
+    "inLanguage": {
+      "type": "string",
+      "description": "The language associated with the user profile"
+    },
+    "bio": {
+      "type": "string",
+      "description": "The user's biography or description"
+    },
+    "avatarUrl": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL to the user's profile picture"
+    },
+    "bannerUrl": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL to the user's profile banner/cover photo"
+    },
+    "website": {
+      "type": "string",
+      "format": "uri",
+      "description": "The user's personal website URL"
+    },
+    "location": {
+      "type": "string",
+      "description": "The user's physical location"
+    },
+    "isVerified": {
+      "type": "boolean",
+      "description": "Whether the user's account is verified"
+    },
+    "isPrivate": {
+      "type": "boolean",
+      "description": "Whether the user's account is private"
+    },
+    "followerCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of followers the user has"
+    },
+    "followingCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of users this user follows"
+    },
+    "postCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of posts created by the user"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the user account was created"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the user profile was last updated"
+    },
+    "isArchived": {
+      "type": "boolean",
+      "description": "Whether the user account is archived"
+    }
+  },
+  "required": [
+    "id",
+    "username",
+    "displayName",
+    "createdAt"
+  ],
+  "additionalProperties": false
 }

@@ -754,6 +754,271 @@ describe("Idiomatic GraphQL API", () => {
         });
     });
 
+    describe("metaEnvelopeHistory query", () => {
+        const HISTORY_QUERY = `
+            query History($id: ID!, $first: Int, $after: String) {
+                metaEnvelopeHistory(id: $id, first: $first, after: $after) {
+                    edges {
+                        cursor
+                        node { metaEnvelopeId version operation ontology parsed createdAt }
+                    }
+                    pageInfo { hasNextPage endCursor }
+                    totalCount
+                }
+            }
+        `;
+
+        it("keeps every version and stays readable after removal", async () => {
+            const created = await makeGraphQLRequest(
+                server,
+                `mutation Create($input: MetaEnvelopeInput!) {
+                    createMetaEnvelope(input: $input) { metaEnvelope { id } }
+                }`,
+                {
+                    input: {
+                        ontology: "HistoryTestOntology",
+                        payload: { title: "v1", body: "unchanged" },
+                        acl: ["*"],
+                    },
+                },
+                getAuthHeaders(),
+            );
+            const id = created.createMetaEnvelope.metaEnvelope.id;
+
+            await makeGraphQLRequest(
+                server,
+                `mutation Update($id: ID!, $input: MetaEnvelopeInput!) {
+                    updateMetaEnvelope(id: $id, input: $input) { errors { message } }
+                }`,
+                {
+                    id,
+                    input: {
+                        ontology: "HistoryTestOntology",
+                        payload: { title: "v2" },
+                        acl: ["*"],
+                    },
+                },
+                getAuthHeaders(),
+            );
+
+            const removed = await makeGraphQLRequest(
+                server,
+                `mutation Remove($id: ID!) {
+                    removeMetaEnvelope(id: $id) { success }
+                }`,
+                { id },
+                getAuthHeaders(),
+            );
+            expect(removed.removeMetaEnvelope.success).toBe(true);
+
+            // Gone from every live read
+            const live = await makeGraphQLRequest(
+                server,
+                `query Live($id: ID!) { metaEnvelope(id: $id) { id } }`,
+                { id },
+                getAuthHeaders(),
+            );
+            expect(live.metaEnvelope).toBeNull();
+            const listed = await makeGraphQLRequest(
+                server,
+                `query List { metaEnvelopes(filter: { ontologyId: "HistoryTestOntology" }) { totalCount } }`,
+                {},
+                getAuthHeaders(),
+            );
+            expect(listed.metaEnvelopes.totalCount).toBe(0);
+
+            // ...but its history is still there, newest first
+            const result = await makeGraphQLRequest(
+                server,
+                HISTORY_QUERY,
+                { id },
+                getAuthHeaders(),
+            );
+            const history = result.metaEnvelopeHistory;
+            expect(history.totalCount).toBe(3);
+            expect(
+                history.edges.map((e: any) => [e.node.version, e.node.operation]),
+            ).toEqual([
+                [3, "delete"],
+                [2, "update"],
+                [1, "create"],
+            ]);
+            expect(history.edges[0].node.parsed).toBeNull();
+            expect(history.edges[1].node.parsed).toEqual({
+                title: "v2",
+                body: "unchanged",
+            });
+            expect(history.edges[2].node.parsed).toEqual({
+                title: "v1",
+                body: "unchanged",
+            });
+            expect(history.edges[2].node.metaEnvelopeId).toBe(id);
+
+            const page = await makeGraphQLRequest(
+                server,
+                HISTORY_QUERY,
+                { id, first: 1, after: history.edges[0].cursor },
+                getAuthHeaders(),
+            );
+            expect(page.metaEnvelopeHistory.edges[0].node.version).toBe(2);
+            expect(page.metaEnvelopeHistory.pageInfo.hasNextPage).toBe(true);
+        });
+
+        it("requires authentication", async () => {
+            await expect(
+                makeGraphQLRequest(
+                    server,
+                    HISTORY_QUERY,
+                    { id: "any-id" },
+                    { "X-ENAME": evault.w3id },
+                ),
+            ).rejects.toThrow();
+        });
+    });
+
+    describe("rollbackMetaEnvelope mutation", () => {
+        const ROLLBACK = `
+            mutation Rollback($id: ID!, $version: Int!) {
+                rollbackMetaEnvelope(id: $id, version: $version) {
+                    metaEnvelope { id parsed }
+                    version
+                    restoredFromVersion
+                    errors { field message code }
+                }
+            }
+        `;
+        const USER = "@undo-e2e-user";
+
+        const create = async (payload: Record<string, unknown>) => {
+            const result = await makeGraphQLRequest(
+                server,
+                `mutation Create($input: MetaEnvelopeInput!) {
+                    createMetaEnvelope(input: $input) { metaEnvelope { id } }
+                }`,
+                { input: { ontology: "RollbackE2EOntology", payload, acl: ["*"] } },
+                getAuthHeaders(),
+            );
+            return result.createMetaEnvelope.metaEnvelope.id as string;
+        };
+
+        it("restores an earlier version, recording who asked for it", async () => {
+            const id = await create({ title: "first" });
+            await makeGraphQLRequest(
+                server,
+                `mutation Update($id: ID!, $input: MetaEnvelopeInput!) {
+                    updateMetaEnvelope(id: $id, input: $input) { errors { message } }
+                }`,
+                {
+                    id,
+                    input: {
+                        ontology: "RollbackE2EOntology",
+                        payload: { title: "second", extra: true },
+                        acl: ["*"],
+                    },
+                },
+                getAuthHeaders(),
+            );
+
+            const result = await makeGraphQLRequest(
+                server,
+                ROLLBACK,
+                { id, version: 1 },
+                { ...getAuthHeaders(), "X-ON-BEHALF-OF": USER },
+            );
+            expect(result.rollbackMetaEnvelope.errors).toEqual([]);
+            expect(result.rollbackMetaEnvelope.version).toBe(3);
+            expect(result.rollbackMetaEnvelope.restoredFromVersion).toBe(1);
+            expect(result.rollbackMetaEnvelope.metaEnvelope.parsed).toEqual({
+                title: "first",
+            });
+
+            const history = await makeGraphQLRequest(
+                server,
+                `query History($id: ID!) {
+                    metaEnvelopeHistory(id: $id) {
+                        edges { node { version operation author restoredFromVersion parsed } }
+                    }
+                }`,
+                { id },
+                getAuthHeaders(),
+            );
+            expect(history.metaEnvelopeHistory.edges[0].node).toEqual({
+                version: 3,
+                operation: "update",
+                author: USER,
+                restoredFromVersion: 1,
+                parsed: { title: "first" },
+            });
+
+            // The operation log carries the author too. It is written
+            // best-effort after the response, so give it a moment.
+            let entry: any;
+            for (let attempt = 0; attempt < 20 && !entry; attempt++) {
+                const logs = await fetch(
+                    `http://localhost:${server.fastifyPort}/logs?limit=100`,
+                    { headers: { "X-ENAME": evault.w3id } },
+                ).then((r) => r.json());
+                entry = logs.logs.find(
+                    (l: any) => l.metaEnvelopeId === id && l.author === USER,
+                );
+                if (!entry) await new Promise((r) => setTimeout(r, 100));
+            }
+            expect(entry?.operation).toBe("update");
+        });
+
+        it("brings back a removed record", async () => {
+            const id = await create({ title: "keep" });
+            await makeGraphQLRequest(
+                server,
+                `mutation Remove($id: ID!) { removeMetaEnvelope(id: $id) { success } }`,
+                { id },
+                getAuthHeaders(),
+            );
+
+            const result = await makeGraphQLRequest(
+                server,
+                ROLLBACK,
+                { id, version: 1 },
+                getAuthHeaders(),
+            );
+            expect(result.rollbackMetaEnvelope.errors).toEqual([]);
+            expect(result.rollbackMetaEnvelope.version).toBe(3);
+
+            const live = await makeGraphQLRequest(
+                server,
+                `query Live($id: ID!) { metaEnvelope(id: $id) { parsed } }`,
+                { id },
+                getAuthHeaders(),
+            );
+            expect(live.metaEnvelope.parsed).toEqual({ title: "keep" });
+        });
+
+        it("returns a structured error for an unknown version", async () => {
+            const id = await create({ title: "only" });
+            const result = await makeGraphQLRequest(
+                server,
+                ROLLBACK,
+                { id, version: 42 },
+                getAuthHeaders(),
+            );
+            expect(result.rollbackMetaEnvelope.metaEnvelope).toBeNull();
+            expect(result.rollbackMetaEnvelope.errors[0].code).toBe(
+                "VERSION_NOT_FOUND",
+            );
+        });
+
+        it("requires authentication", async () => {
+            await expect(
+                makeGraphQLRequest(
+                    server,
+                    ROLLBACK,
+                    { id: "any-id", version: 1 },
+                    { "X-ENAME": evault.w3id },
+                ),
+            ).rejects.toThrow();
+        });
+    });
+
     describe("Envelope.fieldKey resolver", () => {
         it("should return fieldKey as alias for ontology", async () => {
             const mutation = `

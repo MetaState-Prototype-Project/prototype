@@ -67,7 +67,7 @@ otherwise the mutation returns an error.
 | `acl`         | `[String!]!`| Access-control list for the created File Meta Envelope (e.g. `["*"]`).|
 
 Constraints: content must be valid base64 (malformed input is rejected) and the
-decoded size must not exceed **50 MB**.
+decoded size must not exceed **250 MB**.
 
 ### Payload — `UploadFilePayload`
 
@@ -92,6 +92,22 @@ where `size` is the decoded byte length, `blobKey` is the object-storage key
 > **Note:** this `w3ds-file-v1` storage envelope is **not** the same as the
 > platform-level `File` ontology (`a1b2c3d4-e5f6-7890-abcd-ef1234567890`). See
 > [File ontology vs. `w3ds-file-v1`](#file-ontology-vs-w3ds-file-v1) below.
+
+### Awareness
+
+`uploadFile` dispatches an awareness packet like every other write, with
+`schemaId: "w3ds-file-v1"`, `operation: "create"`, and `data` set to the stored
+payload verbatim. Consuming that packet is how a platform learns about a new
+blob — there is no need to mirror the upload as a second envelope under the
+`File` ontology just to make it observable.
+
+The packet `id` is the File Meta Envelope ID and `w3id` is the owner eName, so a
+consumer can address the blob as `w3ds://file?id=<w3id>/<id>` without a further
+round trip.
+
+Note that `w3ds-file-v1` is a slug, not a UUID. An AaaS subscription that
+narrows by ontology must list the literal string; catch-all subscriptions (empty
+`ontologyFilter`) receive it either way.
 
 ### Example
 

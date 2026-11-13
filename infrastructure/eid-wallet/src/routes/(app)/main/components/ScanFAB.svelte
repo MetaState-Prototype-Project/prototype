@@ -1,5 +1,6 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
+import { m } from "$lib/i18n";
 import { CameraPermissionDialog } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { QRIcon } from "$lib/ui/icons";
@@ -79,7 +80,7 @@ function handleGoBack() {
         callback={handleScanClick}
         disabled={busy}
     >
-        Scan
+        {m.common_scan()}
         <QRIcon size={24} class="ml-2.5" />
     </Button.Action>
 </div>
@@ -88,6 +89,6 @@ function handleGoBack() {
     isOpen={permissionDialogOpen}
     onOpenSettings={handleOpenSettings}
     onGoBack={handleGoBack}
-    title="Camera Access Required"
-    description="To scan QR codes, please grant camera permission in your device settings."
+    title={m.camera_permission_title()}
+    description={m.scan_camera_permission_description()}
 />

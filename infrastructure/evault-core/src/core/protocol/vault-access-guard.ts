@@ -1,6 +1,15 @@
 import axios from "axios";
 import type { YogaInitialContext } from "graphql-yoga";
-import * as jose from "jose";
+import {
+    type ConditionEvaluator,
+    evaluate,
+    type GroupResolver,
+    Permission,
+    type PermissionBits,
+    type Principal,
+    resolveAclBlock,
+} from "../acl";
+import { verifyRegistryToken } from "../auth/registry-token";
 import type { DbService } from "../db/db.service";
 import type { MetaEnvelope } from "../db/types";
 import { timed } from "../utils/timing";
@@ -9,18 +18,144 @@ export type VaultContext = YogaInitialContext & {
     currentUser: string | null;
     tokenPayload?: any;
     eName: string | null;
+    /**
+     * The user a platform declares it is acting for, from `X-ON-BEHALF-OF`.
+     * An assertion, not a proof — see {@link VaultAccessGuard.principalFor}.
+     */
+    onBehalfOf?: string | null;
 };
 
-type CachedJWKS = {
-    jwks: ReturnType<typeof jose.createLocalJWKSet>;
-    expiresAt: number;
-};
-const jwksCache = new Map<string, CachedJWKS>();
-const JWKS_TTL_MS = 24 * 60 * 60 * 1000;
+/**
+ * Party references are `@<uuid>`. Anything else is not an identity we will
+ * authorize against — notably a JWT `kid`, which for a Registry platform token
+ * is a signing-key id rather than a party.
+ */
+export function isEName(value: unknown): value is string {
+    return typeof value === "string" && value.startsWith("@") && value.length > 1;
+}
+
 const JWKS_FETCH_TIMEOUT_MS = 5000;
+const PLATFORM_PROFILE_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440000";
 
 export class VaultAccessGuard {
-    constructor(private db: DbService) {}
+    /**
+     * @param conditionEvaluator - Resolves Resource Link Ontology conditions.
+     *   Without one, any record whose policy carries conditions is decided
+     *   fail-closed: a `require` group with conditions cannot pass, and a deny
+     *   condition always applies.
+     */
+    constructor(
+        private db: DbService,
+        private conditionEvaluator?: ConditionEvaluator,
+        private groupResolver?: GroupResolver,
+    ) {}
+
+    /** The collaborators policy evaluation may call out to. */
+    private get aclDeps() {
+        return {
+            conditions: this.conditionEvaluator,
+            groups: this.groupResolver,
+        };
+    }
+
+    /**
+     * The party a request acts as.
+     *
+     * A user identity is the party when there is one, with the calling
+     * platform recorded alongside it so that a platform-level grant or denial
+     * still applies at its own specificity. Otherwise the platform itself is
+     * the party.
+     *
+     * Group membership is not resolved yet, so a grant or denial naming a
+     * group matches nothing. For grants that is fail-closed; for denials it is
+     * fail-open, so group denials are not usable until a membership lookup is
+     * wired in here.
+     */
+    private principalFor(context: VaultContext): Principal | null {
+        const platform = isEName(context.tokenPayload?.platform)
+            ? context.tokenPayload.platform
+            : undefined;
+
+        // A platform may declare the user it acts for. The token proves the
+        // platform, not the user, so this is the platform's assertion and is
+        // only as trustworthy as the platform making it. It cannot be used to
+        // escape a denial: denials match the carrying platform too.
+        const asserted = isEName(context.onBehalfOf)
+            ? context.onBehalfOf
+            : undefined;
+
+        // currentUser comes from the JWT `kid`. For a wallet-signed token that
+        // is the user's W3ID; for a Registry platform token it is a key id, so
+        // it is only accepted when it actually looks like a party.
+        const user =
+            asserted ?? (isEName(context.currentUser) ? context.currentUser : undefined);
+
+        if (user) {
+            return { ename: user, kind: "user", platform };
+        }
+        if (platform) {
+            return { ename: platform, kind: "platform" };
+        }
+        return null;
+    }
+
+    private bearerToken(context: VaultContext): string | undefined {
+        const authHeader =
+            context.request?.headers?.get("authorization") ??
+            context.request?.headers?.get("Authorization");
+        return authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : undefined;
+    }
+
+    /**
+     * Migrated PlatformProfiles have one Registry-recorded manager. This check
+     * is intentionally scoped to that ontology so PPA decisions and every
+     * unrelated eVault document keep their existing authorization behavior.
+     */
+    private async validateManagedProfileWrite(
+        context: VaultContext,
+        input: { ontology?: unknown } | undefined,
+        envelopeId?: string,
+    ): Promise<void> {
+        if (input?.ontology !== PLATFORM_PROFILE_ONTOLOGY) return;
+        if (!context.eName) throw new Error("X-ENAME header is required for a platform profile write");
+        const registryUrl = process.env.PUBLIC_REGISTRY_URL || process.env.REGISTRY_URL;
+        const sharedSecret = process.env.REGISTRY_SHARED_SECRET;
+        if (!registryUrl || !sharedSecret) {
+            throw new Error("Managed platform profile authorization is unavailable");
+        }
+        try {
+            const response = await axios.post(
+                new URL("/platforms/management/authorize-profile-write", registryUrl).toString(),
+                {
+                    ename: context.eName,
+                    ontology: input.ontology,
+                    ...(envelopeId && { envelopeId }),
+                    ...(this.bearerToken(context) && { token: this.bearerToken(context) }),
+                },
+                {
+                    timeout: JWKS_FETCH_TIMEOUT_MS,
+                    headers: { Authorization: `Bearer ${sharedSecret}` },
+                },
+            );
+            if (response.data?.managed && !response.data?.allowed) {
+                throw new Error(response.data?.reason || "The platform profile is managed by another publisher");
+            }
+        } catch (error) {
+            if (error instanceof Error && (
+                error.message === "The platform profile is managed by another publisher" ||
+                error.message === "The legacy platform token was revoked during migration" ||
+                error.message === "The token is not the active platform manager" ||
+                error.message === "A platform manager token is required" ||
+                error.message === "The managed platform profile has a different envelope ID"
+            )) {
+                throw error;
+            }
+            const reason = axios.isAxiosError(error) && typeof error.response?.data?.error === "string"
+                ? error.response.data.error
+                : "Registry management verification failed";
+            throw new Error(reason);
+        }
+    }
 
     /**
      * Validates JWT token from Authorization header
@@ -37,38 +172,7 @@ export class VaultAccessGuard {
         const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
         try {
-            const registryUrl =
-                process.env.PUBLIC_REGISTRY_URL || process.env.REGISTRY_URL;
-            if (!registryUrl) {
-                console.error("PUBLIC_REGISTRY_URL or REGISTRY_URL is not set");
-                return null;
-            }
-
-            const jwksUrl = new URL(
-                `/.well-known/jwks.json`,
-                registryUrl,
-            ).toString();
-
-            const now = Date.now();
-            let cached = jwksCache.get(jwksUrl);
-            if (!cached || cached.expiresAt <= now) {
-                const jwksResponse = await timed(
-                    "guard.validateToken.fetchJWKS",
-                    () =>
-                        axios.get(jwksUrl, {
-                            timeout: JWKS_FETCH_TIMEOUT_MS,
-                        }),
-                );
-                cached = {
-                    jwks: jose.createLocalJWKSet(jwksResponse.data),
-                    expiresAt: now + JWKS_TTL_MS,
-                };
-                jwksCache.set(jwksUrl, cached);
-            }
-
-            const { payload } = await jose.jwtVerify(token, cached.jwks);
-
-            return payload;
+            return await verifyRegistryToken(token);
         } catch (error) {
             console.error("Token validation failed:", error);
             return null;
@@ -140,6 +244,8 @@ export class VaultAccessGuard {
     private async checkAccess(
         metaEnvelopeId: string,
         context: VaultContext,
+        action: PermissionBits = Permission.READ,
+        includePruned = false,
     ): Promise<{ hasAccess: boolean; exists: boolean }> {
         // Reuse token payload already validated by validateAuthentication() earlier
         // in the middleware; only re-validate as a fallback (e.g. store operations
@@ -153,48 +259,69 @@ export class VaultAccessGuard {
         }
 
         if (tokenPayload) {
-            // Token is valid, set platform context and allow access
             context.tokenPayload = tokenPayload;
-            // Still need to check if envelope exists
-            if (!context.eName) {
-                return { hasAccess: true, exists: false };
-            }
-            const metaEnvelope = await this.db.findMetaEnvelopeById(
-                metaEnvelopeId,
-                context.eName,
-            );
-            return { hasAccess: true, exists: metaEnvelope !== null };
         }
 
-        // Validate eName is present
         if (!context.eName) {
+            // With no vault addressed there is no record to load, so a valid
+            // token is all there is to go on.
+            if (tokenPayload) {
+                return { hasAccess: true, exists: false };
+            }
             throw new Error("X-ENAME header is required for access control");
         }
 
-        const metaEnvelope = await this.db.findMetaEnvelopeById(
-            metaEnvelopeId,
-            context.eName,
-        );
+        // A pruned record is gone from live reads, but its history is still
+        // guarded by the policy it last carried rather than left open.
+        const metaEnvelope =
+            (await this.db.findMetaEnvelopeById(
+                metaEnvelopeId,
+                context.eName,
+            )) ??
+            (includePruned
+                ? await this.db.getLatestMetaEnvelopeVersionAcl(
+                      metaEnvelopeId,
+                      context.eName,
+                  )
+                : null);
         if (!metaEnvelope) {
-            return { hasAccess: false, exists: false };
+            return { hasAccess: tokenPayload !== null, exists: false };
         }
 
-        // Fallback to original ACL logic if no valid token
-        if (!context.currentUser) {
-            if (metaEnvelope.acl.includes("*")) {
-                return { hasAccess: true, exists: true };
+        // A record carrying an explicit policy is decided by that policy, for
+        // every caller. A platform token does not bypass the owner's rules --
+        // that bypass is exactly what the granular model exists to close.
+        if (metaEnvelope._acl) {
+            const principal = this.principalFor(context);
+            if (!principal) {
+                return { hasAccess: false, exists: true };
             }
-            return { hasAccess: false, exists: true };
+            const decision = await evaluate(
+                metaEnvelope._acl,
+                principal,
+                action,
+                this.aclDeps,
+            );
+            return { hasAccess: decision.allowed, exists: true };
         }
 
-        // If ACL contains "*", anyone can access
-        if (metaEnvelope.acl.includes("*")) {
+        // Records written before the _acl block keep their original behaviour
+        // unchanged: a valid platform token suffices, otherwise the legacy
+        // array decides. Nothing is narrowed until an owner sets a policy.
+        if (tokenPayload) {
             return { hasAccess: true, exists: true };
         }
 
-        // Check if the current user's ID is in the ACL
-        const hasAccess = metaEnvelope.acl.includes(context.currentUser);
-        return { hasAccess, exists: true };
+        if (metaEnvelope.acl.includes("*")) {
+            return { hasAccess: true, exists: true };
+        }
+        if (!context.currentUser) {
+            return { hasAccess: false, exists: true };
+        }
+        return {
+            hasAccess: metaEnvelope.acl.includes(context.currentUser),
+            exists: true,
+        };
     }
 
     /**
@@ -208,8 +335,12 @@ export class VaultAccessGuard {
         if (typeof metaEnvelope !== "object") {
             return metaEnvelope;
         }
-        const { acl, ...filtered } = metaEnvelope;
-        return filtered;
+        const { acl, _acl, ...filtered } = metaEnvelope;
+        if (acl === undefined && _acl === undefined) return filtered;
+        // The policy is readable by anyone who may read the record. The legacy
+        // array is not surfaced as such — a record carrying only an array is
+        // shown as the policy it is actually enforced as.
+        return { ...filtered, _acl: resolveAclBlock({ _acl, acl }) };
     }
 
     /**
@@ -222,11 +353,26 @@ export class VaultAccessGuard {
         envelopes: MetaEnvelope[],
         context: VaultContext,
     ): Promise<any[]> {
+        const principal = this.principalFor(context);
         const filteredEnvelopes = [];
         for (const envelope of envelopes) {
-            const hasAccess =
-                envelope.acl.includes("*") ||
-                envelope.acl.includes(context.currentUser ?? "");
+            let hasAccess: boolean;
+            if (envelope._acl) {
+                hasAccess = principal
+                    ? (
+                          await evaluate(
+                              envelope._acl,
+                              principal,
+                              Permission.READ,
+                              this.aclDeps,
+                          )
+                      ).allowed
+                    : false;
+            } else {
+                hasAccess =
+                    envelope.acl.includes("*") ||
+                    envelope.acl.includes(context.currentUser ?? "");
+            }
             if (hasAccess) {
                 filteredEnvelopes.push(this.filterACL(envelope));
             }
@@ -237,6 +383,8 @@ export class VaultAccessGuard {
     /**
      * Middleware function to check access before executing a resolver
      * @param resolver - The resolver function to wrap
+     * @param options.includePruned - Decide access for a pruned record by the
+     *   policy recorded in its history (used by history reads)
      * @returns A wrapped resolver that checks access before executing
      */
     public middleware<T, Args extends { [key: string]: any }>(
@@ -245,6 +393,8 @@ export class VaultAccessGuard {
             args: Args,
             context: VaultContext,
         ) => Promise<any>,
+        action: PermissionBits = Permission.READ,
+        options: { includePruned?: boolean } = {},
     ) {
         return async (parent: T, args: Args, context: VaultContext) => {
             // Check if this is storeMetaEnvelope operation (has input with ontology, payload, acl)
@@ -255,6 +405,10 @@ export class VaultAccessGuard {
                 "payload" in args.input &&
                 "acl" in args.input &&
                 !args.id; // storeMetaEnvelope doesn't have id, updateMetaEnvelopeById does
+
+            await timed("guard.validateManagedProfileWrite", () =>
+                this.validateManagedProfileWrite(context, args.input, args.id),
+            );
 
             // CRITICAL: Validate authentication BEFORE executing any resolver
             await timed("guard.validateAuthentication", () =>
@@ -295,7 +449,12 @@ export class VaultAccessGuard {
 
             // Check if envelope exists and user has access
             const { hasAccess, exists } = await timed("guard.checkAccess", () =>
-                this.checkAccess(metaEnvelopeId, context),
+                this.checkAccess(
+                    metaEnvelopeId,
+                    context,
+                    action,
+                    options.includePruned ?? false,
+                ),
             );
 
             // For update operations with input, allow in-place creation if envelope doesn't exist

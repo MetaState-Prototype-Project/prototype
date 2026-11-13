@@ -4,11 +4,16 @@ import axios from "axios";
 import fastify, { type FastifyInstance } from "fastify";
 import * as jose from "jose";
 import type {
+    PreviewProvisionRequest,
     ProvisionRequest,
     ProvisioningService,
 } from "../../services/ProvisioningService";
 import { DbService } from "../db/db.service";
 import { ProtectedZoneService } from "../db/protected-zone.service";
+import {
+    ManifestService,
+    type ResolvedManifest,
+} from "../manifest/manifest.service";
 import { connectWithRetry } from "../db/retry-neo4j";
 import { validatePassphraseStrength } from "../utils/passphrase";
 import { getProvisionerJwk } from "../utils/provisioner-signer";
@@ -94,6 +99,8 @@ export async function registerHttpRoutes(
         },
     );
 
+    const manifestService = dbService ? new ManifestService(dbService) : null;
+
     // Whois endpoint - returns both W3ID identifier and public key
     server.get(
         "/whois",
@@ -117,6 +124,21 @@ export async function registerHttpRoutes(
                             keyBindingCertificates: {
                                 type: "array",
                                 items: { type: "string" },
+                            },
+                            type: {
+                                type: ["string", "null"],
+                                enum: ["user", "group", "company", null],
+                            },
+                            manifest: {
+                                type: ["object", "null"],
+                                properties: {
+                                    id: { type: "string" },
+                                    ontology: { type: "string" },
+                                    parsed: {
+                                        type: "object",
+                                        additionalProperties: true,
+                                    },
+                                },
                             },
                         },
                     },
@@ -236,10 +258,23 @@ export async function registerHttpRoutes(
                     }
                 }
             }
+            // The manifest is public by definition: it is served here
+            // regardless of its ACL, which still governs GraphQL reads.
+            let resolved: ResolvedManifest = { type: null, manifest: null };
+            if (manifestService) {
+                try {
+                    resolved = await manifestService.resolve(eName);
+                } catch (error) {
+                    console.error("Error resolving eVault manifest:", error);
+                }
+            }
+
             const result = {
                 w3id: eName,
                 evaultId,
                 keyBindingCertificates: keyBindingCertificates,
+                type: resolved.type,
+                manifest: resolved.manifest,
             };
             return result;
         },
@@ -290,6 +325,7 @@ export async function registerHttpRoutes(
                                         envelopeHash: { type: "string" },
                                         operation: { type: "string" },
                                         platform: { type: ["string", "null"] },
+                                        author: { type: ["string", "null"] },
                                         timestamp: { type: "string" },
                                         ontology: { type: "string" },
                                     },
@@ -1060,6 +1096,29 @@ export async function registerHttpRoutes(
 
     // Provision eVault endpoint
     if (provisioningService) {
+        server.post<{ Body: PreviewProvisionRequest }>(
+            "/provision/preview",
+            {
+                schema: {
+                    tags: ["provisioning"],
+                    description: "Preview an eVault eName without provisioning it",
+                    body: {
+                        type: "object",
+                        required: ["registryEntropy", "namespace"],
+                        properties: {
+                            registryEntropy: { type: "string" },
+                            namespace: { type: "string" },
+                        },
+                    },
+                },
+            },
+            async (request: TypedRequest<PreviewProvisionRequest>, reply: TypedReply) => {
+                const result = await provisioningService.previewEVault(request.body);
+                if (!result.success) return reply.status(400).send(result);
+                return result;
+            },
+        );
+
         server.post<{ Body: ProvisionRequest }>(
             "/provision",
             {

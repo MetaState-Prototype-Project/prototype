@@ -203,4 +203,6 @@ The [Provisioner](/docs/W3DS%20Basics/Links) hosts `/provision`; the [Registry](
 - Understand [Authentication](/docs/W3DS%20Protocol/Authentication) - How users authenticate with platforms
 - Learn about [Signing](/docs/W3DS%20Protocol/Signing) - Signature creation and verification
 - Explore [Signature Formats](/docs/W3DS%20Protocol/Signature-Formats) - Technical details on cryptographic signatures
+- Read the [Data Ownership Rules](/docs/W3DS%20Basics/Data-Ownership-Rules) - Where data lives, and why the eVault is the source of truth
 - Build a platform with the [Post Platform Guide](/docs/Post%20Platform%20Guide/getting-started) - Step-by-step guide to creating a W3DS-compatible platform
+- Building with an AI coding agent? Load the [W3DS agent skill](/docs/Post%20Platform%20Guide/ai-agent-skill) first - it keeps the agent grounded in these docs instead of guessing

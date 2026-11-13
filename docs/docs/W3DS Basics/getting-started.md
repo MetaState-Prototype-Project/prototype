@@ -149,13 +149,16 @@ mutation CreateMetaEnvelope($input: MetaEnvelopeInput!) {
 
 The [eVault](/docs/Infrastructure/eVault) stores the data as a [MetaEnvelope](/docs/Infrastructure/eVault#data-model), which is a flat graph structure of Envelopes. Each field becomes a separate Envelope node in Neo4j.
 
-#### 6. Webhook Delivery (After 3 Second Delay)
+#### 6. Durable Webhook Delivery
 
-After a 3-second delay (to prevent webhook ping-pong), the [eVault](/docs/Infrastructure/eVault) sends webhooks to all registered platforms (see [Registry](/docs/Infrastructure/Registry)) **except** the one that made the request (Blabsy).
+The eVault commits an outbox event with the MetaEnvelope write. AaaS ingests it,
+then sends it to matching platforms **except** the one that made the request
+(Blabsy). Both handoffs are restart-safe and retry automatically.
 
 The webhook payload contains:
 ```json
 {
+    "eventId": "7fd6c06c-80ae-4137-9d62-c15af53f92cf",
     "id": "global-id-123",
     "w3id": "@user-a.w3id",
     "schemaId": "550e8400-e29b-41d4-a716-446655440001",
@@ -164,7 +167,10 @@ The webhook payload contains:
         "mediaUrls": [],
         "authorId": "...",
         "createdAt": "2025-01-24T10:00:00Z"
-    }
+    },
+    "operation": "create",
+    "streamVersion": 1,
+    "occurredAt": "2026-09-15T03:00:00.000Z"
 }
 ```
 

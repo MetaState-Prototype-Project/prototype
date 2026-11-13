@@ -24,11 +24,85 @@ export interface ProvisionResponse {
     existingW3id?: string;
 }
 
+export interface PreviewProvisionRequest {
+    registryEntropy: string;
+    namespace: string;
+}
+
+export interface PreviewProvisionResponse {
+    success: boolean;
+    w3id?: string;
+    message?: string;
+    error?: string;
+}
+
 export class ProvisioningService {
     constructor(private verificationService: VerificationService) {}
 
     private normalizeDocumentNumber(value: unknown): string {
         return typeof value === "string" ? value.trim().toUpperCase() : "";
+    }
+
+    private async deriveEVaultEName(
+        registryEntropy: string,
+        namespace: string,
+    ): Promise<string> {
+        if (!process.env.PUBLIC_REGISTRY_URL) {
+            throw new Error("PUBLIC_REGISTRY_URL is not set");
+        }
+        if (!registryEntropy || !namespace) {
+            throw new Error("registryEntropy and namespace are required");
+        }
+        if (!uuidValidate(namespace)) {
+            throw new Error("Namespace must be a valid UUID");
+        }
+
+        let entropy: string;
+        try {
+            const jwksResponse = await axios.get(
+                new URL("/.well-known/jwks.json", process.env.PUBLIC_REGISTRY_URL).toString(),
+            );
+            const JWKS = jose.createLocalJWKSet(jwksResponse.data);
+            const verified = await jose.jwtVerify(registryEntropy, JWKS);
+            entropy = verified.payload.entropy as string;
+        } catch (jwtError) {
+            throw new Error(
+                `JWT verification failed: ${jwtError instanceof Error ? jwtError.message : String(jwtError)}`,
+            );
+        }
+        if (!entropy) throw new Error("Registry entropy token has no entropy");
+
+        try {
+            return (await new W3IDBuilder()
+                .withNamespace(namespace)
+                .withEntropy(entropy)
+                .withGlobal(true)
+                .build()).id;
+        } catch (w3idError) {
+            throw new Error(
+                `Failed to generate W3ID from entropy: ${w3idError instanceof Error ? w3idError.message : String(w3idError)}`,
+            );
+        }
+    }
+
+    async previewEVault(
+        request: PreviewProvisionRequest,
+    ): Promise<PreviewProvisionResponse> {
+        try {
+            return {
+                success: true,
+                w3id: await this.deriveEVaultEName(
+                    request.registryEntropy,
+                    request.namespace,
+                ),
+            };
+        } catch (error) {
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                message: "Failed to preview eVault identity",
+            };
+        }
     }
 
     private async checkForDuplicateIdentity(
@@ -419,55 +493,11 @@ export class ProvisioningService {
                 console.log(`[PROVISIONING] Keyless eVault provisioning (no publicKey provided)`);
             }
 
-            // Verify the registry entropy token
-            let payload: any;
-            try {
-                const jwksResponse = await axios.get(
-                    new URL(
-                        `/.well-known/jwks.json`,
-                        process.env.PUBLIC_REGISTRY_URL,
-                    ).toString(),
-                );
-
-                const JWKS = jose.createLocalJWKSet(jwksResponse.data);
-                const verified = await jose.jwtVerify(registryEntropy, JWKS);
-                payload = verified.payload;
-            } catch (jwtError) {
-                // If JWT verification fails, re-throw with a clearer message
-                // but preserve the original error for debugging
-                throw new Error(
-                    `JWT verification failed: ${jwtError instanceof Error
-                        ? jwtError.message
-                        : String(jwtError)
-                    }`,
-                );
-            }
-
-            if (!uuidValidate(namespace)) {
-                return {
-                    success: false,
-                    error: "Invalid namespace",
-                    message: "Namespace must be a valid UUID",
-                };
-            }
-
             let w3id: string;
             try {
-                const userId = await new W3IDBuilder()
-                    .withNamespace(namespace)
-                    .withEntropy(payload.entropy as string)
-                    .withGlobal(true)
-                    .build();
-                w3id = userId.id;
+                w3id = await this.deriveEVaultEName(registryEntropy, namespace);
             } catch (w3idError) {
-                // If W3ID generation fails, it's likely an entropy format issue
-                // Re-throw with clearer message, but let verification errors take precedence
-                throw new Error(
-                    `Failed to generate W3ID from entropy: ${w3idError instanceof Error
-                        ? w3idError.message
-                        : String(w3idError)
-                    }`,
-                );
+                throw w3idError;
             }
 
             // Validate verification if not demo code

@@ -2,6 +2,7 @@
 import { goto } from "$app/navigation";
 import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
 import type { GlobalState } from "$lib/global";
+import { m } from "$lib/i18n";
 import { getContext, onDestroy, onMount } from "svelte";
 import type { SVGAttributes } from "svelte/elements";
 import { get } from "svelte/store";
@@ -18,6 +19,8 @@ const { stores, actions } = createScanLogic({ globalState, goto });
 
 const {
     platform,
+    platformDisplayName,
+    platformLogo,
     hostname,
     codeScannedDrawerOpen,
     loggedInDrawerOpen,
@@ -168,7 +171,7 @@ function handleSocialBindingOpenChange(value: boolean) {
 }
 </script>
 
-<AppNav title="Scan QR Code" titleClasses="text-white" />
+<AppNav title={m.scan_title()} titleClasses="text-white" />
 
 <div
     class="flex flex-col justify-center items-center min-h-[calc(100vh-200px)] pb-20"
@@ -191,13 +194,15 @@ function handleSocialBindingOpenChange(value: boolean) {
     </svg>
 
     <h4 class="text-white font-semibold text-center mt-20">
-        Point the camera at the code
+        {m.scan_hint()}
     </h4>
 </div>
 
 <AuthDrawer
     isOpen={$codeScannedDrawerOpen}
     platform={$platform}
+    displayName={$platformDisplayName}
+    logoUrl={$platformLogo}
     hostname={$hostname}
     scannedContent={$scannedData?.content}
     isFromScan={$isFromScan}
@@ -212,6 +217,8 @@ function handleSocialBindingOpenChange(value: boolean) {
 <LoggedInDrawer
     isOpen={$loggedInDrawerOpen}
     platform={$platform}
+    displayName={$platformDisplayName}
+    logoUrl={$platformLogo}
     hostname={$hostname}
     redirect={$redirect}
     onConfirm={handleLoggedInDrawerConfirm}

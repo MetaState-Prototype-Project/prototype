@@ -1,163 +1,373 @@
 {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "schemaId": "b1d0a8c3-4e5f-6789-0abc-def012345678",
-    "title": "Binding Document",
-    "type": "object",
-    "properties": {
-        "subject": {
-            "type": "string",
-            "description": "eName of the subject (pre-fixed with @)"
-        },
-        "type": {
-            "type": "string",
-            "enum": ["id_document", "photograph", "social_connection", "self"],
-            "description": "The type of binding document"
-        },
-        "data": {
-            "type": "object",
-            "description": "Format dependent payload for the binding document"
-        },
-        "signatures": {
-            "type": "array",
-            "description": "Array of signatures from the user and counterparties",
-            "items": {
-                "$ref": "#/definitions/Signature"
-            }
-        }
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "b1d0a8c3-4e5f-6789-0abc-def012345678",
+  "title": "Binding Document",
+  "domain": "identity",
+  "type": "object",
+  "properties": {
+    "subject": {
+      "type": "string",
+      "description": "eName of the subject (pre-fixed with @)"
     },
-    "allOf": [
-        {
-            "if": {
-                "properties": { "type": { "const": "id_document" } },
-                "required": ["type"]
-            },
-            "then": {
-                "properties": { "data": { "$ref": "#/definitions/IdDocumentData" } }
-            }
-        },
-        {
-            "if": {
-                "properties": { "type": { "const": "photograph" } },
-                "required": ["type"]
-            },
-            "then": {
-                "properties": { "data": { "$ref": "#/definitions/PhotographData" } }
-            }
-        },
-        {
-            "if": {
-                "properties": { "type": { "const": "social_connection" } },
-                "required": ["type"]
-            },
-            "then": {
-                "properties": { "data": { "$ref": "#/definitions/SocialConnectionData" } }
-            }
-        },
-        {
-            "if": {
-                "properties": { "type": { "const": "self" } },
-                "required": ["type"]
-            },
-            "then": {
-                "properties": { "data": { "$ref": "#/definitions/SelfData" } }
-            }
-        }
-    ],
-    "definitions": {
-        "IdDocumentData": {
-            "type": "object",
-            "properties": {
-                "vendor": {
-                    "type": "string",
-                    "description": "Vendor name for the ID document verification"
-                },
-                "reference": {
-                    "type": "string",
-                    "description": "Reference ID from the vendor"
-                },
-                "name": {
-                    "type": "string",
-                    "description": "Name verified against the ID document"
-                }
-            },
-            "required": ["vendor", "reference", "name"],
-            "additionalProperties": false
-        },
-        "PhotographData": {
-            "type": "object",
-            "properties": {
-                "photoBlob": {
-                    "type": "string",
-                    "description": "Base64 encoded photo blob"
-                }
-            },
-            "required": ["photoBlob"],
-            "additionalProperties": false
-        },
-        "SocialConnectionData": {
-            "type": "object",
-            "properties": {
-                "kind": {
-                    "type": "string",
-                    "const": "social_connection",
-                    "description": "Discriminant for social connection data"
-                },
-                "name": {
-                    "type": "string",
-                    "description": "Name of the social connection"
-                },
-                "parties": {
-                    "type": "array",
-                    "items": { "type": "string", "pattern": "^@[^\\s]+$" },
-                    "minItems": 2,
-                    "maxItems": 2,
-                    "description": "eNames of both participants"
-                },
-                "relation_description": {
-                    "type": "string",
-                    "description": "Arbitrary text describing the relationship"
-                }
-            },
-            "required": ["kind", "name", "parties", "relation_description"],
-            "additionalProperties": false
-        },
-        "SelfData": {
-            "type": "object",
-            "properties": {
-                "kind": {
-                    "type": "string",
-                    "const": "self",
-                    "description": "Discriminant for self data"
-                },
-                "name": {
-                    "type": "string",
-                    "description": "Self-declared name"
-                }
-            },
-            "required": ["kind", "name"],
-            "additionalProperties": false
-        },
-        "Signature": {
-            "type": "object",
-            "properties": {
-                "signer": {
-                    "type": "string",
-                    "description": "eName or keyID of who signed it"
-                },
-                "signature": {
-                    "type": "string",
-                    "description": "Cryptographic signature"
-                },
-                "timestamp": {
-                    "type": "string",
-                    "format": "date-time",
-                    "description": "When the signature was created"
-                }
-            },
-            "required": ["signer", "signature", "timestamp"],
-            "additionalProperties": false
-        }
+    "type": {
+      "type": "string",
+      "enum": [
+        "id_document",
+        "photograph",
+        "social_connection",
+        "self",
+        "personal_parameters",
+        "security_question",
+        "deployment_key",
+        "software_version",
+        "consent"
+      ],
+      "description": "The type of binding document"
     },
-    "required": ["subject", "type", "data", "signatures"],
-    "additionalProperties": false
+    "data": {
+      "type": "object",
+      "description": "Format dependent payload for the binding document"
+    },
+    "signatures": {
+      "type": "array",
+      "description": "Array of signatures from the user and counterparties",
+      "items": {
+        "$ref": "#/definitions/Signature"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "id_document"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/definitions/IdDocumentData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "photograph"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/definitions/PhotographData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "social_connection"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/definitions/SocialConnectionData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "self"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/definitions/SelfData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "deployment_key" } },
+        "required": ["type"]
+      },
+      "then": {
+        "properties": { "data": { "$ref": "#/definitions/DeploymentKeyData" } }
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "software_version" } },
+        "required": ["type"]
+      },
+      "then": {
+        "properties": { "data": { "$ref": "#/definitions/SoftwareVersionData" } }
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "consent" } },
+        "required": ["type"]
+      },
+      "then": {
+        "properties": { "data": { "$ref": "#/definitions/ConsentData" } }
+      }
+    }
+  ],
+  "definitions": {
+    "ConsentData": {
+      "description": "A person's consent to one specific proposal in a SignatureRequest, kept as a BindingDocument in their own vault. The platform that created the request creates the document (its own signature is the owner signature); the subject consents by adding their signature as the counterparty, which for this type must be the subject. Both signatures cover the BindingDocument's canonical form, so the consent names exactly this request, this slot and this proposal. Declining is deleting the document.",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "consent",
+          "description": "Discriminant for consent data."
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What the subject agrees to, in words, shown by their wallet before they sign, e.g. \"Become head of Test Org (requested by @Sarah)\"."
+        },
+        "requestOwnerEName": {
+          "type": "string",
+          "pattern": "^@[^\\s]+$",
+          "description": "eName of the vault holding the SignatureRequest."
+        },
+        "requestId": {
+          "type": "string",
+          "description": "MetaEnvelope id of the SignatureRequest."
+        },
+        "slotId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The request slot this consent fills."
+        },
+        "requesterEName": {
+          "type": "string",
+          "pattern": "^@[^\\s]+$",
+          "description": "eName of the person who asked for the change."
+        },
+        "proposal": {
+          "type": "object",
+          "description": "The proposal consented to, copied from the request, so the consent cannot be reused for a different change.",
+          "properties": {
+            "ontology": {
+              "type": "string",
+              "format": "uuid",
+              "description": "schemaId of the proposed record."
+            },
+            "recordId": {
+              "type": "string",
+              "description": "MetaEnvelope id the proposed record will be written under."
+            },
+            "recordSha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "description": "Hex SHA-256 of the proposed record's canonical JSON, as in the request."
+            }
+          },
+          "required": [
+            "ontology",
+            "recordId",
+            "recordSha256"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "statement",
+        "requestOwnerEName",
+        "requestId",
+        "slotId",
+        "requesterEName",
+        "proposal"
+      ],
+      "additionalProperties": false
+    },
+    "IdDocumentData": {
+      "type": "object",
+      "properties": {
+        "vendor": {
+          "type": "string",
+          "description": "Vendor name for the ID document verification"
+        },
+        "reference": {
+          "type": "string",
+          "description": "Reference ID from the vendor"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name verified against the ID document"
+        }
+      },
+      "required": [
+        "vendor",
+        "reference",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "PhotographData": {
+      "type": "object",
+      "properties": {
+        "photoBlob": {
+          "type": "string",
+          "description": "Base64 encoded photo blob"
+        }
+      },
+      "required": [
+        "photoBlob"
+      ],
+      "additionalProperties": false
+    },
+    "SocialConnectionData": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "social_connection",
+          "description": "Discriminant for social connection data"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the social connection"
+        },
+        "parties": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^@[^\\s]+$"
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "eNames of both participants"
+        },
+        "relation_description": {
+          "type": "string",
+          "description": "Arbitrary text describing the relationship"
+        }
+      },
+      "required": [
+        "kind",
+        "name",
+        "parties",
+        "relation_description"
+      ],
+      "additionalProperties": false
+    },
+    "SelfData": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "self",
+          "description": "Discriminant for self data"
+        },
+        "name": {
+          "type": "string",
+          "description": "Self-declared name"
+        }
+      },
+      "required": [
+        "kind",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "DeploymentKeyData": {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "deployment_key" },
+        "deploymentName": { "type": "string", "minLength": 1 },
+        "environment": { "type": "string", "minLength": 1 },
+        "deployerEname": { "type": "string", "pattern": "^@[^\\s]+$" },
+        "platformEname": { "type": "string", "pattern": "^@[^\\s]+$" },
+        "publicKey": { "type": "string", "pattern": "^z.+$" },
+        "algorithm": { "const": "ECDSA_P256" }
+      },
+      "required": ["kind", "deploymentName", "environment", "deployerEname", "platformEname", "publicKey", "algorithm"],
+      "additionalProperties": false
+    },
+    "SoftwareVersionData": {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "software_version" },
+        "platformEname": { "type": "string", "pattern": "^@[^\\s]+$" },
+        "versionEname": { "type": "string", "pattern": "^@[^\\s]+$" },
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$" },
+        "releaseTag": { "type": "string", "minLength": 1 },
+        "commitSha": { "type": "string", "pattern": "^[0-9a-fA-F]{40,64}$" }
+      },
+      "required": ["kind", "platformEname", "versionEname", "version", "releaseTag", "commitSha"],
+      "additionalProperties": false
+    },
+    "Signature": {
+      "type": "object",
+      "properties": {
+        "signer": {
+          "type": "string",
+          "description": "eName or keyID of who signed it"
+        },
+        "signature": {
+          "type": "string",
+          "description": "Cryptographic signature"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the signature was created"
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["document", "bundle"]
+        },
+        "signedPayload": {
+          "type": "string",
+          "description": "Canonical signed payload for a bundle-scoped signature"
+        }
+      },
+      "required": [
+        "signer",
+        "signature",
+        "timestamp"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "subject",
+    "type",
+    "data",
+    "signatures"
+  ],
+  "additionalProperties": false
 }

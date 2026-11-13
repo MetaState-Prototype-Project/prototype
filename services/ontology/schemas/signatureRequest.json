@@ -1,0 +1,212 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "schemaId": "d5874436-fb13-46b2-b0f1-f2882c261fa3",
+    "title": "SignatureRequest",
+    "domain": "governance",
+    "description": "A request that named people sign a proposed record before any platform writes it: a director granting someone a role (Delegation), a board change (Company), an admission or anything else that must not happen without the right people's consent. The canonical request lives in the vault of the party the proposed record belongs to (an organisation's vault for its Delegations), not in a platform database, so any platform can show it, chase the signers or complete it. A request is a document of intent: it changes nothing by itself. Two kinds of signature fill its slots: a grant (`w3ds-grant/v1`) over the proposed record itself, held here and later used as the written record's `authorization`; and a consent, which is a `consent` BindingDocument in the signer's own vault, so each person keeps the proof of what they agreed to. Once every slot is signed, a platform writes the proposed record and marks the request `executed`.",
+    "type": "object",
+    "properties": {
+        "ownerEName": {
+            "type": "string",
+            "pattern": "^@[^\\s]+$",
+            "description": "eName of the vault this request lives in, which is also the party the proposed record belongs to (e.g. the organisation)."
+        },
+        "requesterEName": {
+            "type": "string",
+            "pattern": "^@[^\\s]+$",
+            "description": "eName of the person who asked for the change."
+        },
+        "platformEName": {
+            "type": "string",
+            "pattern": "^@[^\\s]+$",
+            "description": "eName of the platform that created the request, which signers' wallets are sent back to."
+        },
+        "title": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Short human-readable summary, e.g. \"@Sarah wants @Xolani to become head\". Visible to every platform that can read the request."
+        },
+        "message": {
+            "type": "string",
+            "description": "Optional note from the requester to the signers."
+        },
+        "proposal": {
+            "type": "object",
+            "description": "The record that will be written once every slot is signed, exactly as it will be stored apart from any `authorization` block.",
+            "properties": {
+                "ontology": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "schemaId of the proposed record, e.g. Delegation's."
+                },
+                "recordId": {
+                    "type": "string",
+                    "description": "The MetaEnvelope id the record will be written under, chosen before anyone signs (signatures name it, so they cannot be moved onto another record)."
+                },
+                "vaultEName": {
+                    "type": "string",
+                    "pattern": "^@[^\\s]+$",
+                    "description": "eName of the vault the record will be written to. Usually ownerEName."
+                },
+                "operation": {
+                    "type": "string",
+                    "enum": ["create", "update"],
+                    "description": "create: a new record under recordId. update: a new version of the existing record recordId (e.g. revoking a Delegation)."
+                },
+                "record": {
+                    "type": "object",
+                    "description": "The proposed record without `authorization`. Signers sign over its hash, so it must not change once the request is created; a different proposal is a new request."
+                },
+                "recordSha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "description": "Hex SHA-256 of the canonical JSON of `record` (keys sorted at every level, undefined dropped), as in w3ds-grant/v1."
+                }
+            },
+            "required": [
+                "ontology",
+                "recordId",
+                "vaultEName",
+                "operation",
+                "record",
+                "recordSha256"
+            ],
+            "additionalProperties": false
+        },
+        "slots": {
+            "type": "array",
+            "minItems": 1,
+            "description": "The signatures the request needs. Every slot must be signed (by one of its eligible signers) for the request to be approved; one decline declines the request.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "slotId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Stable id of the slot within this request, named by the consent BindingDocument that fills it."
+                    },
+                    "capacity": {
+                        "type": "string",
+                        "enum": ["subject", "authority", "approver", "witness"],
+                        "description": "Why this signature is needed. subject: the person the change concerns consents to it. authority: someone entitled to make the change grants it (for a Delegation, a director). approver: someone whose agreement the platform's rules require. witness: attests without being a party."
+                    },
+                    "label": {
+                        "type": "string",
+                        "description": "Human-readable reason, e.g. \"the new head\" or \"a director\"."
+                    },
+                    "eligibleENames": {
+                        "type": "array",
+                        "minItems": 1,
+                        "uniqueItems": true,
+                        "items": { "type": "string", "pattern": "^@[^\\s]+$" },
+                        "description": "Who may fill the slot; any one of them is enough (e.g. every director, for \"a director\")."
+                    },
+                    "signatureKind": {
+                        "type": "string",
+                        "enum": ["grant", "consent"],
+                        "description": "grant: a w3ds-grant/v1 signature over the proposed record, kept in `grant` and used as the record's `authorization` when it is written (only for records that carry one). consent: a `consent` BindingDocument in the signer's own vault, named by `bindingDocumentId`."
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["pending", "signed", "declined"],
+                        "description": "pending until the slot's signature is recorded."
+                    },
+                    "signedBy": {
+                        "type": ["string", "null"],
+                        "pattern": "^@[^\\s]+$",
+                        "description": "eName of the eligible signer who filled the slot."
+                    },
+                    "respondedAt": {
+                        "type": ["string", "null"],
+                        "format": "date-time"
+                    },
+                    "grant": {
+                        "type": ["object", "null"],
+                        "description": "For grant slots: the signature, in the same shape as the authorization block of Role, Delegation and Company, ready to be copied onto the written record.",
+                        "properties": {
+                            "signerEName": {
+                                "type": "string",
+                                "pattern": "^@[^\\s]+$",
+                                "description": "The signer; equals signedBy."
+                            },
+                            "signedPayload": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "The exact w3ds-grant/v1 string that was signed, over proposal.record under proposal.recordId."
+                            },
+                            "signature": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "The eID wallet's signature over signedPayload."
+                            },
+                            "signedAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "description": "The signing time named inside signedPayload."
+                            }
+                        },
+                        "required": [
+                            "signerEName",
+                            "signedPayload",
+                            "signature",
+                            "signedAt"
+                        ],
+                        "additionalProperties": false
+                    },
+                    "bindingDocumentId": {
+                        "type": ["string", "null"],
+                        "description": "For consent slots: MetaEnvelope id of the `consent` BindingDocument in the vault of the eligible signer it was created for. The slot is signed once that document carries the signer's own signature."
+                    }
+                },
+                "required": [
+                    "slotId",
+                    "capacity",
+                    "eligibleENames",
+                    "signatureKind",
+                    "status"
+                ],
+                "additionalProperties": false
+            }
+        },
+        "status": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "approved",
+                "declined",
+                "withdrawn",
+                "expired",
+                "executed"
+            ],
+            "description": "pending: waiting for slots. approved: every slot signed, the record not yet written. executed: the proposed record was written under proposal.recordId. declined: a slot was declined. withdrawn: the requester (or a platform rule) cancelled it. expired: past expiresAt."
+        },
+        "statusReason": {
+            "type": "string",
+            "description": "Why the request ended up declined, withdrawn or expired, in words."
+        },
+        "expiresAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "After this, signatures are no longer collected."
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+        }
+    },
+    "required": [
+        "ownerEName",
+        "requesterEName",
+        "title",
+        "proposal",
+        "slots",
+        "status",
+        "createdAt",
+        "updatedAt"
+    ],
+    "additionalProperties": false
+}

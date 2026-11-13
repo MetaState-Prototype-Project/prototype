@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/339723ce-4771-48d6-a7e1-a0fdf736d584",
+  "schemaId": "339723ce-4771-48d6-a7e1-a0fdf736d584",
+  "title": "FieldLink",
+  "domain": "agriculture",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "recordedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "supersedes": {
+      "type": "string",
+      "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "deleted": {
+      "type": "boolean"
+    },
+    "logicalFieldRef": {
+      "type": "string",
+      "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "boundaryRef": {
+      "type": "string",
+      "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "relationType": {
+      "type": "string",
+      "enum": [
+        "represents"
+      ]
+    },
+    "method": {
+      "type": "string",
+      "enum": [
+        "user-confirmed",
+        "source-provided",
+        "geometry-derived"
+      ]
+    },
+    "assertedBy": {
+      "type": "string",
+      "pattern": "^@?[^\\s/@][^\\s/]*$"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "algorithm": {
+      "type": "string",
+      "minLength": 1
+    },
+    "algorithmVersion": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "recordedAt",
+    "logicalFieldRef",
+    "boundaryRef",
+    "relationType",
+    "method",
+    "assertedBy"
+  ],
+  "additionalProperties": false
+}

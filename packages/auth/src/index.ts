@@ -12,3 +12,29 @@ export type {
 	LoginVerificationConfig,
 	LoginVerificationResult,
 } from "./types.js";
+export {
+	clearJwksCache,
+	normalizeEName,
+	verifyEnameSignature,
+} from "./ename-signature.js";
+export type {
+	EnameKeyType,
+	EnameVerificationError,
+	VerifyEnameSignatureOptions,
+	VerifyEnameSignatureResult,
+} from "./ename-signature.js";
+export { verifyDelegatedSignature } from "./delegated-signature.js";
+export type {
+	DelegatedSignatureError,
+	VerifyDelegatedSignatureOptions,
+	VerifyDelegatedSignatureResult,
+} from "./delegated-signature.js";
+export {
+	buildDelegatedSignRequest,
+	buildGrantSignRequest,
+} from "./sign-requests.js";
+export type {
+	DelegatedSignRequestOptions,
+	GrantSignRequestOptions,
+	SignRequest,
+} from "./sign-requests.js";

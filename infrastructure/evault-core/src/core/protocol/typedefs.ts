@@ -12,12 +12,59 @@ export const typeDefs = /* GraphQL */ `
         valueType: String
     }
 
+    # ------------------------------------------------------------------
+    # Access control (output)
+    # ------------------------------------------------------------------
+
+    "A numeric requirement on a value inside an ontology"
+    type AclCondition {
+        "The ontology's eName"
+        ontology: String!
+        "JSONPath into the ontology value, e.g. $.score"
+        path: String!
+        "One of >=, >, <=, <, =="
+        op: String!
+        value: Float!
+    }
+
+    "One named party and the permissions it holds"
+    type AclGrant {
+        ename: String!
+        "Bitmask: 0x01 READ, 0x02 CREATE, 0x04 UPDATE, 0x08 DELETE"
+        perms: Int!
+    }
+
+    "Access removals. A denial always wins over any grant."
+    type AclDenials {
+        enames: [String!]!
+        conditions: [AclCondition!]!
+    }
+
+    """
+    The access policy enforced for a record.
+
+    Always the policy actually in force: a record carrying only the legacy
+    \`acl\` array is reported as the block that array is interpreted as, so
+    callers see one shape regardless of how the record was written.
+    """
+    type AclBlock {
+        v: Int!
+        grants: [AclGrant!]!
+        denials: AclDenials!
+        "Permissions for unnamed parties that pass a require group"
+        default_perms: Int!
+        "OR of groups, each an AND of conditions"
+        require: [[AclCondition!]!]!
+    }
+
     type MetaEnvelope {
         id: String!
         "The ontology schema ID (W3ID)"
         ontology: String!
         envelopes: [Envelope!]!
         parsed: JSON
+        "The access policy in force for this record"
+        _acl: AclBlock
     }
 
     "Result type for legacy storeMetaEnvelope and updateMetaEnvelopeById mutations"
@@ -44,6 +91,38 @@ export const typeDefs = /* GraphQL */ `
 
     type MetaEnvelopeConnection {
         edges: [MetaEnvelopeEdge!]!
+        pageInfo: PageInfo!
+        totalCount: Int
+    }
+
+    "One recorded state of a MetaEnvelope. Versions are immutable and never removed."
+    type MetaEnvelopeVersion {
+        metaEnvelopeId: String!
+        "Starts at 1 and increases by one with every write to the record"
+        version: Int!
+        "create, update or delete. A delete means the record was pruned, and parsed is null"
+        operation: String!
+        "The ontology schema ID (W3ID) at this version"
+        ontology: String!
+        "The full payload as it stood after this write"
+        parsed: JSON
+        "The platform that made the write, when known"
+        requestingPlatform: String
+        "The user the writing platform said it acted for (X-ON-BEHALF-OF or a wallet token), when known"
+        author: String
+        "Set when this version was written by rolling back to an earlier version"
+        restoredFromVersion: Int
+        "ISO-8601 time the version was recorded"
+        createdAt: String!
+    }
+
+    type MetaEnvelopeVersionEdge {
+        cursor: String!
+        node: MetaEnvelopeVersion!
+    }
+
+    type MetaEnvelopeVersionConnection {
+        edges: [MetaEnvelopeVersionEdge!]!
         pageInfo: PageInfo!
         totalCount: Int
     }
@@ -107,6 +186,17 @@ export const typeDefs = /* GraphQL */ `
         errors: [UserError!]
     }
 
+    type RollbackMetaEnvelopePayload {
+        "The MetaEnvelope as it stands after the rollback, null if errors occurred"
+        metaEnvelope: MetaEnvelope
+        "The new version the rollback was recorded as"
+        version: Int
+        "The version whose state was restored"
+        restoredFromVersion: Int
+        "List of errors that occurred during the mutation"
+        errors: [UserError!]
+    }
+
     type DeleteMetaEnvelopePayload {
         "The ID of the deleted MetaEnvelope"
         deletedId: ID!
@@ -151,6 +241,8 @@ export const typeDefs = /* GraphQL */ `
         content: String!
         "Access control list for the created File meta-envelope"
         acl: [String!]!
+        "The granular access policy. Takes precedence over acl."
+        _acl: AclBlockInput
     }
 
     type UploadFilePayload {
@@ -175,12 +267,17 @@ export const typeDefs = /* GraphQL */ `
         self
         personal_parameters
         security_question
+        deployment_key
+        software_version
+        consent
     }
 
     type BindingDocumentSignature {
         signer: String!
         signature: String!
         timestamp: String!
+        scope: String
+        signedPayload: String
     }
 
     type BindingDocument {
@@ -266,11 +363,72 @@ export const typeDefs = /* GraphQL */ `
             before: String
         ): MetaEnvelopeConnection!
 
+        """
+        The version history of a MetaEnvelope, newest first. Updates never
+        overwrite a recorded version and a removal only prunes the record, so
+        the history stays readable after removeMetaEnvelope.
+        """
+        metaEnvelopeHistory(
+            id: ID!
+            "Number of versions to return (default 20, max 100)"
+            first: Int
+            "Cursor to start after"
+            after: String
+        ): MetaEnvelopeVersionConnection
+
         # --- LEGACY API (preserved for backward compatibility) ---
         getMetaEnvelopeById(id: String!): MetaEnvelope
         findMetaEnvelopesByOntology(ontology: String!): [MetaEnvelope!]!
         searchMetaEnvelopes(ontology: String!, term: String!): [MetaEnvelope!]!
         getAllEnvelopes: [Envelope!]!
+    }
+
+    # ============================================================================
+    # Access Control Inputs
+    # ============================================================================
+
+    "A numeric requirement on a value inside an ontology, e.g. eReputation >= 60"
+    input AclConditionInput {
+        "The ontology's eName"
+        ontology: String!
+        "JSONPath into the ontology value, e.g. $.score"
+        path: String!
+        "One of >=, >, <=, <, =="
+        op: String!
+        value: Float!
+    }
+
+    "One named party and the permissions it holds"
+    input AclGrantInput {
+        "The party's eName"
+        ename: String!
+        "Bitmask: 0x01 READ, 0x02 CREATE, 0x04 UPDATE, 0x08 DELETE. Bits 4-7 are reserved and must be 0."
+        perms: Int!
+    }
+
+    "Access removals. A denial always wins over any grant."
+    input AclDenialsInput {
+        "Deny by identity"
+        enames: [String!]
+        "Deny a party that fails the check"
+        conditions: [AclConditionInput!]
+    }
+
+    """
+    The granular access policy stored inside the record it protects.
+
+    Decisions run in a fixed order: denials, then the most specific grant
+    (user beats platform beats group), then the require groups. When present
+    this block is authoritative and the legacy acl array is ignored.
+    """
+    input AclBlockInput {
+        v: Int
+        grants: [AclGrantInput!]
+        denials: AclDenialsInput
+        "Permissions for unnamed parties that pass a require group"
+        default_perms: Int
+        "OR of groups, each an AND of conditions"
+        require: [[AclConditionInput!]!]
     }
 
     # ============================================================================
@@ -280,7 +438,10 @@ export const typeDefs = /* GraphQL */ `
     input MetaEnvelopeInput {
         ontology: String!
         payload: JSON!
+        "Legacy access list. Ignored when _acl is supplied."
         acl: [String!]!
+        "The granular access policy. Takes precedence over acl."
+        _acl: AclBlockInput
     }
 
     "Input for bulk create operations (e.g., migrations)"
@@ -289,7 +450,10 @@ export const typeDefs = /* GraphQL */ `
         id: ID
         ontology: String!
         payload: JSON!
+        "Legacy access list. Ignored when _acl is supplied."
         acl: [String!]!
+        "The granular access policy. Takes precedence over acl."
+        _acl: AclBlockInput
     }
 
     # ============================================================================
@@ -300,6 +464,8 @@ export const typeDefs = /* GraphQL */ `
         signer: String!
         signature: String!
         timestamp: String!
+        scope: String
+        signedPayload: String
     }
 
     "Input for creating a binding document"
@@ -333,6 +499,14 @@ export const typeDefs = /* GraphQL */ `
 
         "Update an existing MetaEnvelope by ID"
         updateMetaEnvelope(id: ID!, input: MetaEnvelopeInput!): UpdateMetaEnvelopePayload!
+
+        """
+        Restore a MetaEnvelope to the state it had at an earlier version. The
+        restore is written as a new version, so history only ever grows. The
+        payload is replaced exactly (fields that version lacked are pruned),
+        the current access policy is kept, and a removed record is brought back.
+        """
+        rollbackMetaEnvelope(id: ID!, version: Int!): RollbackMetaEnvelopePayload!
 
         "Delete a MetaEnvelope by ID"
         removeMetaEnvelope(id: ID!): DeleteMetaEnvelopePayload!

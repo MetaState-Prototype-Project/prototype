@@ -1,4 +1,5 @@
 <script lang="ts">
+import { m } from "$lib/i18n";
 import type { SocialBindingSummary } from "$lib/utils/socialBinding";
 import { ArrowDown01Icon, ArrowUp01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
@@ -72,7 +73,9 @@ const previewLine = $derived.by(() => {
     const names = previewBindings.map((b) => b.counterpartyName);
     const shown = names.slice(0, 5).join(", ");
     const remaining = totalCount - Math.min(5, previewBindings.length);
-    return remaining > 0 ? `${shown} and ${remaining} others` : shown;
+    return remaining > 0
+        ? m.social_binding_preview_others({ names: shown, count: remaining })
+        : shown;
 });
 </script>
 
@@ -110,7 +113,7 @@ const previewLine = $derived.by(() => {
         <div class="flex-1 min-w-0">
             <div class="flex items-center gap-1">
                 <p class="font-medium text-lg text-black-900 leading-tight">
-                    Social binding
+                    {m.social_binding_title()}
                 </p>
                 {#if hasBindings}
                     <HugeiconsIcon
@@ -122,12 +125,11 @@ const previewLine = $derived.by(() => {
             </div>
             {#if hasBindings}
                 <p class="text-black-700 leading-tight">
-                    {totalCount}
-                    {totalCount === 1 ? "contact" : "contacts"}
+                    {m.social_binding_contact_count({ count: totalCount })}
                 </p>
             {:else}
                 <p class="text-primary font-medium leading-tight">
-                    New level of trust
+                    {m.social_binding_empty_subtitle()}
                 </p>
             {/if}
         </div>
@@ -136,7 +138,7 @@ const previewLine = $derived.by(() => {
             onclick={handleInviteClick}
             class="bg-primary text-white h-11 text-pill font-medium uppercase tracking-wide px-4 py-1.5 rounded-full active:opacity-80 shrink-0"
         >
-            Invite
+            {m.social_binding_invite()}
         </button>
     </div>
 
@@ -155,7 +157,7 @@ const previewLine = $derived.by(() => {
                 onclick={onfulllist}
                 class="bg-white text-black-900 text-pill font-bold uppercase tracking-wide px-4 py-3 rounded-full active:opacity-80"
             >
-                Full list
+                {m.social_binding_full_list()}
             </button>
         </article>
     {/if}
