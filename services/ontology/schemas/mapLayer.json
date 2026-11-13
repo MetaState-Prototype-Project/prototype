@@ -3,15 +3,16 @@
   "$id": "https://ontology.w3ds.metastate.foundation/schemas/7d5a2c1e-6b3f-4c8a-9e21-0a1b2c3d4e61",
   "schemaId": "7d5a2c1e-6b3f-4c8a-9e21-0a1b2c3d4e61",
   "title": "MapLayer",
-  "domain": "geo",
+  "domain": "agriculture",
   "description": "A universal georeferenced map layer that can be raster (e.g. a GeoTIFF: Soil Organic Matter, NDVI, elevation) OR vector (points, lines, polygons, or many features). Carries the layer type, acquisition time, CRS, bounds, per-layer statistics and optional rendering style, and references the underlying file blob (fileRef → a File/MediaAsset) — vector layers may instead inline small GeoJSON in `features`. Kept generic (not field-specific): the subject it describes is linked via `subjectRef`/`subjectExternalId`. The `dataType` discriminator drives which fields are required.",
   "type": "object",
   "properties": {
-    "schemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
-    "recordedAt": { "type": "string", "format": "date-time" },
-    "supersedes": { "type": "string", "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$" },
-    "deleted": { "type": "boolean" },
-    "name": { "type": "string", "minLength": 1 },
+    "id": { "type": "string", "description": "Body id (mirrors the metaEnvelope id on the canonical)" },
+    "schemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$", "description": "Semver of this record's own shape" },
+    "recordedAt": { "type": "string", "format": "date-time", "description": "When this record was written, as distinct from when the layer was acquired" },
+    "supersedes": { "type": "string", "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$", "description": "w3ds:// reference to the layer this one replaces" },
+    "deleted": { "type": "boolean", "description": "Soft-delete marker; the envelope itself stays, because W3DS has no delete" },
+    "name": { "type": "string", "minLength": 1, "description": "Layer name as the person typed it" },
     "dataType": { "description": "Raster grid or vector features.", "type": "string", "enum": ["raster", "vector"] },
     "geometryType": {
       "description": "For vector layers: the geometry kind (or 'collection' for mixed / many features).",
@@ -22,20 +23,20 @@
       "description": "What the layer represents, e.g. { name: 'Soil Organic Matter', dataType: 'raster' }.",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string", "minLength": 1 },
-        "dataType": { "type": "string", "enum": ["raster", "vector"] }
+        "id": { "type": "string", "description": "Stable id of the layer type in the producing catalogue, when it has one" },
+        "name": { "type": "string", "minLength": 1, "description": "What the layer represents, e.g. Soil Organic Matter" },
+        "dataType": { "type": "string", "enum": ["raster", "vector"], "description": "Whether this layer type is normally delivered as a raster grid or as vector features" }
       },
       "required": ["name"],
-      "additionalProperties": true
+      "additionalProperties": false
     },
     "subjectRef": {
       "description": "w3ds:// reference to what this layer describes (a LogicalField, parcel, region, asset, …). Generic on purpose.",
       "type": "string", "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
     },
     "subjectExternalId": { "description": "The producing service's own subject id, when there is no w3ds subject ref.", "type": "string" },
-    "acquiredAt": { "type": "string", "format": "date-time" },
-    "acquiredAtEnd": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+    "acquiredAt": { "type": "string", "format": "date-time", "description": "When the layer was captured or computed; for a period, its start" },
+    "acquiredAtEnd": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }], "description": "End of the acquisition period, when the layer covers a span rather than an instant" },
     "fileRef": {
       "description": "w3ds:// reference to the layer's file blob — a GeoTIFF/COG for raster, or GeoJSON/GeoPackage/FlatGeobuf for large vector.",
       "type": "string", "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
@@ -44,7 +45,7 @@
       "description": "Inline GeoJSON for small vector layers (a Geometry, Feature, or FeatureCollection). Large vector data should use fileRef instead.",
       "type": "object"
     },
-    "featureCount": { "type": "integer", "minimum": 0 },
+    "featureCount": { "type": "integer", "minimum": 0, "description": "For vector layers: how many features the layer holds" },
     "previewRef": {
       "description": "Optional w3ds:// reference to a rendered preview (e.g. a coloured PNG).",
       "type": "string", "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
@@ -60,23 +61,42 @@
       "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4
     },
     "nodata": { "description": "Raster nodata sentinel value.", "type": "number" },
-    "unit": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+    "unit": { "anyOf": [{ "type": "string" }, { "type": "null" }], "description": "Unit the layer's values are expressed in, e.g. % or mg/kg" },
     "statistics": {
       "description": "Per-layer summary (raster pixel stats or vector attribute stats).",
       "type": "object",
       "properties": {
-        "count": { "type": "number" }, "min": { "type": "number" }, "max": { "type": "number" },
-        "mean": { "type": "number" }, "median": { "type": "number" }, "std": { "type": "number" },
-        "variance": { "type": "number" }, "LCL_95": { "type": "number" }, "UCL_95": { "type": "number" }
+        "count": { "type": "number", "description": "Number of pixels or features the summary is over" },
+        "min": { "type": "number", "description": "Smallest value" },
+        "max": { "type": "number", "description": "Largest value" },
+        "mean": { "type": "number", "description": "Arithmetic mean" },
+        "median": { "type": "number", "description": "Median value" },
+        "std": { "type": "number", "description": "Standard deviation" },
+        "variance": { "type": "number", "description": "Variance" },
+        "LCL_95": { "type": "number", "description": "Lower bound of the 95% confidence interval for the mean" },
+        "UCL_95": { "type": "number", "description": "Upper bound of the 95% confidence interval for the mean" }
       },
-      "additionalProperties": true
+      "additionalProperties": false
     },
     "style": {
       "description": "Optional rendering hints — raster: { ramp, min, max }; vector: { stroke, fill, weight, radius }.",
-      "type": "object", "additionalProperties": true
+      "type": "object",
+      "properties": {
+        "ramp": { "type": "string", "description": "Raster: named colour ramp" },
+        "min": { "type": "number", "description": "Raster: value mapped to the low end of the ramp" },
+        "max": { "type": "number", "description": "Raster: value mapped to the high end of the ramp" },
+        "stroke": { "type": "string", "description": "Vector: outline colour" },
+        "fill": { "type": "string", "description": "Vector: fill colour" },
+        "weight": { "type": "number", "description": "Vector: outline width" },
+        "radius": { "type": "number", "description": "Vector: point radius" }
+      },
+      "additionalProperties": false
     },
     "source": { "description": "The producing service (e.g. Bioscope).", "type": "string" },
-    "integrity": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+    "integrity": { "anyOf": [{ "type": "string" }, { "type": "null" }], "description": "Checksum of the layer file, so a reader can tell the bytes have not changed" },
+    "subjectVersion": { "type": "integer", "description": "Which version of the subject this layer describes, when the subject is versioned" },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the layer record was saved" },
+    "createdBy": { "type": "string", "pattern": "^@[^/\\s]+$", "description": "eName of the person who saved the layer" }
   },
   "required": ["name", "dataType", "layerType", "acquiredAt"],
   "allOf": [
@@ -89,5 +109,5 @@
       "then": { "anyOf": [{ "required": ["features"] }, { "required": ["fileRef"] }] }
     }
   ],
-  "additionalProperties": true
+  "additionalProperties": false
 }
