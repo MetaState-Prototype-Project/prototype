@@ -24,9 +24,9 @@
       "items": {
         "type": "string",
         "pattern": "^w3ds://envelope\\?id=@[^\\s/]+/[^\\s]+$",
-        "description": "W3DS canonical FreightPackage envelope URI"
+        "description": "W3DS canonical Package envelope URI"
       },
-      "description": "References to FreightPackage records",
+      "description": "W3DS references to generic Package envelopes, which may be freight, parcel, food or other physical packages.",
       "minItems": 1
     },
     "origin": {
@@ -74,6 +74,23 @@
       "type": "string",
       "description": "Update timestamp",
       "format": "date-time"
+    },
+    "requestedTransportModes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "road",
+          "rail",
+          "sea",
+          "air",
+          "inland_waterway",
+          "other"
+        ]
+      },
+      "description": "Optional acceptable or requested transport modes; list multiple modes for a multimodal request. Actual offered service may differ subject to agreement."
     }
   },
   "required": [
