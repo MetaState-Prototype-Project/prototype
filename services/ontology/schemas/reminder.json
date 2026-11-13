@@ -4,68 +4,157 @@
   "title": "Reminder",
   "type": "object",
   "description": "A universal reminder/alarm envelope. It can point to any W3DS subject, not only a task. The timing model is compatible with iCalendar VALARM absolute triggers.",
-  "additionalProperties": true,
+  "additionalProperties": false,
   "required": [
-    "id",
-    "canonicalOwnerEName",
-    "createdBy",
-    "recipientEName",
-    "triggerAt",
-    "action",
-    "summary",
-    "status",
-    "relatedSubject",
-    "createdAt",
-    "updatedAt"
+    "id"
   ],
   "properties": {
-    "id": { "type": "string" },
-    "canonicalOwnerEName": { "type": "string" },
-    "createdBy": { "type": "string" },
-    "recipientEName": { "type": "string" },
+    "id": {
+      "type": "string",
+      "description": "Body id (mirrors the metaEnvelope id on the canonical)"
+    },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "description": "eName of the vault holding the canonical reminder; present on reference copies",
+      "pattern": "^@[^\\s]+$"
+    },
+    "createdBy": {
+      "type": "string",
+      "description": "eName of whoever set the reminder",
+      "pattern": "^@[^\\s]+$"
+    },
+    "recipientEName": {
+      "type": "string",
+      "description": "eName of the person to be reminded",
+      "pattern": "^@[^\\s]+$"
+    },
     "triggerAt": {
       "type": "string",
       "format": "date-time",
-      "description": "Absolute reminder trigger time, equivalent to VALARM TRIGGER;VALUE=DATE-TIME."
+      "description": "Absolute time the reminder fires"
     },
-    "timezone": { "type": "string", "default": "UTC" },
+    "timezone": {
+      "type": "string",
+      "default": "UTC",
+      "description": "IANA zone the wall-clock time was meant in"
+    },
     "action": {
       "type": "string",
-      "enum": ["display", "email", "audio"],
-      "default": "display"
+      "enum": [
+        "display",
+        "email",
+        "audio"
+      ],
+      "default": "display",
+      "description": "What should happen when it fires"
     },
-    "summary": { "type": "string" },
-    "description": { "type": "string" },
+    "summary": {
+      "type": "string",
+      "description": "Short line shown to the recipient"
+    },
+    "description": {
+      "type": "string",
+      "description": "Longer text, when the summary is not enough"
+    },
     "status": {
       "type": "string",
-      "enum": ["scheduled", "acknowledged", "dismissed", "cancelled"],
-      "default": "scheduled"
+      "enum": [
+        "scheduled",
+        "acknowledged",
+        "dismissed",
+        "cancelled"
+      ],
+      "default": "scheduled",
+      "description": "Where the reminder is in its life"
     },
-    "acknowledgedAt": { "type": ["string", "null"], "format": "date-time" },
-    "snoozedUntil": { "type": ["string", "null"], "format": "date-time" },
+    "acknowledgedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "description": "When the recipient acknowledged it"
+    },
+    "snoozedUntil": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "description": "New time the recipient pushed the reminder to"
+    },
     "standard": {
       "type": "string",
-      "description": "Optional interoperability hint, for example RFC5545-VALARM."
+      "description": "External standard the timing follows, e.g. iCalendar VALARM"
     },
     "triggerKind": {
       "type": "string",
-      "enum": ["absolute", "relative"],
-      "default": "absolute"
+      "enum": [
+        "absolute",
+        "relative"
+      ],
+      "default": "absolute",
+      "description": "Whether the trigger is absolute or relative to the subject"
     },
     "relatedSubject": {
       "type": "object",
-      "description": "Structured pointer to the subject. Readers can resolve this to learn whether the subject is a task, event, message, birthday, payment, shopping item, or another W3DS entity.",
-      "required": ["id"],
+      "description": "What the reminder is about",
+      "required": [
+        "id"
+      ],
       "additionalProperties": true,
       "properties": {
-        "id": { "type": "string" },
-        "ontologyId": { "type": "string" },
-        "canonicalOwnerEName": { "type": "string" },
-        "canonicalEnvelopeId": { "type": ["string", "null"] },
-        "type": { "type": "string" }
+        "id": {
+          "type": "string"
+        },
+        "ontologyId": {
+          "type": "string"
+        },
+        "canonicalOwnerEName": {
+          "type": "string"
+        },
+        "canonicalEnvelopeId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "type": "string"
+        }
       }
     },
-    "createdAt": { "type": "string", "format": "date-time" },
-    "updatedAt": { "type": "string", "format": "date-time" }
-  }
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the reminder was created"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it was last changed"
+    },
+    "remindAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Absolute fire time — the legacy spelling of triggerAt. Readers prefer triggerAt when both are present."
+    },
+    "message": {
+      "type": "string",
+      "description": "Text shown when the reminder fires — the legacy spelling of summary"
+    }
+  },
+  "domain": "productivity",
+  "anyOf": [
+    {
+      "required": [
+        "triggerAt"
+      ]
+    },
+    {
+      "required": [
+        "remindAt"
+      ]
+    }
+  ]
 }

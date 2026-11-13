@@ -17,14 +17,63 @@
     "updatedAt"
   ],
   "properties": {
-    "id": { "type": "string" },
-    "isReference": { "type": "boolean", "const": true },
-    "entityType": { "type": "string", "enum": ["company", "project"] },
-    "canonicalEntityId": { "type": "string" },
-    "canonicalOwnerEName": { "type": "string" },
-    "canonicalEnvelopeId": { "type": "string" },
-    "groupManifestEnvelopeId": { "type": "string" },
-    "createdAt": { "type": "string", "format": "date-time" },
-    "updatedAt": { "type": "string", "format": "date-time" }
-  }
+    "id": {
+      "type": "string",
+      "description": "Body id (mirrors the metaEnvelope id on the canonical)"
+    },
+    "isReference": {
+      "type": "boolean",
+      "const": true,
+      "description": "Always true: this envelope is a pointer, never the group itself"
+    },
+    "entityType": {
+      "type": "string",
+      "enum": [
+        "company",
+        "project"
+      ],
+      "description": "What the canonical record is — a group, an organization, a project"
+    },
+    "canonicalEntityId": {
+      "type": "string",
+      "description": "Logical id of the entity, as its own record carries it"
+    },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "description": "eName of the vault that holds the canonical record",
+      "pattern": "^@[^\\s]+$"
+    },
+    "canonicalEnvelopeId": {
+      "type": "string",
+      "description": "metaEnvelope id of the canonical record — what a reader fetches"
+    },
+    "groupManifestEnvelopeId": {
+      "type": "string",
+      "description": "metaEnvelope id of the GroupManifest on the group's own vault, where the roster and roles live"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the pointer was written"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the pointer was last refreshed"
+    },
+    "displayName": {
+      "type": "string",
+      "description": "Name of the group as the writer knew it when the pointer was made; the canonical record stays authoritative"
+    },
+    "eName": {
+      "type": "string",
+      "pattern": "^@[^\\s]+$",
+      "description": "eName of the group's own vault, when the group has one"
+    },
+    "verified": {
+      "type": "boolean",
+      "description": "The writer confirmed that the pointer resolves to the canonical record"
+    }
+  },
+  "domain": "community"
 }

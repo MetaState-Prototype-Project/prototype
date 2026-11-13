@@ -1,21 +1,53 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "schemaId": "0f9a3cb8-4a9f-4b5f-a1fa-3a4c2eb1f411",
+  "schemaId": "d15f489a-f873-46db-b705-a213e4df5d45",
   "title": "PlatformSelfDescription",
   "type": "object",
   "description": "A machine-readable self-description of a W3DS post-platform, stored on the platform's own eVault.",
   "additionalProperties": false,
   "properties": {
-    "id": { "type": "string" },
-    "platformName": { "type": "string" },
-    "displayName": { "type": "string" },
-    "format": { "type": "string" },
-    "content": { "type": "string" },
-    "contentSha256": { "type": "string" },
-    "sourceUrl": { "type": "string" },
-    "profileEnvelopeId": { "type": "string" },
-    "createdAt": { "type": "string", "format": "date-time" },
-    "updatedAt": { "type": "string", "format": "date-time" }
+    "id": {
+      "type": "string",
+      "description": "Body id (mirrors the metaEnvelope id on the canonical)"
+    },
+    "platformName": {
+      "type": "string",
+      "description": "The join key other platforms match on, case-insensitively — never a repo, domain or product name"
+    },
+    "displayName": {
+      "type": "string",
+      "description": "Platform name as people see it"
+    },
+    "format": {
+      "type": "string",
+      "description": "Format of `content`, e.g. markdown"
+    },
+    "content": {
+      "type": "string",
+      "description": "The self-description itself: what the platform writes, under which ontologies, and how to read it"
+    },
+    "contentSha256": {
+      "type": "string",
+      "description": "SHA-256 of `content`, lowercase hex, so a reader can tell the text changed"
+    },
+    "sourceUrl": {
+      "type": "string",
+      "description": "Where the same text is published outside the vault, when it is"
+    },
+    "profileEnvelopeId": {
+      "type": "string",
+      "description": "metaEnvelope id of the platform's own profile record"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the self-description was first written"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it was last republished"
+    }
   },
   "required": [
     "id",
@@ -27,5 +59,6 @@
     "profileEnvelopeId",
     "createdAt",
     "updatedAt"
-  ]
+  ],
+  "domain": "identity"
 }
