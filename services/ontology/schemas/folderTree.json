@@ -3,17 +3,20 @@
   "schemaId": "84c803f2-f595-4c99-b126-1a361c10947e",
   "title": "FolderTree",
   "domain": "productivity",
-  "description": "A named tree of folders over tags. Every node is either one concrete tag (facet + value; for a Tag envelope the value is its id) or a whole tag group (facet only — expands to every value present). An object sits in a node when it carries all tags on the path to that node; the same tag may appear in any number of trees at any depth. Nothing is moved or copied. kind=order is the shorthand «one group nests inside another» (e.g. year → month → type). Written by Vaultican (W3Office Files).",
+  "description": "A named tree of folders over tags. Every node is either one concrete tag (facet + value; for a Tag envelope the value is its id) or a whole tag group (facet only — expands to every value present). An object sits in a node when it carries all tags on the path to that node; the same tag may appear in any number of trees at any depth. Nothing is moved or copied. kind=order is the shorthand «one group nests inside another» (e.g. year → month → type).",
   "type": "object",
   "properties": {
     "id": {
-      "type": "string"
+      "type": "string",
+      "description": "Envelope id"
     },
     "name": {
-      "type": "string"
+      "type": "string",
+      "description": "Tree name as the person typed it, any language"
     },
     "kind": {
       "type": "string",
+      "description": "tree = explicit node hierarchy in `nodes`; order = nesting given as an ordered list of tag groups in `facets`",
       "enum": [
         "tree",
         "order"
@@ -35,15 +38,17 @@
     },
     "createdAt": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "description": "When the tree was created"
     },
     "updatedAt": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "description": "When the tree was last changed"
     },
     "platform": {
       "type": "string",
-      "description": "eName платформы, которая создала запись (например, Vaultican). Пусто у записей, сделанных до регистрации платформы."
+      "description": "eName of the platform that wrote the record. Empty on records made before that platform was registered."
     }
   },
   "required": [
@@ -51,12 +56,14 @@
     "kind",
     "createdAt"
   ],
+  "additionalProperties": false,
   "definitions": {
     "node": {
       "type": "object",
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "description": "Node id, unique within this tree"
         },
         "facet": {
           "type": "string",
@@ -80,7 +87,8 @@
       "required": [
         "id",
         "facet"
-      ]
+      ],
+      "additionalProperties": false
     }
   }
 }
