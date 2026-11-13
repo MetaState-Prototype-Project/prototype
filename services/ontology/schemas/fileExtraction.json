@@ -2,6 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "schemaId": "3d5b71e2-9c84-4a16-b0f3-6e28d95a7c41",
   "title": "FileExtraction",
+  "domain": "storage",
   "type": "object",
   "description": "What a machine made of a file — the text read off a photo, the transcript of a recording, the body of a document, or a set of observations about what an image shows. It exists as its own record because the File ontology is closed and has no field for extracted content, and because a reading has provenance of its own: which model produced it, how confidently, and when. The same file may be read more than once, by different models or at different times, and each reading is a separate record rather than an overwrite — a later reading does not make an earlier one untrue about what was believed then. A FileExtraction is always DERIVED: it is evidence about the file, never a fact about the world, and anything asserted on its basis should reference it.",
   "properties": {
@@ -31,6 +32,7 @@
     },
     "fileRef": {
       "type": "string",
+      "pattern": "^w3ds://file\\?id=@[^/\\s]+/[^\\s]+$",
       "description": "The file this reading was made from, as its `w3ds://` URI. A reading that pointed at nothing would be a claim about a file the vault does not have, so this is what makes the record meaningful at all — and what lets a reader fetch the bytes and disagree with the reading."
     },
     "derivedFrom": {
@@ -41,8 +43,8 @@
     "model": { "type": "string", "description": "Which model produced this reading. Without it a stale or discredited reading cannot be found and revisited." },
     "readAt": { "type": "string", "format": "date-time", "description": "When the file was read, which is not when the file was made" },
     "capturedBy": { "type": "string", "description": "eName of the application that performed the reading" },
-    "isArchived": { "type": "boolean", "default": false }
+    "isArchived": { "type": "boolean", "description": "The owner has put the reading out of the way; archiving never deletes it", "default": false }
   },
   "required": ["id", "kind", "readAt", "fileRef"],
-  "additionalProperties": true
+  "additionalProperties": false
 }
