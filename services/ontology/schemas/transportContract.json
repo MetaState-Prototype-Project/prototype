@@ -4,58 +4,51 @@
   "title": "TransportContract",
   "domain": "mobility",
   "type": "object",
-  "description": "The agreement between a customer and a carrier for one shipment, written by the carrier to its eVault after the customer accepted a TransportOffer. Signatures are not fields of this record: both parties sign it through the existing SigningEnvelope / EIDSignature schemas, which reference this envelope. schema.org has no contract type; the offer link follows Order.acceptedOffer.",
+  "description": "FMaaS/W3DS agreement recording accepted offered terms; external W3DS signing envelopes provide signatures. This is not an official DCSA TransportContract object. Uses W3DS envelope URIs to link independently stored records. SigningEnvelope may separately be used if a PDF signature workflow is required; this schema does not imply automatic legal signature.",
   "properties": {
     "id": {
       "type": "string",
-      "description": "Application-level identifier of the contract"
+      "description": "Application-level agreement ID"
     },
-    "authorId": {
+    "issuerEName": {
       "type": "string",
-      "description": "eName of whoever drew up the contract on the carrier's behalf",
+      "description": "Party creating agreement record",
       "pattern": "^@[^\\s]+$"
     },
-    "localLabel": {
-      "type": "string",
-      "description": "Human-readable label, e.g. 'SC-385'"
+    "label": {
+      "type": "string"
     },
     "customerEName": {
       "type": "string",
-      "description": "eName of the customer (schema.org: customer)",
+      "description": "Customer identity",
       "pattern": "^@[^\\s]+$"
     },
     "carrierEName": {
       "type": "string",
-      "description": "eName of the carrier organisation responsible for the shipment",
+      "description": "Carrier identity",
       "pattern": "^@[^\\s]+$"
     },
     "shipmentRequest": {
       "type": "string",
-      "description": "The ShipmentRequest the contract implements, as w3ds://envelope?id=@<ename>/<metaEnvelopeId>",
-      "pattern": "^w3ds://envelope\\?id=@[^\\s/]+/[^\\s]+$"
+      "pattern": "^w3ds://envelope\\?id=@[^\\s/]+/[^\\s]+$",
+      "description": "W3DS canonical envelope URI for shipmentRequest"
     },
     "acceptedOffer": {
       "type": "string",
-      "description": "The TransportOffer the contract is based on, as w3ds://envelope?id=@<ename>/<metaEnvelopeId> (schema.org: acceptedOffer)",
-      "pattern": "^w3ds://envelope\\?id=@[^\\s/]+/[^\\s]+$"
+      "pattern": "^w3ds://envelope\\?id=@[^\\s/]+/[^\\s]+$",
+      "description": "W3DS canonical envelope URI for acceptedOffer"
     },
     "price": {
-      "type": "number",
-      "description": "Agreed customer price",
-      "minimum": 0
+      "$ref": "#/definitions/monetaryAmount",
+      "description": "Total payable amount if determinable"
     },
-    "priceCurrency": {
-      "type": "string",
-      "description": "ISO 4217 currency code, e.g. 'EUR' (schema.org: priceCurrency)",
-      "pattern": "^[A-Z]{3}$"
-    },
-    "priceType": {
-      "type": "string",
-      "enum": [
-        "fixed",
-        "estimate"
-      ],
-      "description": "'fixed': the customer price does not change when execution costs change; 'estimate': it may"
+    "lineItems": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/transportCharge"
+      },
+      "description": "Agreed binding rate or unit charges",
+      "minItems": 1
     },
     "serviceScope": {
       "type": "string",
@@ -63,43 +56,138 @@
         "door_to_door",
         "door_to_port",
         "port_to_door",
-        "port_to_port"
-      ],
-      "description": "Part of the journey the carrier is responsible for"
+        "port_to_port",
+        "other"
+      ]
     },
-    "preferredDeliveryDays": {
-      "type": "integer",
-      "description": "Agreed preferred delivery time, in days from pickup",
-      "minimum": 1
+    "deliveryWindow": {
+      "$ref": "#/definitions/deliveryWindow"
     },
-    "latestDeliveryDays": {
-      "type": "integer",
-      "description": "Agreed latest delivery time, in days from pickup",
-      "minimum": 1
+    "terms": {
+      "type": "string",
+      "description": "Agreed additional conditions"
+    },
+    "effectiveAt": {
+      "type": "string",
+      "description": "Effective date",
+      "format": "date-time"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional application-specific extensions; must not redefine standardized fields.",
+      "additionalProperties": true
     },
     "createdAt": {
       "type": "string",
-      "description": "When the record was created",
+      "description": "Creation timestamp",
       "format": "date-time"
     },
     "updatedAt": {
       "type": "string",
-      "description": "When the record was last updated",
+      "description": "Update timestamp",
       "format": "date-time"
     }
   },
   "required": [
     "id",
-    "authorId",
+    "issuerEName",
     "customerEName",
     "carrierEName",
     "shipmentRequest",
     "acceptedOffer",
-    "price",
-    "priceCurrency",
-    "priceType",
+    "lineItems",
     "serviceScope",
     "createdAt"
   ],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "definitions": {
+    "monetaryAmount": {
+      "type": "object",
+      "description": "Non-negative monetary amount in ISO 4217 currency; shared FMaaS structure.",
+      "properties": {
+        "value": {
+          "type": "number",
+          "minimum": 0
+        },
+        "currency": {
+          "type": "string",
+          "description": "ISO 4217 currency",
+          "pattern": "^[A-Z]{3}$"
+        }
+      },
+      "required": [
+        "value",
+        "currency"
+      ],
+      "additionalProperties": false
+    },
+    "transportCharge": {
+      "type": "object",
+      "description": "Proposed or agreed transport charge and calculation basis. Rate basis is FMaaS-specific, not a DCSA enum.",
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rate": {
+          "$ref": "#/definitions/monetaryAmount"
+        },
+        "rateBasis": {
+          "type": "string",
+          "enum": [
+            "per_shipment",
+            "per_container",
+            "per_hour",
+            "per_kilometer",
+            "per_mile",
+            "per_milestone",
+            "per_unit"
+          ]
+        },
+        "quantity": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional application-specific extensions; must not redefine standardized fields.",
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "description",
+        "rate",
+        "rateBasis"
+      ],
+      "additionalProperties": false
+    },
+    "deliveryWindow": {
+      "type": "object",
+      "description": "Shipper-requested or contractually agreed transit-day constraints from pickup, not a predicted ETA.",
+      "properties": {
+        "preferredDeliveryDays": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "latestDeliveryDays": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [],
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "preferredDeliveryDays"
+          ]
+        },
+        {
+          "required": [
+            "latestDeliveryDays"
+          ]
+        }
+      ]
+    }
+  }
 }
