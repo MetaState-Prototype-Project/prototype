@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "8bc6d065-8fc0-4ea9-aeb9-45566cacef34",
+  "title": "Tag",
+  "domain": "productivity",
+  "description": "A user-defined tag: a named folder that never moves or copies its objects. Flat — a tag has no parent and no position; hierarchies live in FolderTree. Applying a tag to an object is a Relation { subject: object URI, predicate: \"tag\", object: tag envelope URI } on the tagger's vault. The vault the Tag lives in says whose tag it is. Read by anything that understands Tag + Relation.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Envelope id"
+    },
+    "name": {
+      "type": "string",
+      "description": "Tag name as the person typed it, any language"
+    },
+    "color": {
+      "type": "string",
+      "description": "Optional display colour, e.g. #8968FF"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the tag was created"
+    },
+    "platform": {
+      "type": "string",
+      "description": "eName of the platform that wrote the record. Empty on records made before that platform was registered."
+    }
+  },
+  "required": [
+    "name",
+    "createdAt"
+  ],
+  "additionalProperties": false
+}
