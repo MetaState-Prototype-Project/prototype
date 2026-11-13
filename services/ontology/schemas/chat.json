@@ -48,6 +48,59 @@
     "isArchived": {
       "type": "boolean",
       "description": "Whether the chat is archived"
+    },
+    "admins": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Administrators of a group chat, as eNames (\"@<uuid>\"). Older writers store User profile ids here instead; resolve them the way evault-core does. This is a SEED for the group's manifest: evault-core reads it once, when it builds the manifest of a group vault that has none (ManifestService, on the first /whois of that vault), and from then on the manifest is authoritative and changes here are not read. A platform changing admins of a group that has a manifest writes the manifest. It is read directly only for a group chat whose document does not live on a group vault of its own. Some writers use `adminIds` for the same thing; it is not part of this schema."
+    },
+    "rights": {
+      "type": "object",
+      "description": "What members of this chat may do. A policy the platform showing the chat is expected to honour; the vault does not enforce it. An ABSENT `rights`, or an ABSENT key inside it, means the platform's built-in default (members may do it); an EMPTY `allow` means nobody but the owner and admins. The owner (from the group manifest) and the admins hold every right, and a `deny` naming them is ignored. Not used in direct chats: two equal members have nobody to set it. `rights` is always written as a whole: an eVault update replaces a top-level field, so concurrent writers race and the last one wins; `revision` lets a later reader NOTICE a lost change, it does not prevent one. Writers that do not know `rights` leave it untouched.",
+      "properties": {
+        "write": {
+          "$ref": "#/definitions/rightList",
+          "description": "Send messages to the chat."
+        },
+        "react": {
+          "$ref": "#/definitions/rightList",
+          "description": "React to and comment on a live broadcast in the chat."
+        },
+        "watch": {
+          "$ref": "#/definitions/rightList",
+          "description": "See a live broadcast in the chat."
+        },
+        "join": {
+          "$ref": "#/definitions/rightList",
+          "description": "Take part in calls in the chat: be rung, see that a call is running, join it. Being in a call does not mean speaking; without this right a member is never rung and cannot join, and may only watch a live broadcast if they have `watch`."
+        },
+        "show": {
+          "$ref": "#/definitions/rightList",
+          "description": "Publish camera and screen in a call."
+        },
+        "call": {
+          "$ref": "#/definitions/rightList",
+          "description": "Start a call in the chat."
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Increased by one on every change. A writer re-reads the chat first and writes its revision + 1; a lower revision seen later means another writer replaced `rights` from an older copy."
+        },
+        "updatedBy": {
+          "type": "string",
+          "pattern": "^@",
+          "description": "eName of whoever made the last change."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the last change was made."
+        }
+      },
+      "additionalProperties": false
     }
   },
   "required": [
@@ -56,5 +109,39 @@
     "participantIds",
     "createdAt"
   ],
+  "definitions": {
+    "rightList": {
+      "type": "object",
+      "properties": {
+        "allow": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "const": "*"
+              },
+              {
+                "type": "string",
+                "pattern": "^@"
+              }
+            ]
+          },
+          "description": "eNames allowed, or \"*\" for every participant of the chat at the time of the check, including those who join later. Empty means nobody (besides owner and admins)."
+        },
+        "deny": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^@",
+            "not": {
+              "const": "*"
+            }
+          },
+          "description": "eNames refused. Deny wins over allow. \"*\" is not allowed: 'nobody' is an empty allow."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
   "additionalProperties": false
 }
