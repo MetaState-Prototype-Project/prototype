@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/7d5a2c1e-6b3f-4c8a-9e21-0a1b2c3d4e5f",
+  "schemaId": "7d5a2c1e-6b3f-4c8a-9e21-0a1b2c3d4e5f",
+  "title": "Dataset",
+  "domain": "agriculture",
+  "description": "An immutable snapshot of a curated set of files (images or annotations) selected for downstream use (annotation, model training). It references a manifest file that lists the members and links to the DatasetQuery that produced it. The dataset references file URIs; it does not copy blobs.",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "description": "Body id (mirrors the metaEnvelope id on the canonical)" },
+    "schemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$", "description": "Semver of this record's own shape" },
+    "recordedAt": { "type": "string", "format": "date-time", "description": "When this record was written, as distinct from when the thing it describes happened" },
+    "supersedes": { "type": "string", "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$", "description": "w3ds:// reference to the record this one replaces" },
+    "deleted": { "type": "boolean", "description": "Soft-delete marker; the envelope itself stays, because W3DS has no delete" },
+    "name": { "type": "string", "minLength": 1, "description": "Dataset name as the person typed it" },
+    "kind": { "type": "string", "enum": ["images", "annotations"], "description": "Whether the manifest lists image files or annotation files" },
+    "queryRef": {
+      "description": "Reference to the DatasetQuery envelope whose criteria produced this snapshot (kept separately so the same criteria can be re-run later to pull more data). May be a bare envelope id or a w3ds:// ref.",
+      "type": "string", "minLength": 1
+    },
+    "manifestRef": {
+      "description": "w3ds:// reference to the manifest file (a table of the member files). Content-addressed via manifestSha256.",
+      "type": "string", "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    },
+    "manifestUrl": { "description": "Convenience direct URL to the manifest file, if published.", "type": "string", "format": "uri" },
+    "manifestSha256": { "description": "SHA-256 hex of the manifest content — pins the snapshot for reproducibility.", "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "fileCount": { "type": "integer", "minimum": 0, "description": "How many files the manifest lists" },
+    "observationCount": { "type": "integer", "minimum": 0, "description": "How many observations the member files carry" },
+    "annotationCount": { "type": ["integer", "null"], "description": "How many annotation records the member files carry" },
+    "annotationFiles": { "type": ["array", "null"], "items": { "type": "string" }, "description": "References to the annotation files belonging to this snapshot" },
+    "observationRefs": { "type": ["array", "null"], "items": { "type": "string" }, "description": "Envelope ids of the observations this snapshot was built from" },
+    "frozen": { "type": "boolean", "description": "The snapshot is sealed: its member list will not change again" },
+    "producedBy": { "type": ["string", "null"], "description": "eName of the service that produced the snapshot, when a service rather than a person made it" },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the snapshot was taken" },
+    "createdBy": { "description": "eName of the person who saved the dataset.", "type": "string", "pattern": "^@[^/\\s]+$" }
+  },
+  "required": ["name", "kind", "manifestRef", "createdAt"],
+  "additionalProperties": false
+}
