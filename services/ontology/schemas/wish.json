@@ -23,31 +23,38 @@
     },
     "about": {
       "type": "array",
-      "description": "What this wish refers to, as an array of STRINGS, never objects: an object inside an array is split by a patch, a string cannot be. Three forms, told apart by their prefix: `w3ds://envelope?id=@<vault>/<metaEnvelopeId>` — an envelope, in the form the registered `Relation` ontology documents for `object` (the vault and the envelope id together, because an id alone addresses nothing); `@<uuid>` — an identity (a person, an organisation) by eName; `https://…` — something outside W3DS, such as the public page of an event that is not on any vault yet. A reader that cannot resolve an entry shows the wish anyway. Empty or absent means the wish is about nothing in particular — which is a statement, not missing data: 'I would like to meet people who play World of Tanks' applies wherever its author goes.",
-      "items": { "type": "string", "minLength": 1 }
+      "description": "What this wish refers to, as an array of STRINGS, never objects: an object inside an array is split by a patch, a string cannot be. Three forms, told apart by their prefix: `w3ds://envelope?id=@<vault>/<metaEnvelopeId>` — an envelope, in the form the registered `Relation` ontology documents for `object` (the vault and the envelope id together, because an id alone addresses nothing); `@<uuid>` — an identity (a person, an organisation) by eName; `https://…` — something outside W3DS, such as the public page of an event that is not on any vault yet. A reader that cannot resolve an entry shows the wish anyway. Empty or absent means the wish is about nothing in particular — which is a statement, not missing data: 'I would like to meet people who play World of Tanks' applies wherever its author goes. An `@<uuid>` entry must be normalised before it is compared with anything (the `@uuid`, the bare uuid and a profile record's own id are three different strings, and only the first two are the same identity); comparing raw strings produces duplicate people.",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
     "audience": {
       "type": "string",
-      "description": "Who the author meant this wish to be shown to, in words, because the ACL that enforces it is stripped from reads and a reader cannot see it. Declared vocabulary: `event` — people at the events named in `about`; `introductions` — anyone the capturing application may introduce the author to, at any event; `self` — nobody but the author; an application may use it to advise the author, and must never show it or quote it to anybody else. Unknown value: treat as `self`."
+      "description": "Who the author MEANT this wish for, in words. It is the author's intent and never a reason to show the wish to anybody: the ACL decides who may read the record, and where the two disagree the ACL wins. It is stated in words because the ACL the writer sent cannot be read back in the form it was sent (measured 2026-11-15: the legacy `acl` is not a readable field, and the readable `_acl` block on records written with it shows no grants). Declared vocabulary: `event` — people at the events named in `about`; `introductions` — anyone the writing application may introduce the author to, at any event; `self` — nobody but the author; an application may use it to advise the author, and must never show it or quote it to anybody else. Unknown value: treat as `self`."
     },
     "authorEName": {
       "type": "string",
       "pattern": "^@",
       "description": "Whose wish this is. Always the owner of the vault the record is on."
     },
-    "capturedBy": {
-      "type": "string",
-      "pattern": "^@",
-      "description": "The eName of the application that recorded it, when it has one. Absent rather than wrong."
-    },
     "provenance": {
       "type": "object",
       "description": "Where this record came from, in the shape the ecosystem already uses ({app, auto, generatedAt}, after Meshenger). `auto: false` says a person typed the text rather than an application composing it for them.",
       "properties": {
-        "app": { "type": "string" },
-        "auto": { "type": "boolean" },
-        "source": { "type": "string" },
-        "generatedAt": { "type": "string", "format": "date-time" }
+        "app": {
+          "type": "string"
+        },
+        "auto": {
+          "type": "boolean"
+        },
+        "source": {
+          "type": "string"
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
       }
     },
     "createdAt": {
@@ -74,6 +81,12 @@
       "description": "After this instant the wish no longer applies. Not written by crEVENTials yet."
     }
   },
-  "required": ["id", "kind", "text", "authorEName", "createdAt"],
+  "required": [
+    "id",
+    "kind",
+    "text",
+    "authorEName",
+    "createdAt"
+  ],
   "additionalProperties": true
 }
