@@ -1,0 +1,321 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "9cc7d250-d29f-491c-bce8-931420b17d20",
+  "title": "Event",
+  "domain": "community",
+  "type": "object",
+  "description": "An event — a conference, meeting or gathering — described by an organiser and open for registration. The record lives on the vault of the ORGANISATION hosting it, not on the vault of the person who created it: an event belongs to the body that hosts it, and the organisation is the party that must be able to enumerate its own events after the individual organiser has moved on. There are no references to this record on other vaults; a registration points at it by id. THE REGISTRATION FORM IS NOT IN THIS RECORD. It is a separate `Form` record (1ed1f997-6a18-4788-88ae-3196bcce737b) on the same organisation's vault, named here by `formId` and pinned by `formRevision`. An earlier draft of this schema carried the questions inline, on the argument that a form has no identity outside its event; that argument was made against a working instance that already has an identity and a published id, and reinventing it would have produced a type legible only to this platform. WHERE IT HAPPENS IS A POINTER, NOT AN ADDRESS: `location` carries a required human `label` plus an optional `placeUri` naming a `Place` record, because a venue exists whether or not this event happens there and a route-planning application looks for places where places live. NOTHING IN THIS RECORD CHARGES OR RECORDS A PAYMENT: see `pricing.model`, which has no value meaning 'paid through the platform' because no such path exists.",
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable application id for this event, unchanged across edits and across the supersedes chain. Distinct from the meta envelope id, which changes when the record is replaced."
+    },
+    "organisationEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the organisation hosting the event, whose vault holds this record. A record found on a vault other than the one named here is a copy, and a copy must not be treated as the event."
+    },
+    "createdByEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the person who created the event while acting for the organisation. Recorded as well as organisationEName because accountability is personal even when authority is institutional."
+    },
+    "authority": {
+      "type": "object",
+      "description": "What the platform established about the creator's right to act for this organisation, AT THE MOMENT THE EVENT WAS CREATED. This is an observation made BY the platform against the organisation's own GroupManifest, not a claim the creator made, and it must never be presented as one. Recorded rather than recomputed: membership changes, and an event created last year by somebody who has since left the organisation was still validly created.",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": [
+            "owner",
+            "admin",
+            "member"
+          ],
+          "description": "The role the creator held in the organisation's manifest at that moment."
+        },
+        "manifestEnvelopeId": {
+          "type": "string",
+          "description": "Meta envelope id of the GroupManifest the role was read from, so a verifier can look at the same evidence."
+        },
+        "checkedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the check was performed."
+        }
+      },
+      "required": [
+        "role",
+        "manifestEnvelopeId",
+        "checkedAt"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The event's name, as shown to prospective attendees."
+    },
+    "summary": {
+      "type": "string",
+      "description": "One or two sentences, for listings and previews."
+    },
+    "description": {
+      "type": "string",
+      "description": "The full description of the event, as prose. Markdown. This is the organiser's own text and is the field another application should show when presenting the event to a person."
+    },
+    "conditions": {
+      "type": "string",
+      "description": "The conditions of attendance, as prose: who may attend, what is expected of them, what is provided, cancellation terms. Kept separate from `description` because it is the part a prospective attendee is agreeing to rather than the part persuading them to come."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "published",
+        "registration_closed",
+        "cancelled",
+        "completed"
+      ],
+      "description": "The event's lifecycle. Note there is no `draft`: a draft has never been written to a vault and exists only in the platform's own database, because an unpublished draft is not yet anybody's data. `registration_closed` means the event is still happening but is no longer accepting registrations, which is a different statement from `cancelled`, and the two must not be collapsed by a reader."
+    },
+    "cancellationReason": {
+      "type": "string",
+      "description": "Why the event was cancelled, for the people who had registered. Present only when status is cancelled."
+    },
+    "visibility": {
+      "type": "string",
+      "enum": [
+        "public",
+        "link",
+        "invite"
+      ],
+      "description": "The organiser's INTENT about who should find this event: listed publicly, reachable only by its link, or invitation only. This is a product-level statement, not an access control: who may read this record is decided by its ACL, and the public event page is rendered by the platform from its own projection rather than by a browser reading a vault. A reader must not infer read permission from this field."
+    },
+    "startsAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the event starts, as an instant."
+    },
+    "endsAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the event ends, as an instant."
+    },
+    "timezone": {
+      "type": "string",
+      "description": "IANA timezone name, e.g. Europe/Berlin. The semantics are Calendula's declared ones, adopted verbatim so that two writers of the same shape mean the same thing: `startsAt` and `endsAt` are ALWAYS absolute instants, and this field only names the wall clock the organiser meant, so a reader should show the event in it or in the viewer's own zone rather than assume UTC."
+    },
+    "capacity": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "description": "Maximum number of registrations admitted, or null for unlimited. Registrations beyond it are recorded with status `waitlisted` rather than refused. The authoritative count is the canonical EventRegistration records on this organisation's vault; a platform's own counter is a projection and can lag."
+    },
+    "registrationOpensAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "description": "Before this instant the form is not accepting answers. Null means open as soon as the event is published."
+    },
+    "registrationClosesAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "description": "After this instant the form is not accepting answers. Null means open until the event starts."
+    },
+    "bannerFileUri": {
+      "type": "string",
+      "description": "w3ds://file URI of the event's banner image. The bytes behind it sit on a public content host: never put anything here that is not intended to be world-readable."
+    },
+    "supersedes": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Meta envelope id of the version of this event that this record replaces, or null for the first published version. Lets a reader walk back to the exact description and conditions a given registration answered. It does NOT recover the form: the Form record is replaced in place, so the questions are recovered from the registration's own snapshot."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the event was first published to this vault. Preserved across edits — it is not the creation time of this envelope."
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this record was last rewritten, which is not when the event changed: this platform does not yet support editing a published event, so on every Event it has written this equals createdAt. A reader must not treat it as an edit history."
+    },
+    "formId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The `id` of the Form record (ontology 1ed1f997-6a18-4788-88ae-3196bcce737b) holding this event's registration questions, on the SAME vault as this event. That Form carries `intro` — the text shown above the form — and `questions`, each with a stable `key`. A registration answers them in `formResponse`, keyed by those keys. PRESENCE OF THIS FIELD IS WHAT MAKES AN EVENT REGISTRABLE — never the role and never the level: a talk with a form takes registrations, a conference without one does not. It is no longer required, because a session or a talk inside a programme has no form of its own."
+    },
+    "formRevision": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The Form's `revision` as it stood when this version of the event was published. Recorded because a Form is REPLACED in place when it is edited rather than versioned into a new record — observed on the live stand, where the one existing Form sits at revision 2 and revision 1 is no longer readable anywhere. So this number pins which revision was meant, and it is NOT a way to recover the older text: that is why every registration snapshots the questions it actually answered."
+    },
+    "location": {
+      "type": "object",
+      "description": "Where the event happens, as a SUPERSET of the `location` object Calendula declares on a CalendarEvent (`{lat?, lng?, label?}`) rather than a replacement for it: the addition is `placeUri`. Both halves are needed and neither suffices. A bare reference means a reader without access to the Place's vault renders nothing at all, so `label` is required and must be enough on its own. A bare string means a route-planning application cannot route, so `placeUri` carries the Place. NO JOINING LINK GOES IN HERE — see `online` and `meetingLink`, which are separate for the reason WVTTK declares: a link to get in is one attendee's access, not a property of a place.",
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The place as a person would say it — 'OBA Oosterdok', 'Helmholtzstraat 2'. REQUIRED, and required to be renderable with no second fetch. Measured across 2000 CalendarEvent records: of the 75 that carry a location object, all 75 carry only a label, so this is the one part of the field every existing reader actually uses."
+        },
+        "placeUri": {
+          "type": "string",
+          "description": "The Place record, as `w3ds://envelope?id=@<vault>/<metaEnvelopeId>`. Carries the vault as well as the envelope id, because an envelope id alone addresses nothing — it is the form the registered `Relation` ontology documents for pointing at an envelope, and how to resolve it is the reader's business. Absent for a one-off address nobody will return to, and absent for an online event."
+        },
+        "lat": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90,
+          "description": "Latitude, copied from the Place so that a reader who cannot reach that vault can still put a pin on a map. The one duplicated value in this record, and duplicated on purpose."
+        },
+        "lon": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180,
+          "description": "Longitude. Spelled `lon`, not Calendula's declared `lng`: measured, no record in the ecosystem carries a coordinate in this object under either spelling, so there is nothing to break, and `lon` is the spelling with live data behind it (`Organization.address.geo`)."
+        }
+      },
+      "required": [
+        "label"
+      ]
+    },
+    "online": {
+      "type": "boolean",
+      "description": "Whether the event happens remotely. Copied from WVTTK, which declares `online` alongside `meetingLink` and `address` and sets each only when it applies. Kept as its own boolean rather than inferred from the absence of a location, because 'we have not said where yet' and 'there is nowhere, it is online' are different facts about an event."
+    },
+    "meetingLink": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "DELIBERATELY NOT A JOINING LINK FOR THIS RECORD'S READERS. Set only for an event whose joining link is genuinely public — a published webinar address. A per-attendee link is access, not description: it belongs in that attendee's registration confirmation, never here, because this record's audience is wider than one attendee and may be the whole world."
+    },
+    "pricing": {
+      "type": "object",
+      "description": "What attendance costs, in the vocabulary eCommons' `Space` already uses for the same job (`{per, model, amount, currency}`) rather than a word of our own. `model` is where the honesty lives: `donationRecommended` is their value for 'stated but not collected', which is exactly what this platform does. NOTHING IN THIS RECORD CHARGES ANYBODY OR RECORDS THAT ANYBODY PAID, and there is deliberately no value meaning 'paid through the platform', because no such path exists — a reader must be able to tell that registering has not paid for anything.",
+      "properties": {
+        "model": {
+          "type": "string",
+          "enum": [
+            "free",
+            "donationRecommended",
+            "offline"
+          ],
+          "description": "`free` — no charge. `donationRecommended` — a suggested contribution, eCommons' own value. `offline` — the organiser collects payment outside this platform by whatever means `note` describes. Any future payment path is a new value and its own revision."
+        },
+        "amount": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Zero means free."
+        },
+        "currency": {
+          "type": "string",
+          "description": "ISO 4217, e.g. EUR."
+        },
+        "per": {
+          "type": "string",
+          "description": "What the amount is charged per, as `Space` spells it (`hour` there). For an event this is normally `person`."
+        },
+        "note": {
+          "type": "string",
+          "description": "Free text: concessions, what is included, when and how payment is due."
+        }
+      },
+      "required": [
+        "model"
+      ]
+    },
+    "role": {
+      "type": "string",
+      "description": "What this event is called in the programme it belongs to: branch, session, talk, break, social. DELIBERATELY NOT AN ENUMERATION. The role is the NAME of a level, not its place in the structure — that is carried by parentUri alone — and a closed list would have to be reopened for every word an organiser needs (a branch, a year above a conference, a workshop beside a talk). A reader that does not recognise a role must render it as a generic level of the programme, showing the word itself: never drop the event, and never map an unfamiliar role onto a familiar one. The vocabulary actually written by this platform is published at /.well-known/w3ds-platform.json; absent means an ordinary event that is not part of a programme."
+    },
+    "parentUri": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The event this one is a part of, as w3ds://envelope?id=@<vault>/<metaEnvelopeId> — the same form Relation.object and Event.location.placeUri use. This single field carries the whole structure of a programme: a conference, the branches running in parallel inside it, the sessions in a branch, the talks in a session, and whatever is put above a conference later. THE PARENT KEEPS NO LIST OF CHILDREN, on purpose: a list would be rewritten once per talk added, and each rewrite risks the audience of the record everyone is reading. ONE STRING AND NOT AN OBJECT, also on purpose: an eVault update replaces a sent value whole, so a nested {eventId, ownerEName} pair is destroyed by the very patch that re-parents a talk, while a string cannot be split. A URI that will not parse is dropped by the reader rather than treated as an error, as WVTTK declares for the same form. OBLIGATION ON THE WRITER: because this addresses an ENVELOPE, re-publishing a parent as a new envelope obliges the writer to re-point its children; this platform does not yet support editing a published event, so no such re-pointing has ever been needed. null and absent both mean the same thing — this event is a root.",
+      "pattern": "^w3ds://envelope\\?id=@[0-9a-fA-F-]{36}/[^/?#]+$"
+    },
+    "position": {
+      "type": "integer",
+      "description": "Order among the events that share a parentUri, ascending, gaps permitted. Required because parentUri carries no order and a conference programme is ordered: the levels above a session — a branch, a year — have no time of their own, so a reader cannot fall back on startsAt to sort them. Ties are broken by startsAt and then by title, so that two renders of the same data agree."
+    },
+    "speakers": {
+      "type": "array",
+      "description": "Who is speaking, in the order the programme lists them. Inline rather than references because most speakers have no eName, and a list that could only hold the ones that do would not hold the programme. `eName` is present ONLY where a human confirmed that this person is that eName — never matched by name, which is how a talk gets attributed to a stranger. An empty array and an absent field both mean the same thing: ask the parent.",
+      "items": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "As the programme prints it."
+          },
+          "eName": {
+            "type": "string",
+            "description": "Their eName, only when confirmed by a person."
+          },
+          "organisation": {
+            "type": "string",
+            "description": "Affiliation as printed."
+          },
+          "organisationEName": {
+            "type": "string",
+            "description": "Affiliation as an eName, when known."
+          },
+          "role": {
+            "type": "string",
+            "description": "What they do in this slot: chair, discussant."
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "eventId",
+    "organisationEName",
+    "createdByEName",
+    "authority",
+    "title",
+    "createdAt"
+  ],
+  "if": {
+    "not": {
+      "required": [
+        "parentUri"
+      ]
+    }
+  },
+  "then": {
+    "required": [
+      "status",
+      "visibility",
+      "startsAt",
+      "timezone",
+      "location",
+      "online"
+    ],
+    "description": "A root event — one with no parentUri — must carry its own time, zone, place, status, visibility and whether it is online, because there is nothing above it to ask. Inside a programme those same fields may be absent, and absent means exactly one thing: read the value from the nearest ancestor that has it. Nothing is copied downwards, so changing a conference venue changes every talk that never named one."
+  },
+  "dependencies": {
+    "formId": [
+      "formRevision"
+    ],
+    "formRevision": [
+      "formId"
+    ]
+  }
+}
