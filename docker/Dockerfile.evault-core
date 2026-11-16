@@ -18,8 +18,9 @@ FROM base AS builder
 RUN npm install -g pnpm@10.25.0
 # First install the dependencies (as they change less often)
 COPY --from=prepare /app/out/json/ .
-# Copy full source for packages that need postinstall builds (w3id)
+# Copy full source for packages that need postinstall builds
 COPY --from=prepare /app/out/full/infrastructure/w3id infrastructure/w3id
+COPY --from=prepare /app/out/full/infrastructure/signature-validator infrastructure/signature-validator
 RUN pnpm install --frozen-lockfile
 # Build the project
 COPY --from=prepare /app/out/full/ .
@@ -27,23 +28,8 @@ RUN pnpm turbo build --filter=evault-core
 
 # ---
 FROM base AS runner
-# Copy workspace configuration
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/pnpm-workspace.yaml ./
-COPY --from=builder /app/pnpm-lock.yaml ./
-
-# Copy w3id (workspace dependency)
-COPY --from=builder /app/infrastructure/w3id/package.json ./infrastructure/w3id/
-COPY --from=builder /app/infrastructure/w3id/dist ./infrastructure/w3id/dist
-COPY --from=builder /app/infrastructure/w3id/node_modules ./infrastructure/w3id/node_modules
-
-# Copy evault-core
-COPY --from=builder /app/infrastructure/evault-core/dist ./dist
-COPY --from=builder /app/infrastructure/evault-core/package.json ./
-COPY --from=builder /app/infrastructure/evault-core/node_modules ./node_modules
-
-# Copy root node_modules (for workspace linking)
-COPY --from=builder /app/node_modules ./node_modules
+# The pruned, built workspace: evault-core plus the workspace packages it links to
+COPY --from=builder /app /app
 
 WORKDIR /app/infrastructure/evault-core
 

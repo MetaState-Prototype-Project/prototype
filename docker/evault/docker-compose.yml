@@ -1,0 +1,77 @@
+# Standalone eVault stack for self-hosting: eVault Core (provisioner + GraphQL),
+# Neo4j and Postgres. Connects to an existing Registry (ours by default).
+#
+#   cp docker/evault/.env.example docker/evault/.env   # then fill it in
+#   docker compose -f docker/evault/docker-compose.yml up -d --build
+#
+# Ports bind to 127.0.0.1 only: put a TLS reverse proxy in front of them.
+# See docs: Infrastructure > Self-hosting an eVault.
+
+name: evault
+
+x-evault: &evault
+  build:
+    context: ../..
+    dockerfile: docker/Dockerfile.evault-core
+  image: evault-core:local
+  env_file: .env
+  environment:
+    NODE_ENV: production
+    NEO4J_URI: bolt://neo4j:7687
+    PROVISIONER_DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in docker/evault/.env}@postgres:5432/provisioner
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in docker/evault/.env}
+      POSTGRES_DB: provisioner
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d provisioner"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  neo4j:
+    # 4.4 defaults to unencrypted Bolt, which is what eVault Core expects on the internal network.
+    image: neo4j:4.4
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:?set NEO4J_PASSWORD in docker/evault/.env}
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u ${NEO4J_USER:-neo4j} -p \"$${NEO4J_AUTH#*/}\" 'RETURN 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # One-shot: applies the Postgres migrations, then exits.
+  evault-migrate:
+    <<: *evault
+    command: ["node", "node_modules/typeorm/cli.js", "migration:run", "-d", "dist/config/database.js"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  evault:
+    <<: *evault
+    restart: unless-stopped
+    depends_on:
+      evault-migrate:
+        condition: service_completed_successfully
+      neo4j:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${PROVISIONER_PORT:-3001}:3001" # provisioner, /health, /ready
+      - "127.0.0.1:${EVAULT_PORT:-4000}:4000" # GraphQL, /whois, /docs
+
+volumes:
+  postgres_data:
+  neo4j_data:

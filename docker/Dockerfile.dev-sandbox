@@ -16,6 +16,8 @@ RUN turbo prune dev-sandbox --docker
 FROM base AS builder
 RUN npm install -g pnpm@10.25.0
 COPY --from=prepare /app/out/json/ .
+# wallet-sdk builds itself on postinstall, so it needs its full source first
+COPY --from=prepare /app/out/full/packages/wallet-sdk packages/wallet-sdk
 RUN pnpm install --frozen-lockfile
 COPY --from=prepare /app/out/full/ .
 RUN pnpm turbo build --filter=dev-sandbox

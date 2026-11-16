@@ -1,5 +1,8 @@
 # Evault Provisioner
 
+> [!IMPORTANT]
+> To deploy eVault Core on your own server, follow [Self-hosting an eVault](https://docs.w3ds.metastate.foundation/docs/Infrastructure/self-hosting-evault) ([source](../../docs/docs/Infrastructure/self-hosting-evault.md)), which uses `docker/evault/docker-compose.yml`. The Nomad instructions below are outdated.
+
 A TypeScript API for provisioning evault instances on Nomad. This service allows you to spin up evault instances with Neo4j backends for different tenants.
 
 ## Prerequisites
