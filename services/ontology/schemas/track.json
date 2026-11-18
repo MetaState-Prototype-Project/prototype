@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/dbddf08e-7a18-4c6f-b171-b5acc6b21b6f",
+  "schemaId": "dbddf08e-7a18-4c6f-b171-b5acc6b21b6f",
+  "title": "Track",
+  "domain": "mobility",
+  "type": "object",
+  "description": "The movement of ONE THING over time: a person walking, a parcel in transit, a vehicle, a shared live position. Deliberately says nothing about WHY the thing moved — a run, a commute and a delivery are the same geometry, and the meaning belongs to whatever record points at the track. That separation is the whole purpose: two platforms had independently written byte-identical route blocks inside differently-named envelopes (a health Workout and a messenger's location share), so no reader arriving at a vault could tell that one shape served both. A record that owns the geometry and is its only owner may embed this shape inline instead of referencing a Track envelope; see `route`.",
+  "properties": {
+    "id": { "type": "string", "description": "Envelope id." },
+    "subject": {
+      "type": "string",
+      "description": "The w3id of the THING that moved — a person, a parcel, a vehicle. Not necessarily an eName: a parcel's movement belongs to no account, and narrowing this to people is what forced the duplicate shapes in the first place."
+    },
+    "agent": {
+      "type": "string",
+      "description": "eName of whoever RECORDED the movement, when that is not the subject. A phone recording its owner, a carrier recording a parcel."
+    },
+    "startedAt": { "type": "string", "format": "date-time", "description": "When recording began." },
+    "endedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When recording finished. Absent while it is still being appended to. NOTE that this is about the RECORDING and not about any permission: if the track exists because somebody shared their position for a window of time, that window lives on the record that points here, not on the track, so that one fact has one home."
+    },
+    "route": {
+      "type": "object",
+      "description": "The geometry itself. `format` names an entry in GeometryEncoding; `pointCount` is REQUIRED and is what separates 'empty' from 'could not decode', which is the only defence a reader has when it meets an encoding it does not implement.",
+      "properties": {
+        "format": {
+          "type": "string",
+          "description": "An `id` from GeometryEncoding (504cacb9-79ef-498c-a352-e17830ed1876). Refuse one you do not know; never rewrite it."
+        },
+        "data": {
+          "type": "string",
+          "description": "The geometry, written in `format`. For geojson, the JSON text of a LineString; for polyline5, the encoded string."
+        },
+        "pointCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "How many points the geometry holds. Required so that a reader which cannot decode `data` still knows whether there was anything to decode. Zero means genuinely empty."
+        }
+      },
+      "required": ["format", "data", "pointCount"],
+      "additionalProperties": false
+    },
+    "samples": {
+      "type": "object",
+      "description": "Per-point measurements, each array the SAME LENGTH as `pointCount` and in the same order. A samples array out of step with the geometry pairs one moment's speed with another place, silently, so a reader checks the lengths rather than trusting them. An absent array means not measured; a null entry means not measured at that point — never write zero or a default for an unknown, which would be indistinguishable from a real reading.",
+      "properties": {
+        "t": {
+          "type": "array",
+          "items": { "type": "number" },
+          "description": "Seconds since `startedAt` for each point."
+        },
+        "speed": {
+          "type": "array",
+          "items": { "type": ["number", "null"] },
+          "description": "Metres per second, as the device reported it."
+        },
+        "heading": {
+          "type": "array",
+          "items": { "type": ["number", "null"] },
+          "description": "Degrees true."
+        },
+        "ele": {
+          "type": "array",
+          "items": { "type": ["number", "null"] },
+          "description": "Metres above the WGS84 ellipsoid."
+        }
+      },
+      "additionalProperties": false
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "required": ["id", "subject", "startedAt", "route"],
+  "additionalProperties": true
+}

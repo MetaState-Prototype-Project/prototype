@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/504cacb9-79ef-498c-a352-e17830ed1876",
+  "schemaId": "504cacb9-79ef-498c-a352-e17830ed1876",
+  "title": "GeometryEncoding",
+  "domain": "governance",
+  "type": "object",
+  "description": "How a geometry is written down, as opposed to what it means. GeoJSON is the canonical model in this ecosystem — FieldBoundary already uses it — and every other entry here is an ENCODING of that model, with its mapping stated. The permitted values are the `oneOf` list under `id`: this schema is the published list, not a copy of it, in the same way as Domain. Two rules that belong with the list rather than with any one shape. A reader may REFUSE an encoding it does not know; it must never REWRITE the declared value, because a record then decodes as something it never claimed to be. And a reader that meets an unknown encoding while `pointCount` is greater than zero must say so — 'geometry in encoding X, not supported' — and must never render as if the geometry were empty, because an empty drawing is indistinguishable from an absent one.",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable encoding id, used in the `format` field of any shape that carries a geometry.",
+      "oneOf": [
+        {
+          "const": "geojson",
+          "title": "GeoJSON",
+          "description": "The canonical model, RFC 7946. Coordinates are [lon, lat] with an optional third element for elevation in metres, in WGS84. Lossless: the numbers stored are the numbers meant. Axis order is LONGITUDE FIRST."
+        },
+        {
+          "const": "polyline5",
+          "title": "Encoded Polyline, precision 5",
+          "description": "Google's Encoded Polyline Algorithm Format at 1e-5 precision, referenced rather than restated here. Maps to a GeoJSON LineString. AXIS ORDER IS LATITUDE FIRST, which is the opposite of GeoJSON, so a reader translates in one direction only and a confusion between the two is not a small error — it places a point in another hemisphere without failing. LOSSY: coordinates are rounded to five decimal places, about 1.1 m, so a decoded point must never be compared with its original for equality. Chosen by existing data rather than by design: imported health Workouts and Meshenger location tracks already hold it, and neither can be rewritten on vaults their platform does not own."
+        }
+      ]
+    }
+  },
+  "required": ["id"],
+  "additionalProperties": false
+}
