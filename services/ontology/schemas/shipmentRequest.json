@@ -1,0 +1,209 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "ef9bc65e-1325-4065-b5b8-eb63d00801e4",
+  "title": "ShipmentRequest",
+  "domain": "mobility",
+  "type": "object",
+  "description": "Shipper transport service request, informed by DCSA Booking; references W3DS package records. Earlier revisions remain immutable; this is a W3DS convention, not DCSA Booking amendment behavior. Uses W3DS envelope URIs to link independently stored records.",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Application-level request ID"
+    },
+    "senderEName": {
+      "type": "string",
+      "description": "Party requesting shipment",
+      "pattern": "^@[^\\s]+$"
+    },
+    "label": {
+      "type": "string",
+      "description": "Human-readable request label"
+    },
+    "packages": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^w3ds://envelope\\?id=@[^\\s/]+/[^\\s]+$",
+        "description": "W3DS canonical Package envelope URI"
+      },
+      "description": "W3DS references to generic Package envelopes, which may be freight, parcel, food or other physical packages.",
+      "minItems": 1
+    },
+    "origin": {
+      "$ref": "#/definitions/location",
+      "description": "Shipment origin (embedded logistics location)"
+    },
+    "destination": {
+      "$ref": "#/definitions/location",
+      "description": "Shipment destination (embedded logistics location)"
+    },
+    "recipientEName": {
+      "type": "string",
+      "description": "Receiver W3DS identity if known",
+      "pattern": "^@[^\\s]+$"
+    },
+    "recipientName": {
+      "type": "string"
+    },
+    "shipmentRequirements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/shipmentRequirements"
+      },
+      "description": "Cargo and handling requirements"
+    },
+    "deliveryWindow": {
+      "$ref": "#/definitions/deliveryWindow"
+    },
+    "previousRequest": {
+      "type": "string",
+      "pattern": "^w3ds://envelope\\?id=@[^\\s/]+/[^\\s]+$",
+      "description": "Previous ShipmentRequest envelope if this is a revision (refines earlier request)"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional application-specific extensions; must not redefine standardized fields.",
+      "additionalProperties": true
+    },
+    "createdAt": {
+      "type": "string",
+      "description": "Creation timestamp",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "description": "Update timestamp",
+      "format": "date-time"
+    },
+    "requestedTransportModes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "road",
+          "rail",
+          "sea",
+          "air",
+          "inland_waterway",
+          "other"
+        ]
+      },
+      "description": "Optional acceptable or requested transport modes; list multiple modes for a multimodal request. Actual offered service may differ subject to agreement."
+    }
+  },
+  "required": [
+    "id",
+    "senderEName",
+    "packages",
+    "origin",
+    "destination",
+    "createdAt"
+  ],
+  "additionalProperties": false,
+  "definitions": {
+    "location": {
+      "type": "object",
+      "description": "Location of receipt, delivery or logistics activity; inspired by DCSA shipment locations, but this simplified structure is not the DCSA Location object.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string",
+          "description": "Free-text address"
+        },
+        "unLocationCode": {
+          "type": "string",
+          "description": "UN/LOCODE if applicable",
+          "pattern": "^[A-Z]{2}[A-Z0-9]{3}$"
+        },
+        "countryCode": {
+          "type": "string",
+          "description": "ISO 3166-1 alpha-2",
+          "pattern": "^[A-Z]{2}$"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional application-specific extensions; must not redefine standardized fields.",
+          "additionalProperties": true
+        }
+      },
+      "required": [],
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "address"
+          ]
+        },
+        {
+          "required": [
+            "unLocationCode"
+          ]
+        }
+      ]
+    },
+    "shipmentRequirements": {
+      "type": "object",
+      "description": "Extensible handling/cargo requirement; named categories are FMaaS profiles and may later map to DCSA reefer or dangerous-goods fields.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "temperature",
+            "humidity",
+            "shock",
+            "dangerous_goods",
+            "handling",
+            "security",
+            "other"
+          ]
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional application-specific extensions; must not redefine standardized fields.",
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "type",
+        "parameters"
+      ],
+      "additionalProperties": false
+    },
+    "deliveryWindow": {
+      "type": "object",
+      "description": "Shipper-requested or contractually agreed transit-day constraints from pickup, not a predicted ETA.",
+      "properties": {
+        "preferredDeliveryDays": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "latestDeliveryDays": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [],
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "preferredDeliveryDays"
+          ]
+        },
+        {
+          "required": [
+            "latestDeliveryDays"
+          ]
+        }
+      ]
+    }
+  }
+}
