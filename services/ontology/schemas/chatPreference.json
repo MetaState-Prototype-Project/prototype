@@ -11,7 +11,8 @@
     "muted": { "type": "boolean", "description": "Suppress notifications from this chat (an @-mention may still pierce)" },
     "archived": { "type": "boolean", "description": "Hide from the main list; never deletes anything" },
     "pinned": { "type": "boolean", "description": "Float the chat to the top of the owner's list" },
-    "pinnedAt": { "type": "string", "format": "date-time", "description": "When pinned — orders multiple pinned chats" }
+    "pinnedAt": { "type": "string", "format": "date-time", "description": "When pinned — orders multiple pinned chats" },
+    "selfChat": { "type": "boolean", "description": "For the owner, this chat is their own space — their chat with themself. A property of the viewer, independent of the participant count: an assistant invited into the chat does not change it. Absent or false means not marked." }
   },
   "required": ["id", "chatId", "updatedAt"],
   "additionalProperties": true
