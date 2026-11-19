@@ -1,0 +1,115 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "39f42ccc-476c-4a4a-8449-451488e11490",
+  "title": "MatchSuggestion",
+  "domain": "community",
+  "description": "A machine-made suggestion that one person meet another, and why. Written by the service that made it, on the vault of the person it advises (`subject`), readable by them and that service. Derived from its sources: a source the subject may not read still counts in full, and `reason` may say as concretely as needed what in it makes the two worth introducing, in the writer's own words; the text of such a source is never repeated. Immutable: a later judgement supersedes it; status `withdrawn` says an earlier suggestion no longer holds; `noCommonGround` answers a request that found nothing.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable id chosen by the writer when the record is made. Not the envelope id, which the vault assigns; references to the record use the envelope URI"
+    },
+    "subject": {
+      "$ref": "#/definitions/eName",
+      "description": "The person advised; the owner of the vault this record is on"
+    },
+    "counterpart": {
+      "$ref": "#/definitions/eName",
+      "description": "The person they are advised to meet"
+    },
+    "status": {
+      "enum": [
+        "suggested",
+        "noCommonGround",
+        "withdrawn"
+      ],
+      "description": "What this record says about the pair"
+    },
+    "reason": {
+      "type": "string",
+      "description": "Why the two should talk, addressed to the subject, in `language`"
+    },
+    "opener": {
+      "type": "string",
+      "description": "A first message the subject could send the counterpart as it is: who they are, what drew them to the counterpart's work, and an invitation to talk further. In `language`"
+    },
+    "language": {
+      "type": "string",
+      "description": "BCP-47 tag of `reason` and `opener`"
+    },
+    "derivedFrom": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/envelopeUri"
+      },
+      "description": "The records this rests on — typically both people's Wishlists. A reference gives no access to a record"
+    },
+    "request": {
+      "$ref": "#/definitions/envelopeUri",
+      "description": "The MatchRequest this answers, when it answers one"
+    },
+    "supersedes": {
+      "$ref": "#/definitions/envelopeUri",
+      "description": "The earlier suggestion for the same pair that this one replaces"
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Who made this suggestion and how. Kept for improving matching and for any reader judging how far to trust it; not meant to be shown to the people it concerns",
+      "properties": {
+        "generator": {
+          "$ref": "#/definitions/eName",
+          "description": "The service that made it"
+        },
+        "model": {
+          "type": "string",
+          "description": "The language model, as its provider names it"
+        },
+        "algorithm": {
+          "type": "string",
+          "description": "The method, named by the generator"
+        },
+        "algorithmVersion": {
+          "type": "string",
+          "description": "Version of that method"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "How sure the generator is that the two have a real reason to talk"
+        }
+      },
+      "required": [
+        "generator",
+        "algorithm",
+        "algorithmVersion"
+      ],
+      "additionalProperties": false
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the suggestion was made, RFC 3339"
+    }
+  },
+  "required": [
+    "id",
+    "subject",
+    "counterpart",
+    "status",
+    "provenance",
+    "createdAt"
+  ],
+  "additionalProperties": false,
+  "definitions": {
+    "eName": {
+      "type": "string",
+      "pattern": "^@[^\\s]+$"
+    },
+    "envelopeUri": {
+      "type": "string",
+      "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    }
+  }
+}
