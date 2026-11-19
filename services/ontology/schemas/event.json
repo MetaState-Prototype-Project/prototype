@@ -14,7 +14,7 @@
     "organisationEName": {
       "type": "string",
       "minLength": 1,
-      "description": "eName of the organisation hosting the event, whose vault holds this record. A record found on a vault other than the one named here is a copy, and a copy must not be treated as the event."
+      "description": "eName of the organisation hosting (organising) the event. It says who runs the event, not where the record is kept: the record may live on the event's own vault. A copy is recognised by `isReference`, never by comparing this field with the vault."
     },
     "createdByEName": {
       "type": "string",
