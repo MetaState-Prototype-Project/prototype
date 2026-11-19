@@ -4,7 +4,7 @@
   "title": "EventRegistration",
   "domain": "community",
   "type": "object",
-  "description": "One person's registration for an Event (9cc7d250-d29f-491c-bce8-931420b17d20): the submission, and only the submission. ATTENDANCE STATE IS NOT IN THIS RECORD. Whether somebody is expected, checked in, absent or withdrawn is an append-only log of `AttendeeEvent` records (03110fca-4c93-4b52-b657-f8b0a3693f24, authored by ALVer) on the organisation's vault, and the current state is the fold of that log. An earlier draft of this schema carried a mutable `status` and an inline `history` array; a derived status cannot drift from its own log, an append-only record is never updated so its audience can never be rewritten by a careless edit, and the type already existed. The canonical record lives on the vault of the ORGANISATION hosting the event — that is the party which must be able to enumerate its attendees — and a registrant who signed in with eID holds a REFERENCE on their own vault, so their record of what they submitted survives this platform. Check `isReference` before reading anything else. EXACTLY ONE OF `requesterEName` OR THE TYPED CONTACT FIELDS IS PRESENT, enforced structurally: eID is optional for a visitor, and the two paths are told apart by which identity the record carries rather than by a flag. ANSWERS ARE RECORDED TWICE, ON PURPOSE. `formId` + `formRevision` + `formResponse` copy the mechanism of eCommons' BookingRequest (187221f4-c184-4771-aca4-0defe83b0fb9) field for field, so that anything already reading that type can read this one: `formResponse` is keyed by the `key` of each question in the Form record. But a Form is REPLACED IN PLACE when it is edited, so a key alone resolves to nothing once the organiser has reworded a question or deleted an option, and every past registration would become unreadable. `formResponseSnapshot` therefore restates, per answer, the question's label, type and offered options exactly as this person saw them. It is a SNAPSHOT: where the two disagree, the snapshot is what this person answered and the live Form is what the organiser has since changed. REGISTERING PAYS FOR NOTHING: an Event may state a price, but nothing in this record represents a payment, and a reader must not infer one.",
+  "description": "One person's registration for an Event (9cc7d250-d29f-491c-bce8-931420b17d20): the submission, and only the submission. ATTENDANCE STATE IS NOT IN THIS RECORD. Whether somebody is expected, checked in, absent or withdrawn is an append-only log of `AttendeeEvent` records (03110fca-4c93-4b52-b657-f8b0a3693f24, authored by ALVer) on the organisation's vault, and the current state is the fold of that log. An earlier draft of this schema carried a mutable `status` and an inline `history` array; a derived status cannot drift from its own log, an append-only record is never updated so its audience can never be rewritten by a careless edit, and the type already existed. The canonical record lives on the vault of the ORGANISATION hosting the event — that is the party which must be able to enumerate its attendees — and a registrant who signed in with eID holds a REFERENCE on their own vault, so their record of what they submitted survives this platform. Check `isReference` before reading anything else. EXACTLY ONE OF `requesterEName` OR THE TYPED CONTACT FIELDS IS PRESENT, enforced structurally: eID is optional for a visitor, and the two paths are told apart by which identity the record carries rather than by a flag. ANSWERS ARE RECORDED TWICE, ON PURPOSE. `formId` + `formRevision` + `formResponse` copy the mechanism of eCommons' BookingRequest (187221f4-c184-4771-aca4-0defe83b0fb9) field for field, so that anything already reading that type can read this one: `formResponse` is keyed by the `key` of each question in the Form record. But a Form is REPLACED IN PLACE when it is edited, so a key alone resolves to nothing once the organiser has reworded a question or deleted an option, and every past registration would become unreadable. `formResponseSnapshot` therefore restates, per answer, the question's label, type and offered options exactly as this person saw them. It is a SNAPSHOT: where the two disagree, the snapshot is what this person answered and the live Form is what the organiser has since changed. NOT EVERY REGISTRATION CAME THROUGH THE FORM: `registeredVia` says whether the person submitted it (`form`, or absent), the organiser added them from a list of people who registered elsewhere (`list`), or they were added at the badge desk on arrival (`desk`); the last two answer no Form. REGISTERING PAYS FOR NOTHING: an Event may state a price, but nothing in this record represents a payment, and a reader must not infer one.",
   "properties": {
     "isReference": {
       "type": "boolean",
@@ -51,15 +51,30 @@
       "type": "string",
       "description": "The organisation this person attends on behalf of, as free text, for an organisation that has no eName to point at. Where it does have one, use `requesterOrganisationEName` instead — see there."
     },
-    "formId": {
+    "registeredVia": {
       "type": "string",
+      "enum": [
+        "form",
+        "list",
+        "desk"
+      ],
+      "description": "How this registration reached the organiser. `form`: the person submitted the event's Form themselves. `list`: the organiser added them from a list of people who registered somewhere else (a spreadsheet, another ticketing system). `desk`: they were added at the event's badge desk as they arrived, by whoever ran it. ABSENT MEANS `form`, which is every record written before this field existed. For `list` and `desk` nobody answered a Form, so `formId` and `formRevision` are null and `formResponse` and `formResponseSnapshot` are empty, and an email address is not required: the person may be known only by the name on the organiser's list or on their badge. The record is otherwise the same record, written to the same two vaults: canonical on the organisation's, a reference on the person's own when their eName is known. Whether they actually came is not here either: it is the AttendeeEvent log, as for every registration."
+    },
+    "formId": {
+      "type": [
+        "string",
+        "null"
+      ],
       "minLength": 1,
-      "description": "The `id` of the Form record whose questions this submission answers, on the organisation's vault. Copies BookingRequest field for field."
+      "description": "The `id` of the Form record whose questions this submission answers, on the organisation's vault. Copies BookingRequest field for field. Null exactly when `registeredVia` is `list` or `desk`."
     },
     "formRevision": {
-      "type": "integer",
+      "type": [
+        "integer",
+        "null"
+      ],
       "minimum": 1,
-      "description": "The Form's `revision` at the moment of submission. Pins which revision was meant; it does not recover it, because the Form is replaced in place."
+      "description": "The Form's `revision` at the moment of submission. Pins which revision was meant; it does not recover it, because the Form is replaced in place. Null exactly when `registeredVia` is `list` or `desk`."
     },
     "formResponse": {
       "type": "object",
@@ -325,7 +340,7 @@
   "allOf": [
     {
       "title": "ExactlyOneIdentity",
-      "description": "A registration must say how it knows who this is, and there are only two ways. Either the person signed in with eID and the record carries `requesterEName` and NO `requesterName` or `requesterEmail` — those are read live from their own User record, and copying them here would be a second, staler copy of their own data. Or they did not, and the record carries the name and email they typed and NO eName, because those details have no home anywhere else. `requesterOrganisation` and `requesterPhone` are allowed on BOTH, and that is deliberate: which organisation somebody attends on behalf of, and the number the organiser may ring on the day, are facts about THIS registration rather than about the person. They are not on anybody's User record, so recording them here copies nothing — an earlier version of this schema refused them beside an eName and the result was that an organiser who had asked for the attendee's organisation was never shown it. Enforced structurally rather than by convention, so that a reader never has to guess which kind of registration they are holding, and so that a half-filled record cannot be written at all.",
+      "description": "A registration must say how it knows who this is, and there are only two ways. Either the person signed in with eID and the record carries `requesterEName` and NO `requesterName` or `requesterEmail` — those are read live from their own User record, and copying them here would be a second, staler copy of their own data. Or they did not, and the record carries the name (and, through the Form, the email) they typed and NO eName, because those details have no home anywhere else; a registration added from the organiser's list or at the badge desk may carry the name alone (see HowItArrived). `requesterOrganisation` and `requesterPhone` are allowed on BOTH, and that is deliberate: which organisation somebody attends on behalf of, and the number the organiser may ring on the day, are facts about THIS registration rather than about the person. They are not on anybody's User record, so recording them here copies nothing — an earlier version of this schema refused them beside an eName and the result was that an organiser who had asked for the attendee's organisation was never shown it. Enforced structurally rather than by convention, so that a reader never has to guess which kind of registration they are holding, and so that a half-filled record cannot be written at all.",
       "oneOf": [
         {
           "title": "RegisteredWithEID",
@@ -350,8 +365,7 @@
         {
           "title": "RegisteredWithoutEID",
           "required": [
-            "requesterName",
-            "requesterEmail"
+            "requesterName"
           ],
           "not": {
             "anyOf": [
@@ -409,6 +423,61 @@
             ]
           }
         ]
+      }
+    },
+    {
+      "title": "HowItArrived",
+      "description": "A registration made through the Form names that Form and its revision, and without eID carries the email address the Form asked for. One added from the organiser's list or at the badge desk answered no Form: it names none, carries no answers, and may have no email address.",
+      "if": {
+        "required": [
+          "registeredVia"
+        ],
+        "properties": {
+          "registeredVia": {
+            "enum": [
+              "list",
+              "desk"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "formId": {
+            "type": "null"
+          },
+          "formRevision": {
+            "type": "null"
+          },
+          "formResponse": {
+            "maxProperties": 0
+          },
+          "formResponseSnapshot": {
+            "maxItems": 0
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "formId": {
+            "type": "string"
+          },
+          "formRevision": {
+            "type": "integer"
+          }
+        },
+        "if": {
+          "not": {
+            "required": [
+              "requesterEName"
+            ]
+          }
+        },
+        "then": {
+          "required": [
+            "requesterEmail"
+          ]
+        }
       }
     }
   ]
