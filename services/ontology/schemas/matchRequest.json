@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "e6578068-679f-4540-b63f-471eb3e4c3c8",
+  "title": "MatchRequest",
+  "domain": "community",
+  "description": "A person's request to find what they have in common with other people — what they could talk about or do together. Written on the requester's own vault by the application they asked in, acting for them. Any matchmaking service may answer it with MatchSuggestion records that reference it. Immutable: a changed request is a new record that supersedes this one.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Body id; the same as the envelope id"
+    },
+    "requester": {
+      "$ref": "#/definitions/eName",
+      "description": "The person asking. Must be the owner of the vault this record is on"
+    },
+    "people": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/definitions/eName"
+      },
+      "description": "Everyone between whom common ground is to be found, the requester included when they ask about themselves"
+    },
+    "purpose": {
+      "type": "string",
+      "description": "What the requester hopes to find, in their own words, when they said"
+    },
+    "language": {
+      "type": "string",
+      "description": "BCP-47 tag of the language the requester wants the answer in"
+    },
+    "supersedes": {
+      "$ref": "#/definitions/envelopeUri",
+      "description": "An earlier request of the same requester that this one replaces"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the record was written, RFC 3339"
+    }
+  },
+  "required": [
+    "id",
+    "requester",
+    "people",
+    "createdAt"
+  ],
+  "additionalProperties": false,
+  "definitions": {
+    "eName": {
+      "type": "string",
+      "pattern": "^@[^\\s]+$"
+    },
+    "envelopeUri": {
+      "type": "string",
+      "pattern": "^w3ds:\\/\\/(@[^/\\s]+)\\/([^/\\s]+)$"
+    }
+  }
+}
