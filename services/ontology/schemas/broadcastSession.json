@@ -28,7 +28,7 @@
     "eventId": {
       "type": "string",
       "minLength": 1,
-      "description": "The stable `eventId` from the body of the Event (a programme item) this broadcast belongs to — not its envelope id, which changes with every edit of the Event. Set together with `eventOwnerEName`; the reader finds the CURRENT version of the Event by this id on that vault: among the records carrying this `eventId`, the one that no other record names in its `supersedes`. Taking the first match instead would show an old time. Deliberately not pinned to one envelope: a programme item that moves must move its broadcast with it. When set, the Event is the plan: its title, times and cancellation."
+      "description": "The stable `eventId` from the body of the Event (a programme item) this broadcast belongs to — not its envelope id, which changes with every edit of the Event. Set together with `eventOwnerEName`; the reader finds the CURRENT version of the Event by this id on that vault: among the records carrying this `eventId`, the one that no other record names in its `supersedes`; if more than one remains (a fork), the one with the latest `updatedAt`. Taking the first match instead would show an old time. Deliberately not pinned to one envelope: a programme item that moves must move its broadcast with it. When set, the Event is the plan: its title, times and cancellation."
     },
     "eventOwnerEName": {
       "type": "string",
