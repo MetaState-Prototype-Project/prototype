@@ -3,16 +3,20 @@
   "schemaId": "e6578068-679f-4540-b63f-471eb3e4c3c8",
   "title": "MatchRequest",
   "domain": "community",
-  "description": "A person's request to find what they have in common with other people — what they could talk about or do together. Written on the requester's own vault by the application they asked in, acting for them. Any matchmaking service may answer it with MatchSuggestion records that reference it. Immutable: a changed request is a new record that supersedes this one.",
+  "description": "A person's request to find what they have in common with other people — what they could talk about or do together. The request itself is written on the requester's own vault by the application they asked in, acting for them; its audience names the services the requester wants to answer, and a service not in it should not. That application may also put a reference to the request on the vault of each such service, as a signal that a request for it exists; a reference carries no copy of the request, and the service reads the request itself from canonicalOwnerEName's vault. Answers are MatchSuggestion records that reference the request. Immutable: a changed request is a new record that supersedes this one.",
   "type": "object",
   "properties": {
+    "isReference": {
+      "type": "boolean",
+      "description": "true on a reference to a request, kept on the vault of a service asked to answer it; absent or false on the request itself"
+    },
     "id": {
       "type": "string",
-      "description": "Stable id chosen by the writer when the record is made. Not the envelope id, which the vault assigns; references to the record use the envelope URI"
+      "description": "Stable id chosen by the writer when the request is made; a reference carries the id of the request it refers to. Not the envelope id, which the vault assigns; references to the record use the envelope URI"
     },
     "requester": {
       "$ref": "#/definitions/eName",
-      "description": "The person asking. Must be the owner of the vault this record is on"
+      "description": "The person asking. On the request itself, the owner of the vault it is on"
     },
     "people": {
       "type": "array",
@@ -39,13 +43,66 @@
       "type": "string",
       "format": "date-time",
       "description": "When the record was written, RFC 3339"
+    },
+    "canonicalOwnerEName": {
+      "$ref": "#/definitions/eName",
+      "description": "On a reference: the requester, whose vault holds the request"
+    },
+    "canonicalEnvelopeId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "On a reference: the envelope id of the request on canonicalOwnerEName's vault"
+    },
+    "sharedBy": {
+      "$ref": "#/definitions/eName",
+      "description": "On a reference: who put it there — the requester, through the application acting for them"
+    },
+    "sharedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "On a reference: when it was put there, RFC 3339"
     }
   },
   "required": [
     "id",
-    "requester",
-    "people",
-    "createdAt"
+    "requester"
+  ],
+  "oneOf": [
+    {
+      "title": "MatchRequest itself",
+      "properties": {
+        "isReference": {
+          "const": false
+        },
+        "canonicalOwnerEName": false,
+        "canonicalEnvelopeId": false,
+        "sharedBy": false,
+        "sharedAt": false
+      },
+      "required": [
+        "people",
+        "createdAt"
+      ]
+    },
+    {
+      "title": "Reference to a MatchRequest",
+      "properties": {
+        "isReference": {
+          "const": true
+        },
+        "people": false,
+        "purpose": false,
+        "language": false,
+        "supersedes": false
+      },
+      "required": [
+        "isReference",
+        "canonicalOwnerEName",
+        "canonicalEnvelopeId",
+        "sharedBy",
+        "sharedAt"
+      ]
+    }
   ],
   "additionalProperties": false,
   "definitions": {
