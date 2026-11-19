@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "967604a6-66bd-426b-8e96-7d3e8be3b824",
+  "title": "PropertyExpense",
+  "domain": "property",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The stable identifier for the property expense record."
+    },
+    "propertyId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The identifier of the Property record this expense belongs to."
+    },
+    "ownerEname": {
+      "type": "string",
+      "description": "The W3DS eName of the person or group that owns this expense record."
+    },
+    "category": {
+      "type": "string",
+      "description": "The operational category of the expense, such as maintenance, utilities, or insurance."
+    },
+    "description": {
+      "type": "string",
+      "description": "A concise explanation of the property expense."
+    },
+    "supplier": {
+      "type": "string",
+      "description": "The supplier or payee associated with the expense when known."
+    },
+    "amountMinor": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The expense amount in the smallest unit of its currency."
+    },
+    "currencyCode": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "The ISO 4217 currency code for the expense amount."
+    },
+    "recordKind": {
+      "type": "string",
+      "enum": ["plan", "fact", "forecast"],
+      "description": "Whether the record is a plan, an actual expense, or a forecast."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "posted", "void"],
+      "description": "The operating status of the expense record."
+    },
+    "entryDate": {
+      "type": "string",
+      "format": "date",
+      "description": "The local business date the expense is recorded against."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the expense record was created."
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the expense record was last changed."
+    }
+  },
+  "required": [
+    "id",
+    "propertyId",
+    "ownerEname",
+    "category",
+    "description",
+    "amountMinor",
+    "currencyCode",
+    "recordKind",
+    "status",
+    "entryDate",
+    "createdAt",
+    "updatedAt"
+  ],
+  "additionalProperties": false
+}
