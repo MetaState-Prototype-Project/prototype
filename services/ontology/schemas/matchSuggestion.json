@@ -32,7 +32,7 @@
     },
     "opener": {
       "type": "string",
-      "description": "A first question the subject could ask, in `language`"
+      "description": "A first message the subject could send the counterpart as it is: who they are, what drew them to the counterpart's work, and an invitation to talk further. In `language`"
     },
     "language": {
       "type": "string",
