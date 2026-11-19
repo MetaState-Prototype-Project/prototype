@@ -8,7 +8,7 @@
   "properties": {
     "id": {
       "type": "string",
-      "description": "Body id; the same as the envelope id"
+      "description": "Stable id chosen by the writer when the record is made. Not the envelope id, which the vault assigns; references to the record use the envelope URI"
     },
     "requester": {
       "$ref": "#/definitions/eName",
