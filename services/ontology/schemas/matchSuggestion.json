@@ -3,7 +3,7 @@
   "schemaId": "39f42ccc-476c-4a4a-8449-451488e11490",
   "title": "MatchSuggestion",
   "domain": "community",
-  "description": "A machine-made suggestion that one person meet another, and why. Written by the service that made it, on the vault of the person it advises (`subject`), readable by them and that service. Derived, so never more readable than its sources: where a source may not be read by the subject, `reason` says only in general terms what the two have in common and quotes nothing from it. Immutable: a later judgement supersedes it; status `withdrawn` says an earlier suggestion no longer holds; `noCommonGround` answers a request that found nothing.",
+  "description": "A machine-made suggestion that one person meet another, and why. Written by the service that made it, on the vault of the person it advises (`subject`), readable by them and that service. Derived from its sources: a source the subject may not read still counts in full, and `reason` may say as concretely as needed what in it makes the two worth introducing, in the writer's own words; the text of such a source is never repeated. Immutable: a later judgement supersedes it; status `withdrawn` says an earlier suggestion no longer holds; `noCommonGround` answers a request that found nothing.",
   "type": "object",
   "properties": {
     "id": {
