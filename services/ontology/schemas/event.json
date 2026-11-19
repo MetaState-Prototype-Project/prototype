@@ -247,13 +247,6 @@
       "description": "The event this one is a part of, as w3ds://envelope?id=@<vault>/<metaEnvelopeId> — the same form Relation.object and Event.location.placeUri use. This single field carries the whole structure of a programme: a conference, the branches running in parallel inside it, the sessions in a branch, the talks in a session, and whatever is put above a conference later. THE PARENT KEEPS NO LIST OF CHILDREN, on purpose: a list would be rewritten once per talk added, and each rewrite risks the audience of the record everyone is reading. ONE STRING AND NOT AN OBJECT, also on purpose: an eVault update replaces a sent value whole, so a nested {eventId, ownerEName} pair is destroyed by the very patch that re-parents a talk, while a string cannot be split. A URI that will not parse is dropped by the reader rather than treated as an error, as WVTTK declares for the same form. OBLIGATION ON THE WRITER: because this addresses an ENVELOPE, re-publishing a parent as a new envelope obliges the writer to re-point its children; this platform does not yet support editing a published event, so no such re-pointing has ever been needed. null and absent both mean the same thing — this event is a root.",
       "pattern": "^w3ds://envelope\\?id=@[0-9a-fA-F-]{36}/[^/?#]+$"
     },
-    "teamUri": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "description": "The team running this event: its `Workgroup` record, as w3ds://envelope?id=@<vault>/<metaEnvelopeId> — the same form `parentUri` uses. The workgroup may live on the event's own vault or on any community's vault, and one workgroup may run several events, so the link is stated here, on the event, rather than in the workgroup. Who holds which role is the workgroup's to say. Absent or null: no team has been named for this event."
-    },
     "position": {
       "type": "integer",
       "description": "Order among the events that share a parentUri, ascending, gaps permitted. Required because parentUri carries no order and a conference programme is ordered: the levels above a session — a branch, a year — have no time of their own, so a reader cannot fall back on startsAt to sort them. Ties are broken by startsAt and then by title, so that two renders of the same data agree."
