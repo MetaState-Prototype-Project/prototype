@@ -1,0 +1,484 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "2e231e73-bf7f-43ec-933d-7aa864595e0f",
+  "title": "EventRegistration",
+  "domain": "community",
+  "type": "object",
+  "description": "One person's registration for an Event (9cc7d250-d29f-491c-bce8-931420b17d20): the submission, and only the submission. ATTENDANCE STATE IS NOT IN THIS RECORD. Whether somebody is expected, checked in, absent or withdrawn is an append-only log of `AttendeeEvent` records (03110fca-4c93-4b52-b657-f8b0a3693f24, authored by ALVer) on the organisation's vault, and the current state is the fold of that log. An earlier draft of this schema carried a mutable `status` and an inline `history` array; a derived status cannot drift from its own log, an append-only record is never updated so its audience can never be rewritten by a careless edit, and the type already existed. The canonical record lives on the vault of the ORGANISATION hosting the event — that is the party which must be able to enumerate its attendees — and a registrant who signed in with eID holds a REFERENCE on their own vault, so their record of what they submitted survives this platform. Check `isReference` before reading anything else. EXACTLY ONE OF `requesterEName` OR THE TYPED CONTACT FIELDS IS PRESENT, enforced structurally: eID is optional for a visitor, and the two paths are told apart by which identity the record carries rather than by a flag. ANSWERS ARE RECORDED TWICE, ON PURPOSE. `formId` + `formRevision` + `formResponse` copy the mechanism of eCommons' BookingRequest (187221f4-c184-4771-aca4-0defe83b0fb9) field for field, so that anything already reading that type can read this one: `formResponse` is keyed by the `key` of each question in the Form record. But a Form is REPLACED IN PLACE when it is edited, so a key alone resolves to nothing once the organiser has reworded a question or deleted an option, and every past registration would become unreadable. `formResponseSnapshot` therefore restates, per answer, the question's label, type and offered options exactly as this person saw them. It is a SNAPSHOT: where the two disagree, the snapshot is what this person answered and the live Form is what the organiser has since changed. NOT EVERY REGISTRATION CAME THROUGH THE FORM: `registeredVia` says whether the person submitted it (`form`, or absent), the organiser added them from a list of people who registered elsewhere (`list`), or they were added at the badge desk on arrival (`desk`); the last two answer no Form. REGISTERING PAYS FOR NOTHING: an Event may state a price, but nothing in this record represents a payment, and a reader must not infer one.",
+  "properties": {
+    "isReference": {
+      "type": "boolean",
+      "description": "false on the organisation's canonical record, true on the registrant's reference. A reader must branch on this before interpreting any other field."
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable application id for this registration, shared by the canonical record and its reference and unchanged across edits. Distinct from the meta envelope id, which changes when a record is replaced. Named `id` rather than `registrationId` to match the convention of the Form and BookingRequest records this type is built to be legible alongside."
+    },
+    "eventId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The Event's stable application id (`Event.eventId`)."
+    },
+    "eventEnvelopeId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Meta envelope id of the Event AS IT STOOD WHEN THIS PERSON REGISTERED. This is what pins the description and the conditions they were actually shown: the Event is replaced when edited, and its `supersedes` lets a reader walk back to this exact version. Without it, 'what did they agree to' is unanswerable. Note what it does NOT pin — the questions, because the Form is a separate record replaced in place; those are pinned by `formResponseSnapshot`."
+    },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the vault holding the canonical record — the organisation hosting the event, the same identity as the Event's `organisationEName`. Named as the Form, BookingRequest and SigningEnvelope records in this ecosystem name it, because an envelope id without the tenant that holds it addresses nothing, and a reference is unresolvable without this."
+    },
+    "requesterEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the person registering. Named `requesterEName` to match BookingRequest, where the same field means the same thing. On this path it is the WHOLE of what we store about them: name and avatar are read live from their own `User` record, never copied in."
+    },
+    "requesterName": {
+      "type": "string",
+      "description": "The name this person gave when registering. What they typed, not a name anyone verified: `assurance.verifiedName` is the verified one, and the two must not be conflated."
+    },
+    "requesterEmail": {
+      "type": "string",
+      "description": "The email address this person gave. Personal data belonging to the registrant: it lives on the two vaults this record is written to and nowhere else."
+    },
+    "requesterPhone": {
+      "type": "string",
+      "description": "The telephone number this person gave, where the event's Form asked for one (`Form.askPhone`). Personal data, as above."
+    },
+    "requesterOrganisation": {
+      "type": "string",
+      "description": "The organisation this person attends on behalf of, as free text, for an organisation that has no eName to point at. Where it does have one, use `requesterOrganisationEName` instead — see there."
+    },
+    "registeredVia": {
+      "type": "string",
+      "enum": [
+        "form",
+        "list",
+        "desk"
+      ],
+      "description": "How this registration reached the organiser. `form`: the person submitted the event's Form themselves. `list`: the organiser added them from a list of people who registered somewhere else (a spreadsheet, another ticketing system). `desk`: they were added at the event's badge desk as they arrived, by whoever ran it. ABSENT MEANS `form`, which is every record written before this field existed. For `list` and `desk` nobody answered a Form, so `formId` and `formRevision` are null and `formResponse` and `formResponseSnapshot` are empty, and an email address is not required: the person may be known only by the name on the organiser's list or on their badge. The record is otherwise the same record, written to the same two vaults: canonical on the organisation's, a reference on the person's own when their eName is known. Whether they actually came is not here either: it is the AttendeeEvent log, as for every registration."
+    },
+    "formId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "description": "The `id` of the Form record whose questions this submission answers, on the organisation's vault. Copies BookingRequest field for field. Null exactly when `registeredVia` is `list` or `desk`."
+    },
+    "formRevision": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "description": "The Form's `revision` at the moment of submission. Pins which revision was meant; it does not recover it, because the Form is replaced in place. Null exactly when `registeredVia` is `list` or `desk`."
+    },
+    "formResponse": {
+      "type": "object",
+      "description": "What the registrant submitted, keyed by each question's `key` from the Form (`q_5822458b` and so on). A question that was shown and left blank is OMITTED rather than set to null — observed in the live BookingRequest records, where an unanswered optional question simply has no key. So absence here means 'not answered', and `formResponseSnapshot` is where 'shown and not answered' is distinguishable from 'never asked'. Values follow the question's type: a string for shortText, longText, email, phone and date (date as ISO 8601 YYYY-MM-DD); a JSON number for number; the chosen option string for singleChoice; an array of option strings for multiChoice; true for a ticked consent; an object with the same address fields as Event.location for address.",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "number",
+          "boolean",
+          "array",
+          "object",
+          "null"
+        ]
+      }
+    },
+    "formResponseSnapshot": {
+      "type": "array",
+      "description": "The same answers, each carrying the question it answered as this person saw it. Not redundant bookkeeping: `formResponse` is interpretable only while that revision of the Form is still readable, and it is replaced in place on every edit. One entry per question SHOWN to this person, including the ones they left blank — which is how 'shown and not answered' stays distinguishable from 'added to the form later'. Do not remove this in the belief the labels can be looked up: the question it refers to may no longer exist.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The Form question's `key`. Matches a key in `formResponse` unless the question was left blank."
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The question exactly as it was shown to this person."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "shortText",
+              "longText",
+              "number",
+              "singleChoice",
+              "multiChoice",
+              "consent",
+              "phone",
+              "date",
+              "address"
+            ],
+            "description": "The question's type at submission, which decides how to read `value`. The first six are the types the Form ontology is observed to use. The last three — phone, date, address — are a PROPOSED EXTENSION to Form, not yet agreed with the platform that authored it; a conference registration needs them and working around them with free text would make them unvalidatable. Until that extension is agreed, a reader may encounter them here and not in a Form. An `email` type was proposed here too and has been WITHDRAWN: a registration already carries `requesterEmail`, and a second email collected as an answer would be a copy of it in a place no reader would think to look. hi.events, which has run registrations for years, has no email question type for the same reason — the address is a field of the registration, never a question."
+          },
+          "value": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "array",
+              "object",
+              "null"
+            ],
+            "description": "The answer, repeated from `formResponse` so that this entry is readable on its own. Null means the question was shown and left blank — a different fact from the question not appearing in this array at all, which means it was not part of the form this person saw."
+          },
+          "options": {
+            "type": "array",
+            "description": "For singleChoice and multiChoice: the options exactly as they were offered, in order. The Form ontology carries options as plain strings and an answer stores the string itself, so an organiser who rewords or deletes an option leaves the stored answer naming something that no longer exists. This is the record of what the words were.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether the question was compulsory when it was shown."
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "type",
+          "value"
+        ]
+      }
+    },
+    "assurance": {
+      "type": "object",
+      "description": "What the platform knew about the REGISTRANT's identity at the moment they registered. CANONICAL RECORD ONLY. An observation made BY the platform, read from the registrant's own vault — never a claim the registrant made, and it must not be presented as one. RECORDED, not recomputed: a passport check added a year later does not make an earlier registration better evidence, and an attestation withdrawn since does not make it worse, so a reader needs what was true then.",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": [
+            "verified",
+            "attested",
+            "unknown",
+            "unavailable"
+          ],
+          "description": "verified — a licensed identity vendor checked an identity document and the attestation is signed by an authority whose key is published. attested — no document was checked, but other people have mutually attested to this identity. unknown — we looked and nothing at all is known about who holds this eName. unavailable — we could not look: their storage did not answer. The last two are deliberately distinct and MUST NOT be collapsed by a reader: 'we found nothing' is an observation about the person, 'we could not ask' is an admission about us, and a momentary failure recorded as 'unknown' would be a permanent false statement about somebody whose identity is in fact established."
+        },
+        "verifiedName": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The name the vendor checked. Never a name the person stated about themselves — that is `requesterName`."
+        },
+        "verifiedBy": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Which identity vendor performed the check."
+        },
+        "attestations": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "How many other people had mutually attested to this identity at the time."
+        },
+        "authenticatedBy": {
+          "type": "string",
+          "description": "How the person proved, in this act, that they hold the eName. Currently always `eid-key-signature` — a signature from the key their eID wallet holds. Named explicitly so a reader is not left to assume something weaker or stronger."
+        },
+        "capturedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the observation was made — the moment of registration."
+        }
+      },
+      "required": [
+        "level",
+        "authenticatedBy",
+        "capturedAt"
+      ]
+    },
+    "canonicalEnvelopeId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Meta envelope id of the canonical record on the organisation's vault. REFERENCES ONLY — it is how a reader of the registrant's copy finds the authoritative status, together with `canonicalOwnerEName`."
+    },
+    "sharedBy": {
+      "type": "string",
+      "description": "eName of whoever created this reference. References only."
+    },
+    "sharedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "References only."
+    },
+    "registeredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the registration was submitted. Preserved across any later update to the record."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this particular record was first written to this vault. For the canonical record this equals `registeredAt`; for a reference it is when the reference was written, which may be later."
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this record was last rewritten. Attendance state is NOT here — it is the fold of the AttendeeEvent log — so a changed value means the registration's own fields were rewritten, never that somebody arrived or withdrew."
+    },
+    "requesterOrganisationEName": {
+      "type": "string",
+      "pattern": "^@[0-9a-fA-F-]{36}$",
+      "description": "The organisation this person attends ON BEHALF OF, as a reference to that organisation's own eName. Preferred over `requesterOrganisation` whenever the organisation exists in the ecosystem: its name, address and membership are already published on its own vault, so repeating the name here would be a copy that goes stale the day it is renamed. A reader resolves the name from the eName. Use `requesterOrganisation` INSTEAD when the organisation has no eName — somebody from outside the ecosystem typing where they work — and never both: two answers to one question, one of which may contradict the other. Absent on both counts means the person is attending on their own behalf, which is a real answer and not a missing one."
+    },
+    "answerNotes": {
+      "type": "array",
+      "description": "Where the registrant's own free-text answers live, when they live on THEIR vault rather than only here. A long answer like \"what do you want to get out of this conference\" is not an answer to a form at all — it is the person's note about a subject, reusable by the next conference and by any other application, and it belongs to them. So the canonical text is a `PersonalNote` (7c1e5a90-3f42-4b8d-9e77-2a5f0c6b41d3) on the registrant's own vault, created at registration with the hosting organisation already in its audience — consent given by submitting, never a retroactive share of notes they already had. THE SNAPSHOT STILL CARRIES THE TEXT, and that is not a duplicate of it: a note on somebody else's vault can be edited, archived or closed to us afterwards, and the organiser has to be able to say what this person agreed to AT THE TIME. One is the living answer, the other is what was submitted. Absent means the answer lives only in `formResponse` — which is the normal case for a tick box or a choice, where there is no note to make.",
+      "items": {
+        "type": "object",
+        "required": [
+          "key",
+          "noteUri"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "The question this answers, by its `key` in the Form."
+          },
+          "noteUri": {
+            "type": "string",
+            "pattern": "^w3ds://envelope\\?id=@[0-9a-fA-F-]{36}/[0-9a-zA-Z-]+$",
+            "description": "The PersonalNote on the registrant's own vault, as the ecosystem's envelope pointer."
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "isReference",
+    "id",
+    "eventId",
+    "eventEnvelopeId",
+    "canonicalOwnerEName",
+    "formId",
+    "formRevision",
+    "formResponse",
+    "formResponseSnapshot",
+    "registeredAt"
+  ],
+  "oneOf": [
+    {
+      "title": "CanonicalEventRegistration",
+      "properties": {
+        "isReference": {
+          "const": false
+        }
+      },
+      "required": [
+        "isReference",
+        "id",
+        "eventId",
+        "eventEnvelopeId",
+        "canonicalOwnerEName",
+        "formId",
+        "formRevision",
+        "formResponse",
+        "formResponseSnapshot",
+        "registeredAt"
+      ],
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "canonicalEnvelopeId"
+            ]
+          },
+          {
+            "required": [
+              "sharedBy"
+            ]
+          },
+          {
+            "required": [
+              "sharedAt"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "EventRegistrationReference",
+      "properties": {
+        "isReference": {
+          "const": true
+        }
+      },
+      "required": [
+        "isReference",
+        "id",
+        "eventId",
+        "eventEnvelopeId",
+        "canonicalOwnerEName",
+        "canonicalEnvelopeId",
+        "requesterEName",
+        "formId",
+        "formRevision",
+        "formResponse",
+        "formResponseSnapshot",
+        "sharedBy",
+        "sharedAt",
+        "registeredAt"
+      ],
+      "description": "The registrant's own copy, on their own vault. It requires `requesterEName` because it presupposes a vault to sit on: a visitor who registered without eID has no vault, so their registration exists only as the canonical record on the organisation's, and there is nothing for this form to describe. Enforced rather than left to the writer, because a reference built for somebody with no eName would be a record nobody could ever hold."
+    }
+  ],
+  "allOf": [
+    {
+      "title": "ExactlyOneIdentity",
+      "description": "A registration must say how it knows who this is, and there are only two ways. Either the person signed in with eID and the record carries `requesterEName` and NO `requesterName` or `requesterEmail` — those are read live from their own User record, and copying them here would be a second, staler copy of their own data. Or they did not, and the record carries the name (and, through the Form, the email) they typed and NO eName, because those details have no home anywhere else; a registration added from the organiser's list or at the badge desk may carry the name alone (see HowItArrived). `requesterOrganisation` and `requesterPhone` are allowed on BOTH, and that is deliberate: which organisation somebody attends on behalf of, and the number the organiser may ring on the day, are facts about THIS registration rather than about the person. They are not on anybody's User record, so recording them here copies nothing — an earlier version of this schema refused them beside an eName and the result was that an organiser who had asked for the attendee's organisation was never shown it. Enforced structurally rather than by convention, so that a reader never has to guess which kind of registration they are holding, and so that a half-filled record cannot be written at all.",
+      "oneOf": [
+        {
+          "title": "RegisteredWithEID",
+          "required": [
+            "requesterEName"
+          ],
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "requesterName"
+                ]
+              },
+              {
+                "required": [
+                  "requesterEmail"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "title": "RegisteredWithoutEID",
+          "required": [
+            "requesterName"
+          ],
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "requesterEName"
+                ]
+              },
+              {
+                "required": [
+                  "assurance"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "title": "AttendanceStateLivesInItsOwnLog",
+      "description": "`status`, `history` and `revision` were fields of this type and are not any more. They are refused rather than merely undefined, because a writer carrying them over from an older shape would produce exactly the defect the move was made to prevent: a mutable attendance state sitting beside the append-only AttendeeEvent log that is supposed to be the only answer. Append an AttendeeEvent instead.",
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "status"
+            ]
+          },
+          {
+            "required": [
+              "history"
+            ]
+          },
+          {
+            "required": [
+              "revision"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "OneAnswerAboutTheirOrganisation",
+      "description": "At most one of `requesterOrganisation` and `requesterOrganisationEName`. They answer the same question — who are you here on behalf of — and a record carrying both offers a reader two answers with no rule for choosing between them. Neither present means they are attending as themselves.",
+      "not": {
+        "allOf": [
+          {
+            "required": [
+              "requesterOrganisation"
+            ]
+          },
+          {
+            "required": [
+              "requesterOrganisationEName"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "HowItArrived",
+      "description": "A registration made through the Form names that Form and its revision, and without eID carries the email address the Form asked for. One added from the organiser's list or at the badge desk answered no Form: it names none, carries no answers, and may have no email address.",
+      "if": {
+        "required": [
+          "registeredVia"
+        ],
+        "properties": {
+          "registeredVia": {
+            "enum": [
+              "list",
+              "desk"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "formId": {
+            "type": "null"
+          },
+          "formRevision": {
+            "type": "null"
+          },
+          "formResponse": {
+            "maxProperties": 0
+          },
+          "formResponseSnapshot": {
+            "maxItems": 0
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "formId": {
+            "type": "string"
+          },
+          "formRevision": {
+            "type": "integer"
+          }
+        },
+        "if": {
+          "not": {
+            "required": [
+              "requesterEName"
+            ]
+          }
+        },
+        "then": {
+          "required": [
+            "requesterEmail"
+          ]
+        }
+      }
+    }
+  ]
+}
