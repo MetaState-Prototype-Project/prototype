@@ -117,6 +117,36 @@
             "type": "string",
             "pattern": "^w3ds://@[^/\\s]+/[^/\\s]+$",
             "description": "Envelope URI of the record holding the recording on air during this stretch, when `source` is recording."
+          },
+          "media": {
+            "type": "array",
+            "description": "The files holding what was on air AND recorded during this stretch, cut from the source so that nothing off air is in them; written by the broadcasting platform once the stretch is processed. Oldest first, like `intervals`. Every file lies inside this stretch's `startedAt`/`endedAt`. A gap between two neighbouring files means: on air, not recorded. A file is identified by its `uri`, never by its position. Access to the bytes is as restricted as the file's URL is, not by this record's ACL. Same shape as a recording manifest's `segments[]` (present on manifests since 2026-11-09, absent on older ones).",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "uri",
+                "startedAt",
+                "durationSec"
+              ],
+              "properties": {
+                "uri": {
+                  "type": "string",
+                  "pattern": "^w3ds://file\\?id=@[^/\\s]+/[^/\\s]+$",
+                  "description": "The File envelope, as `w3ds://file?id=@vault/<id>`."
+                },
+                "startedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "When the file's first second was on air, absolutely."
+                },
+                "durationSec": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "How long the file runs, in seconds."
+                }
+              }
+            }
           }
         }
       }
