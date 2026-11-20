@@ -200,6 +200,14 @@
       ],
       "description": "DELIBERATELY NOT A JOINING LINK FOR THIS RECORD'S READERS. Set only for an event whose joining link is genuinely public — a published webinar address. A per-attendee link is access, not description: it belongs in that attendee's registration confirmation, never here, because this record's audience is wider than one attendee and may be the whole world."
     },
+    "chat": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The group chat this event gathers its people in, as w3ds://envelope?id=@<vault>/<metaEnvelopeId> of that Chat record — the same form parentUri and location.placeUri use. It states a fact about the event, not a roster: who is in the chat is the chat's own record, kept by the chat's admins and the application they use. A chat application that reads a registration holding a place for this event may add that person to this chat, acting as the event's organiser. Set on the root event only; a part of a programme asks its parent. null and absent both mean the event names no chat.",
+      "pattern": "^w3ds://envelope\\?id=@[0-9a-fA-F-]{36}/[^/?#]+$"
+    },
     "pricing": {
       "type": "object",
       "description": "What attendance costs, in the vocabulary eCommons' `Space` already uses for the same job (`{per, model, amount, currency}`) rather than a word of our own. `model` is where the honesty lives: `donationRecommended` is their value for 'stated but not collected', which is exactly what this platform does. NOTHING IN THIS RECORD CHARGES ANYBODY OR RECORDS THAT ANYBODY PAID, and there is deliberately no value meaning 'paid through the platform', because no such path exists — a reader must be able to tell that registering has not paid for anything.",
