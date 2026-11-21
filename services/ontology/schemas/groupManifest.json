@@ -3,6 +3,7 @@
   "schemaId": "a8bfb7cf-3200-4b25-9ea9-ee41100f212e",
   "title": "GroupManifest",
   "domain": "governance",
+  "description": "A group of people with a vault of its own — a community, an association, a club, a team. The group's identity and its members: who belongs (`members`), who manages it (`admins`), who created it (`owner`: the eName of the person who created the group). Lives in the group's own vault. Optional fields carry what a community platform shows and manages about it: its address, branding, kinds of membership and of absence, and per-member facts. A group that is also a legal entity has its legal identity and board on an Organization record, which points here (groupManifestEnvelopeId) and to which `organizationEName` points back.",
   "type": "object",
   "properties": {
     "eName": {
@@ -21,11 +22,241 @@
       "type": "string",
       "description": "Human readable brief description for the group"
     },
+    "slug": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "description": "The group's short URL name, chosen by the group (e.g. 'de-woonwolk'). Any platform may write it; none should derive one from the name. Not unique across W3DS: the group's eName is what identifies it."
+    },
+    "address": {
+      "type": "object",
+      "description": "Where people find the group: its visiting address. A legal entity's registered seat is a different fact and lives on its Organization record. Absent when the group has none.",
+      "properties": {
+        "country": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$",
+          "description": "ISO 3166-1 alpha-2 country code, uppercase"
+        },
+        "region": {
+          "type": "string",
+          "description": "Province or state"
+        },
+        "city": {
+          "type": "string",
+          "description": "City or town"
+        },
+        "postalCode": {
+          "type": "string",
+          "description": "Postal code as written in that country"
+        },
+        "street": {
+          "type": "string",
+          "description": "Street name"
+        },
+        "houseNumber": {
+          "type": "string",
+          "description": "House number, as text ('163-165', '12bis')"
+        },
+        "houseNumberAddition": {
+          "type": "string",
+          "description": "Addition to the house number, kept apart from it ('C' in 163C)"
+        },
+        "geo": {
+          "type": "object",
+          "description": "Where the address is on the map, and how that was decided",
+          "properties": {
+            "lat": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90,
+              "description": "Latitude, WGS 84"
+            },
+            "lon": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180,
+              "description": "Longitude, WGS 84"
+            },
+            "source": {
+              "type": "string",
+              "enum": [
+                "manual",
+                "geocoded"
+              ],
+              "description": "'manual': a person placed the pin; 'geocoded': derived from the address text, so only an estimate"
+            },
+            "precision": {
+              "type": "string",
+              "enum": [
+                "rooftop",
+                "street",
+                "city"
+              ],
+              "description": "How close the pin is claimed to be"
+            },
+            "updatedAt": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time",
+              "description": "When the pin was last decided"
+            }
+          },
+          "required": [
+            "lat",
+            "lon",
+            "source",
+            "precision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "branding": {
+      "type": "object",
+      "description": "How the group presents itself beyond its avatar (which is its logo)",
+      "properties": {
+        "photoUrl": {
+          "type": "string",
+          "description": "A photo of the group or its place, as a URL or w3ds://file URI"
+        },
+        "primaryColor": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "description": "The group's colour, as a hex colour"
+        },
+        "titleFont": {
+          "type": "string",
+          "description": "The font family the group's name is set in"
+        }
+      },
+      "additionalProperties": false
+    },
     "members": {
       "type": "array",
       "description": "Array of eNames of all members, with an indication of managers and a chair",
       "items": {
         "type": "string"
+      }
+    },
+    "memberDetails": {
+      "type": "array",
+      "description": "Facts about members beyond their eName, one entry per member who has any; `members` stays the list of who belongs. An entry for an eName not in `members` is ignored.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "eName": {
+            "type": "string",
+            "description": "The member, as listed in `members`"
+          },
+          "participantId": {
+            "type": "string",
+            "description": "MetaEnvelope id of the member's User profile, the id Chat.participantIds uses"
+          },
+          "joinedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "When the member joined the group (YYYY-MM-DD)"
+          },
+          "membershipTypeId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The member's kind of membership: an id from `membershipTypes`"
+          }
+        },
+        "required": [
+          "eName"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "membershipTypes": {
+      "type": "array",
+      "description": "The kinds of membership the group has (e.g. 'Member', 'Supporting member'), and whether each carries a vote in its decisions",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Identifier, unique within the group; memberDetails[].membershipTypeId refers to it"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The kind as shown to people"
+          },
+          "description": {
+            "type": "string",
+            "description": "What this kind of membership means"
+          },
+          "emoji": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "An emoji shown with it"
+          },
+          "votingRights": {
+            "type": "boolean",
+            "description": "Whether members of this kind vote in the group's decisions. Always written; a reader that finds none keeps what it knew."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "votingRights"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "availabilityTypes": {
+      "type": "array",
+      "description": "The group's own words for being unavailable (e.g. 'Holiday', 'Sick'), each mapped to the AvailabilityStatus state a member's status of that kind is published as. A member's status itself is their own AvailabilityStatus, in their own vault; this only names the kinds.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Identifier, unique within the group"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The kind as shown to people; a status carries it as typeName"
+          },
+          "emoji": {
+            "type": "string",
+            "description": "An emoji shown with it"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "description": "Display order, lowest first"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "away",
+              "busy",
+              "dnd"
+            ],
+            "description": "The AvailabilityStatus state this kind is published as"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "state"
+        ],
+        "additionalProperties": false
       }
     },
     "charter": {
@@ -42,6 +273,15 @@
     "owner": {
       "type": "string",
       "description": "The eName of the group owner"
+    },
+    "chatId": {
+      "type": "string",
+      "description": "MetaEnvelope id of the group's own Chat, in the same vault. Absent while it has none."
+    },
+    "organizationEName": {
+      "type": "string",
+      "pattern": "^@[^\\s]+$",
+      "description": "When the group is (also) a legal entity whose Organization record lives in a separate company vault: that vault's eName. Readers take the group's board and legal details from there. The Organization record points back with groupManifestEnvelopeId."
     },
     "createdAt": {
       "type": "string",
