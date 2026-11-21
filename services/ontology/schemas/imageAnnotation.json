@@ -1,0 +1,180 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "schemaId": "d09f875b-d1cc-4f31-af42-f0734ee30352",
+    "title": "ImageAnnotation",
+    "domain": "storage",
+    "description": "The annotations one person made on one image: boxes, polygons, masks, points, skeletons and whole-image tags, each with a label. Lives in the annotator's eVault and points at the image, which stays in its owner's eVault as a File record. One record per annotated image (or per annotated patch of an image, see annotatedRegion); it is updated in place as the annotator works. Annotations are kept as data, not as a file in some tool's export format, so any platform can read them, train on them or review them.",
+    "type": "object",
+    "definitions": {
+        "annotation": {
+            "type": "object",
+            "description": "One annotation on the image: a shape, or a tag that applies to the whole image",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "rectangle",
+                        "polygon",
+                        "polyline",
+                        "points",
+                        "ellipse",
+                        "cuboid",
+                        "mask",
+                        "skeleton",
+                        "tag"
+                    ],
+                    "description": "Kind of annotation. 'tag' labels the whole image and has no points; every other value is a shape whose geometry is in points."
+                },
+                "label": {
+                    "type": ["string", "null"],
+                    "description": "Name of the label, e.g. 'tomato'. When labelSetRef is present, the name is one of that label set's labels. null when the writer could not name it."
+                },
+                "points": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    },
+                    "description": "Geometry in pixels, x to the right and y down, relative to the full image or, when annotatedRegion is present, to the region's top-left corner. By type: rectangle [x1, y1, x2, y2] (two opposite corners); polygon, polyline and points [x1, y1, x2, y2, ...]; ellipse [cx, cy, rightX, topY] (the centre, then the x of the rightmost point and the y of the topmost point of the unrotated ellipse, so the radii are rightX - cx and cy - topY); cuboid the eight corners [x1, y1, ..., x8, y8]; mask a run-length encoding followed by its bounding box [..., left, top, right, bottom] (right and bottom inclusive), where the runs alternate 0s and 1s row by row inside the box, starting with a run of 0s; skeleton empty (its points are in elements). Absent for a tag."
+                },
+                "rotation": {
+                    "type": "number",
+                    "description": "Clockwise rotation in degrees around the shape's centre. 0 or absent for an unrotated shape."
+                },
+                "occluded": {
+                    "type": "boolean",
+                    "description": "True when the object is partly hidden behind something else"
+                },
+                "outside": {
+                    "type": "boolean",
+                    "description": "True when a tracked object has left the image on this frame: the shape marks where it left and is not an object in the image"
+                },
+                "zOrder": {
+                    "type": "integer",
+                    "description": "Drawing order among overlapping shapes: higher is in front"
+                },
+                "groupId": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Annotations with the same non-zero groupId belong to one object, e.g. a box and its mask. 0 means no group."
+                },
+                "source": {
+                    "type": ["string", "null"],
+                    "description": "How the annotation was made: 'manual' (drawn by the annotator), 'semi-auto' (drawn with a model's help, e.g. Segment Anything), 'auto' (made by a model), 'file' (imported) or 'consensus' (merged from several annotators). Free text: other tools may use other words."
+                },
+                "attributes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": ["string", "number", "boolean"]
+                    },
+                    "description": "Extra facts about the object, as attribute name to value, e.g. {\"ripeness\": \"green\"}. The names and allowed values come from the label set when labelSetRef is present."
+                },
+                "trackId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Present when the shape is one frame of an object tracked through a video or image sequence. Shapes with the same trackId in records of the same sequence are the same object."
+                },
+                "elements": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/annotation"
+                    },
+                    "description": "The parts of a skeleton, each a 'points' annotation with one point and its own label (e.g. 'stem', 'tip'). Only on a skeleton."
+                }
+            },
+            "required": ["type"],
+            "additionalProperties": false
+        }
+    },
+    "properties": {
+        "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of the annotation the writer keeps stable across updates, so the same image annotated in the same piece of work always maps to the same record. Not the MetaEnvelope id."
+        },
+        "annotatedBy": {
+            "type": "string",
+            "pattern": "^@[^\\s]+$",
+            "description": "eName of the person who made the annotations. Should be the eName of the vault the record lives in."
+        },
+        "imageRef": {
+            "type": "string",
+            "minLength": 1,
+            "description": "MetaEnvelope id of the File record of the annotated image, in imageOwner's eVault"
+        },
+        "imageOwner": {
+            "type": "string",
+            "pattern": "^@[^\\s]+$",
+            "description": "eName of the eVault that holds the image's File record"
+        },
+        "imageWidth": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Width in pixels of the full image (not of the annotated region). 0 when the writer did not know it."
+        },
+        "imageHeight": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Height in pixels of the full image (not of the annotated region). 0 when the writer did not know it."
+        },
+        "annotations": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/annotation"
+            },
+            "description": "Everything annotated on the image (or inside annotatedRegion). An empty list means the annotator found nothing to annotate, not that the image was not looked at."
+        },
+        "annotatedRegion": {
+            "type": ["array", "null"],
+            "items": {
+                "type": "number",
+                "minimum": 0
+            },
+            "minItems": 4,
+            "maxItems": 4,
+            "description": "The patch of the image that was annotated completely, as [xtl, ytl, xbr, ybr] in pixels of the full image (top-left and bottom-right corners). When present, the points in annotations are relative to (xtl, ytl), so the patch can be cut out as a training sample on its own, and nothing outside the patch was annotated: no annotation there is not evidence that nothing is there. Absent or null: the whole image was annotated. Shapes are not clipped to the patch; one that sticks out keeps its full extent and may have negative coordinates. Several patches of one image are several records."
+        },
+        "annotatedRegionFormat": {
+            "type": ["string", "null"],
+            "description": "How to read annotatedRegion, written whenever annotatedRegion is: 'xtl,ytl,xbr,ybr (pixels, origin top-left of the full image)'. A reader that does not recognise the value should not use the record."
+        },
+        "status": {
+            "type": "string",
+            "enum": ["draft", "completed", "reviewed"],
+            "description": "How far the work has got: 'draft' while the annotator is working, 'completed' when they have finished, 'reviewed' when someone else has checked and accepted it"
+        },
+        "labelSetRef": {
+            "type": "string",
+            "minLength": 1,
+            "description": "MetaEnvelope id of the label set the work was done with, when one was given: the list of labels, their meaning and their attributes. In the vault of whoever commissioned the work (usually imageOwner)."
+        },
+        "assignmentRef": {
+            "type": "string",
+            "minLength": 1,
+            "description": "MetaEnvelope id of the request this work was done for, when there was one: who asked for which images to be annotated. In the vault of whoever commissioned the work (usually imageOwner)."
+        },
+        "producedBy": {
+            "type": "string",
+            "pattern": "^@[^\\s]+$",
+            "description": "eName of the platform that wrote the record"
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the record was first written. Does not change on update."
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the record was last written"
+        }
+    },
+    "required": [
+        "id",
+        "annotatedBy",
+        "imageRef",
+        "imageOwner",
+        "annotations",
+        "createdAt"
+    ],
+    "additionalProperties": false
+}
