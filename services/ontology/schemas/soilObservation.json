@@ -1,0 +1,105 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/66666666-6666-4666-8666-666666666666",
+  "schemaId": "66666666-6666-4666-8666-666666666666",
+  "title": "SoilObservation",
+  "domain": "agriculture",
+  "description": "One soil analysis result with original and normalized values, units, method and source codes. Distinct from the general agriculture Observation ontology.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Application record ID stored in the payload; distinct from the containing MetaEnvelope ID."
+    },
+    "bundle_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "soil_sample_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "lab_report_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "property_id": {
+      "type": "string"
+    },
+    "property_label": {
+      "type": "string"
+    },
+    "property_group": {
+      "type": "string",
+      "enum": [
+        "soil.acidity",
+        "soil.organic_matter",
+        "soil.texture",
+        "soil.exchange_capacity",
+        "soil.water",
+        "soil.structure",
+        "soil.biology",
+        "soil.nutrients",
+        "soil.metadata",
+        "unmapped"
+      ]
+    },
+    "observation_kind": {
+      "type": "string",
+      "enum": [
+        "measured",
+        "derived",
+        "converted",
+        "interpreted"
+      ]
+    },
+    "source_parameter_code": {
+      "type": "string"
+    },
+    "source_parameter_label": {
+      "type": "string"
+    },
+    "source_code_list": {
+      "type": "string"
+    },
+    "value_original": {
+      "type": "number"
+    },
+    "value_original_string": {
+      "type": "string"
+    },
+    "unit_original_code": {
+      "type": "string"
+    },
+    "value_normalized": {
+      "type": "number"
+    },
+    "unit_normalized": {
+      "type": "string"
+    },
+    "qualifier": {
+      "type": "string"
+    },
+    "quality_flag": {
+      "type": "string"
+    },
+    "method_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "sort_order": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "id",
+    "soil_sample_id",
+    "lab_report_id",
+    "property_id",
+    "property_label",
+    "property_group",
+    "observation_kind",
+    "sort_order"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ontology.w3ds.metastate.foundation/schemas/99999999-9999-4999-8999-999999999999",
+  "schemaId": "99999999-9999-4999-8999-999999999999",
+  "title": "SoilRecommendation",
+  "domain": "agriculture",
+  "description": "Optional laboratory or other sourced recommendation associated with a soil sample.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Application record ID stored in the payload; distinct from the containing MetaEnvelope ID."
+    },
+    "bundle_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "soil_sample_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "lab_report_id": {
+      "type": "string",
+      "description": "Application payload ID reference, not a MetaEnvelope ID. See the soil import model documentation."
+    },
+    "recommendation_type": {
+      "type": "string"
+    },
+    "nutrient_or_input": {
+      "type": "string"
+    },
+    "crop": {
+      "type": "string"
+    },
+    "frequency": {
+      "type": "string"
+    },
+    "rate_value": {
+      "type": "number"
+    },
+    "rate_unit": {
+      "type": "string"
+    },
+    "comment": {
+      "type": "string"
+    },
+    "valid_until": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "soil_sample_id",
+    "lab_report_id"
+  ],
+  "additionalProperties": false
+}
