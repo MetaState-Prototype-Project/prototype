@@ -3,7 +3,7 @@
   "schemaId": "e2d9c303-e7af-4aaa-b61d-458d4311eb4c",
   "title": "BroadcastSession",
   "domain": "media",
-  "description": "One broadcast: a call or a recording made watchable from outside the room it happens in, planned in advance or started on the spot. It is a separate record from CallSession because a broadcast has a different audience (the people watching, not the people in the call), can be paused while the call goes on, can exist before any call does, and can have a one-person recording as its source, with no call at all. STATE IS READ FROM FACTS; there is no status field. The broadcast HAPPENED if and only if `startedAt` is present. It is OVER when `endedAt` is present; a reader that cannot ask the broadcasting platform also treats it as over once `until` has passed, and writes nothing. `endedAt` without `startedAt` means nothing. A broadcast is called off by `cancelledAt` on this record, whether or not it belongs to an Event — a talk can go ahead without being broadcast; cancelling its Event cancels the broadcast as well. A past `startsAt` with no `startedAt` and no cancellation means it should have started and did not — a reader must not infer cancellation from the clock. THE PLAN: A LINK, VALUES, OR BOTH. A broadcast planned on the spot carries its plan as values here (`title`, `startsAt`, `endsAt`). A broadcast that belongs to an Event links it (`eventId` + `eventOwnerEName`), and the Event is then the plan: a reader that can read the Event takes its title and times from it, whatever this record also says. Such a record MAY also carry its own `title`, `startsAt` and `endsAt` as a fallback for readers that cannot read the Event — the Event's ACL is independent of this record's, and an audience must never be shown a broadcast without a name or a time. A writer that links an Event whose audience is narrower than this record's must write the fallback values. The fallback values are maintained, not written once: when the Event's title or times change, whoever linked the Event rewrites the fallback values in every broadcast that links it. A reader that cannot read the Event shows the fallback values as announced by the organiser, not as verified; it must not date them by `updatedAt`, which the broadcasting platform changes on every live update. WHO WRITES WHAT, in two disjoint groups: the plan (`title`, `eventId`, `eventOwnerEName`, `startsAt`, `endsAt`, `cancelledAt`, `cancellationReason`) is written by whoever created the record; the live fields (`startedAt`, `endedAt`, `until`, `watchUrl`, `source`, `intervals`) only by the platform that runs the broadcast, and every other application reads them. An update replaces the top-level keys it sends and keeps the rest, so the two groups cannot overwrite each other. This is a contract between writers, not something the vault enforces. The transcript and summary of what was ON AIR — only the stretches in `intervals`, never the talk before, after or between them — are a Summary whose `subject.ref` is this record. Such a Summary is derived only from what the broadcast's audience already saw, so it is no more public than its source; it carries no action items. This record's ACL is the broadcast's audience. Putting a group's call on air widens its audience beyond the group, which is publishing rather than running the group; that is why this type sits in the `media` domain, so that permission to broadcast is granted visibly and separately. It is stored on the vault that holds the Chat named in `chat`: the chat of the call, or for a recording the chat the recording is posted in — there is always one.",
+  "description": "One broadcast: a call or a recording made watchable from outside the room it happens in, planned in advance or started on the spot. It is a separate record from CallSession because a broadcast has a different audience (the people watching, not the people in the call), can be paused while the call goes on, can exist before any call does, and can have a one-person recording as its source, with no call at all. STATE IS READ FROM FACTS; there is no status field. The broadcast HAPPENED if and only if `startedAt` is present. It is OVER when `endedAt` is present; a reader that cannot ask the broadcasting platform also treats it as over once `until` has passed, and writes nothing. `endedAt` without `startedAt` means nothing. A broadcast is called off by `cancelledAt` on this record, whether or not it belongs to an Event — a talk can go ahead without being broadcast; cancelling its Event cancels the broadcast as well. A past `startsAt` with no `startedAt` and no cancellation means it should have started and did not — a reader must not infer cancellation from the clock. THE PLAN: A LINK, VALUES, OR BOTH. A broadcast planned on the spot carries its plan as values here (`title`, `startsAt`, `endsAt`). A broadcast that belongs to an Event links it (`eventId` + `eventOwnerEName`), and the Event is then the plan: a reader that can read the Event takes its title and times from it, whatever this record also says. Such a record MAY also carry its own `title`, `startsAt` and `endsAt` as a fallback for readers that cannot read the Event — the Event's ACL is independent of this record's, and an audience must never be shown a broadcast without a name or a time. A writer that links an Event whose audience is narrower than this record's must write the fallback values. The fallback values are maintained, not written once: when the Event's title or times change, whoever linked the Event rewrites the fallback values in every broadcast that links it. A reader that cannot read the Event shows the fallback values as announced by the organiser, not as verified; it must not date them by `updatedAt`, which the broadcasting platform changes on every live update. WHO WRITES WHAT, in two disjoint groups: the plan (`title`, `eventId`, `eventOwnerEName`, `startsAt`, `endsAt`, `cancelledAt`, `cancellationReason`) is written by whoever created the record; the live fields (`startedAt`, `endedAt`, `until`, `watchUrl`, `source`, `intervals`) only by the platform that runs the broadcast, and every other application reads them. An update replaces the top-level keys it sends and keeps the rest, so the two groups cannot overwrite each other. This is a contract between writers, not something the vault enforces. The transcript and summary of what was ON AIR — only the stretches in `intervals`, never the talk before, after or between them — are a Summary whose `subject.ref` is this record. Such a Summary is derived only from what the broadcast's audience already saw, so it is no more public than its source; it carries no action items. This record's ACL is the broadcast's audience. Putting a group's call on air widens its audience beyond the group, which is publishing rather than running the group; that is why this type sits in the `media` domain, so that permission to broadcast is granted visibly and separately. It is stored on the vault that holds the Chat named in `chat`: the chat of the call, or for a recording the chat the recording is posted in — there is always one. PARTS OF A PROGRAMME: when eventId/eventOwnerEName point at a SECTION, its parts are the section's child Events (parentUri; order position → startsAt → envelope id, none last; a cancelled child is skipped) — never copied into this record. A gap of zero between two stretches is a change of part; above zero, a pause (a different meaning from a gap inside intervals[].media, which is \"on air, not recorded\"). Roles break and social are not recorded and take the room off air; every other role, known or not, is content.",
   "type": "object",
   "required": [
     "id",
@@ -147,6 +147,23 @@
                 }
               }
             }
+          },
+          "eventId": {
+            "type": "string",
+            "description": "The part of the programme on air in this stretch: the STABLE eventId from the Event body (survives the programme moving vaults). Paired with eventOwnerEName, as the broadcast's own eventId is. What is on air NOW is the open stretch's eventId — there is no separate current field."
+          },
+          "eventOwnerEName": {
+            "type": "string",
+            "description": "The vault that holds the Event named by eventId."
+          },
+          "title": {
+            "type": "string",
+            "description": "A FALLBACK title for readers who cannot read the Event (its ACL is not the audience). A reader who can takes the CURRENT title from the Event — renames of programme items are corrections. Kept current by the writer of the stretches, on a real rename only."
+          },
+          "cueAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A RECEIPT: the plan's cueAt this stretch answered. Not a copy of the plan — \"this stretch answered that press\" never changes; do not remove it as a duplicate of the plan's cueAt."
           }
         }
       }
@@ -165,6 +182,19 @@
       "type": "string",
       "format": "date-time",
       "description": "When it was last changed."
+    },
+    "cueEventId": {
+      "type": "string",
+      "description": "THE CUE — the ONLY plan field by which the plan asks the live side to act (a declared bridge between the two writer groups): \"put this part of the programme on air next\". Written by the plan writer together with cueEventOwnerEName and cueAt. A cue that does not resolve to a live (not cancelled) child of the section opens nothing — and never blocks a stretch a person starts, which then simply has no eventId."
+    },
+    "cueEventOwnerEName": {
+      "type": "string",
+      "description": "The vault that holds the cued Event."
+    },
+    "cueAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Set on EVERY press and STRICTLY increasing: if the clock gives a value not greater than the previous, the writer writes the previous + 1 ms. The live side applies the cue iff cueAt is newer than the newest intervals[].cueAt receipt (the first cue, with no receipt anywhere, applies) — both values on the plan writer's clock. During a pause a cue means \"what is next\"; a manual resume takes it for the first new stretch."
     }
   }
 }
