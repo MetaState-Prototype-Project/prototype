@@ -132,6 +132,14 @@
       "type": "string",
       "description": "w3ds://file URI of the event's banner image. The bytes behind it sit on a public content host: never put anything here that is not intended to be world-readable."
     },
+    "onAirFileUri": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^w3ds://file\\?id=@[0-9a-fA-F-]{36}/[^/?#]+$",
+      "description": "w3ds://file URI of an image shown to a broadcast's viewers instead of the camera while this programme item is on air (a slide for a coffee break, or for a talk). Independent of `role`: any item may carry one. Read by the broadcasting application when the item becomes current; absent or null means the camera. The bytes behind it sit on a public content host: never put anything here that is not intended to be world-readable."
+    },
     "supersedes": {
       "type": [
         "string",
