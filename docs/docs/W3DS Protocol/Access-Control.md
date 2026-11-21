@@ -3,18 +3,24 @@ sidebar_position: 7
 ---
 
 # Access Control
+We need a way to express simple access boundaries for data on our eVaults.
+The eVault itself will guard the data from unwanted access, but also the platform that caches the data in its database will have to adhere to the same limitations.
+We call a set of such limitations for a piece of data "policy".
 
-An eVault record carries its own access rules. They say which parties may read it, add to it, change it, or delete it — and, separately, what a platform must *be* before it may read at all.
+An eVault record carries its own access rules (policy). They say which parties may read it, add to it, change it, or delete it — and, separately, what a platform must *be* before it may read at all.
 
 The rules live inside the record, not in a table beside it. Data syncs between platforms, and a central rules table would not follow it; the protection would be lost the moment the data moved. Keeping the policy in the record keeps it attached.
 
-## Why the second half exists
+With that said, we want to support acl by reference or inheritting one
+
+## Why the second half exists (this is a very confusing title)
 
 Naming every acceptable platform by hand does not scale, and it misses what an owner actually wants to say: *any platform may read this, provided it is reputable enough*. So a policy has two halves. Grants and denials name parties. The **Resource Link Ontology** sets quality conditions that admit a platform that was never named individually — and refuse one that was.
 
 ## Parties
 
 Every party is an eName, `@<uuid>`. The same form identifies a user, a platform, or a group; a group stands for the set of its members and is resolved to them at check time. Ontologies are parties too and carry their own eName.
+However, ontology eName may not be used inside a "grant".
 
 ```
 @7b9c2e1a-4f30-4c5e-9a21-d8e0f1a2b3c4   a user
@@ -41,7 +47,7 @@ A write that sets a reserved bit is rejected rather than quietly narrowed, so a 
 
 ## Grants
 
-A record carries a list of grants, each naming one party and the permissions it holds.
+Every record contains an `_acl` field with a list of grants, each naming one party and the permissions it holds.
 
 Where several grants could apply to the same request, **the most specific one wins**: a grant to a user beats one to a platform, which beats one to a group the party belongs to. Only that grant is used. Less specific grants do not add to it.
 
@@ -52,7 +58,12 @@ grants: [
 ]
 ```
 
-That member has **READ only**. The direct grant is more specific, so the group's UPDATE is never consulted for them.
+What about the owner of the eVault? Do we need to add the owner to grants explicitly every time (unless we want to forbid her to change)?
+
+That member has **READ only**. 
+The direct grant is more specific, so the group's UPDATE is never consulted for them. 
+By direct grant we refer to an eName of a person.
+Specific may require a formal definition above or below.
 
 Grants tied at the same specificity — duplicates, or two groups the party belongs to — are unioned. Nothing orders one above the other, and picking arbitrarily would make the outcome depend on storage order.
 
@@ -88,11 +99,15 @@ So a group whose record cannot be read is safe in both directions: it hands out 
 
 Where no group resolver is configured at all, groups simply do not resolve — that is the feature switched off rather than a failed lookup, and group grants and denials alike match nobody.
 
+Do we have a position on eVault and platform implementers caching group membership? E.g., if we encourage, we should have it in our reference implementation. If we consider it bad, we should say so and explain why.
+
 ## Denials
 
 A denial removes access regardless of any grant. **Deny always wins**, with no exceptions — it is the one place where specificity does not decide the outcome.
 
 A denial names a party, or states a condition. A denial by name matches the party itself, the platform carrying its request, or any group it belongs to. A denial by condition applies to anyone who **fails** the check.
+
+A policy may include a list of denied eNames and a list of denial conditions. The former are at `denials.ename` field and the latter is at `require` field.
 
 ```
 grants:         [ { ename: @2d4f…4a5b, perms: 0x01 } ]
@@ -114,7 +129,7 @@ Operators are numeric only: `>=`, `>`, `<=`, `<`, `==`. The score is held on the
 A path that is missing, resolves to several nodes, or resolves to a non-numeric value is a **failed** condition — never a passing one. A condition never fails open.
 
 ## Combining conditions
-
+The word "group" here is confusing, because we just talked about groups of people. I would suggest "conjunction" instead.
 Conditions are organised into groups. Within a group all conditions must pass; across groups any one group passing is enough. It is an OR of ANDs.
 
 ```
@@ -123,9 +138,12 @@ require: [
   [ { @erep, $.score, >=, 90 } ]                               // Group B
 ]
 ```
+I don't like that in the example you use the shortened version.
+From paragraph above I'd expect a `{ontology: @sec, path: $.score, op: >=, value: 60}`
 
-A platform is admitted if it clears security *and* reputation together, or clears a higher reputation bar on its own. Groups are evaluated in order and the first passing group decides.
-
+A platform is admitted if it clears security *and* reputation together, or clears a higher reputation bar on its own. 
+Groups are evaluated in order and the first passing group decides.
+We need to explain what "clearing security" means...
 An empty group is an AND over zero conditions, so it always passes — that is how a policy says "admit anyone, subject to the denials".
 
 ## How a decision is reached
@@ -135,6 +153,8 @@ For a party **P** requesting action **A** on record **R**:
 1. **Denials.** If any denial applies — by eName, or by a failing deny condition — refuse. Nothing below overrides this.
 2. **A direct grant.** If P is named, take the single most specific applicable grant and allow only if its bitmask includes A. A grant decides the outcome on its own; step 3 is not reached.
 3. **The ontology.** If at least one group in `require` passes for P, allow if `default_perms` includes A. Otherwise refuse.
+
+At this point it is not clear if "ontology", "denial condition", "requires" -- mean the same thing.
 
 ```
 grants:         { @platform-2d4f: 0x01 }
@@ -216,6 +236,8 @@ What comes back is always the policy **actually in force**. A record carrying on
 
 Because the policy is readable by any permitted reader, treat its contents as visible to them: a denial names the parties an owner has excluded, and the grant list names who else holds access.
 
+I.e., in the current model there is no way to hide from reading platforms the identity of people in allow or deny lists.
+
 ## Relationship to the legacy `acl` array
 
 The older `acl: ["*"]` array still works and is unchanged. Where a record has no `_acl`, the array is read as before. Where a record has one, **`_acl` is authoritative and the array is ignored**.
@@ -261,6 +283,8 @@ Rejected on write:
 Condition errors name their position — `require[0][1]`, `denials.conditions[0]` — so a rejected policy points at the entry that caused it.
 
 Read liberally when already stored: an unparseable grant or condition is dropped, and reserved bits are masked off, so a record written by a future version or corrupted in place stays readable rather than becoming inaccessible.
+
+Just making sure: a platform operating on behalf itself, can modify any record on any eVault, so it can also modify any acl on any eVault?
 
 ### Versioning
 
