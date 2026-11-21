@@ -1,0 +1,200 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "e2d9c303-e7af-4aaa-b61d-458d4311eb4c",
+  "title": "BroadcastSession",
+  "domain": "media",
+  "description": "One broadcast: a call or a recording made watchable from outside the room it happens in, planned in advance or started on the spot. It is a separate record from CallSession because a broadcast has a different audience (the people watching, not the people in the call), can be paused while the call goes on, can exist before any call does, and can have a one-person recording as its source, with no call at all. STATE IS READ FROM FACTS; there is no status field. The broadcast HAPPENED if and only if `startedAt` is present. It is OVER when `endedAt` is present; a reader that cannot ask the broadcasting platform also treats it as over once `until` has passed, and writes nothing. `endedAt` without `startedAt` means nothing. A broadcast is called off by `cancelledAt` on this record, whether or not it belongs to an Event — a talk can go ahead without being broadcast; cancelling its Event cancels the broadcast as well. A past `startsAt` with no `startedAt` and no cancellation means it should have started and did not — a reader must not infer cancellation from the clock. THE PLAN: A LINK, VALUES, OR BOTH. A broadcast planned on the spot carries its plan as values here (`title`, `startsAt`, `endsAt`). A broadcast that belongs to an Event links it (`eventId` + `eventOwnerEName`), and the Event is then the plan: a reader that can read the Event takes its title and times from it, whatever this record also says. Such a record MAY also carry its own `title`, `startsAt` and `endsAt` as a fallback for readers that cannot read the Event — the Event's ACL is independent of this record's, and an audience must never be shown a broadcast without a name or a time. A writer that links an Event whose audience is narrower than this record's must write the fallback values. The fallback values are maintained, not written once: when the Event's title or times change, whoever linked the Event rewrites the fallback values in every broadcast that links it. A reader that cannot read the Event shows the fallback values as announced by the organiser, not as verified; it must not date them by `updatedAt`, which the broadcasting platform changes on every live update. WHO WRITES WHAT, in two disjoint groups: the plan (`title`, `eventId`, `eventOwnerEName`, `startsAt`, `endsAt`, `cancelledAt`, `cancellationReason`) is written by whoever created the record; the live fields (`startedAt`, `endedAt`, `until`, `watchUrl`, `source`, `intervals`) only by the platform that runs the broadcast, and every other application reads them. An update replaces the top-level keys it sends and keeps the rest, so the two groups cannot overwrite each other. This is a contract between writers, not something the vault enforces. The transcript and summary of what was ON AIR — only the stretches in `intervals`, never the talk before, after or between them — are a Summary whose `subject.ref` is this record. Such a Summary is derived only from what the broadcast's audience already saw, so it is no more public than its source; it carries no action items. This record's ACL is the broadcast's audience. Putting a group's call on air widens its audience beyond the group, which is publishing rather than running the group; that is why this type sits in the `media` domain, so that permission to broadcast is granted visibly and separately. It is stored on the vault that holds the Chat named in `chat`: the chat of the call, or for a recording the chat the recording is posted in — there is always one. PARTS OF A PROGRAMME: when eventId/eventOwnerEName point at a SECTION, its parts are the section's child Events (parentUri; order position → startsAt → envelope id, none last; a cancelled child is skipped) — never copied into this record. A gap of zero between two stretches is a change of part; above zero, a pause (a different meaning from a gap inside intervals[].media, which is \"on air, not recorded\"). Roles break and social are not recorded and take the room off air; every other role, known or not, is content.",
+  "type": "object",
+  "required": [
+    "id",
+    "createdByEName",
+    "createdAt"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable id of the broadcast (UUIDv4). Unchanged for the life of the record."
+    },
+    "chat": {
+      "type": "string",
+      "pattern": "^w3ds://@[^/\\s]+/[^/\\s]+$",
+      "description": "Envelope URI (vault and envelope id, not the body id) of the Chat whose call is broadcast, or in which the broadcast recording is posted — the chat of the people on air, not any chat the broadcast is shared into."
+    },
+    "title": {
+      "type": "string",
+      "description": "What is being broadcast, as the audience should see it. Without `eventId` it is the plan. With `eventId` it is a fallback for readers that cannot read the Event; a reader that can read the Event uses the Event's title."
+    },
+    "eventId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The stable `eventId` from the body of the Event (a programme item) this broadcast belongs to — not its envelope id, which changes with every edit of the Event. Set together with `eventOwnerEName`; the reader finds the CURRENT version of the Event by this id on that vault: among the records carrying this `eventId`, the one that no other record names in its `supersedes`; if more than one remains (a fork), the one with the latest `updatedAt`. Taking the first match instead would show an old time. Deliberately not pinned to one envelope: a programme item that moves must move its broadcast with it. When set, the Event is the plan: its title and times; its cancellation also cancels the broadcast."
+    },
+    "eventOwnerEName": {
+      "type": "string",
+      "pattern": "^@[0-9a-fA-F-]{36}$",
+      "description": "eName of the vault holding that Event, so the reader can find it by `eventId`."
+    },
+    "startsAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the broadcast is planned to begin. Absent for a broadcast started on the spot. With `eventId` it is a fallback for readers that cannot read the Event."
+    },
+    "endsAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it is planned to end. With `eventId` it is a fallback for readers that cannot read the Event."
+    },
+    "cancelledAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the broadcast was called off. Valid with or without `eventId`: the Event may still take place without a broadcast. A cancelled Event cancels its broadcast too."
+    },
+    "cancellationReason": {
+      "type": "string",
+      "description": "Why it was called off, for the audience. Present only with `cancelledAt`."
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it first went on air. Its presence, and nothing else, means the broadcast happened."
+    },
+    "endedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it was taken off air for good. Absent while it may still continue."
+    },
+    "until": {
+      "type": "string",
+      "format": "date-time",
+      "description": "A lease for readers that cannot ask the broadcasting platform: past this instant the broadcast is over even if `endedAt` never arrived. The broadcasting platform extends it while on air."
+    },
+    "watchUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://",
+      "description": "Where to watch: a page of the broadcasting platform that admits viewers against this record's audience. After the broadcast it says that it has ended."
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "call",
+        "recording"
+      ],
+      "description": "What is broadcast: a call, or one person's recording."
+    },
+    "intervals": {
+      "type": "array",
+      "description": "The stretches that were actually on air, oldest first. A pause ends one; a resume starts the next. The list is replaced whole on every update: a writer adding a stretch reads the record first and writes the full list back.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "startedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable id of this stretch, so it can be referred to without its position in the list."
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When this stretch went on air."
+          },
+          "endedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it stopped, by a pause or the end. Absent while on air."
+          },
+          "call": {
+            "type": "string",
+            "pattern": "^w3ds://@[^/\\s]+/[^/\\s]+$",
+            "description": "Envelope URI of the CallSession on air during this stretch, when `source` is call. A call that dropped and was started again continues the same broadcast in a new stretch with a new CallSession."
+          },
+          "recording": {
+            "type": "string",
+            "pattern": "^w3ds://@[^/\\s]+/[^/\\s]+$",
+            "description": "Envelope URI of the record holding the recording on air during this stretch, when `source` is recording."
+          },
+          "media": {
+            "type": "array",
+            "description": "The files holding what was on air AND recorded during this stretch, cut from the source so that nothing off air is in them; written by the broadcasting platform once the stretch is processed. Oldest first, like `intervals`. Every file lies inside this stretch's `startedAt`/`endedAt`. A gap between two neighbouring files means: on air, not recorded. A file is identified by its `uri`, never by its position. Access to the bytes is as restricted as the file's URL is, not by this record's ACL. Same shape as a recording manifest's `segments[]` (present on manifests since 2026-11-09, absent on older ones).",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "uri",
+                "startedAt",
+                "durationSec"
+              ],
+              "properties": {
+                "uri": {
+                  "type": "string",
+                  "pattern": "^w3ds://file\\?id=@[^/\\s]+/[^/\\s]+$",
+                  "description": "The File envelope, as `w3ds://file?id=@vault/<id>`."
+                },
+                "startedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "When the file's first second was on air, absolutely."
+                },
+                "durationSec": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "How long the file runs, in seconds."
+                }
+              }
+            }
+          },
+          "eventId": {
+            "type": "string",
+            "description": "The part of the programme on air in this stretch: the STABLE eventId from the Event body (survives the programme moving vaults). Paired with eventOwnerEName, as the broadcast's own eventId is. What is on air NOW is the open stretch's eventId — there is no separate current field."
+          },
+          "eventOwnerEName": {
+            "type": "string",
+            "description": "The vault that holds the Event named by eventId."
+          },
+          "title": {
+            "type": "string",
+            "description": "A FALLBACK title for readers who cannot read the Event (its ACL is not the audience). A reader who can takes the CURRENT title from the Event — renames of programme items are corrections. Kept current by the writer of the stretches, on a real rename only."
+          },
+          "cueAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A RECEIPT: the plan's cueAt this stretch answered. Not a copy of the plan — \"this stretch answered that press\" never changes; do not remove it as a duplicate of the plan's cueAt."
+          }
+        }
+      }
+    },
+    "createdByEName": {
+      "type": "string",
+      "pattern": "^@[0-9a-fA-F-]{36}$",
+      "description": "eName of the person who created the broadcast (pressed the button or planned it)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the record was created."
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it was last changed."
+    },
+    "cueEventId": {
+      "type": "string",
+      "description": "THE CUE — the ONLY plan field by which the plan asks the live side to act (a declared bridge between the two writer groups): \"put this part of the programme on air next\". Written by the plan writer together with cueEventOwnerEName and cueAt. A cue that does not resolve to a live (not cancelled) child of the section opens nothing — and never blocks a stretch a person starts, which then simply has no eventId."
+    },
+    "cueEventOwnerEName": {
+      "type": "string",
+      "description": "The vault that holds the cued Event."
+    },
+    "cueAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Set on EVERY press and STRICTLY increasing: if the clock gives a value not greater than the previous, the writer writes the previous + 1 ms. The live side applies the cue iff cueAt is newer than the newest intervals[].cueAt receipt (the first cue, with no receipt anywhere, applies) — both values on the plan writer's clock. During a pause a cue means \"what is next\"; a manual resume takes it for the first new stretch."
+    }
+  }
+}
