@@ -1,0 +1,178 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "b7e4a0c1-5f28-4d3a-9e61-2c8f7a4b9d05",
+  "title": "Place",
+  "domain": "property",
+  "type": "object",
+  "description": "A place that can be named and returned to — a library, a hall, a park, a street address, a point on the ground. Modelled on schema.org/Place, which is the widest-shared vocabulary for this and which solves nesting with ONE self-referential type rather than two: a room inside a building is a Place whose `containedInPlace` is the building. That is why there is no separate address or location type here. An address has no identity apart from the thing it locates — nobody looks up a street number as a record in its own right — so `address` and `geo` are fields, siblings as they are on schema.org/Place, and either may be absent: a venue may be known only by its postal address, or a meeting point only by its coordinates. AT LEAST ONE OF THEM MUST BE PRESENT, because a Place with neither locates nothing. THIS RECORD IS NOT AN ACCESS CONTROL AND NOT A BOOKING. It says where somewhere is, and nothing about who may go there or whether it is free: capacity, equipment, rules and hourly price belong to a bookable room (eCommons' `Space`, 2d55b30d-2938-4bd5-99c5-04b090eec03a), which should point AT a Place rather than carry its own address. NO JOINING LINK GOES IN HERE: an online meeting's link is one attendee's access, not a property of a place, and the separation is copied from WVTTK, which declares `online` and `meetingLink` apart from `address` for exactly that reason.",
+  "properties": {
+    "placeId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable application id for this place, unchanged across edits. Distinct from the meta envelope id, which changes when the record is replaced."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What the place is called, as an invitation would name it — 'OBA Oosterdok', not 'Oosterdokskade 143'. schema.org `name`. This is the field a reader shows; it is required because a place nobody can name is of no use to anybody choosing where to go."
+    },
+    "kind": {
+      "type": "string",
+      "description": "What sort of place this is, as a lowercase word: library, hall, cafe, park, office, venue. Deliberately free text rather than an enum, because the useful vocabularies are external and much larger than anything worth freezing here: it maps to schema.org `additionalType` and to OpenStreetMap's primary tag value (`amenity=library`, `leisure=park`). A reader that does not recognise a value should ignore it rather than reject the record."
+    },
+    "address": {
+      "type": "object",
+      "description": "The postal address. Key names are taken unchanged from the only address shape in this ecosystem with live records behind it — the `address` block inside `Organization` (ad226473-640e-4d16-90e5-2fd96f261554), observed on 7 of its 19 records — so that an application reading one reads the other. Maps to schema.org `PostalAddress`: street→streetAddress, city→addressLocality, region→addressRegion, postalCode→postalCode, country→addressCountry. ONE DELIBERATE DIVERGENCE FROM THAT SHAPE: `Organization` nests its coordinates inside this block, and here they are a sibling, because a Place may be a bare point with no address at all and coordinates wrapped in a key called `address` would be a lie. A reader bridging the two must look in both places.",
+      "properties": {
+        "street": {
+          "type": "string",
+          "description": "Street name without the number. schema.org `streetAddress` combines the two; this ecosystem splits them, and the split is kept."
+        },
+        "houseNumber": {
+          "type": "string",
+          "description": "House or building number, as a string: '143', '143A', '143-145'."
+        },
+        "postalCode": {
+          "type": "string",
+          "description": "Postal or ZIP code, in the local format. schema.org `postalCode`."
+        },
+        "city": {
+          "type": "string",
+          "description": "City or town. schema.org `addressLocality`."
+        },
+        "region": {
+          "type": "string",
+          "description": "State, province or region. schema.org `addressRegion`. Added here because `Organization`'s block has no field for it and many countries need one; a reader of that type will not expect it."
+        },
+        "country": {
+          "type": "string",
+          "description": "ISO 3166-1 alpha-2. schema.org `addressCountry`."
+        }
+      }
+    },
+    "geo": {
+      "type": "object",
+      "description": "Where this is on the ground. Key names and the two provenance fields are taken unchanged from `Organization.address.geo`, the only live coordinate shape in this ecosystem. Maps to schema.org `GeoCoordinates`: lat→latitude, lon→longitude. NOTE THE SPELLING: `lon`, not `lng`. Calendula declares `lng` in the inline `location` object on a CalendarEvent, and measured across 2000 CalendarEvent records not one of the 75 location objects carries a coordinate under either spelling — so there was nothing to stay compatible with, and the name that already has live data behind it wins.",
+      "properties": {
+        "lat": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90,
+          "description": "Latitude in decimal degrees, WGS 84."
+        },
+        "lon": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180,
+          "description": "Longitude in decimal degrees, WGS 84."
+        },
+        "source": {
+          "type": "string",
+          "description": "Where the coordinates came from: `manual` when a person placed the pin, or the name of the service they were looked up in (`osm`, `google`). Recorded because a coordinate is a claim by whoever produced it, and a reader deciding whether to route somebody there is entitled to know who that was."
+        },
+        "precision": {
+          "type": "string",
+          "description": "How exact the coordinates are, in the vocabulary already in use on `Organization.address.geo`: `rooftop` for the building itself, through to coarser values for a street or a locality centroid. A door-level route built from a city-centre point is wrong in a way the number itself does not reveal."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the coordinates were last established. Separate from the record's own `updatedAt` because a place can be renamed without being re-surveyed."
+        }
+      },
+      "required": [
+        "lat",
+        "lon"
+      ]
+    },
+    "containedInPlace": {
+      "type": "string",
+      "description": "The larger Place this one sits inside, as `w3ds://envelope?id=@<vault>/<metaEnvelopeId>` — a room inside a building, a building inside a campus. schema.org `containedInPlace`, and the reason this product has one place type rather than two: nesting is a reference to the same type, not a second type underneath. The pointer carries the vault as well as the envelope id because an envelope id alone addresses nothing; it is the form the registered `Relation` ontology (f9ff8527-f3af-4733-b8df-fa0c97ba03ff) documents for pointing at an envelope, and resolving it is the reader's business."
+    },
+    "url": {
+      "type": "string",
+      "description": "The place's own page on the web, if it has one. schema.org `url`."
+    },
+    "telephone": {
+      "type": "string",
+      "description": "schema.org `telephone`."
+    },
+    "photos": {
+      "type": "array",
+      "description": "Pictures of the place. The `uri` form is the one eCommons' `Space` uses for the same purpose. Remember what that form means: the bytes behind a w3ds://file URI are served from a public host whatever the record's audience says, so nothing private goes here.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "uri": {
+            "type": "string",
+            "description": "`w3ds://file?id=@<vault>/<metaEnvelopeId>`."
+          },
+          "description": {
+            "type": "string",
+            "description": "What the picture shows."
+          }
+        },
+        "required": [
+          "uri"
+        ]
+      }
+    },
+    "importedFrom": {
+      "type": "object",
+      "description": "Where this record's contents came from, when they were looked up in a map service rather than typed. AN OBSERVATION BY THE PLATFORM THAT WROTE IT, never a claim by the place itself, and it must not be shown as though the place had asserted it. Present so that a stale import is recognisable as an import: a building renamed in OpenStreetMap last week does not change what we copied last year, and a reader can decide whether to re-check.",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "description": "`osm`, `google`, or `manual` when a person typed it."
+        },
+        "externalId": {
+          "type": "string",
+          "description": "That provider's own identifier, verbatim — an OSM element such as `way/34633854`, or a Google place id. Keeps a re-check possible without matching on name."
+        },
+        "importedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the lookup happened."
+        }
+      },
+      "required": [
+        "provider"
+      ]
+    },
+    "ownerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the vault this record lives on — whoever described the place, not whoever owns the building. A Place is a description, and several descriptions of the same building may exist; `importedFrom.externalId` is what makes them recognisable as the same place."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this place was first described, by whoever described it."
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the description was last rewritten. A place does not move; this changes when somebody corrects the address, the name or the coordinates."
+    }
+  },
+  "required": [
+    "placeId",
+    "name",
+    "ownerEName",
+    "createdAt"
+  ],
+  "anyOf": [
+    {
+      "title": "PlaceWithAnAddress",
+      "required": [
+        "address"
+      ]
+    },
+    {
+      "title": "PlaceWithCoordinates",
+      "required": [
+        "geo"
+      ]
+    }
+  ]
+}

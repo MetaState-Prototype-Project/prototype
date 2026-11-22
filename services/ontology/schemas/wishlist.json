@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "770e8400-e29b-41d4-a716-446655440000",
+  "title": "Wishlist",
+  "domain": "social",
+  "type": "object",
+  "description": "A person's own text, in Markdown, of what they want and what they can do for others — one record per person, on their own vault. Written by Dreamsync (platforms/dreamsync, `wishlist.mapping.json`) from its wishlist editor, read by eReputation with the same mapping, and written by Match (match.postplatforms.com) from a voice or written interview. Applications that introduce people to each other read it to find who could help whom. Registered here after the fact: the type has carried live records since early 2026 (18 people when this was written), and the field list below is what those records carry. `content` is the record: Markdown, starting with `# <title>`, with `##` sections such as `What I Want` and `What I Can Do` (Dreamsync's template) or, from Match, sections about the person, what they look for, their interests, what they can offer and their plans, in the person's own language. Section headings are free text; a reader that needs to tell wants from offers reads the headings for meaning rather than matching fixed strings. Events, dates and places are written into the text in the person's own words.",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "The list's title, e.g. \"My Dream Wishlist\". Repeated as the `# ` heading at the top of `content`."
+    },
+    "content": {
+      "type": "string",
+      "description": "The wishlist as Markdown, starting with `# <title>`. Written by the person, or composed by an application from their answers and approved by them — see `provenance`."
+    },
+    "isActive": {
+      "type": "boolean",
+      "description": "False when the person retired this list. A reader ignores inactive lists. There is no delete; this is how a list is taken back."
+    },
+    "isPublic": {
+      "type": "boolean",
+      "description": "The person's choice to let applications show this list, or parts of it, to people they are introduced to. When false, an application may use it only to advise the person themselves. The ACL decides who may read the record; this flag is the person's intent and never widens it."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Application bookkeeping, as Dreamsync writes it.",
+      "properties": {
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "categories": { "type": "array", "items": { "type": "string" } },
+        "lastAnalyzed": { "type": "string", "format": "date-time", "description": "When the writing application last derived summaries from `content`. The summaries themselves stay in that application." },
+        "analysisVersion": { "type": "integer" }
+      }
+    },
+    "userId": {
+      "type": "string",
+      "description": "The id of the person's own `User` envelope on the same vault — the profile record's id, NOT an eName. The vault's owner is the person; compare identities by eName, never by this value."
+    },
+    "language": {
+      "type": "string",
+      "description": "BCP 47 tag of the language `content` is written in, e.g. `nl`, `lb`, `sr-Latn`. Optional; added by Match."
+    },
+    "provenance": {
+      "type": "object",
+      "description": "How `content` came to be, in the ecosystem's `{app, auto, generatedAt}` shape. `auto: true` with `source: \"interview\"` means an application composed it from the person's spoken or written answers; `approvedAt` is when the person read and approved it — such a record is not written before that. Optional; added by Match. Absent means typed by the person.",
+      "properties": {
+        "app": { "type": "string" },
+        "auto": { "type": "boolean" },
+        "source": { "type": "string" },
+        "mode": { "type": "string" },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "approvedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "required": ["title", "content", "createdAt"],
+  "additionalProperties": true
+}
