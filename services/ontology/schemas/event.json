@@ -36,7 +36,7 @@
         },
         "manifestEnvelopeId": {
           "type": "string",
-          "description": "Meta envelope id of the GroupManifest the role was read from, so a verifier can look at the same evidence."
+          "description": "Meta envelope id of the GroupManifest the role was read from, so a verifier can look at the same evidence. Absent when a person hosts the event themselves (`organisationEName` equals `createdByEName`, role `owner`): there is no membership to cite, and none is invented."
         },
         "checkedAt": {
           "type": "string",
@@ -46,7 +46,6 @@
       },
       "required": [
         "role",
-        "manifestEnvelopeId",
         "checkedAt"
       ]
     },
@@ -70,12 +69,13 @@
     "status": {
       "type": "string",
       "enum": [
+        "draft",
         "published",
         "registration_closed",
         "cancelled",
         "completed"
       ],
-      "description": "The event's lifecycle. Note there is no `draft`: a draft has never been written to a vault and exists only in the platform's own database, because an unpublished draft is not yet anybody's data. `registration_closed` means the event is still happening but is no longer accepting registrations, which is a different statement from `cancelled`, and the two must not be collapsed by a reader."
+      "description": "The event's lifecycle. `draft`: being prepared — the record is on the host's vault from the moment the event is created, readable by the host and the event's team, so that any application can continue preparing it; its programme hangs off it the same way. `published`: announced and open; publishing changes this value, adds `formId`/`formRevision` and widens the audience of the same record rather than writing a new one. `registration_closed` means the event is still happening but is no longer accepting registrations, which is a different statement from `cancelled`, and the two must not be collapsed by a reader. A child item of a programme omits `status` and inherits it, except `cancelled` for an item taken out."
     },
     "cancellationReason": {
       "type": "string",
