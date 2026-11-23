@@ -356,20 +356,25 @@ export function createScanLogic({
     }
 
     async function handleAuth() {
-        const vault = await globalState.vaultController.vault;
-        if (!vault || !get(redirect)) return;
+        // Read before any await, so a link arriving mid-approval cannot
+        // send this signature to another platform or session.
+        const approvedSession = get(session) as string;
+        const approvedRedirect = get(redirect);
+        const fromScan = get(isFromScan);
+        if (!approvedRedirect) return;
 
         // Clear previous errors and set loading state
         authError.set(null);
         authLoading.set(true);
 
         try {
-            const sessionPayload = get(session) as string;
+            const vault = await globalState.vaultController.vault;
+            if (!vault) return;
 
             const { signature } = await authenticate(
                 globalState.walletSdkAdapter,
                 {
-                    sessionId: sessionPayload,
+                    sessionId: approvedSession,
                     keyId: "default",
                     context: "signing",
                 },
@@ -379,29 +384,21 @@ export function createScanLogic({
                 throw new Error("Failed to get W3ID");
             }
 
-            const redirectUrl = get(redirect);
-            if (!redirectUrl) {
-                throw new Error(
-                    "No redirect URL configured for authentication",
-                );
-            }
-
             const appVersion = await getVersion();
-            const fromScan = get(isFromScan);
 
             if (fromScan) {
                 // For scan: Make POST request with JSON payload
                 const payload = {
                     ename: vault.ename,
-                    session: get(session) as string,
+                    session: approvedSession,
                     signature: signature,
                     appVersion,
                 };
 
-                console.log(`📤 Making POST request to: ${redirectUrl}`);
+                console.log(`📤 Making POST request to: ${approvedRedirect}`);
                 console.log("📦 Payload:", payload);
 
-                const response = await fetch(redirectUrl, {
+                const response = await fetch(approvedRedirect, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
@@ -425,9 +422,9 @@ export function createScanLogic({
             }
             // For deeplink: Open URL with encoded URI
             // Strip path from redirectUri and append /deeplink-login
-            const loginUrl = new URL("/deeplink-login", redirectUrl);
+            const loginUrl = new URL("/deeplink-login", approvedRedirect);
             loginUrl.searchParams.set("ename", vault.ename);
-            loginUrl.searchParams.set("session", get(session) as string);
+            loginUrl.searchParams.set("session", approvedSession);
             loginUrl.searchParams.set("signature", signature);
             loginUrl.searchParams.set("appVersion", appVersion);
 
@@ -1413,6 +1410,14 @@ export function createScanLogic({
 
             // The signed-in drawer is a finished login, and a different
             // session is a newer offer, so only a repeat of the open one is skipped.
+            // Replacing the consent now would close it under the login
+            // being signed, so the newer link is dropped instead.
+            if (data.type === "auth" && get(authLoading)) {
+                console.log(
+                    "Auth request arrived while signing a login, ignoring it",
+                );
+                return;
+            }
             if (
                 data.type === "auth" &&
                 get(codeScannedDrawerOpen) &&
@@ -1653,9 +1658,10 @@ export function createScanLogic({
             const customEvent = event as CustomEvent<DeepLinkData>;
             const detail = (customEvent.detail ?? {}) as DeepLinkData;
             console.log("Received deepLinkReceived event:", detail);
-            // Cleared after the layout's listener has stored it, as on mount,
-            // so the next mount and the approve path do not replay it.
-            void handleDeepLinkData(detail).finally(clearDeepLink);
+            // Cleared once every listener of this dispatch, the layout's
+            // included, has run: later would erase a link stored meanwhile.
+            queueMicrotask(clearDeepLink);
+            void handleDeepLinkData(detail);
         };
 
         const authHandler = (event: Event) => {
@@ -1684,14 +1690,15 @@ export function createScanLogic({
 
         if (deepLinkData) {
             console.log("Found deep link data:", deepLinkData);
+            // Cleared before handling awaits anything, so a link stored
+            // meanwhile is left for the mount that follows.
+            clearDeepLink();
             try {
                 const data = JSON.parse(deepLinkData) as DeepLinkData;
                 console.log("Parsed deep link data:", data);
                 await handleDeepLinkData(data);
             } catch (error) {
                 console.error("Error parsing deep link data:", error);
-            } finally {
-                clearDeepLink();
             }
         } else {
             console.log("No deep link data found, starting normal scanning");
