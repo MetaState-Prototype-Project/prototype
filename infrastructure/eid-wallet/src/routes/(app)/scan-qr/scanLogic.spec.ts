@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GlobalState } from "$lib/global";
 import { peekDeepLink, storeDeepLink } from "$lib/stores/deepLink";
+import { MemoryStorage } from "$lib/utils";
 import { get } from "svelte/store";
 import { createScanLogic } from "./scanLogic";
 
@@ -20,29 +21,6 @@ vi.mock("@tauri-apps/plugin-barcode-scanner", () => ({
     scan: vi.fn(() => new Promise(() => {})),
 }));
 vi.mock("wallet-sdk", () => ({ authenticate: vi.fn() }));
-
-/** Minimal sessionStorage stand-in; the pending payload is storage-backed. */
-class MemoryStorage implements Storage {
-    private valuesByKey = new Map<string, string>();
-    get length() {
-        return this.valuesByKey.size;
-    }
-    clear() {
-        this.valuesByKey.clear();
-    }
-    getItem(key: string) {
-        return this.valuesByKey.get(key) ?? null;
-    }
-    key(index: number) {
-        return Array.from(this.valuesByKey.keys())[index] ?? null;
-    }
-    removeItem(key: string) {
-        this.valuesByKey.delete(key);
-    }
-    setItem(key: string, value: string) {
-        this.valuesByKey.set(key, String(value));
-    }
-}
 
 /** Listeners registered on the stubbed window, keyed by event type. */
 let windowListenersByEventType: Map<string, ((event: Event) => void)[]>;

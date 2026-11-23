@@ -8,3 +8,4 @@ export * from "./socialBinding";
 export * from "./portal";
 export * from "./identityLabels";
 export * from "./pendingSocialRequest";
+export * from "./memoryStorage.utils";
