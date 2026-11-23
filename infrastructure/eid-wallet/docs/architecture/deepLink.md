@@ -60,6 +60,25 @@ flowchart TD
     R --> R2["Decline -> /main"]
 ```
 
+## When `/scan-qr` is already open
+
+`goto("/scan-qr")` does nothing when `/scan-qr` is already the current route, so
+the layout sends the page a `deepLinkReceived` event instead. That happens when
+the user logs out of a platform and taps its eID button again while the wallet
+still shows the previous login's "signed in" drawer. The page treats that
+drawer as a finished login. It only skips an auth link if that link repeats
+the session whose consent drawer is open, or if a login is being signed.
+
+Approving a login reads the session and redirect before any await. A link
+that arrives while the wallet signs cannot send that signature to another
+platform or session.
+
+The page clears the payload it was given, so neither the next mount nor the
+approve path replays it. On mount it clears right after reading the payload.
+For an event it clears once every listener of that dispatch has run. Neither
+path waits for handling to finish, because a blind vote awaits a poll fetch,
+and a link stored meanwhile belongs to whoever mounts next.
+
 ## One payload slot
 
 Storing a deep link never implies permission to act on it. That is

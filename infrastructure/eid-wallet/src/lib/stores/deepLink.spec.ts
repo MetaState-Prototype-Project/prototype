@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { goto } from "$app/navigation";
 import type { GlobalState } from "$lib/global";
 import { SessionController } from "$lib/global/controllers/session";
+import { MemoryStorage } from "$lib/utils";
 import {
     completeOnboarding,
     continueAfterSuccessfulAuth,
@@ -16,29 +17,6 @@ import {
 } from "./deepLink";
 
 vi.mock("$app/navigation", () => ({ goto: vi.fn(async () => {}) }));
-
-/** Minimal sessionStorage stand-in; the module is deliberately storage-backed. */
-class MemoryStorage implements Storage {
-    private map = new Map<string, string>();
-    get length() {
-        return this.map.size;
-    }
-    clear() {
-        this.map.clear();
-    }
-    getItem(key: string) {
-        return this.map.get(key) ?? null;
-    }
-    key(index: number) {
-        return Array.from(this.map.keys())[index] ?? null;
-    }
-    removeItem(key: string) {
-        this.map.delete(key);
-    }
-    setItem(key: string, value: string) {
-        this.map.set(key, String(value));
-    }
-}
 
 let session: SessionController;
 let globalState: GlobalState;
