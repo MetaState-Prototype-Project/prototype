@@ -1408,8 +1408,6 @@ export function createScanLogic({
                 return;
             }
 
-            // The signed-in drawer is a finished login, and a different
-            // session is a newer offer, so only a repeat of the open one is skipped.
             // Replacing the consent now would close it under the login
             // being signed, so the newer link is dropped instead.
             if (data.type === "auth" && get(authLoading)) {
@@ -1418,6 +1416,8 @@ export function createScanLogic({
                 );
                 return;
             }
+            // The signed-in drawer is a finished login, and a different
+            // session is a newer offer, so only a repeat of the open one is skipped.
             if (
                 data.type === "auth" &&
                 get(codeScannedDrawerOpen) &&
