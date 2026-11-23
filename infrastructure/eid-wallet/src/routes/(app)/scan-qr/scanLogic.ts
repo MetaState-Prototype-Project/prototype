@@ -1411,9 +1411,12 @@ export function createScanLogic({
                 return;
             }
 
+            // The signed-in drawer is a finished login, and a different
+            // session is a newer offer, so only a repeat of the open one is skipped.
             if (
                 data.type === "auth" &&
-                (get(codeScannedDrawerOpen) || get(loggedInDrawerOpen))
+                get(codeScannedDrawerOpen) &&
+                get(session) === (data.session ?? null)
             ) {
                 console.log(
                     "Auth request already in progress, ignoring duplicate",
@@ -1650,7 +1653,9 @@ export function createScanLogic({
             const customEvent = event as CustomEvent<DeepLinkData>;
             const detail = (customEvent.detail ?? {}) as DeepLinkData;
             console.log("Received deepLinkReceived event:", detail);
-            void handleDeepLinkData(detail);
+            // Cleared after the layout's listener has stored it, as on mount,
+            // so the next mount and the approve path do not replay it.
+            void handleDeepLinkData(detail).finally(clearDeepLink);
         };
 
         const authHandler = (event: Event) => {
