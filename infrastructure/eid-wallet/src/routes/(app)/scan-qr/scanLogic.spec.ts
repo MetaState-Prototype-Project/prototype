@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GlobalState } from "$lib/global";
 import { peekDeepLink, storeDeepLink } from "$lib/stores/deepLink";
 import { MemoryStorage } from "$lib/utils";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { get } from "svelte/store";
+import { authenticate } from "wallet-sdk";
 import { createScanLogic } from "./scanLogic";
 
 vi.mock("@tauri-apps/api/app", () => ({
@@ -38,11 +40,42 @@ async function settle(): Promise<void> {
     for (let tick = 0; tick < 10; tick++) await Promise.resolve();
 }
 
+/** A promise the test settles by hand, to hold the code under test mid-await. */
+function createDeferred<Value>() {
+    let resolve!: (value: Value) => void;
+    const promise = new Promise<Value>((resolvePromise) => {
+        resolve = resolvePromise;
+    });
+    return { promise, resolve };
+}
+
 const AUTH_DEEP_LINK = {
     type: "auth",
     session: "21fcc8a5",
     platform: "pictique",
     redirect: "https://pictique.example/api/auth",
+};
+
+const OTHER_PLATFORM_AUTH_DEEP_LINK = {
+    type: "auth",
+    session: "9b1e0c42",
+    platform: "blabsy",
+    redirect: "https://blabsy.example/api/auth",
+};
+
+/** A blind vote waits on a poll fetch before it settles, unlike the others. */
+const BLIND_VOTE_SIGN_DEEP_LINK = {
+    type: "sign",
+    session: "c0ffee01",
+    data: btoa(
+        JSON.stringify({
+            type: "blind-vote",
+            pollId: "poll-1",
+            sessionId: "c0ffee01",
+            platformUrl: "https://evoting.example",
+        }),
+    ),
+    redirect_uri: "https://evoting.example/api/signature",
 };
 
 function createMountedScanLogic() {
@@ -55,7 +88,10 @@ function createMountedScanLogic() {
 }
 
 beforeEach(() => {
+    vi.clearAllMocks();
     vi.stubGlobal("sessionStorage", new MemoryStorage());
+    // Translated strings persist the resolved locale there.
+    vi.stubGlobal("localStorage", new MemoryStorage());
     windowListenersByEventType = new Map();
     vi.stubGlobal("window", {
         addEventListener: (type: string, listener: (event: Event) => void) => {
@@ -143,5 +179,80 @@ describe("scan-qr deep links while the page is already open", () => {
 
         expect(get(stores.codeScannedDrawerOpen)).toBe(true);
         expect(get(stores.session)).toBe(newerAuthDeepLink.session);
+    });
+});
+
+describe("scan-qr deep links that arrive while earlier work is still running", () => {
+    /**
+     * Signing awaits the wallet. A second platform's link landing in that
+     * window must not change where the approved login's signature is sent.
+     */
+    it("sends an approved login to its own platform when another link arrives mid-signature", async () => {
+        const signature = createDeferred<{ signature: string }>();
+        vi.mocked(authenticate).mockImplementationOnce(
+            () => signature.promise as ReturnType<typeof authenticate>,
+        );
+        const { actions } = createMountedScanLogic();
+        storeDeepLink(AUTH_DEEP_LINK);
+        await actions.initialize();
+
+        const approval = actions.handleAuth();
+        await vi.waitFor(() => expect(authenticate).toHaveBeenCalled());
+        storeDeepLink(OTHER_PLATFORM_AUTH_DEEP_LINK);
+        dispatchDeepLinkReceived(OTHER_PLATFORM_AUTH_DEEP_LINK);
+        await settle();
+        signature.resolve({ signature: "signature-for-21fcc8a5" });
+        await approval;
+
+        expect(vi.mocked(authenticate).mock.calls[0][1]).toMatchObject({
+            sessionId: AUTH_DEEP_LINK.session,
+        });
+        expect(openUrl).toHaveBeenCalledTimes(1);
+        const openedLoginUrl = new URL(
+            String(vi.mocked(openUrl).mock.calls[0][0]),
+        );
+        expect(openedLoginUrl.origin).toBe("https://pictique.example");
+        expect(openedLoginUrl.searchParams.get("session")).toBe(
+            AUTH_DEEP_LINK.session,
+        );
+        expect(window.location).not.toHaveProperty("href");
+    });
+
+    it("leaves a newer link stored when an event's handling ends after the page unmounted", async () => {
+        const pollResponse = createDeferred<Response>();
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(() => pollResponse.promise),
+        );
+        const { actions } = createMountedScanLogic();
+        const unmount = await actions.initialize();
+
+        storeDeepLink(BLIND_VOTE_SIGN_DEEP_LINK);
+        dispatchDeepLinkReceived(BLIND_VOTE_SIGN_DEEP_LINK);
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+        unmount();
+        storeDeepLink(AUTH_DEEP_LINK);
+        pollResponse.resolve({ ok: false } as Response);
+        await settle();
+
+        expect(peekDeepLink()).toBe(JSON.stringify(AUTH_DEEP_LINK));
+    });
+
+    it("leaves a newer link stored when the link read on mount is handled late", async () => {
+        const pollResponse = createDeferred<Response>();
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(() => pollResponse.promise),
+        );
+        const { actions } = createMountedScanLogic();
+        storeDeepLink(BLIND_VOTE_SIGN_DEEP_LINK);
+
+        const mounting = actions.initialize();
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+        storeDeepLink(AUTH_DEEP_LINK);
+        pollResponse.resolve({ ok: false } as Response);
+        await mounting;
+
+        expect(peekDeepLink()).toBe(JSON.stringify(AUTH_DEEP_LINK));
     });
 });
