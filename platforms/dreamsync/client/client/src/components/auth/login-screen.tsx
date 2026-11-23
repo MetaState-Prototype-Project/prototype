@@ -4,6 +4,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { apiClient } from "@/lib/apiClient";
 import { isMobileDevice, getDeepLinkUrl, getAppStoreLink } from "@/lib/utils/mobile-detection";
 import { Heart } from "lucide-react";
+import { authOfferResponseSchema } from "@shared/auth-offer.schema";
+
+const AUTH_OFFER_UNAVAILABLE_MESSAGE = "We could not load the login code. Please refresh the page to try again.";
 
 export function LoginScreen() {
   const { login } = useAuth();
@@ -36,11 +39,13 @@ export function LoginScreen() {
         console.log("🔍 Getting auth offer from:", apiClient.defaults.baseURL);
         const response = await apiClient.get("/api/auth/offer");
         console.log("✅ Auth offer response:", response.data);
-        setQrCode(response.data.offer);
-        setSessionId(response.data.sessionId);
+        const authOffer = authOfferResponseSchema.parse(response.data);
+        setQrCode(authOffer.offer);
+        setSessionId(authOffer.sessionId);
         setIsLoading(false);
       } catch (error) {
         console.error("❌ Failed to get auth offer:", error);
+        setErrorMessage(AUTH_OFFER_UNAVAILABLE_MESSAGE);
         if (error && typeof error === 'object' && 'response' in error) {
           const axiosError = error as { response?: { data?: unknown; status?: number } };
           console.error("❌ Error details:", axiosError.response?.data);
