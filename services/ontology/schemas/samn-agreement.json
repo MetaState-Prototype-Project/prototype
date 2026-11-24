@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "439193e4-a6f0-4ca8-9fe1-0e58abf97209",
+  "title": "Agreement",
+  "domain": "legal",
+  "description": "A standing contract between two parties that the matching must apply rather than ignore: which garages an insurer will pay for, which company may recover on which road section and within what response time, which network a fleet company prefers. The rules array is machine-readable on purpose. This is precisely the knowledge that today sits only with the planners, and prose in a contract document would leave it there. Held in the eVault of the party that publishes the agreement. A membershipInvitation is the exception: the company admin and the invited person each hold a copy, and the person's acceptance is what lets the company write the Membership.",
+  "type": "object",
+  "properties": {
+    "agreementId": { "type": "string", "minLength": 1, "description": "Identifier of the agreement. Both parties' copies of a two-sided agreement carry the same value." },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the publishing party eVault"
+    },
+    "agreementType": {
+      "type": "string",
+      "enum": ["insurerGarageNetwork", "roadAuthorityRecovery", "fleetGarage", "coordinatorSubcontract", "membershipProviderCoordinator", "membershipInvitation"],
+      "description": "What kind of agreement this is. It decides how the matching reads the scope and the rules."
+    },
+    "partyENames": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 2,
+      "uniqueItems": true,
+      "description": "eNames of every party bound by the agreement, the publishing party included"
+    },
+    "title": { "type": "string", "description": "Short name of the agreement for people, such as the contract name" },
+    "scope": {
+      "type": "object",
+      "description": "What the agreement covers. An empty scope means it applies everywhere the parties operate.",
+      "properties": {
+        "roadSectionIds": { "type": "array", "items": { "type": "string" }, "uniqueItems": true, "description": "roadSectionId values of the RoadSections covered, for a roadAuthorityRecovery agreement" },
+        "garageENames": { "type": "array", "items": { "type": "string" }, "uniqueItems": true, "description": "eNames of the garages covered, for a garage network" },
+        "providerENames": { "type": "array", "items": { "type": "string" }, "uniqueItems": true, "description": "eNames of the service providers covered" },
+        "regions": { "type": "array", "items": { "type": "string" }, "description": "Names of the regions covered, as the parties name them" },
+        "countries": { "type": "array", "items": { "type": "string" }, "description": "ISO 3166-1 alpha-2 codes of the countries covered" },
+        "vehicleClasses": { "type": "array", "items": { "type": "string" }, "description": "Vehicle classes covered, such as passenger car, van or truck" }
+      },
+      "additionalProperties": false
+    },
+    "rules": {
+      "type": "array",
+      "description": "Applied automatically by the matching. Each rule is one machine-readable constraint, not a clause of prose.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ruleType": {
+            "type": "string",
+            "enum": ["responseTimeMinutes", "exclusivity", "ownFleetFirst", "rate", "authorisationLimit", "serviceLevel", "maxWeightKg", "requiredCertification", "preferredNetwork", "excludedProvider"],
+            "description": "The kind of constraint. It decides how value is read: minutes, kilograms, a rate, an eName or a flag."
+          },
+          "value": {
+            "type": ["string", "number", "boolean"],
+            "description": "Interpreted according to ruleType"
+          },
+          "appliesToEName": {
+            "type": "string",
+            "description": "Narrows the rule to one party, where the agreement covers several"
+          },
+          "note": { "type": "string", "description": "Explanation of the rule for people" }
+        },
+        "required": ["ruleType", "value"],
+        "additionalProperties": false
+      }
+    },
+    "validFrom": { "type": "string", "format": "date-time", "description": "When the agreement starts to apply" },
+    "validUntil": { "type": ["string", "null"], "format": "date-time", "description": "When the agreement stops applying. Null or absent means open-ended." },
+    "status": { "type": "string", "enum": ["proposed", "active", "suspended", "expired", "declined"], "description": "A partnership or invitation starts as proposed and becomes active only when the other party accepts" },
+    "proposedByOrgEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The party that asked. Both parties hold a copy with the same agreementId. Absent on agreements made by one party alone."
+    },
+    "offeredRole": {
+      "type": "string",
+      "enum": ["admin", "planner", "field", "viewer"],
+      "description": "Only on a membershipInvitation: the role the invited person gets in the company if they accept. partyENames is the company first, then the person."
+    },
+    "proposedByEName": { "type": "string", "minLength": 1, "description": "The admin who asked" },
+    "decidedByEName": { "type": "string", "minLength": 1, "description": "Who answered: an admin of the other party for a partnership, the invited person for a membershipInvitation" },
+    "decidedAt": { "type": "string", "format": "date-time", "description": "When the other party accepted or declined" },
+    "documentUri": {
+      "type": "string",
+      "description": "w3ds://file URI of the signed contract the rules were derived from"
+    },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the record was first written" },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "When the record was last changed" },
+    "revision": { "type": "integer", "minimum": 1, "description": "Starts at 1 and goes up by one on every change to the record" }
+  },
+  "required": ["agreementId", "canonicalOwnerEName", "agreementType", "partyENames", "validFrom", "status", "createdAt"],
+  "additionalProperties": false
+}

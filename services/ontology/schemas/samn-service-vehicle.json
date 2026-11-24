@@ -1,0 +1,121 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "58145282-4ca8-4428-a054-441f2bfedca5",
+  "title": "ServiceVehicle",
+  "domain": "mobility",
+  "description": "The service profile of one Vehicle that does work in the network: a tow truck, a car transporter, a replacement car, or a roadside mechanic's van. It is held in the vehicle's own eVault beside that vehicle's Vehicle record, under the same eName, so a service vehicle is still a vehicle: it can break down, be condition-reported and be handed over like any other. A vehicle without a ServiceVehicle record is an ordinary vehicle. Identity (registration, make, model, weight, dimensions, drivetrain) lives on Vehicle only and is deliberately not repeated here; what lives here is what the service role adds, plus operational state (position, status, assignment) that changes far more often than standing data. Matching happens against this record and not against the company: a recovery company does not have a lift capacity, a specific truck does. Garage machines and equipment are deliberately not modelled as service vehicles; they are summarised in ProviderCapability.repair.equipmentHeld.",
+  "type": "object",
+  "properties": {
+    "serviceVehicleId": { "type": "string", "minLength": 1, "description": "Identifier of this service profile" },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the eVault holding this record: the vehicle itself, the same eVault that holds its Vehicle record"
+    },
+    "eName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the vehicle eVault. Equal to Vehicle.eName; this is the eName jobs and availability records refer to."
+    },
+    "serviceRole": {
+      "type": "string",
+      "enum": ["recovery", "transport", "replacement", "roadside"],
+      "description": "What the vehicle does in the network. recovery: tow truck; transport: car transporter; replacement: a car lent to a driver; roadside: a mechanic's van, which carries no role block."
+    },
+    "operatorEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the organisation that offers the vehicle for service work and publishes its availability. Usually the vehicle's legal owner (Vehicle.ownerEName); differs for a leased vehicle. The person driving it is Vehicle.currentDriverEName."
+    },
+    "recovery": {
+      "type": "object",
+      "description": "Present for serviceRole recovery",
+      "properties": {
+        "liftCapacityKg": { "type": "number", "minimum": 0, "description": "Heaviest vehicle the truck can lift onto its bed, in kilograms" },
+        "towCapacityKg": { "type": "number", "minimum": 0, "description": "Heaviest vehicle the truck can tow behind it, in kilograms" },
+        "towingMethods": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["flatbed", "wheelLift", "underlift", "spectacleLift", "craneLift", "flatTow"]
+          },
+          "uniqueItems": true,
+          "description": "Towing methods the truck can perform"
+        },
+        "winch": { "type": "boolean", "description": "Whether the truck has a winch, for a vehicle that cannot roll" },
+        "crane": { "type": "boolean", "description": "Whether the truck has a crane, for a vehicle off the road" },
+        "evContainment": { "type": "boolean", "description": "Whether the truck can carry a damaged electric vehicle with containment against a battery fire" }
+      },
+      "additionalProperties": false
+    },
+    "transport": {
+      "type": "object",
+      "description": "Present for serviceRole transport. Capacities describe the load, not the transporter itself.",
+      "properties": {
+        "slots": { "type": "integer", "minimum": 1, "description": "Number of vehicles the transporter carries when full" },
+        "freeSlots": { "type": "integer", "minimum": 0, "description": "Number of those places free right now" },
+        "maxWeightKg": { "type": "number", "minimum": 0, "description": "Heaviest vehicle one place can take, in kilograms" },
+        "maxLengthMm": { "type": "integer", "minimum": 0, "description": "Longest vehicle one place can take, in millimetres" },
+        "maxHeightMm": { "type": "integer", "minimum": 0, "description": "Tallest vehicle one place can take, in millimetres" },
+        "covered": { "type": "boolean", "description": "Whether the transporter is enclosed, protecting the load from weather and view" },
+        "canLoadNonRolling": { "type": "boolean", "description": "Whether the transporter can load a vehicle that cannot roll, with a winch or lift" }
+      },
+      "additionalProperties": false
+    },
+    "replacement": {
+      "type": "object",
+      "description": "Present for serviceRole replacement. Drivetrain and transmission are read from the Vehicle record.",
+      "properties": {
+        "vehicleClass": { "type": "string", "description": "Rental class of the car, such as compact, estate or van" },
+        "seats": { "type": "integer", "minimum": 1, "description": "Number of seats, driver included" },
+        "minDriverAge": { "type": "integer", "minimum": 0, "description": "Youngest age at which a driver may be given the car" },
+        "licenceClassRequired": { "type": "string", "description": "Driving licence class the driver must hold, such as B" },
+        "availableFrom": { "type": "string", "format": "date-time", "description": "From when the car can be lent out" },
+        "availableUntil": { "type": "string", "format": "date-time", "description": "Until when the car can be lent out" }
+      },
+      "additionalProperties": false
+    },
+    "homeBaseEnvelopeId": {
+      "type": "string",
+      "description": "ServiceLocation the vehicle operates out of"
+    },
+    "position": {
+      "type": "object",
+      "properties": {
+        "lat": { "type": "number", "description": "Latitude in decimal degrees (WGS 84)" },
+        "lon": { "type": "number", "description": "Longitude in decimal degrees (WGS 84)" },
+        "reportedAt": { "type": "string", "format": "date-time", "description": "When the position was last reported" }
+      },
+      "additionalProperties": false,
+      "description": "Where the vehicle is now"
+    },
+    "currentAssignmentEnvelopeId": {
+      "type": "string",
+      "description": "The recovery, transport or mobility job the vehicle is currently committed to"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["available", "assigned", "outOfService"],
+      "description": "Whether the vehicle can take work now. assigned means currentAssignmentEnvelopeId names its job."
+    },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the record was first written" },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "When the record was last changed" },
+    "revision": { "type": "integer", "minimum": 1, "description": "Starts at 1 and goes up by one on every change to the record" }
+  },
+  "required": ["serviceVehicleId", "canonicalOwnerEName", "eName", "serviceRole", "operatorEName", "createdAt"],
+  "allOf": [
+    {
+      "if": { "properties": { "serviceRole": { "const": "recovery" } }, "required": ["serviceRole"] },
+      "then": { "required": ["recovery"] }
+    },
+    {
+      "if": { "properties": { "serviceRole": { "const": "transport" } }, "required": ["serviceRole"] },
+      "then": { "required": ["transport"] }
+    },
+    {
+      "if": { "properties": { "serviceRole": { "const": "replacement" } }, "required": ["serviceRole"] },
+      "then": { "required": ["replacement"] }
+    }
+  ],
+  "additionalProperties": false
+}

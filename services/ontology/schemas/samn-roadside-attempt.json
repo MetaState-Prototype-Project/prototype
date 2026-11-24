@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "894d473c-9927-42a7-8a4d-37ba85c629ed",
+  "title": "RoadsideAttempt",
+  "domain": "mobility",
+  "description": "What the first professional on scene tried, and what came of it. More than a boolean, because the next party needs to know what has already been ruled out. The recoveryRequirements block uses the same field names as RecoveryJob.requirements, so the observation made at the roadside becomes the requirement of the recovery job without being retyped. Held in the vehicle eVault alongside the incident.",
+  "type": "object",
+  "properties": {
+    "attemptId": { "type": "string", "minLength": 1, "description": "Identifier of this attempt" },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the vehicle eVault"
+    },
+    "incidentEnvelopeId": { "type": "string", "minLength": 1, "description": "MetaEnvelope id of the Incident the attempt was made for" },
+    "vehicleEName": { "type": "string", "minLength": 1, "description": "eName of the vehicle that was attended" },
+    "recordedByEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the named mechanic who attended. Attribution is to the person, not only to the organisation."
+    },
+    "recordedByOrgEName": { "type": "string", "minLength": 1, "description": "eName of the organisation the mechanic works for" },
+    "dispatchedAt": { "type": "string", "format": "date-time", "description": "When the mechanic was sent" },
+    "arrivedAt": { "type": "string", "format": "date-time", "description": "When the mechanic arrived at the vehicle" },
+    "completedAt": { "type": "string", "format": "date-time", "description": "When the attempt ended, fixed or not" },
+    "attempted": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "What was tried on site, one entry per action"
+    },
+    "outcome": {
+      "type": "string",
+      "enum": ["fixed", "notFixed", "partiallyFixed"],
+      "description": "notFixed is what publishes the cannotFixOnSite status and starts the recovery, transport and mobility branches simultaneously"
+    },
+    "diagnosis": { "type": "string", "description": "What the mechanic found wrong with the vehicle" },
+    "suspectedCause": { "type": "string", "description": "What probably caused the fault, where it differs from the diagnosis" },
+    "recoveryRequirements": {
+      "type": "object",
+      "description": "Observed on site. Consumed unchanged as RecoveryJob.requirements.",
+      "properties": {
+        "weightKg": { "type": "number", "minimum": 0, "description": "Weight of the vehicle as found, load included, in kilograms" },
+        "drivetrain": {
+          "type": "string",
+          "enum": ["petrol", "diesel", "lpg", "cng", "hybrid", "electric", "hydrogen"],
+          "description": "Drivetrain as found on site. It decides how the vehicle may be towed and stored."
+        },
+        "wheelsTurn": { "type": "boolean", "description": "Whether all wheels still turn freely" },
+        "winchable": { "type": "boolean", "description": "Whether the vehicle can be winched onto a flatbed" },
+        "towingMethod": {
+          "type": "string",
+          "enum": ["flatbed", "wheelLift", "underlift", "spectacleLift", "craneLift", "flatTow"],
+          "description": "The towing method the mechanic says the vehicle needs"
+        },
+        "equipmentNeeded": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "Equipment the recovery must bring, such as dollies or a crane"
+        },
+        "certificationsRequired": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "Certifications the recovery crew must hold, such as for high-voltage electric vehicles"
+        },
+        "accessConstraints": { "type": "string", "description": "What makes the vehicle hard to reach, such as a ditch, a car park height limit or a narrow road" }
+      },
+      "additionalProperties": false
+    },
+    "mediaUris": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "w3ds://file URIs recorded during the attempt"
+    },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the record was first written" },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "When the record was last changed" },
+    "revision": { "type": "integer", "minimum": 1, "description": "Starts at 1 and goes up by one on every change to the record" }
+  },
+  "required": ["attemptId", "canonicalOwnerEName", "incidentEnvelopeId", "recordedByEName", "recordedByOrgEName", "outcome", "createdAt"],
+  "additionalProperties": false
+}

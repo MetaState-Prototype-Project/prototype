@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "448be0df-857b-4a69-97f8-141fc2b19f5d",
+  "title": "CaseEvent",
+  "domain": "mobility",
+  "description": "One append-only entry in the log of a case. Every status transition anywhere in the case emits one, whichever application caused it. This is what lets an application assemble the continuous timeline from roadside through recovery, transport, repair and return without knowing anything about the job types the other applications use, and what makes the case auditable afterwards with every entry attributed to a person and an organisation. Written once and never updated: there is no updatedAt and no revision, by design.",
+  "type": "object",
+  "properties": {
+    "eventId": { "type": "string", "minLength": 1, "description": "Identifier of this entry, unique within the case log" },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the vehicle eVault, which holds the case log"
+    },
+    "incidentEnvelopeId": {
+      "type": "string",
+      "description": "Absent for events on movements that did not start from an incident"
+    },
+    "vehicleEName": { "type": "string", "minLength": 1, "description": "eName of the vehicle the case is about" },
+    "at": { "type": "string", "format": "date-time", "description": "When the event happened" },
+    "actorEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the named person who caused the event. Nothing in the case is anonymous."
+    },
+    "actorOrgEName": { "type": "string", "minLength": 1, "description": "eName of the organisation the actor acted for. Absent when the actor acted for themself, such as a driver booking mobility." },
+    "platformEName": {
+      "type": "string",
+      "description": "eName of the application that wrote the entry, where it is not the same as the organisation"
+    },
+    "eventType": {
+      "type": "string",
+      "enum": ["incidentRaised", "statusChanged", "jobCreated", "jobOffered", "jobAccepted", "jobDeclined", "jobReassigned", "jobCompleted", "jobCancelled", "conditionRecorded", "handoverSigned", "authorisationRequested", "authorisationDecided", "dispatchDecided", "destinationChosen", "totalLossDeclared", "messageSent", "humanFallbackUsed", "accessGranted", "accessRevoked"],
+      "description": "What happened. A status change of any record is statusChanged, with fromStatus and toStatus set."
+    },
+    "subjectType": {
+      "type": "string",
+      "enum": ["incident", "vehicle", "roadsideAttempt", "conditionReport", "recoveryJob", "transportJob", "repairJob", "mobilityJob", "handoverReceipt", "authorisation", "emergencyResponse", "costRecord"],
+      "description": "What kind of record the event is about"
+    },
+    "subjectEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the record the event is about, of the kind named in subjectType" },
+    "fromStatus": { "type": "string", "description": "Status of the subject before the event, for a status change" },
+    "toStatus": { "type": "string", "description": "Status of the subject after the event, for a status change" },
+    "note": { "type": "string", "description": "Free text for people reading the timeline, such as a decline reason or a message" },
+    "fallbackReason": {
+      "type": "string",
+      "description": "Set with eventType humanFallbackUsed, so that working around an unconnected party is recorded rather than invisible"
+    }
+  },
+  "required": ["eventId", "canonicalOwnerEName", "at", "actorEName", "eventType"],
+  "additionalProperties": false
+}

@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "b9fa8e9c-681c-4e7a-8a86-a970e07c7c62",
+  "title": "HandoverReceipt",
+  "domain": "mobility",
+  "description": "Proof that a vehicle moved from one party to another, signed by both sides. Needed at every physical transfer: roadside to recovery, recovery to depot, depot to transporter, transporter to garage, garage back to the driver. Held in the vehicle eVault so that the whole chain of custody sits in one place and can be read end to end, rather than in fragments across the five organisations that each held the vehicle for part of it.",
+  "type": "object",
+  "properties": {
+    "receiptId": { "type": "string", "minLength": 1, "description": "Identifier of this receipt" },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the vehicle eVault"
+    },
+    "vehicleEName": { "type": "string", "minLength": 1, "description": "eName of the vehicle that changed hands" },
+    "incidentEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the Incident, where the transfer is part of a case" },
+    "jobEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the job under which the transfer happened, of the kind named in jobType" },
+    "jobType": {
+      "type": "string",
+      "enum": ["recovery", "transport", "repair", "mobility"],
+      "description": "Kind of job named by jobEnvelopeId"
+    },
+    "transferPoint": {
+      "type": "string",
+      "enum": ["roadsideToRecovery", "recoveryToDepot", "depotToTransport", "transportToGarage", "garageToTransport", "transportToDriver", "garageToDriver", "replacementToDriver", "driverToReplacementProvider"],
+      "description": "Which step in the chain of custody this transfer is"
+    },
+    "fromPartyEName": { "type": "string", "minLength": 1, "description": "eName of the organisation or person handing the vehicle over" },
+    "fromPersonEName": {
+      "type": "string",
+      "description": "The named person handing over. Absent only for an unattended collection."
+    },
+    "toPartyEName": { "type": "string", "minLength": 1, "description": "eName of the organisation or person taking the vehicle over" },
+    "toPersonEName": { "type": "string", "description": "eName of the named person taking the vehicle over, where toPartyEName is an organisation" },
+    "at": { "type": "string", "format": "date-time", "description": "When the vehicle changed hands" },
+    "location": {
+      "type": "object",
+      "properties": {
+        "lat": { "type": "number", "description": "Latitude in decimal degrees (WGS 84)" },
+        "lon": { "type": "number", "description": "Longitude in decimal degrees (WGS 84)" },
+        "address": { "type": "string", "description": "Street address of the transfer, as a person would write it" }
+      },
+      "additionalProperties": false,
+      "description": "Where the vehicle changed hands"
+    },
+    "conditionReportEnvelopeId": {
+      "type": "string",
+      "description": "The condition the vehicle was in at the moment of transfer"
+    },
+    "keysTransferred": { "type": "boolean", "description": "Whether the keys went with the vehicle" },
+    "documentsTransferred": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Registration papers, keys cards, service book, charging cables"
+    },
+    "belongingsTransferred": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Personal belongings handed over or explicitly left in the vehicle"
+    },
+    "acknowledgements": {
+      "type": "array",
+      "description": "Both sides. A receipt with one acknowledgement is an assertion, not proof.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "byEName": { "type": "string", "minLength": 1, "description": "eName of the person acknowledging the transfer" },
+          "side": { "type": "string", "enum": ["from", "to", "driver"], "description": "Which side of the transfer the person was on. driver is the vehicle's driver confirming, where they are neither side." },
+          "at": { "type": "string", "format": "date-time", "description": "When the person acknowledged" },
+          "signature": { "type": "string", "description": "The person's signature from their eID wallet, made through w3ds://sign" },
+          "declined": { "type": "boolean", "description": "True when the person refused to sign, for example because they dispute the vehicle's condition" },
+          "declineReason": { "type": "string", "description": "Why the person refused to sign" }
+        },
+        "required": ["byEName", "side", "at"],
+        "additionalProperties": false
+      }
+    },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the record was first written" },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "When the record was last changed" },
+    "revision": { "type": "integer", "minimum": 1, "description": "Starts at 1 and goes up by one on every change to the record" }
+  },
+  "required": ["receiptId", "canonicalOwnerEName", "vehicleEName", "fromPartyEName", "toPartyEName", "at", "createdAt"],
+  "additionalProperties": false
+}

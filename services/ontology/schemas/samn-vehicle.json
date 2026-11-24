@@ -1,0 +1,181 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "e0b903d5-c30e-4343-866b-97ee41f8e09c",
+  "title": "Vehicle",
+  "domain": "mobility",
+  "description": "Standing data about one vehicle, held in the eVault of the vehicle itself. Incident, job and condition records refer to it rather than repeating it. Service history, incident history and condition history are deliberately not fields here: they are separate records pointing back at this vehicle, so the history is append-only and can be written by parties that do not trust each other. A vehicle that does service work (a tow truck, transporter, replacement car or roadside van) is still a Vehicle: its eVault additionally holds a ServiceVehicle record describing that role, and nothing about the vehicle itself is repeated there.",
+  "type": "object",
+  "properties": {
+    "isReference": {
+      "type": "boolean",
+      "description": "Absent or false on the canonical record in the vehicle eVault; true on a pointer in its driver's eVault, which lets the driver find the car"
+    },
+    "vehicleId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Application-level identifier for the vehicle"
+    },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the eVault holding this record. For a Vehicle this is the eVault of the vehicle itself."
+    },
+    "eName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the vehicle eVault, as referenced by every other record in a case"
+    },
+    "registration": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Licence plate, normalised without spaces or hyphens"
+    },
+    "vin": {
+      "type": "string",
+      "description": "Vehicle identification number"
+    },
+    "make": {
+      "type": "string",
+      "description": "Manufacturer, as on the registration document"
+    },
+    "model": {
+      "type": "string",
+      "description": "Model name, as on the registration document"
+    },
+    "year": {
+      "type": "integer",
+      "minimum": 1900,
+      "description": "Year of first registration"
+    },
+    "colour": {
+      "type": "string",
+      "description": "Body colour, as a person would describe it, so the vehicle can be recognised at the roadside"
+    },
+    "weightKg": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Kerb weight. Decides which recovery equipment is required and which road-section rules apply."
+    },
+    "dimensions": {
+      "type": "object",
+      "description": "Millimetres. Constrains transporter slot, and tunnel or bridge access.",
+      "properties": {
+        "lengthMm": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Overall length in millimetres"
+        },
+        "widthMm": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Overall width in millimetres, without mirrors"
+        },
+        "heightMm": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Overall height in millimetres"
+        }
+      },
+      "additionalProperties": false
+    },
+    "drivetrain": {
+      "type": "string",
+      "enum": [
+        "petrol",
+        "diesel",
+        "lpg",
+        "cng",
+        "hybrid",
+        "electric",
+        "hydrogen"
+      ],
+      "description": "Determines how the vehicle may be towed, where it may be held, and which garages may accept it"
+    },
+    "transmission": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "automatic",
+        "semiAutomatic",
+        "unknown"
+      ],
+      "description": "Gearbox type. Relevant to whether the vehicle can be towed with its drive wheels on the road."
+    },
+    "driveConfiguration": {
+      "type": "string",
+      "enum": [
+        "fwd",
+        "rwd",
+        "awd",
+        "4wd",
+        "unknown"
+      ],
+      "description": "Relevant to whether the vehicle can be flat-towed"
+    },
+    "ownerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the legal owner: a person, or a lease, rental or fleet company. Often not the driver."
+    },
+    "currentDriverEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the person currently assigned to drive the vehicle, where known"
+    },
+    "keyAccessNotes": {
+      "type": "string",
+      "description": "Key location and access instructions needed for an unattended collection"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the record was first written"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the record was last changed"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Starts at 1 and goes up by one on every change to the record"
+    }
+  },
+  "required": [
+    "canonicalOwnerEName",
+    "createdAt"
+  ],
+  "oneOf": [
+    {
+      "title": "CanonicalVehicle",
+      "not": {
+        "properties": {
+          "isReference": {
+            "const": true
+          }
+        },
+        "required": [
+          "isReference"
+        ]
+      },
+      "required": [
+        "vehicleId",
+        "registration",
+        "drivetrain"
+      ]
+    },
+    {
+      "title": "VehicleReference",
+      "properties": {
+        "isReference": {
+          "const": true
+        }
+      },
+      "required": [
+        "isReference"
+      ]
+    }
+  ],
+  "additionalProperties": false
+}

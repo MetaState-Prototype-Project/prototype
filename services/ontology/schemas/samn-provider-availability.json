@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "e4ab2c9f-abaf-4679-8673-fba78c7e2654",
+  "title": "ProviderAvailability",
+  "domain": "mobility",
+  "description": "What a provider currently has free, where, and when. Published by the provider and read by the matching, so that allocation happens on data rather than on a sequence of phone calls. Same discriminator as ProviderCapability: capability is the standing declaration, availability is the perishable one. plannedRoute and detourToleranceKm sit on the same record because preferring a job that fits a route already being driven, and pricing the detour, is a single decision.",
+  "type": "object",
+  "properties": {
+    "availabilityId": { "type": "string", "minLength": 1, "description": "Identifier of this availability" },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the provider organisation eVault"
+    },
+    "providerEName": { "type": "string", "minLength": 1, "description": "eName of the provider organisation offering the capacity" },
+    "providerType": {
+      "type": "string",
+      "enum": ["recovery", "transport", "repair", "mobility", "salvage", "roadside"],
+      "description": "What kind of service the capacity is for. Matches the providerType of the provider's ProviderCapability."
+    },
+    "personEName": {
+      "type": "string",
+      "description": "eName of the specific person this availability is about — an operator's shift, a driver's window — where it is person-level rather than company-, asset- or site-level. May be set together with assetEName, which is how 'this operator, in this truck, until the end of the shift' is expressed as one record."
+    },
+    "assetEName": {
+      "type": "string",
+      "description": "eName of the specific Vehicle this availability is about, where it is vehicle-level rather than company-level: a service vehicle (a Vehicle with a ServiceVehicle profile in the same eVault) or a company-owned Vehicle with no service role. The field keeps its historical name."
+    },
+    "validFrom": { "type": "string", "format": "date-time", "description": "When the capacity becomes available" },
+    "validUntil": { "type": "string", "format": "date-time", "description": "When the capacity stops being available. The matching ignores it afterwards." },
+    "position": {
+      "type": "object",
+      "description": "Where the free capacity is right now",
+      "properties": {
+        "lat": { "type": "number", "description": "Latitude in decimal degrees (WGS 84)" },
+        "lon": { "type": "number", "description": "Longitude in decimal degrees (WGS 84)" },
+        "reportedAt": { "type": "string", "format": "date-time", "description": "When the position was last reported" }
+      },
+      "additionalProperties": false
+    },
+    "operatingRadiusKm": { "type": "number", "minimum": 0, "description": "How far from position the provider will travel for a job, in kilometres" },
+    "shiftEndsAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Matching must not offer a job that cannot be finished within the shift"
+    },
+    "freeUnits": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Trucks free, slots free, seats free or vehicles free, depending on providerType"
+    },
+    "plannedRoute": {
+      "type": "array",
+      "description": "Stops the provider is already committed to driving. A job that fits one of these is cheaper than a dedicated trip.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "sequence": { "type": "integer", "minimum": 0, "description": "Order of the stop on the route, starting at 0" },
+          "lat": { "type": "number", "description": "Latitude in decimal degrees (WGS 84)" },
+          "lon": { "type": "number", "description": "Longitude in decimal degrees (WGS 84)" },
+          "address": { "type": "string", "description": "Street address of the stop, as a person would write it" },
+          "windowStart": { "type": "string", "format": "date-time", "description": "Earliest time the provider will be at the stop" },
+          "windowEnd": { "type": "string", "format": "date-time", "description": "Latest time the provider will be at the stop" },
+          "stopType": { "type": "string", "enum": ["pickup", "delivery", "break", "base"], "description": "What the provider does at the stop" }
+        },
+        "required": ["sequence"],
+        "additionalProperties": false
+      }
+    },
+    "detourToleranceKm": {
+      "type": "number",
+      "minimum": 0,
+      "description": "How far off the planned route the provider will divert"
+    },
+    "earliestIntakeAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Repair providers: the first slot at which a vehicle can be taken in"
+    },
+    "capacityPerDay": {
+      "type": "array",
+      "description": "Repair providers: the capacity calendar, split by type of work",
+      "items": {
+        "type": "object",
+        "properties": {
+          "date": { "type": "string", "format": "date", "description": "The day the capacity is for" },
+          "workType": { "type": "string", "description": "Type of work the slots are for, such as diagnosis, mechanical or bodywork" },
+          "slotsTotal": { "type": "integer", "minimum": 0, "description": "Number of slots for this type of work that day" },
+          "slotsFree": { "type": "integer", "minimum": 0, "description": "Number of those slots still free" }
+        },
+        "required": ["date", "slotsFree"],
+        "additionalProperties": false
+      }
+    },
+    "locationEnvelopeId": {
+      "type": "string",
+      "description": "ServiceLocation this availability is offered at, for providers with more than one site"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "withdrawn"],
+      "description": "active while the capacity is offered. withdrawn takes it out of the matching before validUntil."
+    },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the record was first written" },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "When the record was last changed" },
+    "revision": { "type": "integer", "minimum": 1, "description": "Starts at 1 and goes up by one on every change to the record" }
+  },
+  "required": ["availabilityId", "canonicalOwnerEName", "providerEName", "providerType", "validFrom", "status", "createdAt"],
+  "additionalProperties": false
+}

@@ -1,0 +1,174 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "e6efe702-595c-44f2-a346-16c9ccacc3db",
+  "title": "TransportJob",
+  "domain": "mobility",
+  "description": "The movement of a vehicle between two places. Deliberately not tied to an incident: the same object serves post-repair delivery, end-of-lease collection, auction and dealer transport, and planned maintenance transport, so incidentEnvelopeId is optional. chainEnvelopeId is what makes recovery, depot, garage and return delivery read as one journey rather than four unrelated jobs. Held in the eVault of the organisation that issues it, for the same reason as RecoveryJob: the job must exist before an assignee is known.",
+  "type": "object",
+  "properties": {
+    "jobId": { "type": "string", "minLength": 1, "description": "Identifier of this job" },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the issuing organisation eVault"
+    },
+    "issuerEName": { "type": "string", "minLength": 1, "description": "eName of the organisation that issued the job and matches it to a transporter" },
+    "vehicleEName": { "type": "string", "minLength": 1, "description": "eName of the vehicle to move" },
+    "incidentEnvelopeId": {
+      "type": "string",
+      "description": "Present only when the movement originates from an incident"
+    },
+    "originType": {
+      "type": "string",
+      "enum": ["recoveryCompleted", "readyForCollection", "endOfLease", "auction", "dealerTransfer", "plannedMaintenance", "repatriation", "other"],
+      "description": "What the movement follows from, such as a completed recovery or a repair ready for collection"
+    },
+    "chainEnvelopeId": {
+      "type": "string",
+      "description": "Groups several movements under one case, so the customer sees one journey. Shared by every job in the chain."
+    },
+    "sequenceInChain": { "type": "integer", "minimum": 1, "description": "Place of this movement in its chain, starting at 1" },
+    "pickup": {
+      "type": "object",
+      "properties": {
+        "locationEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the ServiceLocation the vehicle is collected from, where it is one" },
+        "lat": { "type": "number", "description": "Latitude in decimal degrees (WGS 84)" },
+        "lon": { "type": "number", "description": "Longitude in decimal degrees (WGS 84)" },
+        "address": { "type": "string", "description": "Street address of the pick-up, as a person would write it" },
+        "windowStart": { "type": "string", "format": "date-time", "description": "Earliest time the vehicle can be collected" },
+        "windowEnd": { "type": "string", "format": "date-time", "description": "Latest time the vehicle can be collected" },
+        "contactEName": { "type": "string", "description": "eName of the person to contact at the pick-up" },
+        "accessNotes": { "type": "string", "description": "What the driver needs to know to get in and load, such as gate codes or where the keys are" }
+      },
+      "additionalProperties": false,
+      "description": "Where and when the vehicle is to be collected"
+    },
+    "destination": {
+      "type": "object",
+      "properties": {
+        "locationEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the ServiceLocation the vehicle is delivered to, where it is one" },
+        "destinationType": {
+          "type": "string",
+          "enum": ["garageSite", "depot", "holdingYard", "auction", "scrapyard", "dealer", "customerAddress"],
+          "description": "What kind of place the vehicle is delivered to"
+        },
+        "lat": { "type": "number", "description": "Latitude in decimal degrees (WGS 84)" },
+        "lon": { "type": "number", "description": "Longitude in decimal degrees (WGS 84)" },
+        "address": { "type": "string", "description": "Street address of the destination, as a person would write it" },
+        "windowStart": { "type": "string", "format": "date-time", "description": "Earliest time the vehicle can be delivered" },
+        "windowEnd": { "type": "string", "format": "date-time", "description": "Latest time the vehicle can be delivered" },
+        "contactEName": { "type": "string", "description": "eName of the person to contact at the destination" },
+        "chosenBecause": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Why this destination was selected: insurer network, owner preference, capability, capacity, distance, reputation. Decided before the job is offered, so the job does not have to be created twice."
+        }
+      },
+      "additionalProperties": false,
+      "description": "Where and when the vehicle is to be delivered"
+    },
+    "vehicleSpec": {
+      "type": "object",
+      "description": "Repeated on the job because the transporter needs it to accept or decline without reading the vehicle eVault",
+      "properties": {
+        "weightKg": { "type": "number", "minimum": 0, "description": "Weight of the vehicle in kilograms" },
+        "dimensions": {
+          "type": "object",
+          "properties": {
+            "lengthMm": { "type": "integer", "minimum": 0, "description": "Overall length in millimetres" },
+            "widthMm": { "type": "integer", "minimum": 0, "description": "Overall width in millimetres, without mirrors" },
+            "heightMm": { "type": "integer", "minimum": 0, "description": "Overall height in millimetres" }
+          },
+          "additionalProperties": false,
+          "description": "Size of the vehicle, in millimetres"
+        },
+        "drivable": { "type": "boolean", "description": "Whether the vehicle can drive onto the transporter itself" },
+        "drivetrain": {
+          "type": "string",
+          "enum": ["petrol", "diesel", "lpg", "cng", "hybrid", "electric", "hydrogen"],
+          "description": "Drivetrain of the vehicle. A damaged electric vehicle needs a transporter that may carry one."
+        }
+      },
+      "additionalProperties": false
+    },
+    "requirements": {
+      "type": "object",
+      "properties": {
+        "covered": { "type": "boolean", "description": "Whether the vehicle must travel enclosed" },
+        "slots": { "type": "integer", "minimum": 1, "description": "Number of transporter places the job takes" },
+        "equipment": { "type": "array", "items": { "type": "string" }, "uniqueItems": true, "description": "Equipment the transporter must have, such as a winch" },
+        "crossBorder": { "type": "boolean", "description": "Whether the movement crosses a national border" }
+      },
+      "additionalProperties": false,
+      "description": "What the transporter must offer"
+    },
+    "deadlineAt": { "type": "string", "format": "date-time", "description": "Latest time the vehicle must be delivered" },
+    "assignedCompanyEName": { "type": "string", "description": "eName of the transport company that accepted the job" },
+    "assignedAssetEName": {
+      "type": "string",
+      "description": "eName of the specific transporter: a Vehicle whose eVault also holds a ServiceVehicle profile with serviceRole transport"
+    },
+    "assignedDriverEName": { "type": "string", "description": "eName of the person driving the transporter" },
+    "routePosition": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Where this pickup sits in the route the transporter was already driving"
+    },
+    "detourKm": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Extra distance this job adds to a route already being driven. The number that makes filling spare capacity visible against a dedicated trip."
+    },
+    "matchRanking": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "candidateEName": { "type": "string", "description": "eName of the transport company that was ranked" },
+          "rank": { "type": "integer", "minimum": 1, "description": "Place in the ranking, 1 being the best match" },
+          "score": { "type": "number", "description": "Score the matching gave the candidate. Higher is better." },
+          "detourKm": { "type": "number", "description": "Extra kilometres the job would add to the candidate's planned route" },
+          "reasons": { "type": "array", "items": { "type": "string" }, "description": "Why the candidate got its place, one reason per entry, in words a planner can read" }
+        },
+        "required": ["candidateEName", "rank"],
+        "additionalProperties": false
+      },
+      "description": "Why each candidate ranked where it did, so a planner can trust the result and override it with a reason"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "offered", "accepted", "declined", "enRoute", "onScene", "inProgress", "completed", "cancelled", "failed"],
+      "description": "Where the job stands. Every change also writes a CaseEvent."
+    },
+    "declineReason": { "type": "string", "description": "Why the offered company declined the job" },
+    "delayReason": {
+      "type": "string",
+      "description": "Written back to the case on a delay or a failure to load, rather than reported by phone"
+    },
+    "offeredAt": { "type": "string", "format": "date-time", "description": "When the job was offered to a company" },
+    "acceptedAt": { "type": "string", "format": "date-time", "description": "When the company accepted the job" },
+    "collectedAt": { "type": "string", "format": "date-time", "description": "When the vehicle was loaded at the pick-up" },
+    "deliveredAt": { "type": "string", "format": "date-time", "description": "When the vehicle was delivered at the destination" },
+    "expectedArrivalAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Visible to the driver, the owner, the insurer and the receiving garage without any of them having to ask"
+    },
+    "handoverReceiptEnvelopeIds": {
+      "type": "object",
+      "properties": {
+        "pickup": { "type": "string", "description": "MetaEnvelope id of the HandoverReceipt signed at the pick-up" },
+        "delivery": { "type": "string", "description": "MetaEnvelope id of the HandoverReceipt signed at the destination" }
+      },
+      "additionalProperties": false,
+      "description": "MetaEnvelope ids of the HandoverReceipts signed at either end of the movement"
+    },
+    "costRecordEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the record of what this job cost. The ontology for that record is not proposed yet." },
+    "authorisationEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the payer's decision to pay for this job. The ontology for that record is not proposed yet." },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the record was first written" },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "When the record was last changed" },
+    "revision": { "type": "integer", "minimum": 1, "description": "Starts at 1 and goes up by one on every change to the record" }
+  },
+  "required": ["jobId", "canonicalOwnerEName", "issuerEName", "vehicleEName", "originType", "status", "createdAt"],
+  "additionalProperties": false
+}

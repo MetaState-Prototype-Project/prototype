@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "54e59989-0bcb-428b-a12b-a4121bdefd9a",
+  "title": "InsurancePolicy",
+  "domain": "legal",
+  "description": "The standing cover a policy provides: what is covered, up to what amount, and which garages the vehicle should go to. Held in the eVault of the policyholder rather than the insurer, because it is their entitlement and the alarm centre has to be able to read it at intake without a call. Kept strictly separate from Authorisation, which is a decision taken on one case; a policy is a standing fact and an authorisation is an act.",
+  "type": "object",
+  "properties": {
+    "policyId": { "type": "string", "minLength": 1, "description": "Identifier of the policy" },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the policyholder eVault"
+    },
+    "insurerEName": { "type": "string", "minLength": 1, "description": "eName of the insurer that issued the policy" },
+    "policyholderEName": { "type": "string", "minLength": 1, "description": "eName of the policyholder, whose eVault holds this record" },
+    "policyNumber": { "type": "string", "description": "Policy number as the insurer issues it" },
+    "coveredVehicleENames": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "description": "eNames of the vehicles the policy covers"
+    },
+    "coveredDriverENames": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "description": "eNames of the drivers the policy covers. Empty means any driver of a covered vehicle."
+    },
+    "coverage": {
+      "type": "object",
+      "description": "One entry per service the case can incur. Absent means not covered.",
+      "properties": {
+        "recovery": { "$ref": "#/definitions/coverageItem" },
+        "transport": { "$ref": "#/definitions/coverageItem" },
+        "repair": { "$ref": "#/definitions/coverageItem" },
+        "replacementVehicle": { "$ref": "#/definitions/coverageItem" },
+        "accommodation": { "$ref": "#/definitions/coverageItem" },
+        "repatriation": { "$ref": "#/definitions/coverageItem" },
+        "taxi": { "$ref": "#/definitions/coverageItem" },
+        "publicTransport": { "$ref": "#/definitions/coverageItem" }
+      },
+      "additionalProperties": false
+    },
+    "excess": { "type": "number", "minimum": 0, "description": "Amount the policyholder pays per claim before the cover applies, in currency" },
+    "currency": { "type": "string", "description": "ISO 4217 code of every amount in the policy" },
+    "exclusions": { "type": "array", "items": { "type": "string" }, "description": "What the policy does not cover, one entry per exclusion" },
+    "approvedGarageENames": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "description": "The repair network the insurer wants vehicles steered towards. Constrains destination selection before the vehicle moves, rather than after."
+    },
+    "garageNetworkAgreementEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the insurerGarageNetwork Agreement behind approvedGarageENames" },
+    "validFrom": { "type": "string", "format": "date-time", "description": "When the cover starts" },
+    "validUntil": { "type": "string", "format": "date-time", "description": "When the cover ends" },
+    "territory": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Country codes the policy is valid in. Decides whether a foreign incident is covered at all."
+    },
+    "handlerEName": {
+      "type": "string",
+      "description": "Default claims handler at the insurer for this policy"
+    },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the record was first written" },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "When the record was last changed" },
+    "revision": { "type": "integer", "minimum": 1, "description": "Starts at 1 and goes up by one on every change to the record" }
+  },
+  "definitions": {
+    "coverageItem": {
+      "type": "object",
+      "properties": {
+        "covered": { "type": "boolean", "description": "Whether this service is covered at all" },
+        "limit": { "type": "number", "minimum": 0, "description": "Maximum amount paid for this service per case, in the policy currency" },
+        "limitPerDay": { "type": "number", "minimum": 0, "description": "Maximum amount paid per day, for services billed by the day such as a replacement vehicle" },
+        "maxDays": { "type": "integer", "minimum": 0, "description": "Maximum number of days covered, for services billed by the day" },
+        "conditions": { "type": "array", "items": { "type": "string" }, "description": "Conditions that must hold for the cover to apply, one entry per condition" }
+      },
+      "required": ["covered"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["policyId", "canonicalOwnerEName", "insurerEName", "policyholderEName", "validFrom", "createdAt"],
+  "additionalProperties": false
+}

@@ -1,0 +1,169 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "3ebc1b94-1a62-4f67-bd02-5a2d9c7220e0",
+  "title": "Incident",
+  "domain": "mobility",
+  "description": "The root of a case. Created the moment the driver raises the alarm; everything that follows attaches to it. The canonical record lives in the vehicle eVault, because the vehicle is the only party present in every variation of the flow. Every other participant holds an Incident reference pointing at the canonical envelope.",
+  "type": "object",
+  "properties": {
+    "isReference": {
+      "type": "boolean",
+      "description": "False on the canonical record in the vehicle eVault; true on the pointer records held by the other participants"
+    },
+    "incidentId": { "type": "string", "minLength": 1, "description": "Identifier of the incident, the same on the canonical record and on every reference to it" },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the vehicle eVault, which holds the canonical record"
+    },
+    "canonicalEnvelopeId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "MetaEnvelope id of the canonical record. Present only on reference records."
+    },
+    "type": {
+      "type": "string",
+      "enum": ["breakdown", "crash"],
+      "description": "A crash skips the roadside repair attempt and involves emergency services from the start"
+    },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the record was first written" },
+    "createdByEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the person who raised the incident. An alarm-centre operator when the driver called by phone."
+    },
+    "createdByOrgEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the organisation the creator was acting for, where there is one"
+    },
+    "location": {
+      "type": "object",
+      "properties": {
+        "lat": { "type": "number", "minimum": -90, "maximum": 90, "description": "Latitude in decimal degrees (WGS 84)" },
+        "lon": { "type": "number", "minimum": -180, "maximum": 180, "description": "Longitude in decimal degrees (WGS 84)" },
+        "road": { "type": "string", "description": "Road name or number, such as A2" },
+        "direction": { "type": "string", "description": "Direction of travel on the road, such as a carriageway side or the next exit" },
+        "roadSectionId": {
+          "type": "string",
+          "description": "Identifier of the road section, used to find the Agreement that governs recovery here"
+        },
+        "onContractedSection": { "type": "boolean", "description": "True when the position lies on a road section that a roadAuthorityRecovery Agreement covers, so the contracted recovery company has to be used" },
+        "roadAuthorityEName": {
+          "type": "string",
+          "minLength": 1,
+          "description": "eName of the road authority whose RoadSection roadSectionId names. Set by the app that placed the position on the published road network, so every later reader knows whose contracts and rules apply without searching for them."
+        },
+        "country": { "type": "string", "description": "ISO 3166-1 alpha-2 code of the country the vehicle is in" },
+        "hazards": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["hardShoulder", "liveLane", "laneBlocked", "tunnel", "bridge", "motorway", "unlit", "hazardousLoad", "fire", "fluidSpill"]
+          },
+          "uniqueItems": true,
+          "description": "What makes the location dangerous or hard to work at"
+        }
+      },
+      "required": ["lat", "lon"],
+      "additionalProperties": false,
+      "description": "Where the vehicle is"
+    },
+    "vehicleEName": { "type": "string", "minLength": 1, "description": "eName of the vehicle the incident is about" },
+    "driverEName": { "type": "string", "minLength": 1, "description": "eName of the person driving when the incident happened" },
+    "ownerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the vehicle owner where different from the driver. When present, the owner is a decision maker on destination and repair."
+    },
+    "occupants": {
+      "type": "object",
+      "description": "What the mobility matching later needs. Captured at alarm time because it cannot be reconstructed afterwards.",
+      "properties": {
+        "passengers": { "type": "integer", "minimum": 0, "description": "Number of people in the vehicle besides the driver" },
+        "children": { "type": "integer", "minimum": 0, "description": "How many of the passengers are children, who need seats in onward transport" },
+        "animals": { "type": "integer", "minimum": 0, "description": "Number of animals travelling in the vehicle" },
+        "luggage": { "type": "string", "enum": ["none", "light", "heavy"], "description": "How much luggage onward transport has to carry" },
+        "outOfVehicle": { "type": "boolean", "description": "Whether the occupants are out of the vehicle and in a safe place" },
+        "injuriesReported": { "type": "boolean", "description": "Whether anyone in the vehicle reported an injury" }
+      },
+      "additionalProperties": false
+    },
+    "insurerEName": { "type": "string", "minLength": 1, "description": "eName of the insurer of the vehicle, where known at intake" },
+    "policyEnvelopeId": {
+      "type": "string",
+      "description": "MetaEnvelope id of the InsurancePolicy that applies"
+    },
+    "membershipEnvelopeId": {
+      "type": "string",
+      "description": "MetaEnvelope id of the AssistanceMembership that applies"
+    },
+    "reportedProblem": {
+      "type": "object",
+      "description": "All fields optional, so that a weak intake still produces a usable incident",
+      "properties": {
+        "category": { "type": "string", "description": "What kind of problem the driver reports, such as will not start, flat tyre or warning light" },
+        "text": { "type": "string", "description": "The problem in the driver's own words" },
+        "inLanguage": { "type": "string", "description": "Language of text, as a BCP 47 tag such as nl or en" },
+        "photoUris": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "w3ds://file URIs"
+        }
+      },
+      "additionalProperties": false
+    },
+    "faultCodes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Diagnostic codes reported by the vehicle itself, where it can supply them. Format and source not yet settled."
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"],
+      "description": "How urgent the incident is, as judged at intake or triage"
+    },
+    "drivable": {
+      "type": "string",
+      "enum": ["yes", "no", "unknown"],
+      "description": "Whether the vehicle can still be driven"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["raised", "triaged", "roadsideDispatched", "cannotFixOnSite", "recovery", "inTransport", "atDepot", "atGarage", "inRepair", "readyForCollection", "returning", "closed", "cancelled"],
+      "description": "Current state only. The history of transitions lives in CaseEvent records, never in this field."
+    },
+    "emergencyServicesRequired": {
+      "type": "string",
+      "enum": ["yes", "no", "unknown"],
+      "description": "Whether police, ambulance, fire brigade or the road authority are needed"
+    },
+    "returnDeliveryLocation": {
+      "type": "object",
+      "description": "Where the driver or owner wants the repaired vehicle delivered. Stated in advance so the return movement does not have to be arranged from scratch.",
+      "properties": {
+        "lat": { "type": "number", "description": "Latitude in decimal degrees (WGS 84)" },
+        "lon": { "type": "number", "description": "Longitude in decimal degrees (WGS 84)" },
+        "address": { "type": "string", "description": "Street address for the return, as a person would write it" }
+      },
+      "additionalProperties": false
+    },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "When the record was last changed" },
+    "revision": { "type": "integer", "minimum": 1, "description": "Starts at 1 and goes up by one on every change to the record" }
+  },
+  "required": ["isReference", "incidentId", "canonicalOwnerEName", "createdAt"],
+  "oneOf": [
+    {
+      "title": "CanonicalIncident",
+      "properties": { "isReference": { "const": false } },
+      "required": ["isReference", "incidentId", "canonicalOwnerEName", "type", "createdAt", "createdByEName", "location", "vehicleEName", "status"],
+      "not": { "required": ["canonicalEnvelopeId"] }
+    },
+    {
+      "title": "IncidentReference",
+      "properties": { "isReference": { "const": true } },
+      "required": ["isReference", "incidentId", "canonicalOwnerEName", "canonicalEnvelopeId", "createdAt"]
+    }
+  ],
+  "additionalProperties": false
+}

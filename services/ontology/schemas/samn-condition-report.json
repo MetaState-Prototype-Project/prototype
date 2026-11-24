@@ -1,0 +1,115 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "4a449d3d-6cbd-44fc-a4cd-b511c5020cbb",
+  "title": "ConditionReport",
+  "domain": "mobility",
+  "description": "The state of a vehicle as recorded by whoever was physically present, at each point the vehicle changes hands. Comparing two reports written at different stages by different organisations is what removes damage disputes, and what lets a coordinator stand behind work it did not witness. Held in the vehicle eVault, so the reports accumulate into that one condition history no matter who wrote them. Attribution comes from recordedByEName and the acknowledgement signature, not from where the record is stored.",
+  "type": "object",
+  "properties": {
+    "reportId": { "type": "string", "minLength": 1, "description": "Identifier of this report" },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the vehicle eVault"
+    },
+    "vehicleEName": { "type": "string", "minLength": 1, "description": "eName of the vehicle the report describes" },
+    "incidentEnvelopeId": {
+      "type": "string",
+      "description": "Absent for reports written outside an incident, such as a replacement-vehicle handover or a planned maintenance collection"
+    },
+    "jobEnvelopeId": {
+      "type": "string",
+      "description": "The recovery, transport, repair or mobility job this report was written under"
+    },
+    "stage": {
+      "type": "string",
+      "enum": ["roadside", "recoveryPickup", "depot", "garageIntake", "garageRelease", "returnDelivery", "replacementOut", "replacementIn"],
+      "description": "Which point in the chain this report was taken at. Comparing stages is the whole mechanism, so the vocabulary is fixed."
+    },
+    "recordedAt": { "type": "string", "format": "date-time", "description": "When the vehicle was inspected" },
+    "recordedByEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the named person who was present"
+    },
+    "recordedByOrgEName": { "type": "string", "minLength": 1, "description": "eName of the organisation the recording person works for" },
+    "location": {
+      "type": "object",
+      "properties": {
+        "lat": { "type": "number", "description": "Latitude in decimal degrees (WGS 84)" },
+        "lon": { "type": "number", "description": "Longitude in decimal degrees (WGS 84)" },
+        "address": { "type": "string", "description": "Street address of the inspection, as a person would write it" }
+      },
+      "additionalProperties": false,
+      "description": "Where the vehicle was inspected"
+    },
+    "media": {
+      "type": "array",
+      "description": "Photographs and video, each with the moment it was taken",
+      "items": {
+        "type": "object",
+        "properties": {
+          "uri": { "type": "string", "description": "w3ds://file URI" },
+          "kind": { "type": "string", "enum": ["photo", "video"], "description": "Whether the file is a photograph or a video" },
+          "takenAt": { "type": "string", "format": "date-time", "description": "When the photograph or video was taken" },
+          "area": { "type": "string", "description": "The damage area it shows, using the same names as damage[].area" }
+        },
+        "required": ["uri"],
+        "additionalProperties": false
+      }
+    },
+    "damage": {
+      "type": "array",
+      "description": "One entry per panel or area. Area names are the shared vocabulary that makes two reports comparable.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "area": {
+            "type": "string",
+            "enum": ["frontBumper", "rearBumper", "bonnet", "roof", "bootLid", "frontLeftWing", "frontRightWing", "rearLeftWing", "rearRightWing", "frontLeftDoor", "frontRightDoor", "rearLeftDoor", "rearRightDoor", "windscreen", "rearScreen", "sideGlass", "lights", "mirrors", "wheels", "underbody", "interior", "battery", "other"],
+            "description": "The panel or area, from the fixed list every report uses"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["none", "cosmetic", "minor", "major", "severe"],
+            "description": "How bad the damage to this area is. none records that the area was checked and found undamaged."
+          },
+          "note": { "type": "string", "description": "Description of the damage for people" },
+          "mediaUris": { "type": "array", "items": { "type": "string" }, "description": "w3ds://file URIs of the photographs or videos that show this damage" }
+        },
+        "required": ["area", "severity"],
+        "additionalProperties": false
+      }
+    },
+    "mileageKm": { "type": "number", "minimum": 0, "description": "Odometer reading in kilometres" },
+    "fuelOrChargeLevel": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Percentage, whichever of fuel or charge applies to the drivetrain"
+    },
+    "contents": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Personal belongings and loose items left in the vehicle"
+    },
+    "keysHandedOver": { "type": "boolean", "description": "Whether the keys were handed over with the vehicle at this point" },
+    "acknowledgement": {
+      "type": "object",
+      "description": "The receiving party, or the driver, confirming the report. A two-sided record before the vehicle is taken away.",
+      "properties": {
+        "byEName": { "type": "string", "minLength": 1, "description": "eName of the person confirming the report" },
+        "at": { "type": "string", "format": "date-time", "description": "When the person confirmed" },
+        "signature": { "type": "string", "description": "The person's signature from their eID wallet, made through w3ds://sign" },
+        "declined": { "type": "boolean", "description": "True when the person refused to confirm, for example because they dispute the damage recorded" },
+        "declineReason": { "type": "string", "description": "Why the person refused to confirm" }
+      },
+      "additionalProperties": false
+    },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the record was first written" },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "When the record was last changed" },
+    "revision": { "type": "integer", "minimum": 1, "description": "Starts at 1 and goes up by one on every change to the record" }
+  },
+  "required": ["reportId", "canonicalOwnerEName", "vehicleEName", "stage", "recordedAt", "recordedByEName", "recordedByOrgEName", "createdAt"],
+  "additionalProperties": false
+}

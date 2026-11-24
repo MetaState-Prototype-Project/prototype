@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "f2c60fe5-e0d4-4aa5-9b8b-4d5d3653ded9",
+  "title": "RoadSection",
+  "domain": "mobility",
+  "description": "A stretch of road as the road authority that manages it publishes it: where it runs, what may and may not happen on it, and how fast an incident there has to be dealt with. Held in the eVault of the road authority, the only party entitled to declare it, and published to be found: an app that raises an incident finds the section the position falls on and from it the authority to inform. The section is the road; who may recover on it is a separate roadAuthorityRecovery Agreement naming this roadSectionId, so a new contract never rewrites the road.",
+  "type": "object",
+  "properties": {
+    "roadSectionId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The section's identifier, unique within its road authority. Incident.location.roadSectionId and Agreement.scope.roadSectionIds carry this value, never the envelope id, so a section can be redrawn without breaking the contracts that name it."
+    },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the road authority eVault, which holds the canonical record"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What people call the stretch, for example A2 Utrecht to Everdingen, right carriageway"
+    },
+    "roadNumber": {
+      "type": "string",
+      "description": "The road number shown on the signs, for example A2 or N201"
+    },
+    "roadType": {
+      "type": "string",
+      "enum": ["motorway", "expressway", "provincialRoad", "urbanRoad", "tunnel", "bridge"],
+      "description": "A tunnel or a bridge is a section of its own, because the rules on it differ from the road either side"
+    },
+    "carriageway": {
+      "type": "string",
+      "description": "Which side or direction of the road, in the authority's own terms, for example right carriageway towards Den Bosch"
+    },
+    "fromKm": {
+      "type": "number",
+      "description": "Kilometre post where the section starts, as on the roadside markers"
+    },
+    "toKm": {
+      "type": "number",
+      "description": "Kilometre post where the section ends"
+    },
+    "path": {
+      "type": "array",
+      "minItems": 2,
+      "description": "The line of the road, as points in driving order. An incident is on the section when its position lies within matchWithinMetres of this line.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "lat": { "type": "number", "minimum": -90, "maximum": 90, "description": "Latitude in decimal degrees (WGS 84)" },
+          "lon": { "type": "number", "minimum": -180, "maximum": 180, "description": "Longitude in decimal degrees (WGS 84)" }
+        },
+        "required": ["lat", "lon"],
+        "additionalProperties": false
+      }
+    },
+    "matchWithinMetres": {
+      "type": "number",
+      "minimum": 0,
+      "description": "How far from the path a reported position still counts as on this section. Phone positions drift, and a car on the hard shoulder is not on the centre line. Readers assume 150 when absent."
+    },
+    "lanes": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Running lanes on this carriageway, so a report of lanes closed can be read against it"
+    },
+    "hardShoulder": {
+      "type": "boolean",
+      "description": "Whether the section has a hard shoulder or emergency lane. Without one, a stranded car blocks a running lane."
+    },
+    "restrictions": {
+      "type": "object",
+      "description": "What constrains a recovery here. Read by the recovery matching as hard requirements, not preferences.",
+      "properties": {
+        "maxWeightKg": { "type": "number", "minimum": 0, "description": "Heaviest vehicle combination allowed, for example on a bridge" },
+        "maxHeightMm": { "type": "integer", "minimum": 0, "description": "Lowest clearance, for example under a viaduct or in a tunnel" },
+        "tunnelCategory": {
+          "type": "string",
+          "enum": ["A", "B", "C", "D", "E"],
+          "description": "The tunnel's category for dangerous goods under ADR (A: no restriction, E: the most restricted)"
+        },
+        "hazardousGoodsProhibited": { "type": "boolean", "description": "Whether vehicles carrying dangerous goods may not use the section at all" },
+        "note": { "type": "string", "description": "Anything the categories above do not cover, in words" }
+      },
+      "additionalProperties": false
+    },
+    "responseTimeMinutes": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "The time within which recovery has to be on scene on this section. A roadAuthorityRecovery Agreement for the section repeats it as a responseTimeMinutes rule, and the matching applies the agreement."
+    },
+    "clearanceTargetMinutes": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "How long the authority allows, from the alarm, before the road has to be clear again. The default for EmergencyResponse.clearanceDeadlineAt when the authority responds."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["open", "restricted", "closed"],
+      "description": "The section as it is now, for example closed for roadworks. Current state only; the authority keeps no history in this field."
+    },
+    "statusNote": {
+      "type": "string",
+      "description": "Why the section is restricted or closed, and until when"
+    },
+    "validFrom": { "type": "string", "format": "date-time", "description": "From when the authority manages the section as published" },
+    "validUntil": { "type": "string", "format": "date-time", "description": "Until when; absent means until further notice" },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the record was first written" },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "When the record was last changed" },
+    "revision": { "type": "integer", "minimum": 1, "description": "Increments on every in-place update" }
+  },
+  "required": ["roadSectionId", "canonicalOwnerEName", "name", "roadType", "path", "createdAt"],
+  "additionalProperties": false
+}

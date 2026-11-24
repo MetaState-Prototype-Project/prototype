@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "e140bedd-3b91-41ca-9a88-7822bad12460",
+  "title": "AssistanceMembership",
+  "domain": "mobility",
+  "description": "Roadside assistance membership and what it entitles the member to. Distinct from the general Membership schema, which models a person belonging to a company or a project; this is a consumer entitlement against a service, read at intake so that entitlement is established before anyone is dispatched rather than asked of a driver at the roadside. Held in the eVault of the member.",
+  "type": "object",
+  "properties": {
+    "membershipId": { "type": "string", "minLength": 1, "description": "Identifier of the membership" },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the member eVault"
+    },
+    "memberEName": { "type": "string", "minLength": 1, "description": "eName of the member: the person entitled to assistance" },
+    "providerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the assistance organisation. Foreign equivalents and car-brand assistance services use the same shape."
+    },
+    "membershipNumber": { "type": "string", "description": "Membership number as printed on the member's card" },
+    "membershipType": {
+      "type": "string",
+      "description": "Provider-specific tier name, for example basic, plus, abroad"
+    },
+    "coveredVehicleENames": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "description": "Empty means the membership follows the person rather than a specific vehicle"
+    },
+    "entitlements": {
+      "type": "object",
+      "properties": {
+        "roadsideAssistance": { "type": "boolean", "description": "Covers a repair attempt at the roadside" },
+        "recovery": { "type": "boolean", "description": "Covers towing the vehicle away when it cannot be fixed on the spot" },
+        "replacementTransport": { "type": "boolean", "description": "Covers onward travel for the driver and passengers, such as a taxi or public transport" },
+        "replacementVehicle": { "type": "boolean", "description": "Covers a replacement car while the vehicle is being repaired" },
+        "accommodation": { "type": "boolean", "description": "Covers an overnight stay when the journey cannot continue the same day" },
+        "abroadCover": { "type": "boolean", "description": "Covers incidents outside the member's home country" },
+        "repatriation": { "type": "boolean", "description": "Covers bringing the vehicle back home from abroad" },
+        "maxCallOutsPerYear": { "type": "integer", "minimum": 0, "description": "Maximum number of call-outs per membership year. Absent means unlimited." },
+        "callOutsUsed": { "type": "integer", "minimum": 0, "description": "Call-outs already used in the current membership year" }
+      },
+      "additionalProperties": false,
+      "description": "What the membership covers. An entitlement that is absent is not covered."
+    },
+    "territory": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Country codes the membership is valid in"
+    },
+    "validFrom": { "type": "string", "format": "date-time", "description": "When the membership starts" },
+    "validUntil": { "type": "string", "format": "date-time", "description": "When the membership ends. Absent means it runs until cancelled." },
+    "status": { "type": "string", "enum": ["active", "lapsed", "suspended", "cancelled"], "description": "Whether the membership can be used now. Only active entitles the member to assistance." },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the record was first written" },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "When the record was last changed" },
+    "revision": { "type": "integer", "minimum": 1, "description": "Starts at 1 and goes up by one on every change to the record" }
+  },
+  "required": ["membershipId", "canonicalOwnerEName", "memberEName", "providerEName", "validFrom", "status", "createdAt"],
+  "additionalProperties": false
+}
