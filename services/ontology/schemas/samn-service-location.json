@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "abe98182-6c24-4b33-a19d-c9200b9e2e1f",
+  "title": "ServiceLocation",
+  "domain": "mobility",
+  "description": "A physical site a vehicle can be taken to: a depot, a holding yard, a garage site, an auction or a scrapyard. Modelled explicitly because the flow is often assumed to run from recovery straight to transport, while in practice there is frequently a stop in between, and that stop has its own handover and its own constraints. Held in the eVault of the organisation that operates the site.",
+  "type": "object",
+  "properties": {
+    "locationId": { "type": "string", "minLength": 1, "description": "Identifier of the site" },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the operating organisation eVault"
+    },
+    "operatorEName": { "type": "string", "minLength": 1, "description": "eName of the organisation that operates the site" },
+    "name": { "type": "string", "description": "Name of the site as people know it" },
+    "locationType": {
+      "type": "string",
+      "enum": ["depot", "holdingYard", "garageSite", "auction", "scrapyard", "pickupPoint", "dealer"],
+      "description": "What kind of site this is"
+    },
+    "address": {
+      "type": "object",
+      "properties": {
+        "streetAddress": { "type": "string", "description": "Street and house number" },
+        "postalCode": { "type": "string", "description": "Postal code" },
+        "addressLocality": { "type": "string", "description": "Town or city" },
+        "addressCountry": { "type": "string", "description": "ISO 3166-1 alpha-2 country code" }
+      },
+      "additionalProperties": false,
+      "description": "Postal address of the site"
+    },
+    "lat": { "type": "number", "minimum": -90, "maximum": 90, "description": "Latitude in decimal degrees (WGS 84)" },
+    "lon": { "type": "number", "minimum": -180, "maximum": 180, "description": "Longitude in decimal degrees (WGS 84)" },
+    "capacity": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Vehicles the site can hold"
+    },
+    "capacityFree": { "type": "integer", "minimum": 0, "description": "Vehicles the site can still take in now" },
+    "openingHours": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "dayOfWeek": {
+            "type": "string",
+            "enum": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
+            "description": "Day of the week"
+          },
+          "opens": { "type": "string", "description": "Opening time in local time, as HH:MM" },
+          "closes": { "type": "string", "description": "Closing time in local time, as HH:MM" }
+        },
+        "required": ["dayOfWeek"],
+        "additionalProperties": false
+      },
+      "description": "When the site is staffed, one entry per day it opens. A day with no entry is closed, unless twentyFourHourAccess is true."
+    },
+    "twentyFourHourAccess": { "type": "boolean", "description": "Whether vehicles can be dropped off at any hour" },
+    "secured": { "type": "boolean", "description": "Whether the site is fenced or guarded, so a vehicle and its contents are safe there" },
+    "covered": { "type": "boolean", "description": "Whether vehicles are kept indoors or under a roof" },
+    "evCapable": {
+      "type": "boolean",
+      "description": "Whether a damaged electric vehicle may be held here, which is a hard constraint rather than a preference"
+    },
+    "acceptsHazardous": { "type": "boolean", "description": "Whether vehicles with a hazardous load or a fluid leak may be held here" },
+    "contactEName": { "type": "string", "description": "eName of the person to contact about the site" },
+    "status": { "type": "string", "enum": ["active", "closed"], "description": "active while the site takes vehicles. closed takes it out of destination choices." },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the record was first written" },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "When the record was last changed" },
+    "revision": { "type": "integer", "minimum": 1, "description": "Starts at 1 and goes up by one on every change to the record" }
+  },
+  "required": ["locationId", "canonicalOwnerEName", "operatorEName", "locationType", "createdAt"],
+  "additionalProperties": false
+}

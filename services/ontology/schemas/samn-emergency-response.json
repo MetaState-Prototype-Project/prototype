@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "f73692fd-96fe-4677-ac91-03270b446bd1",
+  "title": "EmergencyResponse",
+  "domain": "mobility",
+  "description": "The decision an emergency service made about an incident, and the constraints it places on everyone else. Kept as its own record rather than as a flag on the incident, because it is written by a party outside the commercial chain and has to stay attributable to it. clearanceDeadlineAt is read by the recovery matching as a hard requirement, and releasedForRecoveryAt is what a recovery may not lawfully start before in a crash. Held in the vehicle eVault so it sits with the rest of the case, under an access grant bound to the dispatch purpose and expiring with it.",
+  "type": "object",
+  "properties": {
+    "responseId": { "type": "string", "minLength": 1, "description": "Identifier of this response" },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the vehicle eVault"
+    },
+    "incidentEnvelopeId": { "type": "string", "minLength": 1, "description": "MetaEnvelope id of the Incident the service responded to" },
+    "serviceEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the responding organisation"
+    },
+    "serviceType": {
+      "type": "string",
+      "enum": ["police", "ambulance", "fireBrigade", "roadAuthorityIncidentResponse"],
+      "description": "Kind of emergency service. roadAuthorityIncidentResponse is the road authority's own response to an incident on its roads."
+    },
+    "respondingOfficerEName": {
+      "type": "string",
+      "description": "The named responder, where the service is willing to attribute at that level"
+    },
+    "receivedAt": { "type": "string", "format": "date-time", "description": "When the service was told about the incident" },
+    "dispatchDecision": {
+      "type": "string",
+      "enum": ["dispatched", "notRequired", "pending"],
+      "description": "Published so every other party sees it without asking"
+    },
+    "decidedAt": { "type": "string", "format": "date-time", "description": "When dispatchDecision was taken" },
+    "onSceneAt": { "type": "string", "format": "date-time", "description": "When the service arrived at the scene" },
+    "roadBlocked": { "type": "boolean", "description": "Whether the incident blocks the road for traffic" },
+    "lanesClosed": { "type": "integer", "minimum": 0, "description": "Number of lanes closed to traffic because of the incident" },
+    "vehicleMayBeMoved": {
+      "type": "boolean",
+      "description": "False until the scene is released. Recovery cannot lawfully start before this in a crash."
+    },
+    "releasedForRecoveryAt": { "type": "string", "format": "date-time", "description": "When the scene was released and vehicleMayBeMoved became true" },
+    "trafficMeasures": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["laneClosure", "hardShoulderClosure", "speedLimit", "queueWarning", "fullClosure", "diversion"]
+      },
+      "uniqueItems": true,
+      "description": "What the road authority has put in place around the scene, so the recovery knows what it drives into and everyone knows the road is being managed"
+    },
+    "roadClearedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the road was free again and the measures were lifted: the end of the incident for traffic, which may come well before the end of the case"
+    },
+    "clearanceDeadlineAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Set or relayed for the road section. The recovery matching treats it as a hard requirement, not a target."
+    },
+    "injuriesReported": { "type": "boolean", "description": "Whether anyone was reported injured" },
+    "hazards": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "description": "What changes the response: drivetrain, fire, fluid spill, hazardous load, trapped occupants"
+    },
+    "roadAuthorityNotifiedEName": {
+      "type": "string",
+      "description": "Road authority notified for the affected section, where the road authority participates rather than only supplying rules. Absent on the road authority's own response, whose serviceEName already names it."
+    },
+    "onSceneReportRef": {
+      "type": "string",
+      "description": "Pointer to the on-scene report held by the service, not the report itself. What may be shared into the case, and with whom, still needs legal input."
+    },
+    "accessGrantEnvelopeId": {
+      "type": "string",
+      "description": "The grant under which the service read the case. Emergency access is broad but logged, rather than unlimited and silent."
+    },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the record was first written" },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "When the record was last changed" },
+    "revision": { "type": "integer", "minimum": 1, "description": "Starts at 1 and goes up by one on every change to the record" }
+  },
+  "required": ["responseId", "canonicalOwnerEName", "incidentEnvelopeId", "serviceEName", "serviceType", "dispatchDecision", "createdAt"],
+  "additionalProperties": false
+}

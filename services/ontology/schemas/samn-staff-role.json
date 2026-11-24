@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "f02230d2-8cea-4dbc-a442-eb542ee7db3f",
+  "title": "StaffRole",
+  "domain": "work",
+  "description": "What one member of a company may do in that company's work: plan, work in the field, or only look. Held in the company's eVault, beside the Membership it extends. Membership keeps the single question of who is an admin, because that ontology is shared with other platforms and only knows admin and participant; a person who is an admin there holds no StaffRole.",
+  "type": "object",
+  "properties": {
+    "staffRoleId": { "type": "string", "minLength": 1, "description": "Identifier of this role record" },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the company whose eVault holds this record"
+    },
+    "memberEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the person, who must also have a Membership in this company"
+    },
+    "role": {
+      "type": "string",
+      "enum": ["planner", "field", "viewer"],
+      "description": "planner: office work. field: their own jobs and shift. viewer: can look, cannot change anything."
+    },
+    "grantedByEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the admin who set this role"
+    },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the record was first written" },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "When the record was last changed" },
+    "revision": { "type": "integer", "minimum": 1, "description": "Starts at 1 and goes up by one on every change to the record" }
+  },
+  "required": ["staffRoleId", "canonicalOwnerEName", "memberEName", "role", "grantedByEName", "createdAt"],
+  "additionalProperties": false
+}

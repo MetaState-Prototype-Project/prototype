@@ -1,0 +1,146 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "bf902693-9299-48d3-a9c4-da4eb2aadd35",
+  "title": "RepairJob",
+  "domain": "mobility",
+  "description": "The diagnosis, quotation, authorisation and repair of a vehicle at a garage. Held in the eVault of the garage, because the garage is the only party that can author its own progress; the driver, the owner and the insurer read it and see the repair as it happens rather than waiting to be told. The work performed is additionally written back to the vehicle eVault as its own record, so the service history stays with the vehicle rather than with the garage that happened to do the work.",
+  "type": "object",
+  "properties": {
+    "jobId": { "type": "string", "minLength": 1, "description": "Identifier of this job" },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the garage eVault"
+    },
+    "garageEName": { "type": "string", "minLength": 1, "description": "eName of the garage doing the repair" },
+    "vehicleEName": { "type": "string", "minLength": 1, "description": "eName of the vehicle being repaired" },
+    "incidentEnvelopeId": {
+      "type": "string",
+      "description": "Absent for a repair that was scheduled rather than caused by an incident"
+    },
+    "chainEnvelopeId": { "type": "string", "description": "The chainEnvelopeId shared by the transport jobs that bring the vehicle in and take it back, so the repair reads as part of the same journey" },
+    "inboundTransportJobEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the TransportJob that brings the vehicle to the garage" },
+    "expectedArrivalAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Known before the vehicle arrives, together with the incident history and the roadside condition report"
+    },
+    "intakeDecision": {
+      "type": "string",
+      "enum": ["accepted", "declined", "pending"],
+      "description": "Whether the garage takes the vehicle in"
+    },
+    "intakeDeclineReason": { "type": "string", "description": "Why the garage declined the vehicle" },
+    "intakeConditionReportEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the ConditionReport written when the vehicle arrived at the garage" },
+    "roadsideConditionReportEnvelopeId": {
+      "type": "string",
+      "description": "The report to compare the intake against. Differences are flagged rather than buried, which is the mechanism that removes damage disputes."
+    },
+    "conditionDiscrepancies": {
+      "type": "array",
+      "description": "Differences found between the roadside and intake condition reports",
+      "items": {
+        "type": "object",
+        "properties": {
+          "area": { "type": "string", "description": "The panel or area that differs, using the area names of ConditionReport.damage" },
+          "roadsideSeverity": {
+            "type": "string",
+            "enum": ["none", "cosmetic", "minor", "major", "severe"],
+            "description": "Severity recorded for the area at the roadside"
+          },
+          "intakeSeverity": {
+            "type": "string",
+            "enum": ["none", "cosmetic", "minor", "major", "severe"],
+            "description": "Severity recorded for the area at garage intake"
+          },
+          "note": { "type": "string", "description": "What the difference is, for people" }
+        },
+        "required": ["area"],
+        "additionalProperties": false
+      }
+    },
+    "releaseConditionReportEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the ConditionReport written when the vehicle left the garage" },
+    "diagnosis": { "type": "string", "description": "What the garage found wrong with the vehicle" },
+    "quote": {
+      "type": "object",
+      "properties": {
+        "parts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": { "type": "string", "description": "What the part is" },
+              "partNumber": { "type": "string", "description": "Manufacturer or supplier part number" },
+              "quantity": { "type": "number", "minimum": 0, "description": "How many are needed" },
+              "unitPrice": { "type": "number", "minimum": 0, "description": "Price of one, in the quote currency" }
+            },
+            "required": ["description"],
+            "additionalProperties": false
+          },
+          "description": "Parts the repair needs, one entry per part"
+        },
+        "labourHours": { "type": "number", "minimum": 0, "description": "Hours of work the repair is expected to take" },
+        "labourRate": { "type": "number", "minimum": 0, "description": "Price of one hour of work, in the quote currency" },
+        "total": { "type": "number", "minimum": 0, "description": "Total of the quote, parts and labour together, in the quote currency" },
+        "currency": { "type": "string", "description": "ISO 4217 code of every amount in the quote" },
+        "quotedAt": { "type": "string", "format": "date-time", "description": "When the quote was given" }
+      },
+      "additionalProperties": false,
+      "description": "What the garage proposes to do and what it will cost, for the payer to authorise"
+    },
+    "insurerAuthorisationEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the insurer's decision on the quote. The ontology for that record is not proposed yet." },
+    "ownerAuthorisationEnvelopeId": {
+      "type": "string",
+      "description": "Required where the driver is not the owner and the lease, rental or fleet company must approve"
+    },
+    "partsOrdered": {
+      "type": "array",
+      "description": "Lead times are modelled but not yet confirmed as reliably available from suppliers",
+      "items": {
+        "type": "object",
+        "properties": {
+          "description": { "type": "string", "description": "What the part is" },
+          "partNumber": { "type": "string", "description": "Manufacturer or supplier part number" },
+          "orderedAt": { "type": "string", "format": "date-time", "description": "When the part was ordered" },
+          "expectedAt": { "type": "string", "format": "date-time", "description": "When the supplier expects to deliver the part" },
+          "receivedAt": { "type": "string", "format": "date-time", "description": "When the part arrived at the garage" }
+        },
+        "required": ["description"],
+        "additionalProperties": false
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["awaitingIntake", "diagnosing", "awaitingAuthorisation", "inRepair", "readyForCollection", "released", "totalLoss", "cancelled"],
+      "description": "Where the repair stands. Every change also writes a CaseEvent."
+    },
+    "expectedCompletionAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Updated when a parts lead time moves. A MobilityJob linked to this repair extends automatically with it."
+    },
+    "actualCompletionAt": { "type": "string", "format": "date-time", "description": "When the repair was actually finished" },
+    "totalLoss": {
+      "type": "object",
+      "description": "Declaring a total loss redirects the vehicle to a salvage destination and turns the replacement mobility from temporary into permanent",
+      "properties": {
+        "declared": { "type": "boolean", "description": "Whether the vehicle has been declared a total loss" },
+        "declaredByEName": { "type": "string", "description": "eName of the person who declared the total loss" },
+        "declaredAt": { "type": "string", "format": "date-time", "description": "When the total loss was declared" },
+        "reason": { "type": "string", "description": "Why the vehicle is not worth repairing" }
+      },
+      "additionalProperties": false
+    },
+    "workPerformed": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Also written back to the vehicle eVault, so it stays with the vehicle"
+    },
+    "costRecordEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the record of what this repair cost. The ontology for that record is not proposed yet." },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the record was first written" },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "When the record was last changed" },
+    "revision": { "type": "integer", "minimum": 1, "description": "Starts at 1 and goes up by one on every change to the record" }
+  },
+  "required": ["jobId", "canonicalOwnerEName", "garageEName", "vehicleEName", "status", "createdAt"],
+  "additionalProperties": false
+}

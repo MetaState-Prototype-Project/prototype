@@ -1,0 +1,206 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "00707488-59f1-411f-82ce-a8769796a25f",
+  "title": "ProviderCapability",
+  "domain": "mobility",
+  "description": "A standing declaration of what a provider can do, changed rarely. This is what turns the knowledge that today sits only in the head of a planner into something a system can match on, and what lets a company that is new or small be found without first having to be remembered. One schema for every kind of provider, discriminated on providerType, because recovery matching, transporter matching and garage selection are all the same read. Held in the eVault of the provider organisation, which is the only party entitled to declare it.",
+  "type": "object",
+  "properties": {
+    "capabilityId": { "type": "string", "minLength": 1, "description": "Identifier of this declaration" },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the provider organisation eVault"
+    },
+    "providerEName": { "type": "string", "minLength": 1, "description": "eName of the provider organisation making the declaration" },
+    "providerType": {
+      "type": "string",
+      "enum": ["recovery", "transport", "repair", "mobility", "salvage", "roadside", "assistance", "coordination", "roadAuthority"],
+      "description": "assistance, coordination and roadAuthority are bare declarations of what an organisation is, with no service block: the SAMN apps admit only staff of an organisation that declares the app's kind. A roadAuthority publishes RoadSection records and the roadAuthorityRecovery Agreements for them."
+    },
+    "operatingArea": {
+      "type": "object",
+      "description": "Where the provider works. Either a radius from a base, or named regions, or both.",
+      "properties": {
+        "baseLat": { "type": "number", "description": "Latitude of the provider's base in decimal degrees (WGS 84)" },
+        "baseLon": { "type": "number", "description": "Longitude of the provider's base in decimal degrees (WGS 84)" },
+        "radiusKm": { "type": "number", "minimum": 0, "description": "How far from the base the provider works, in kilometres" },
+        "regions": { "type": "array", "items": { "type": "string" }, "description": "Names of the regions the provider works in" },
+        "countries": { "type": "array", "items": { "type": "string" }, "description": "ISO 3166-1 alpha-2 codes of the countries the provider works in" }
+      },
+      "additionalProperties": false
+    },
+    "crossBorder": { "type": "boolean", "description": "Whether the provider takes work that crosses a national border" },
+    "certifications": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "description": "For example EV-safe handling, heavy recovery, hazardous load"
+    },
+    "responseTimeCommitmentMinutes": { "type": "integer", "minimum": 0, "description": "How many minutes after accepting a job the provider commits to being on scene" },
+    "recovery": {
+      "type": "object",
+      "properties": {
+        "maxLiftKg": { "type": "number", "minimum": 0, "description": "Heaviest vehicle the fleet can lift, in kilograms" },
+        "maxTowKg": { "type": "number", "minimum": 0, "description": "Heaviest vehicle the fleet can tow, in kilograms" },
+        "towingMethods": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["flatbed", "wheelLift", "underlift", "spectacleLift", "craneLift", "flatTow"]
+          },
+          "uniqueItems": true,
+          "description": "Towing methods the fleet can perform"
+        },
+        "winching": { "type": "boolean", "description": "Whether the provider can winch a vehicle that cannot roll" },
+        "evContainment": { "type": "boolean", "description": "Whether the provider can carry a damaged electric vehicle with containment against a battery fire" },
+        "heavyRecovery": { "type": "boolean", "description": "Whether the provider recovers trucks, buses and other heavy vehicles" },
+        "hazardousGoods": { "type": "boolean", "description": "Whether the provider may recover vehicles carrying hazardous goods" },
+        "maxVehicleHeightMm": { "type": "integer", "minimum": 0, "description": "Tallest vehicle the fleet can carry, in millimetres" },
+        "tunnelRestricted": { "type": "boolean", "description": "Whether the fleet is barred from some tunnels, for example by height or a hazardous load" },
+        "bridgeWeightLimitKg": { "type": "number", "minimum": 0, "description": "Bridge weight limit the loaded truck stays under, in kilograms, so routes over weight-limited bridges can be checked" }
+      },
+      "additionalProperties": false,
+      "description": "What the provider can recover. Required when providerType is recovery."
+    },
+    "transport": {
+      "type": "object",
+      "properties": {
+        "slots": { "type": "integer", "minimum": 1, "description": "Most vehicles one transporter carries" },
+        "maxWeightKgPerSlot": { "type": "number", "minimum": 0, "description": "Heaviest vehicle one place can take, in kilograms" },
+        "maxLengthMm": { "type": "integer", "minimum": 0, "description": "Longest vehicle one place can take, in millimetres" },
+        "maxHeightMm": { "type": "integer", "minimum": 0, "description": "Tallest vehicle one place can take, in millimetres" },
+        "covered": { "type": "boolean", "description": "Whether the provider has enclosed transporters" },
+        "canLoadNonRolling": { "type": "boolean", "description": "Whether the provider can load a vehicle that cannot roll" },
+        "evCapable": { "type": "boolean", "description": "Whether the provider may carry a damaged electric vehicle" }
+      },
+      "additionalProperties": false,
+      "description": "What the provider can transport. Required when providerType is transport."
+    },
+    "repair": {
+      "type": "object",
+      "properties": {
+        "brands": { "type": "array", "items": { "type": "string" }, "uniqueItems": true, "description": "Vehicle makes the garage is approved or equipped for. Empty means all makes." },
+        "mechanical": { "type": "boolean", "description": "Whether the garage does mechanical repairs" },
+        "bodywork": { "type": "boolean", "description": "Whether the garage does bodywork" },
+        "glass": { "type": "boolean", "description": "Whether the garage replaces and repairs glass" },
+        "paint": { "type": "boolean", "description": "Whether the garage does paintwork" },
+        "mot": { "type": "boolean", "description": "Whether the garage carries out the periodic roadworthiness test, such as the MOT or APK" },
+        "adasCalibration": { "type": "boolean", "description": "Whether the garage can calibrate driver-assistance cameras and sensors after a repair" },
+        "evCertified": { "type": "boolean", "description": "Whether the garage is certified to work on high-voltage electric vehicles" },
+        "courtesyVehicles": { "type": "boolean", "description": "Whether the garage lends a car to the driver during the repair" },
+        "equipmentHeld": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "Lifts, alignment benches, calibration rigs, diagnostic tooling, EV workshop equipment. Summarised here rather than modelled as individual assets, which would be more precise but far heavier to maintain."
+        }
+      },
+      "additionalProperties": false,
+      "description": "What the garage can repair. Required when providerType is repair."
+    },
+    "mobility": {
+      "type": "object",
+      "properties": {
+        "serviceTypes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["taxi", "replacementVehicle", "publicTransport", "accommodation"]
+          },
+          "uniqueItems": true,
+          "description": "Kinds of onward transport the provider offers"
+        },
+        "vehicleClasses": { "type": "array", "items": { "type": "string" }, "uniqueItems": true, "description": "Rental classes of the replacement cars offered, such as compact, estate or van" },
+        "maxSeats": { "type": "integer", "minimum": 1, "description": "Most seats in one vehicle the provider offers, driver included" },
+        "wheelchairAccessible": { "type": "boolean", "description": "Whether the provider has wheelchair-accessible vehicles" },
+        "animalsAllowed": { "type": "boolean", "description": "Whether animals may travel along" },
+        "childSeatsAvailable": { "type": "boolean", "description": "Whether the provider supplies child seats" },
+        "minDriverAge": { "type": "integer", "minimum": 0, "description": "Youngest age at which a driver may be given a replacement car" },
+        "licenceClassesAccepted": { "type": "array", "items": { "type": "string" }, "description": "Driving licence classes a driver may hold to be given a replacement car, such as B" },
+        "tariffs": {
+          "type": "object",
+          "description": "What the provider charges (FR-DM-14), so the driver sees the price and what they pay before choosing (FR-DM-06). Absent: the provider quotes no published price.",
+          "properties": {
+            "currency": { "type": "string", "description": "ISO 4217, e.g. EUR" },
+            "taxi": {
+              "type": "object",
+              "properties": {
+                "baseFare": { "type": "number", "minimum": 0, "description": "Fixed amount per ride, in currency" },
+                "perKm": { "type": "number", "minimum": 0, "description": "Amount per kilometre, in currency" }
+              },
+              "additionalProperties": false,
+              "description": "Taxi fare: baseFare plus perKm times the distance"
+            },
+            "replacementVehicle": {
+              "type": "array",
+              "description": "Price per day for each vehicle class offered",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "vehicleClass": { "type": "string", "description": "The rental class this price is for" },
+                  "perDay": { "type": "number", "minimum": 0, "description": "Price per day, in currency" },
+                  "deliveryFee": { "type": "number", "minimum": 0, "description": "Bringing the car to the driver and collecting it again" }
+                },
+                "required": ["vehicleClass", "perDay"],
+                "additionalProperties": false
+              }
+            },
+            "publicTransport": {
+              "type": "object",
+              "properties": {
+                "perKm": { "type": "number", "minimum": 0, "description": "Amount per kilometre, in currency" },
+                "minimumFare": { "type": "number", "minimum": 0, "description": "Lowest fare charged for a journey, in currency" }
+              },
+              "additionalProperties": false,
+              "description": "Public transport fare: perKm times the distance, at least minimumFare"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "description": "What onward transport the provider offers. Required when providerType is mobility."
+    },
+    "salvage": {
+      "type": "object",
+      "properties": {
+        "acceptanceCriteria": { "type": "array", "items": { "type": "string" }, "description": "Conditions a vehicle must meet to be accepted, one entry per condition" },
+        "acceptsEv": { "type": "boolean", "description": "Whether damaged electric vehicles are accepted" },
+        "acceptsHazardous": { "type": "boolean", "description": "Whether vehicles with a hazardous load or a fluid leak are accepted" }
+      },
+      "additionalProperties": false,
+      "description": "What wrecks the provider takes"
+    },
+    "insurerAgreementEnvelopeIds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Agreements the provider is party to, since those constrain which work can be sent to it"
+    },
+    "validFrom": { "type": "string", "format": "date-time", "description": "When the declaration starts to apply" },
+    "validUntil": { "type": ["string", "null"], "format": "date-time", "description": "When the declaration stops applying. Null or absent means open-ended." },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the record was first written" },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "When the record was last changed" },
+    "revision": { "type": "integer", "minimum": 1, "description": "Starts at 1 and goes up by one on every change to the record" }
+  },
+  "required": ["capabilityId", "canonicalOwnerEName", "providerEName", "providerType", "createdAt"],
+  "allOf": [
+    {
+      "if": { "properties": { "providerType": { "const": "recovery" } }, "required": ["providerType"] },
+      "then": { "required": ["recovery"] }
+    },
+    {
+      "if": { "properties": { "providerType": { "const": "transport" } }, "required": ["providerType"] },
+      "then": { "required": ["transport"] }
+    },
+    {
+      "if": { "properties": { "providerType": { "const": "repair" } }, "required": ["providerType"] },
+      "then": { "required": ["repair"] }
+    },
+    {
+      "if": { "properties": { "providerType": { "const": "mobility" } }, "required": ["providerType"] },
+      "then": { "required": ["mobility"] }
+    }
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,149 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "a7cca09b-5502-4fad-bb89-c6ec89f6537f",
+  "title": "RecoveryJob",
+  "domain": "mobility",
+  "description": "The physical recovery of a vehicle from the roadside, from the moment it is created out of a failed roadside attempt to the moment the vehicle is off the road. Held in the eVault of the organisation that issues it, because the job has to exist and be matched before an assignee is known; the assigned company is granted update permission on it once it accepts. The requirements block carries the same field names as RoadsideAttempt.recoveryRequirements, so what was observed on site becomes what is matched on without being re-entered.",
+  "type": "object",
+  "properties": {
+    "jobId": { "type": "string", "minLength": 1, "description": "Identifier of this job" },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the issuing organisation eVault"
+    },
+    "issuerEName": { "type": "string", "minLength": 1, "description": "eName of the organisation that issued the job and matches it to a recovery company" },
+    "incidentEnvelopeId": { "type": "string", "minLength": 1, "description": "MetaEnvelope id of the Incident the vehicle is recovered for" },
+    "vehicleEName": { "type": "string", "minLength": 1, "description": "eName of the vehicle to recover" },
+    "roadsideAttemptEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the RoadsideAttempt the requirements were taken from, where there was one" },
+    "requirements": {
+      "type": "object",
+      "description": "Derived from the case, not from manual entry",
+      "properties": {
+        "weightKg": { "type": "number", "minimum": 0, "description": "Weight of the vehicle, load included, in kilograms" },
+        "dimensions": {
+          "type": "object",
+          "properties": {
+            "lengthMm": { "type": "integer", "minimum": 0, "description": "Overall length in millimetres" },
+            "widthMm": { "type": "integer", "minimum": 0, "description": "Overall width in millimetres, without mirrors" },
+            "heightMm": { "type": "integer", "minimum": 0, "description": "Overall height in millimetres" }
+          },
+          "additionalProperties": false,
+          "description": "Size of the vehicle, in millimetres"
+        },
+        "drivetrain": {
+          "type": "string",
+          "enum": ["petrol", "diesel", "lpg", "cng", "hybrid", "electric", "hydrogen"],
+          "description": "Drivetrain of the vehicle. It decides how the vehicle may be towed and stored."
+        },
+        "wheelsTurn": { "type": "boolean", "description": "Whether all wheels still turn freely" },
+        "winchable": { "type": "boolean", "description": "Whether the vehicle can be winched onto a flatbed" },
+        "towingMethod": {
+          "type": "string",
+          "enum": ["flatbed", "wheelLift", "underlift", "spectacleLift", "craneLift", "flatTow"],
+          "description": "The towing method the vehicle needs"
+        },
+        "equipmentNeeded": { "type": "array", "items": { "type": "string" }, "uniqueItems": true, "description": "Equipment the recovery must bring, such as dollies or a crane" },
+        "certificationsRequired": { "type": "array", "items": { "type": "string" }, "uniqueItems": true, "description": "Certifications the recovery crew must hold, such as for high-voltage electric vehicles" },
+        "accessConstraints": { "type": "string", "description": "What makes the vehicle hard to reach, such as a ditch, a car park height limit or a narrow road" }
+      },
+      "additionalProperties": false
+    },
+    "pickupLocation": {
+      "type": "object",
+      "properties": {
+        "lat": { "type": "number", "description": "Latitude in decimal degrees (WGS 84)" },
+        "lon": { "type": "number", "description": "Longitude in decimal degrees (WGS 84)" },
+        "address": { "type": "string", "description": "Street address of the pick-up, as a person would write it" },
+        "road": { "type": "string", "description": "Road name or number, such as A2" },
+        "roadSectionId": { "type": "string", "description": "roadSectionId of the RoadSection the vehicle is on, which decides the Agreements that apply" },
+        "hazards": { "type": "array", "items": { "type": "string" }, "description": "What makes the location dangerous or hard to work at, using the hazard names of Incident.location.hazards" }
+      },
+      "required": ["lat", "lon"],
+      "additionalProperties": false,
+      "description": "Where the vehicle is to be collected"
+    },
+    "destination": {
+      "type": "object",
+      "description": "Where the vehicle is taken off the road to. A depot stop is a legitimate destination and is not the same as the garage.",
+      "properties": {
+        "locationEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the ServiceLocation the vehicle is taken to" },
+        "destinationType": {
+          "type": "string",
+          "enum": ["depot", "holdingYard", "garageSite", "safeParking", "auction", "scrapyard"],
+          "description": "What kind of place the vehicle is taken to"
+        },
+        "lat": { "type": "number", "description": "Latitude in decimal degrees (WGS 84)" },
+        "lon": { "type": "number", "description": "Longitude in decimal degrees (WGS 84)" },
+        "address": { "type": "string", "description": "Street address of the destination, as a person would write it" }
+      },
+      "additionalProperties": false
+    },
+    "deadlineAt": { "type": "string", "format": "date-time", "description": "Latest time the vehicle must be off the road, such as a clearance deadline set by the road authority" },
+    "responseTimeObligationMinutes": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Attached to the road section by an Agreement, or set as a clearance deadline by an EmergencyResponse. A hard requirement, not a preference."
+    },
+    "applicableAgreementEnvelopeIds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "The contracts the matching had to apply: which company may work on this road section, exclusivity, and the own-fleet-first rule"
+    },
+    "assignedCompanyEName": { "type": "string", "description": "eName of the recovery company that accepted the job" },
+    "assignedAssetEName": {
+      "type": "string",
+      "description": "eName of the specific truck, not just the company: a Vehicle whose eVault also holds a ServiceVehicle profile with serviceRole recovery"
+    },
+    "assignedOperatorEName": {
+      "type": "string",
+      "description": "The named operator who performs the recovery and signs for it"
+    },
+    "matchRanking": {
+      "type": "array",
+      "description": "Why each candidate ranked where it did, so a planner can trust the result and override it with a reason",
+      "items": {
+        "type": "object",
+        "properties": {
+          "candidateEName": { "type": "string", "description": "eName of the recovery company that was ranked" },
+          "rank": { "type": "integer", "minimum": 1, "description": "Place in the ranking, 1 being the best match" },
+          "score": { "type": "number", "description": "Score the matching gave the candidate. Higher is better." },
+          "reasons": { "type": "array", "items": { "type": "string" }, "description": "Why the candidate got its place, one reason per entry, in words a planner can read" }
+        },
+        "required": ["candidateEName", "rank"],
+        "additionalProperties": false
+      }
+    },
+    "overrideReason": {
+      "type": "string",
+      "description": "Set when a planner picks other than the top-ranked candidate"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "offered", "accepted", "declined", "enRoute", "onScene", "inProgress", "completed", "cancelled", "failed"],
+      "description": "Where the job stands. Every change also writes a CaseEvent."
+    },
+    "declineReason": { "type": "string", "description": "Why the offered company declined the job" },
+    "offeredAt": { "type": "string", "format": "date-time", "description": "When the job was offered to a company" },
+    "acceptedAt": { "type": "string", "format": "date-time", "description": "When the company accepted the job" },
+    "enRouteAt": { "type": "string", "format": "date-time", "description": "When the truck set off to the vehicle" },
+    "onSceneAt": { "type": "string", "format": "date-time", "description": "When the truck arrived at the vehicle" },
+    "completedAt": { "type": "string", "format": "date-time", "description": "When the vehicle was delivered at its destination" },
+    "conditionReportEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the ConditionReport written when the vehicle was picked up" },
+    "handoverReceiptEnvelopeIds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "MetaEnvelope ids of the HandoverReceipts signed under this job"
+    },
+    "costRecordEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the record of what this job cost. The ontology for that record is not proposed yet." },
+    "authorisationEnvelopeId": {
+      "type": "string",
+      "description": "The insurer decision. The vehicle should not move before the money is agreed."
+    },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the record was first written" },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "When the record was last changed" },
+    "revision": { "type": "integer", "minimum": 1, "description": "Starts at 1 and goes up by one on every change to the record" }
+  },
+  "required": ["jobId", "canonicalOwnerEName", "issuerEName", "incidentEnvelopeId", "vehicleEName", "status", "createdAt"],
+  "additionalProperties": false
+}

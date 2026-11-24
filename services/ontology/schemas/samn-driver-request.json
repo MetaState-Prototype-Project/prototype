@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "f4f29f10-1ad2-4e85-8ef7-0ccd1e3c4abf",
+  "title": "DriverRequest",
+  "domain": "mobility",
+  "description": "A person asking to become a car's current driver, usually by scanning the code on the car, and the answer. Held in the vehicle's eVault, so it stays with the car's history. For a private car the current driver answers. For a company car a member of the company becomes the driver at once, and the record is the log of who took the car and when.",
+  "type": "object",
+  "properties": {
+    "requestId": { "type": "string", "minLength": 1, "description": "Identifier of this request" },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the vehicle whose eVault holds this record"
+    },
+    "vehicleEName": { "type": "string", "minLength": 1, "description": "eName of the vehicle the requester wants to drive" },
+    "requesterEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the person who wants to drive"
+    },
+    "askedEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the person who answers: the current driver, or the owner if the car has none. Absent when the request needed no answer."
+    },
+    "companyEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The company the requester belongs to, when this was a company car taken without asking"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "approved", "declined", "cancelled"],
+      "description": "A pending request is treated as lapsed once expiresAt has passed"
+    },
+    "expiresAt": { "type": "string", "format": "date-time", "description": "When a pending request lapses if nobody has answered it" },
+    "decidedByEName": { "type": "string", "minLength": 1, "description": "eName of the person who approved or declined the request" },
+    "decidedAt": { "type": "string", "format": "date-time", "description": "When the request was approved, declined or cancelled" },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the record was first written" },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "When the record was last changed" },
+    "revision": { "type": "integer", "minimum": 1, "description": "Starts at 1 and goes up by one on every change to the record" }
+  },
+  "required": ["requestId", "canonicalOwnerEName", "vehicleEName", "requesterEName", "status", "createdAt"],
+  "additionalProperties": false
+}

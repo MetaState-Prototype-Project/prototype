@@ -1,0 +1,139 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "860ebbeb-1c30-4546-8426-68d7c55c3538",
+  "title": "MobilityJob",
+  "domain": "mobility",
+  "description": "The onward journey of the driver once the vehicle is gone. Today this is arranged separately, by phone, and usually only after the vehicle has already left; here it starts at the same moment as the recovery matching. Held in the eVault of the driver, because it is the one part of the case that is genuinely theirs rather than the vehicle. linkedRepairJobEnvelopeId is what lets a replacement period extend when the repair completion date moves, and lets the return of the replacement vehicle be scheduled against the delivery of the repaired one.",
+  "type": "object",
+  "properties": {
+    "jobId": { "type": "string", "minLength": 1, "description": "Identifier of this job" },
+    "canonicalOwnerEName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "eName of the driver eVault"
+    },
+    "driverEName": { "type": "string", "minLength": 1, "description": "eName of the driver who needs onward transport" },
+    "incidentEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the Incident, where the job is part of a case" },
+    "type": {
+      "type": "string",
+      "enum": ["taxi", "replacementVehicle", "publicTransport", "accommodation"],
+      "description": "What kind of onward transport is arranged"
+    },
+    "peopleToMove": { "type": "integer", "minimum": 1, "description": "Number of people to move, the driver included" },
+    "children": { "type": "integer", "minimum": 0, "description": "How many of them are children, who need child seats" },
+    "animals": { "type": "integer", "minimum": 0, "description": "Number of animals travelling with them" },
+    "luggage": { "type": "string", "enum": ["none", "light", "heavy"], "description": "How much luggage has to come along" },
+    "accessibilityNeeds": { "type": "array", "items": { "type": "string" }, "description": "Needs the transport must meet, such as a wheelchair, one entry per need" },
+    "fromLocation": {
+      "type": "object",
+      "properties": {
+        "lat": { "type": "number", "description": "Latitude in decimal degrees (WGS 84)" },
+        "lon": { "type": "number", "description": "Longitude in decimal degrees (WGS 84)" },
+        "address": { "type": "string", "description": "Street address of the pick-up, as a person would write it" }
+      },
+      "additionalProperties": false,
+      "description": "Where the people are to be picked up"
+    },
+    "toLocation": {
+      "type": "object",
+      "properties": {
+        "lat": { "type": "number", "description": "Latitude in decimal degrees (WGS 84)" },
+        "lon": { "type": "number", "description": "Longitude in decimal degrees (WGS 84)" },
+        "address": { "type": "string", "description": "Street address of the destination, as a person would write it" }
+      },
+      "additionalProperties": false,
+      "description": "Where the people want to go"
+    },
+    "neededAt": { "type": "string", "format": "date-time", "description": "When the transport is needed" },
+    "untilAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "End of the replacement or accommodation period. Extended automatically when the repair completion date moves, within the limits of the entitlement."
+    },
+    "entitlement": {
+      "type": "object",
+      "description": "What the insurer or the membership covers, read before the options are offered so the driver sees what they pay before choosing",
+      "properties": {
+        "coveredAmount": { "type": "number", "minimum": 0, "description": "Total amount covered for this job, in currency" },
+        "coveredPerDay": { "type": "number", "minimum": 0, "description": "Amount covered per day, for a replacement vehicle or accommodation" },
+        "coveredDays": { "type": "integer", "minimum": 0, "description": "Number of days covered, for a replacement vehicle or accommodation" },
+        "currency": { "type": "string", "description": "ISO 4217 code of every amount in the entitlement" },
+        "sourceType": { "type": "string", "enum": ["policy", "membership", "owner", "none"], "description": "What the cover comes from: an InsurancePolicy, an AssistanceMembership, the vehicle owner, or nothing" },
+        "sourceEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the InsurancePolicy or AssistanceMembership the cover comes from" }
+      },
+      "additionalProperties": false
+    },
+    "driverPreference": {
+      "type": "object",
+      "properties": {
+        "preferredTypes": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["taxi", "replacementVehicle", "publicTransport", "accommodation"] },
+          "description": "Kinds of transport the driver prefers, most preferred first"
+        },
+        "licenceClass": { "type": "string", "description": "Driving licence class the driver holds, for a replacement vehicle" },
+        "driverAge": { "type": "integer", "minimum": 0, "description": "Age of the driver, for the age limit on a replacement vehicle" },
+        "willingToPayExcess": { "type": "boolean", "description": "Whether the driver will pay what the cover does not" },
+        "notes": { "type": "string", "description": "Anything else the driver asked for, in their own words" }
+      },
+      "additionalProperties": false,
+      "description": "What the driver asked for, read when the options are chosen"
+    },
+    "offeredOptions": {
+      "type": "array",
+      "description": "Only options actually available now and in the right place. Recorded so the choice can be audited.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "providerEName": { "type": "string", "description": "eName of the provider offering the option" },
+          "type": { "type": "string", "enum": ["taxi", "replacementVehicle", "publicTransport", "accommodation"], "description": "What kind of transport the option is" },
+          "availableAt": { "type": "string", "format": "date-time", "description": "When the provider can start" },
+          "price": { "type": "number", "minimum": 0, "description": "Full price of the option, in the entitlement currency" },
+          "coveredAmount": { "type": "number", "minimum": 0, "description": "Part of the price the cover pays" },
+          "driverPays": { "type": "number", "minimum": 0, "description": "Part of the price the driver pays" }
+        },
+        "required": ["providerEName", "type"],
+        "additionalProperties": false
+      }
+    },
+    "assignedProviderEName": { "type": "string", "description": "eName of the provider whose option was chosen" },
+    "assignedAssetEName": {
+      "type": "string",
+      "description": "eName of the specific replacement vehicle, where the type is replacementVehicle: a Vehicle whose eVault also holds a ServiceVehicle profile with serviceRole replacement"
+    },
+    "licenceVerified": {
+      "type": "boolean",
+      "description": "Checked against age and class restrictions before a replacement vehicle is issued"
+    },
+    "conditionReportEnvelopeIds": {
+      "type": "object",
+      "description": "A replacement vehicle is condition-reported at handover and at return, using the same object as the rest of the case",
+      "properties": {
+        "out": { "type": "string", "description": "MetaEnvelope id of the ConditionReport written when the replacement vehicle was handed to the driver" },
+        "in": { "type": "string", "description": "MetaEnvelope id of the ConditionReport written when the replacement vehicle came back" }
+      },
+      "additionalProperties": false
+    },
+    "linkedRepairJobEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the RepairJob on the driver's vehicle, whose completion date decides how long a replacement is needed" },
+    "linkedTransportJobEnvelopeId": {
+      "type": "string",
+      "description": "The return delivery of the repaired vehicle, so the two movements are coordinated instead of arranged separately"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "offered", "accepted", "declined", "enRoute", "onScene", "inProgress", "completed", "cancelled", "failed"],
+      "description": "Where the job stands. Every change also writes a CaseEvent."
+    },
+    "fallbackToHuman": {
+      "type": "boolean",
+      "description": "Set when nothing suitable was available and the case fell back to a person. Recorded rather than silent."
+    },
+    "costRecordEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the record of what this job cost. The ontology for that record is not proposed yet." },
+    "authorisationEnvelopeId": { "type": "string", "description": "MetaEnvelope id of the payer's decision to pay for this job. The ontology for that record is not proposed yet." },
+    "createdAt": { "type": "string", "format": "date-time", "description": "When the record was first written" },
+    "updatedAt": { "type": "string", "format": "date-time", "description": "When the record was last changed" },
+    "revision": { "type": "integer", "minimum": 1, "description": "Starts at 1 and goes up by one on every change to the record" }
+  },
+  "required": ["jobId", "canonicalOwnerEName", "driverEName", "type", "status", "createdAt"],
+  "additionalProperties": false
+}
